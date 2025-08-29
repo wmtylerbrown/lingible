@@ -12,6 +12,7 @@ from ..models.translations import (
     TranslationDirection,
     BedrockResponse,
 )
+from ..models.users import UserTier
 from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.aws_services import aws_services
@@ -60,7 +61,7 @@ class TranslationService:
                 )
 
             # Atomically increment usage (no need to pass UsageLimit object)
-            self.user_service.increment_usage(user_id, usage_response.tier)
+            self.user_service.increment_usage(user_id, UserTier(usage_response.tier))
 
             # Generate Bedrock prompt
             prompt = self._generate_bedrock_prompt(request)

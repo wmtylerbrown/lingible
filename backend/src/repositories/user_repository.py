@@ -221,7 +221,7 @@ class UserRepository:
             return None
 
     @tracer.trace_database_operation("update", "users")
-    def increment_usage(self, user_id: str, tier: str = "free") -> bool:
+    def increment_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> bool:
         """Atomically increment usage counter and reset if needed."""
         try:
             now = datetime.now(timezone.utc)
@@ -238,7 +238,7 @@ class UserRepository:
                     ExpressionAttributeValues={
                         ":one": 1,
                         ":updated_at": now.isoformat(),
-                        ":tier": tier,
+                        ":tier": tier.value,
                     },
                     ConditionExpression="attribute_not_exists(reset_daily_at) OR reset_daily_at >= :today_start",
                     ReturnValues="UPDATED_NEW",
@@ -270,7 +270,7 @@ class UserRepository:
                         ":one": 1,
                         ":today_start": today_start.isoformat(),
                         ":updated_at": now.isoformat(),
-                        ":tier": tier,
+                        ":tier": tier.value,
                     },
                     ReturnValues="UPDATED_NEW",
                 )
@@ -304,7 +304,7 @@ class UserRepository:
             return False
 
     @tracer.trace_database_operation("update", "users")
-    def reset_daily_usage(self, user_id: str, tier: str = "free") -> bool:
+    def reset_daily_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> bool:
         """Reset daily usage counter to 0."""
         try:
             now = datetime.now(timezone.utc)
@@ -320,7 +320,7 @@ class UserRepository:
                     ":zero": 0,
                     ":today_start": today_start.isoformat(),
                     ":updated_at": now.isoformat(),
-                    ":tier": tier,
+                    ":tier": tier.value,
                 },
             )
 

@@ -102,17 +102,17 @@ class UserService:
             raise
 
     def _create_default_usage_limits(
-        self, user_id: str, tier: str = "free"
+        self, user_id: str, tier: UserTier = UserTier.FREE
     ) -> UsageLimit:
         """Create default usage limits for a user."""
         try:
             now = datetime.now(timezone.utc)
 
             # Get limits based on tier
-            tier_config = self.usage_config.get(tier, self.usage_config["free"])
+            tier_config = self.usage_config.get(tier.value, self.usage_config["free"])
 
             usage = UsageLimit(
-                tier=tier,
+                tier=tier.value,
                 current_daily_usage=0,
                 reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
             )
@@ -157,14 +157,14 @@ class UserService:
             raise
 
     @tracer.trace_method("increment_usage")
-    def increment_usage(self, user_id: str, tier: str = "free") -> None:
+    def increment_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> None:
         """Atomically increment user usage (assumes limits already checked)."""
         success = self.repository.increment_usage(user_id, tier)
         if not success:
             raise SystemError(f"Failed to increment usage for user {user_id}")
 
     @tracer.trace_method("reset_daily_usage")
-    def reset_daily_usage(self, user_id: str, tier: str = "free") -> None:
+    def reset_daily_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> None:
         """Reset daily usage counter to 0."""
         success = self.repository.reset_daily_usage(user_id, tier)
         if not success:
