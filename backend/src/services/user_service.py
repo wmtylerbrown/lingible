@@ -213,12 +213,16 @@ class UserService:
                 reset_daily_at=None,
             )
 
+        # Get limits from config based on tier
+        tier_config = self.usage_config.get(usage.tier, self.usage_config["free"])
+        daily_limit = tier_config["daily_limit"]
+
         # Check if limits are exceeded
-        if usage.current_daily_usage >= usage.daily_limit:
+        if usage.current_daily_usage >= daily_limit:
             raise UsageLimitExceededError(
                 "daily",
                 usage.current_daily_usage,
-                usage.daily_limit,
+                daily_limit,
             )
 
     @tracer.trace_method("check_and_increment_usage")
