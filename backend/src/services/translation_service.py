@@ -50,16 +50,19 @@ class TranslationService:
             # Validate request
             self._validate_translation_request(request)
 
-            # Check usage limits and get usage data
-            usage_response, usage = self.user_service._get_usage_data_and_check_limits(
-                user_id
-            )
+            # Check usage limits first
+            usage_response = self.user_service.get_user_usage(user_id)
             if usage_response.daily_remaining <= 0:
                 raise UsageLimitExceededError(
                     "daily",
                     usage_response.daily_used,
                     usage_response.daily_limit,
                 )
+
+            # Get usage data for incrementing (second DB call, but simpler API)
+            usage = self.user_service.repository.get_usage_limits(user_id)
+            if not usage:
+                raise ValueError(f"No usage data found for user {user_id}")
 
             # Increment usage
             self.user_service.increment_usage(user_id, usage)

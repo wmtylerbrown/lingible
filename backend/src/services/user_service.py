@@ -69,20 +69,6 @@ class UserService:
             logger.log_error(e, {"operation": "get_user", "user_id": user_id})
             return None
 
-    @tracer.trace_method("get_user_profile")
-    def get_user_profile(self, user_id: str) -> User:
-        """Get user profile for API response (static, cacheable data)."""
-        try:
-            user = self.repository.get_user(user_id)
-            if not user:
-                raise ValidationError(f"User not found: {user_id}")
-
-            return user
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_user_profile", "user_id": user_id})
-            raise
-
     @tracer.trace_method("get_user_usage")
     def get_user_usage(self, user_id: str) -> UserUsageResponse:
         """Get user usage statistics for API response (dynamic data)."""
@@ -91,7 +77,7 @@ class UserService:
             usage_limits = self.repository.get_usage_limits(user_id)
             if not usage_limits:
                 # Create default usage limits for new user
-                usage_limits = self._create_default_usage_limits_for_user(user_id)
+                usage_limits = self._create_default_usage_limits(user_id)
 
             # Get limits from config based on tier
             tier_config = self.usage_config.get(
@@ -115,98 +101,36 @@ class UserService:
             logger.log_error(e, {"operation": "get_user_usage", "user_id": user_id})
             raise
 
-    def _get_usage_data_and_check_limits(
-        self, user_id: str
-    ) -> tuple[UserUsageResponse, UsageLimit]:
-        """Get usage data and check limits (internal method for translation flow)."""
-        # Get usage limits only (tier is now included)
-        usage_limits = self.repository.get_usage_limits(user_id)
-        if not usage_limits:
-            # Create default usage limits for new user
-            usage_limits = self._create_default_usage_limits_for_user(user_id)
-
-        # Get limits from config based on tier
-        tier_config = self.usage_config.get(
-            usage_limits.tier, self.usage_config["free"]
-        )
-        daily_limit = tier_config["daily_limit"]
-
-        # Calculate daily remaining
-        daily_remaining = max(0, daily_limit - usage_limits.current_daily_usage)
-
-        # Create API response
-        usage_response = UserUsageResponse(
-            tier=usage_limits.tier,
-            daily_limit=daily_limit,
-            daily_used=usage_limits.current_daily_usage,
-            daily_remaining=daily_remaining,
-            total_used=0,  # We'll need to get this from user data if needed
-            reset_date=usage_limits.reset_daily_at or datetime.now(timezone.utc),
-        )
-
-        return usage_response, usage_limits
-
-    def _create_default_usage_limits_for_user(self, user_id: str) -> UsageLimit:
-        """Create default usage limits for a new user (assumes free tier)."""
+    def _create_default_usage_limits(
+        self, user_id: str, tier: str = "free"
+    ) -> UsageLimit:
+        """Create default usage limits for a user."""
         try:
             now = datetime.now(timezone.utc)
 
-            # Default to free tier
-            tier_config = self.usage_config["free"]
-            daily_limit = tier_config["daily_limit"]
+            # Get limits based on tier
+            tier_config = self.usage_config.get(tier, self.usage_config["free"])
 
             usage = UsageLimit(
-                tier="free",
+                tier=tier,
                 current_daily_usage=0,
                 reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
             )
 
-            # Save to database
             success = self.repository.update_usage_limits(user_id, usage)
             if not success:
                 logger.log_error(
                     Exception("Failed to create default usage limits"),
-                    {"user_id": user_id, "tier": "free"},
+                    {"user_id": user_id, "tier": tier},
                 )
 
             return usage
 
         except Exception as e:
             logger.log_error(
-                e,
-                {
-                    "operation": "_create_default_usage_limits_for_user",
-                    "user_id": user_id,
-                },
-            )
-            raise
-
-    def _create_default_usage_limits(self, user_id: str, tier: UserTier) -> None:
-        """Create default usage limits for a user."""
-        try:
-            now = datetime.now(timezone.utc)
-
-            # Get limits based on tier
-            tier_config = self.usage_config.get(tier.value, self.usage_config["free"])
-            daily_limit = tier_config["daily_limit"]
-
-            usage = UsageLimit(
-                tier=tier.value,
-                current_daily_usage=0,
-                reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
-            )
-
-            success = self.repository.update_usage_limits(user_id, usage)
-            if not success:
-                logger.log_error(
-                    Exception("Failed to create default usage limits"),
-                    {"user_id": user_id, "tier": tier.value},
-                )
-
-        except Exception as e:
-            logger.log_error(
                 e, {"operation": "_create_default_usage_limits", "user_id": user_id}
             )
+            raise
 
     @tracer.trace_method("update_user")
     def update_user(self, user: User) -> bool:
