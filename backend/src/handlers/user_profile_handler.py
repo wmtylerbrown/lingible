@@ -1,11 +1,10 @@
 """Lambda handler for user profile endpoint."""
 
-from typing import Any
-
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from ..models.events import UserProfileEvent
+from ..models.users import UserResponse
 from ..services.user_service import UserService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
@@ -17,7 +16,7 @@ from ..utils.envelopes import UserProfileEnvelope
 @tracer.trace_lambda
 @event_parser(model=UserProfileEvent, envelope=UserProfileEnvelope())
 @handle_errors(extract_user_id=extract_user_from_parsed_data)
-def handler(event: UserProfileEvent, context: LambdaContext) -> Any:
+def handler(event: UserProfileEvent, context: LambdaContext) -> UserResponse:
     """Handle user profile requests from mobile app."""
 
     # Extract user info from the event

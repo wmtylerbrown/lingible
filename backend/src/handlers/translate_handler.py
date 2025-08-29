@@ -1,12 +1,12 @@
 """Lambda handler for translation endpoint."""
 
-from typing import Any
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from ..models.translations import (
     TranslationRequestInternal,
     TranslationDirection,
+    TranslationResponse,
 )
 from ..models.events import TranslationEvent
 from ..services.translation_service import TranslationService
@@ -20,7 +20,7 @@ from ..utils.envelopes import TranslationEnvelope
 @tracer.trace_lambda
 @event_parser(model=TranslationEvent, envelope=TranslationEnvelope())
 @handle_errors(extract_user_id=extract_user_from_parsed_data)
-def handler(event: TranslationEvent, context: LambdaContext) -> Any:
+def handler(event: TranslationEvent, context: LambdaContext) -> TranslationResponse:
     """Handle translation requests from mobile app."""
 
     # Validate user authentication
