@@ -38,6 +38,7 @@ class TranslationService:
         self.user_service = UserService()
         self.bedrock_config = self.config.get_bedrock_config()
         self.usage_config = self.config.get_usage_limits()
+        self.storage_config = self.config.get_translation_storage_config()
 
     @tracer.trace_method("translate_text")
     def translate_text(
@@ -218,7 +219,23 @@ Translation:"""
             return 0.7
 
     def _save_translation_history(self, response: Translation, user_id: str) -> None:
-        """Save translation to history."""
+        """Save translation to history (selective storage to reduce costs)."""
+        # Check if we should save this translation based on storage strategy
+        if self.storage_config["storage_strategy"] == "selective":
+            should_save = self._should_save_translation(response, user_id)
+
+            if not should_save:
+                logger.log_business_event(
+                    "translation_skipped_storage",
+                    {
+                        "translation_id": response.translation_id,
+                        "user_id": user_id,
+                        "reason": "cost_optimization",
+                        "strategy": "selective",
+                    },
+                )
+                return
+
         history_item = TranslationHistory(
             translation_id=response.translation_id,
             user_id=user_id,
@@ -236,6 +253,43 @@ Translation:"""
                 Exception("Failed to save translation history"),
                 {"translation_id": response.translation_id, "user_id": user_id},
             )
+
+    def _should_save_translation(self, response: Translation, user_id: str) -> bool:
+        """
+        Determine if a translation should be saved to reduce storage costs.
+
+        Criteria for saving:
+        1. Premium users (all translations) - if enabled
+        2. High confidence translations (>threshold)
+        3. Longer text (>min length) - more valuable
+        4. Recent translations (last N hours)
+        """
+        # Premium users get full history if enabled
+        if self.storage_config["save_all_premium"]:
+            user = self.user_service.get_user(user_id)
+            if user and user.tier in ["premium", "pro"]:
+                return True
+
+        # High confidence translations
+        min_confidence = self.storage_config["min_confidence_threshold"]
+        if response.confidence_score and response.confidence_score > min_confidence:
+            return True
+
+        # Longer text is more valuable to store
+        min_length = self.storage_config["min_text_length"]
+        if len(response.original_text) > min_length:
+            return True
+
+        # Check if this is a recent translation
+        recent_hours = self.storage_config["recent_hours_threshold"]
+        from datetime import timedelta
+
+        recent_threshold = datetime.now(timezone.utc) - timedelta(hours=recent_hours)
+        if response.created_at > recent_threshold:
+            return True
+
+        # Default: don't save to reduce costs
+        return False
 
     def get_translation_history(
         self,
