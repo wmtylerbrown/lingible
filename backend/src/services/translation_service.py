@@ -22,6 +22,7 @@ from ..utils.exceptions import (
     BusinessLogicError,
     SystemError,
     UsageLimitExceededError,
+    InsufficientPermissionsError,
 )
 from ..repositories.translation_repository import TranslationRepository
 from ..services.user_service import UserService
@@ -219,22 +220,18 @@ Translation:"""
             return 0.7
 
     def _save_translation_history(self, response: Translation, user_id: str) -> None:
-        """Save translation to history (selective storage to reduce costs)."""
-        # Check if we should save this translation based on storage strategy
-        if self.storage_config["storage_strategy"] == "selective":
-            should_save = self._should_save_translation(response, user_id)
-
-            if not should_save:
-                logger.log_business_event(
-                    "translation_skipped_storage",
-                    {
-                        "translation_id": response.translation_id,
-                        "user_id": user_id,
-                        "reason": "cost_optimization",
-                        "strategy": "selective",
-                    },
-                )
-                return
+        """Save translation to history (premium users only)."""
+        # Only save translations for premium users
+        if not self._is_premium_user(user_id):
+            logger.log_business_event(
+                "translation_skipped_storage",
+                {
+                    "translation_id": response.translation_id,
+                    "user_id": user_id,
+                    "reason": "premium_feature_only",
+                },
+            )
+            return
 
         history_item = TranslationHistory(
             translation_id=response.translation_id,
@@ -254,42 +251,19 @@ Translation:"""
                 {"translation_id": response.translation_id, "user_id": user_id},
             )
 
-    def _should_save_translation(self, response: Translation, user_id: str) -> bool:
-        """
-        Determine if a translation should be saved to reduce storage costs.
-
-        Criteria for saving:
-        1. Premium users (all translations) - if enabled
-        2. High confidence translations (>threshold)
-        3. Longer text (>min length) - more valuable
-        4. Recent translations (last N hours)
-        """
-        # Premium users get full history if enabled
-        if self.storage_config["save_all_premium"]:
+    def _is_premium_user(self, user_id: str) -> bool:
+        """Check if user has premium access for translation history."""
+        try:
             user = self.user_service.get_user(user_id)
             if user and user.tier in ["premium", "pro"]:
                 return True
-
-        # High confidence translations
-        min_confidence = self.storage_config["min_confidence_threshold"]
-        if response.confidence_score and response.confidence_score > min_confidence:
-            return True
-
-        # Longer text is more valuable to store
-        min_length = self.storage_config["min_text_length"]
-        if len(response.original_text) > min_length:
-            return True
-
-        # Check if this is a recent translation
-        recent_hours = self.storage_config["recent_hours_threshold"]
-        from datetime import timedelta
-
-        recent_threshold = datetime.now(timezone.utc) - timedelta(hours=recent_hours)
-        if response.created_at > recent_threshold:
-            return True
-
-        # Default: don't save to reduce costs
-        return False
+            return False
+        except Exception as e:
+            logger.log_error(
+                e, {"operation": "check_premium_status", "user_id": user_id}
+            )
+            # Default to non-premium if we can't determine status
+            return False
 
     def get_translation_history(
         self,
@@ -297,7 +271,13 @@ Translation:"""
         limit: int = 20,
         last_evaluated_key: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Get user's translation history."""
+        """Get user's translation history (premium feature)."""
+        # Check if user has premium access
+        if not self._is_premium_user(user_id):
+            raise InsufficientPermissionsError(
+                message="Translation history is a premium feature. Upgrade to access your translation history.",
+            )
+
         result = self.translation_repository.get_user_translations(
             user_id, limit, last_evaluated_key
         )
@@ -310,12 +290,24 @@ Translation:"""
         }
 
     def delete_translation(self, user_id: str, translation_id: str) -> bool:
-        """Delete a translation from history."""
+        """Delete a translation from history (premium feature)."""
+        # Check if user has premium access
+        if not self._is_premium_user(user_id):
+            raise InsufficientPermissionsError(
+                message="Translation history management is a premium feature. Upgrade to manage your translation history.",
+            )
+
         return self.translation_repository.delete_translation(user_id, translation_id)
 
     @tracer.trace_method("delete_user_translations")
     def delete_user_translations(self, user_id: str) -> int:
-        """Delete all translations for a user. Returns number of deleted records."""
+        """Delete all translations for a user (premium feature). Returns number of deleted records."""
+        # Check if user has premium access
+        if not self._is_premium_user(user_id):
+            raise InsufficientPermissionsError(
+                message="Translation history management is a premium feature. Upgrade to manage your translation history.",
+            )
+
         try:
             # Get all user translations
             translations = self.translation_repository.get_user_translations(

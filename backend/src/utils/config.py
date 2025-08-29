@@ -227,23 +227,7 @@ class AppConfig:
     def get_translation_storage_config(self) -> Dict[str, Any]:
         """Get translation storage configuration."""
         return {
-            "storage_strategy": os.environ.get(
-                "TRANSLATION_STORAGE_STRATEGY", "selective"
-            ),
-            "save_all_premium": os.environ.get("SAVE_ALL_PREMIUM", "true").lower()
-            == "true",
-            "min_confidence_threshold": float(
-                os.environ.get("MIN_CONFIDENCE_THRESHOLD", "0.8")
-            ),
-            "min_text_length": int(os.environ.get("MIN_TEXT_LENGTH", "50")),
-            "recent_hours_threshold": int(
-                os.environ.get("RECENT_HOURS_THRESHOLD", "24")
-            ),
             "ttl_days": int(os.environ.get("TRANSLATION_TTL_DAYS", "365")),
-            "enable_deduplication": os.environ.get(
-                "ENABLE_DEDUPLICATION", "false"
-            ).lower()
-            == "true",
         }
 
     def refresh_cache(self) -> None:
