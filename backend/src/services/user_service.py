@@ -303,11 +303,6 @@ class UserService:
                 {"user_id": user_id},
             )
 
-    @tracer.trace_method("get_usage_limits")
-    def get_usage_limits(self, user_id: str) -> Optional[UsageLimit]:
-        """Get user's current usage limits."""
-        return self.repository.get_usage_limits(user_id)
-
     @tracer.trace_method("upgrade_user_tier")
     def upgrade_user_tier(self, user_id: str, new_tier: UserTier) -> bool:
         """Upgrade user to a new tier."""
