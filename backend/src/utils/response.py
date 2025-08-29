@@ -29,7 +29,6 @@ def create_success_response(
 def create_model_response(
     model: Any,
     status_code: int = HTTPStatus.OK.value,
-    exclude: set[str] | None = None,
 ) -> APIGatewayResponse:
     """Create a successful API Gateway response from a Pydantic model."""
     return APIGatewayResponse(
@@ -40,7 +39,7 @@ def create_model_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=model.model_dump_json(exclude=exclude),
+        body=model.model_dump_json(),
         isBase64Encoded=False,
     )
 
