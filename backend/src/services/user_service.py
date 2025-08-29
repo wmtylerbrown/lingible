@@ -200,37 +200,20 @@ class UserService:
             logger.log_error(e, {"operation": "update_user", "user_id": user.user_id})
             return False
 
-    @tracer.trace_method("check_usage_limits")
-    def check_usage_limits(self, user_id: str) -> None:
-        """Check if user has exceeded usage limits."""
-        usage = self.repository.get_usage_limits(user_id)
-
-        if not usage:
-            # Create default usage limits for new user
-            usage = UsageLimit(
-                tier="free",
-                current_daily_usage=0,
-                reset_daily_at=None,
-            )
-
-        # Get limits from config based on tier
-        tier_config = self.usage_config.get(usage.tier, self.usage_config["free"])
-        daily_limit = tier_config["daily_limit"]
-
-        # Check if limits are exceeded
-        if usage.current_daily_usage >= daily_limit:
-            raise UsageLimitExceededError(
-                "daily",
-                usage.current_daily_usage,
-                daily_limit,
-            )
-
     @tracer.trace_method("increment_usage_with_check")
     def increment_usage_with_check(self, user_id: str) -> None:
         """Increment usage after checking limits (for translation operations)."""
         try:
-            # First check limits
-            self.check_usage_limits(user_id)
+            # Get usage data and check limits
+            usage_response = self.get_user_usage(user_id)
+
+            # Check if limits are exceeded
+            if usage_response.daily_remaining <= 0:
+                raise UsageLimitExceededError(
+                    "daily",
+                    usage_response.daily_used,
+                    usage_response.daily_limit,
+                )
 
             # Then increment usage
             self.increment_usage(user_id)
