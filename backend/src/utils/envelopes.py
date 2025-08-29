@@ -6,7 +6,7 @@ from aws_lambda_powertools.utilities.parser import BaseEnvelope
 from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventModel
 from pydantic import BaseModel
 
-from ..models.translations import TranslationRequestBody
+from ..models.translations import TranslationRequest
 from ..utils.cognito import cognito_extractor
 
 if TYPE_CHECKING:
@@ -72,7 +72,7 @@ class TranslationEnvelope(APIGatewayEnvelope):
         if not event.body:
             raise ValueError("Request body is required")
 
-        request_body = TranslationRequestBody.model_validate_json(str(event.body))
+        request_body = TranslationRequest.model_validate_json(str(event.body))
 
         # Add translation-specific data
         base_data["request_body"] = request_body

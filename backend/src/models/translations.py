@@ -24,8 +24,8 @@ class TranslationStatus(str, Enum):
     RATE_LIMITED = "rate_limited"
 
 
-class TranslationRequestBody(BaseModel):
-    """Request body model for translation endpoint."""
+class TranslationRequest(BaseModel):
+    """API request model for translation endpoint."""
 
     text: str = Field(
         ..., min_length=1, max_length=1000, description="Text to translate"
@@ -33,8 +33,8 @@ class TranslationRequestBody(BaseModel):
     direction: TranslationDirection = Field(..., description="Translation direction")
 
 
-class TranslationRequest(BaseModel):
-    """Request model for translation."""
+class TranslationRequestInternal(BaseModel):
+    """Internal request model for translation (includes user_id)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -45,8 +45,8 @@ class TranslationRequest(BaseModel):
     user_id: Optional[str] = Field(None, description="User ID for usage tracking")
 
 
-class TranslationResponse(BaseModel):
-    """Response model for translation."""
+class Translation(BaseModel):
+    """Domain model for translation records (DB storage and API responses)."""
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -72,8 +72,8 @@ class TranslationResponse(BaseModel):
     model_used: Optional[str] = Field(None, description="AI model used for translation")
 
 
-class TranslationHistoryItem(BaseModel):
-    """Model for translation history items."""
+class TranslationHistory(BaseModel):
+    """Domain model for translation history records (DB storage)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -94,7 +94,7 @@ class TranslationHistoryResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    translations: List[TranslationHistoryItem] = Field(
+    translations: List[TranslationHistory] = Field(
         ..., description="List of translations"
     )
     total_count: int = Field(..., ge=0, description="Total number of translations")

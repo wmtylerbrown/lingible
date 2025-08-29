@@ -3,7 +3,7 @@
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 
-from .translations import TranslationRequestBody
+from .translations import TranslationRequest
 
 
 class TranslationEvent(BaseModel):
@@ -11,7 +11,7 @@ class TranslationEvent(BaseModel):
 
     # API Gateway event data
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    request_body: TranslationRequestBody = Field(..., description="Parsed request body")
+    request_body: TranslationRequest = Field(..., description="Parsed request body")
 
     # Extracted user info (if available)
     user_id: Optional[str] = Field(None, description="User ID from Cognito token")

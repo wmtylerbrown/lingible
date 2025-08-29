@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 from ..models.translations import (
-    TranslationRequest,
-    TranslationResponse,
-    TranslationHistoryItem,
+    TranslationRequestInternal,
+    Translation,
+    TranslationHistory,
     TranslationDirection,
     BedrockResponse,
 )
@@ -41,8 +41,8 @@ class TranslationService:
 
     @tracer.trace_method("translate_text")
     def translate_text(
-        self, request: TranslationRequest, user_id: str
-    ) -> TranslationResponse:
+        self, request: TranslationRequestInternal, user_id: str
+    ) -> Translation:
         """Translate text using AWS Bedrock."""
         start_time = time.time()
         translation_id = self.translation_repository.generate_translation_id()
@@ -78,7 +78,7 @@ class TranslationService:
             processing_time_ms = int((time.time() - start_time) * 1000)
 
             # Create response
-            response = TranslationResponse(
+            response = Translation(
                 original_text=request.text,
                 translated_text=translated_text,
                 direction=request.direction,
@@ -116,7 +116,9 @@ class TranslationService:
             )
             raise
 
-    def _validate_translation_request(self, request: TranslationRequest) -> None:
+    def _validate_translation_request(
+        self, request: TranslationRequestInternal
+    ) -> None:
         """Validate translation request."""
         if not request.text or not request.text.strip():
             raise ValidationError("Text cannot be empty")
@@ -124,7 +126,7 @@ class TranslationService:
         if len(request.text) > 1000:
             raise ValidationError("Text exceeds maximum length of 1000 characters")
 
-    def _generate_bedrock_prompt(self, request: TranslationRequest) -> str:
+    def _generate_bedrock_prompt(self, request: TranslationRequestInternal) -> str:
         """Generate prompt for Bedrock API."""
         direction = request.direction
         text = request.text
@@ -215,11 +217,9 @@ Translation:"""
         else:
             return 0.7
 
-    def _save_translation_history(
-        self, response: TranslationResponse, user_id: str
-    ) -> None:
+    def _save_translation_history(self, response: Translation, user_id: str) -> None:
         """Save translation to history."""
-        history_item = TranslationHistoryItem(
+        history_item = TranslationHistory(
             translation_id=response.translation_id,
             user_id=user_id,
             original_text=response.original_text,

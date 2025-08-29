@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 from ..models.translations import (
-    TranslationHistoryItem,
+    TranslationHistory,
     TranslationDirection,
 )
 from ..utils.logging import logger
@@ -25,7 +25,7 @@ class TranslationRepository:
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "translations")
-    def create_translation(self, translation: TranslationHistoryItem) -> bool:
+    def create_translation(self, translation: TranslationHistory) -> bool:
         """Create a new translation record."""
         try:
             item = {
@@ -69,7 +69,7 @@ class TranslationRepository:
     @tracer.trace_database_operation("get", "translations")
     def get_translation(
         self, user_id: str, translation_id: str
-    ) -> Optional[TranslationHistoryItem]:
+    ) -> Optional[TranslationHistory]:
         """Get a specific translation by ID."""
         try:
             response = self.table.get_item(
@@ -83,7 +83,7 @@ class TranslationRepository:
                 return None
 
             item = response["Item"]
-            return TranslationHistoryItem(
+            return TranslationHistory(
                 translation_id=item["translation_id"],
                 user_id=item["user_id"],
                 original_text=item["original_text"],
@@ -111,7 +111,7 @@ class TranslationRepository:
         user_id: str,
         limit: int = 20,
         last_evaluated_key: Optional[Dict[str, Any]] = None,
-    ) -> QueryResult[TranslationHistoryItem]:
+    ) -> QueryResult[TranslationHistory]:
         """Get translations for a specific user."""
         try:
             query_kwargs: Dict[str, Any] = {
@@ -130,7 +130,7 @@ class TranslationRepository:
             for item in response.get("Items", []):
                 if item["SK"].startswith("TRANSLATION#"):
                     translations.append(
-                        TranslationHistoryItem(
+                        TranslationHistory(
                             translation_id=item["translation_id"],
                             user_id=item["user_id"],
                             original_text=item["original_text"],

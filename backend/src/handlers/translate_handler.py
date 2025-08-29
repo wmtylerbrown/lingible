@@ -4,7 +4,7 @@ from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from ..models.translations import (
-    TranslationRequest,
+    TranslationRequestInternal,
     TranslationDirection,
 )
 from ..models.events import TranslationEvent
@@ -29,7 +29,7 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
         raise ValueError("Valid Cognito token is required for translation requests")
 
     # Create TranslationRequest
-    translation_request = TranslationRequest(
+    translation_request = TranslationRequestInternal(
         text=event.request_body.text.strip(),
         direction=TranslationDirection(event.request_body.direction),
         user_id=event.user_id,  # Use the user_id from the event
@@ -39,24 +39,22 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
     translation_service = TranslationService()
 
     # Perform translation
-    translation_response = translation_service.translate_text(
-        translation_request, event.user_id
-    )
+    translation = translation_service.translate_text(translation_request, event.user_id)
 
     # Log successful translation
     logger.log_business_event(
         "translation_request_completed",
         {
             "user_id": event.user_id,
-            "translation_id": translation_response.translation_id,
-            "direction": translation_response.direction.value,
+            "translation_id": translation.translation_id,
+            "direction": translation.direction.value,
             "text_length": len(translation_request.text),
-            "processing_time_ms": translation_response.processing_time_ms,
+            "processing_time_ms": translation.processing_time_ms,
         },
     )
 
     # Return success response
     return create_model_response(
         "Translation completed successfully",
-        translation_response,
+        translation,
     )
