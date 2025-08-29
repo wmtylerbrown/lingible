@@ -55,7 +55,9 @@ class User(BaseModel):
         default_factory=datetime.utcnow, description="Account creation date"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Last update date"
+        default_factory=datetime.utcnow,
+        description="Last update date",
+        exclude=True,  # Exclude from API responses
     )
 
 
