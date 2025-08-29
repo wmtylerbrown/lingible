@@ -17,8 +17,11 @@ from ..utils.envelopes import UserProfileEnvelope
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=Dict[str, Any], envelope=UserProfileEnvelope())
-@handle_errors(extract_user_id=extract_user_from_parsed_data)
-def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse:
+@handle_errors(
+    extract_user_id=extract_user_from_parsed_data,
+    success_message="User profile retrieved successfully",
+)
+def handler(event: Dict[str, Any], context: LambdaContext) -> Any:
     """Handle user profile requests from mobile app."""
 
     # Extract user info from the event
@@ -44,8 +47,5 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
         },
     )
 
-    # Return success response with profile data
-    return create_model_response(
-        "User profile retrieved successfully",
-        user.to_api_response(),
-    )
+    # Return the response model - decorator handles the API response creation
+    return user.to_api_response()

@@ -16,8 +16,8 @@ from ..utils.envelopes import HealthEnvelope
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=Dict[str, Any], envelope=HealthEnvelope())
-@handle_errors()
-def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse:
+@handle_errors(success_message="Service is healthy")
+def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """Handle health check requests."""
 
     # Log health check request
@@ -29,13 +29,10 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
         },
     )
 
-    # Return success response with health status
-    return create_success_response(
-        "Service is healthy",
-        {
-            "status": "healthy",
-            "service": "genz-translation-api",
-            "version": "1.0.0",
-            "timestamp": event.get("timestamp"),
-        },
-    )
+    # Return health status data - decorator handles the API response creation
+    return {
+        "status": "healthy",
+        "service": "genz-translation-api",
+        "version": "1.0.0",
+        "timestamp": event.get("timestamp"),
+    }

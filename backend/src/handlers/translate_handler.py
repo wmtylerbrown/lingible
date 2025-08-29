@@ -1,5 +1,6 @@
 """Lambda handler for translation endpoint."""
 
+from typing import Any
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
@@ -20,8 +21,11 @@ from ..utils.envelopes import TranslationEnvelope
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=TranslationEvent, envelope=TranslationEnvelope())
-@handle_errors(extract_user_id=extract_user_from_parsed_data)
-def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayResponse:
+@handle_errors(
+    extract_user_id=extract_user_from_parsed_data,
+    success_message="Translation completed successfully",
+)
+def handler(event: TranslationEvent, context: LambdaContext) -> Any:
     """Handle translation requests from mobile app."""
 
     # Validate user authentication
@@ -53,8 +57,5 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
         },
     )
 
-    # Return success response
-    return create_model_response(
-        "Translation completed successfully",
-        translation.to_api_response(),
-    )
+    # Return the response model - decorator handles the API response creation
+    return translation.to_api_response()

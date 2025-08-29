@@ -18,8 +18,11 @@ from ..utils.envelopes import UserUsageEnvelope
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=Dict[str, Any], envelope=UserUsageEnvelope())
-@handle_errors(extract_user_id=extract_user_from_parsed_data)
-def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse:
+@handle_errors(
+    extract_user_id=extract_user_from_parsed_data,
+    success_message="User usage statistics retrieved successfully",
+)
+def handler(event: Dict[str, Any], context: LambdaContext) -> Any:
     """Handle user usage statistics requests from mobile app."""
 
     # Extract user info from the event
@@ -44,8 +47,5 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
         },
     )
 
-    # Return success response with usage data
-    return create_model_response(
-        "User usage statistics retrieved successfully",
-        user_usage,
-    )
+    # Return the response model - decorator handles the API response creation
+    return user_usage
