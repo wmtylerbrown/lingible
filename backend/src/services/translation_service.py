@@ -20,6 +20,7 @@ from ..utils.exceptions import (
     ValidationError,
     BusinessLogicError,
     SystemError,
+    UsageLimitExceededError,
 )
 from ..repositories.translation_repository import TranslationRepository
 from ..services.user_service import UserService
@@ -49,8 +50,19 @@ class TranslationService:
             # Validate request
             self._validate_translation_request(request)
 
-            # Check usage limits and increment usage efficiently
-            self.user_service.increment_usage_with_check(user_id)
+            # Check usage limits and get usage data
+            usage_response, usage = self.user_service._get_usage_data_and_check_limits(
+                user_id
+            )
+            if usage_response.daily_remaining <= 0:
+                raise UsageLimitExceededError(
+                    "daily",
+                    usage_response.daily_used,
+                    usage_response.daily_limit,
+                )
+
+            # Increment usage
+            self.user_service.increment_usage(user_id, usage)
 
             # Generate Bedrock prompt
             prompt = self._generate_bedrock_prompt(request)
