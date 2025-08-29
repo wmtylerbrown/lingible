@@ -58,7 +58,30 @@ class APIGatewayEnvelope(BaseEnvelope):
         raise NotImplementedError("Subclasses must implement _parse_api_gateway")
 
 
-class TranslationEnvelope(APIGatewayEnvelope):
+class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
+    """Base envelope for authenticated API Gateway events."""
+
+    def _extract_common_data(self, event: APIGatewayProxyEventModel) -> Dict[str, Any]:
+        """Extract common data from API Gateway event with authentication validation."""
+        # Extract user info from Cognito token
+        user_info = cognito_extractor.extract_user_from_event(event)
+
+        # Validate authentication for protected endpoints
+        if not user_info:
+            raise ValueError("Valid Cognito token is required for this endpoint")
+
+        # Get request metadata
+        request_id = event.requestContext.requestId if event.requestContext else None
+
+        return {
+            "event": event.model_dump(),
+            "user_id": user_info.user_id,
+            "username": user_info.username,
+            "request_id": request_id,
+        }
+
+
+class TranslationEnvelope(AuthenticatedAPIGatewayEnvelope):
     """Envelope for translation endpoints that parses request body."""
 
     def _parse_api_gateway(
@@ -80,7 +103,7 @@ class TranslationEnvelope(APIGatewayEnvelope):
         return base_data
 
 
-class UserProfileEnvelope(APIGatewayEnvelope):
+class UserProfileEnvelope(AuthenticatedAPIGatewayEnvelope):
     """Envelope for user profile endpoints."""
 
     def _parse_api_gateway(
@@ -129,7 +152,7 @@ class TranslationHistoryEnvelope(APIGatewayEnvelope):
         return base_data
 
 
-class UserUsageEnvelope(APIGatewayEnvelope):
+class UserUsageEnvelope(AuthenticatedAPIGatewayEnvelope):
     """Envelope for user usage endpoints that extracts user info."""
 
     def _parse_api_gateway(

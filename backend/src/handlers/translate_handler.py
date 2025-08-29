@@ -23,10 +23,6 @@ from ..utils.envelopes import TranslationEnvelope
 def handler(event: TranslationEvent, context: LambdaContext) -> TranslationResponse:
     """Handle translation requests from mobile app."""
 
-    # Validate user authentication
-    if not event.user_id:
-        raise ValueError("Valid Cognito token is required for translation requests")
-
     # Create TranslationRequest
     translation_request = TranslationRequestInternal(
         text=event.request_body.text.strip(),

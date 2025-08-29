@@ -19,10 +19,8 @@ from ..utils.envelopes import UserUsageEnvelope
 def handler(event: UserUsageEvent, context: LambdaContext) -> UserUsageResponse:
     """Handle user usage statistics requests from mobile app."""
 
-    # Extract user info from the event
+    # Get user ID from the event (already validated by envelope)
     user_id = event.user_id
-    if not user_id:
-        raise ValueError("Valid Cognito token is required for usage requests")
 
     # Initialize services
     user_service = UserService()
