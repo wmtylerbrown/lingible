@@ -89,12 +89,12 @@ class UserService:
             daily_limit = tier_config["daily_limit"]
 
             # Calculate daily remaining
-            daily_remaining = max(0, daily_limit - usage_limits.current_daily_usage)
+            daily_remaining = max(0, daily_limit - usage_limits.daily_used)
 
             return UserUsageResponse(
                 tier=usage_limits.tier,
                 daily_limit=daily_limit,
-                daily_used=usage_limits.current_daily_usage,
+                daily_used=usage_limits.daily_used,
                 daily_remaining=daily_remaining,
                 total_used=0,  # We'll need to get this from user data if needed
                 reset_date=usage_limits.reset_daily_at or datetime.now(timezone.utc),
@@ -113,7 +113,7 @@ class UserService:
 
             usage = UsageLimit(
                 tier=tier,
-                current_daily_usage=0,
+                daily_used=0,
                 reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
             )
 

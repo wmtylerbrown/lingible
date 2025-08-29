@@ -149,7 +149,7 @@ class UserRepository:
                 "PK": f"USER#{user_id}",
                 "SK": "USAGE#LIMITS",
                 "tier": usage.tier,
-                "current_daily_usage": usage.current_daily_usage,
+                "daily_used": usage.daily_used,
                 "reset_daily_at": (
                     usage.reset_daily_at.isoformat() if usage.reset_daily_at else None
                 ),
@@ -164,7 +164,7 @@ class UserRepository:
                 "usage_limits_updated",
                 {
                     "user_id": user_id,
-                    "daily_usage": usage.current_daily_usage,
+                    "daily_usage": usage.daily_used,
                 },
             )
             return True
@@ -196,7 +196,7 @@ class UserRepository:
             item = response["Item"]
             return UsageLimit(
                 tier=UserTier(item["tier"]),
-                current_daily_usage=item.get("current_daily_usage", 0),
+                daily_used=item.get("daily_used", 0),
                 reset_daily_at=(
                     datetime.fromisoformat(item["reset_daily_at"])
                     if item.get("reset_daily_at")
@@ -228,7 +228,7 @@ class UserRepository:
                         "PK": f"USER#{user_id}",
                         "SK": "USAGE#LIMITS",
                     },
-                    UpdateExpression="SET current_daily_usage = if_not_exists(current_daily_usage, 0) + :one, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                    UpdateExpression="SET daily_used = if_not_exists(daily_used, 0) + :one, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
                     ExpressionAttributeValues={
                         ":one": 1,
                         ":updated_at": now.isoformat(),
@@ -240,7 +240,7 @@ class UserRepository:
 
                 # Successfully incremented (same day)
                 updated_item = response.get("Attributes", {})
-                new_usage = updated_item.get("current_daily_usage", 1)
+                new_usage = updated_item.get("daily_used", 1)
 
                 logger.log_business_event(
                     "usage_incremented",
@@ -259,7 +259,7 @@ class UserRepository:
                         "PK": f"USER#{user_id}",
                         "SK": "USAGE#LIMITS",
                     },
-                    UpdateExpression="SET current_daily_usage = :one, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                    UpdateExpression="SET daily_used = :one, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
                     ExpressionAttributeValues={
                         ":one": 1,
                         ":today_start": today_start.isoformat(),
@@ -271,7 +271,7 @@ class UserRepository:
 
                 # Successfully reset and incremented (new day)
                 updated_item = response.get("Attributes", {})
-                new_usage = updated_item.get("current_daily_usage", 1)
+                new_usage = updated_item.get("daily_used", 1)
                 new_reset_date = updated_item.get(
                     "reset_daily_at", today_start.isoformat()
                 )
@@ -309,7 +309,7 @@ class UserRepository:
                     "PK": f"USER#{user_id}",
                     "SK": "USAGE#LIMITS",
                 },
-                UpdateExpression="SET current_daily_usage = :zero, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                UpdateExpression="SET daily_used = :zero, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
                 ExpressionAttributeValues={
                     ":zero": 0,
                     ":today_start": today_start.isoformat(),
