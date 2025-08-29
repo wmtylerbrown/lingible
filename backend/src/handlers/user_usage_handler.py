@@ -12,19 +12,7 @@ from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.response import create_model_response
 from ..utils.decorators import handle_errors, extract_user_from_parsed_data
-from ..utils.envelopes import APIGatewayEnvelope
-
-
-class UserUsageEnvelope(APIGatewayEnvelope):
-    """Envelope for user usage endpoints that extracts user info."""
-
-    def _parse_api_gateway(
-        self, event: Any, model: type, base_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Parse user usage specific data."""
-        # For GET requests, we don't need to parse a request body
-        # Just return the base data with user info
-        return base_data
+from ..utils.envelopes import UserUsageEnvelope
 
 
 # Lambda handler entry point with correct decorator order

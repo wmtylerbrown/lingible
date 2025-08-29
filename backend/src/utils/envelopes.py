@@ -129,5 +129,35 @@ class TranslationHistoryEnvelope(APIGatewayEnvelope):
         return base_data
 
 
+class UserUsageEnvelope(APIGatewayEnvelope):
+    """Envelope for user usage endpoints that extracts user info."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse user usage specific data."""
+        # For GET requests, we don't need to parse a request body
+        # Just return the base data with user info
+        return base_data
+
+
+class HealthEnvelope(APIGatewayEnvelope):
+    """Envelope for health check endpoints."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse health check specific data."""
+        # For GET requests, we don't need to parse a request body
+        # Just return the base data
+        return base_data
+
+
 # Backward compatibility - keep the old name for existing code
 BaseAuthenticatedEnvelope = APIGatewayEnvelope

@@ -10,19 +10,7 @@ from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.response import create_success_response
 from ..utils.decorators import handle_errors
-from ..utils.envelopes import APIGatewayEnvelope
-
-
-class HealthEnvelope(APIGatewayEnvelope):
-    """Envelope for health check endpoints."""
-
-    def _parse_api_gateway(
-        self, event: Any, model: type, base_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Parse health check specific data."""
-        # For GET requests, we don't need to parse a request body
-        # Just return the base data
-        return base_data
+from ..utils.envelopes import HealthEnvelope
 
 
 # Lambda handler entry point with correct decorator order
