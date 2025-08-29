@@ -7,7 +7,6 @@ from ..models.users import (
     User,
     UserTier,
     UserStatus,
-    UserProfileResponse,
     UserUsageResponse,
 )
 from ..models.translations import UsageLimit
@@ -74,29 +73,6 @@ class UserService:
         except Exception as e:
             logger.log_error(e, {"operation": "get_user", "user_id": user_id})
             return None
-
-    @tracer.trace_method("get_user_profile")
-    def get_user_profile(self, user_id: str) -> UserProfileResponse:
-        """Get user profile for API response (cacheable data)."""
-        try:
-            user = self.get_user(user_id)
-            if not user:
-                raise ValidationError(f"User not found: {user_id}")
-
-            return UserProfileResponse(
-                user_id=user.user_id,
-                email=user.email,
-                username=user.username,
-                tier=user.tier,
-                status=user.status,
-                subscription_start_date=user.subscription_start_date,
-                subscription_end_date=user.subscription_end_date,
-                created_at=user.created_at,
-            )
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_user_profile", "user_id": user_id})
-            raise
 
     @tracer.trace_method("get_user_usage")
     def get_user_usage(self, user_id: str) -> UserUsageResponse:

@@ -42,15 +42,17 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
     user_service = UserService()
 
     # Get user profile (static, cacheable data)
-    user_profile = user_service.get_user_profile(user_id)
+    user = user_service.get_user(user_id)
+    if not user:
+        raise ValueError(f"User not found: {user_id}")
 
     # Log successful profile retrieval
     logger.log_business_event(
         "user_profile_retrieved",
         {
             "user_id": user_id,
-            "tier": user_profile.tier,
-            "status": user_profile.status,
+            "tier": user.tier,
+            "status": user.status,
         },
     )
 
@@ -58,21 +60,21 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
     return create_success_response(
         "User profile retrieved successfully",
         {
-            "user_id": user_profile.user_id,
-            "email": user_profile.email,
-            "username": user_profile.username,
-            "tier": user_profile.tier.value,
-            "status": user_profile.status.value,
+            "user_id": user.user_id,
+            "email": user.email,
+            "username": user.username,
+            "tier": user.tier.value,
+            "status": user.status.value,
             "subscription_start_date": (
-                user_profile.subscription_start_date.isoformat()
-                if user_profile.subscription_start_date
+                user.subscription_start_date.isoformat()
+                if user.subscription_start_date
                 else None
             ),
             "subscription_end_date": (
-                user_profile.subscription_end_date.isoformat()
-                if user_profile.subscription_end_date
+                user.subscription_end_date.isoformat()
+                if user.subscription_end_date
                 else None
             ),
-            "created_at": user_profile.created_at.isoformat(),
+            "created_at": user.created_at.isoformat(),
         },
     )
