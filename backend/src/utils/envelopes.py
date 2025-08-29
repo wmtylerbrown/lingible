@@ -221,7 +221,3 @@ class WebhookEnvelope(APIGatewayEnvelope):
         base_data["request_body"] = request_body
 
         return base_data
-
-
-# Backward compatibility - keep the old name for existing code
-BaseAuthenticatedEnvelope = APIGatewayEnvelope
