@@ -54,25 +54,6 @@ class User(BaseModel):
 
 
 # API Models
-class UserProfileResponse(BaseModel):
-    """User profile API response - cacheable data only."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    user_id: str = Field(..., description="User ID")
-    email: str = Field(..., description="User email")
-    username: str = Field(..., description="Username")
-    tier: UserTier = Field(..., description="User tier")
-    status: UserStatus = Field(..., description="Account status")
-    subscription_start_date: Optional[datetime] = Field(
-        None, description="Premium subscription start date"
-    )
-    subscription_end_date: Optional[datetime] = Field(
-        None, description="Premium subscription end date"
-    )
-    created_at: datetime = Field(..., description="Account creation date")
-
-
 class UserUsageResponse(BaseModel):
     """User usage API response - dynamic data, not cacheable."""
 
