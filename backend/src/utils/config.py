@@ -230,39 +230,3 @@ config = AppConfig()
 def get_config() -> AppConfig:
     """Get the global configuration instance."""
     return config
-
-
-def refresh_config() -> None:
-    """Refresh the global configuration cache."""
-    config.refresh_cache()
-
-
-# Convenience functions for backward compatibility
-def get_usage_limits() -> Dict[str, Dict[str, int]]:
-    """Get usage limits (backward compatibility)."""
-    return config.get_usage_limits()
-
-
-def get_bedrock_model() -> str:
-    """Get Bedrock model (backward compatibility)."""
-    return config.get_bedrock_config()["model"]
-
-
-def get_table_names() -> Dict[str, str]:
-    """Get table names (backward compatibility)."""
-    return config.get_database_config()["tables"]
-
-
-def get_translation_directions() -> Dict[str, str]:
-    """Get translation directions (backward compatibility)."""
-    return config.get_translation_config()["directions"]
-
-
-def get_sensitive_fields() -> list[str]:
-    """Get sensitive fields (backward compatibility)."""
-    return config.get_security_config()["sensitive_fields"]
-
-
-def get_bearer_prefix() -> str:
-    """Get bearer prefix (backward compatibility)."""
-    return config.get_security_config()["bearer_prefix"]
