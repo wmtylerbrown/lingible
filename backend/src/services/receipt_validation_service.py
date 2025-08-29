@@ -16,6 +16,7 @@ from src.models.subscriptions import (
 )
 from src.utils.config import AppConfig
 from src.utils.logging import SmartLogger
+from src.utils.exceptions import ValidationError
 
 logger = SmartLogger("receipt-validation-service")
 
@@ -68,7 +69,7 @@ class ReceiptValidationService:
                 result = self._validate_google_receipt(request)
             else:
                 # This should never happen with the current enum, but handle for future extensibility
-                raise ValueError(f"Unsupported provider: {request.provider}")
+                raise ValidationError(f"Unsupported provider: {request.provider}")
 
             # Log validation result
             logger.log_business_event(

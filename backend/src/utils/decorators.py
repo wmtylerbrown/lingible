@@ -1,41 +1,39 @@
 """Decorators for Lambda handlers."""
 
 import functools
-from typing import Callable, Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 from pydantic import BaseModel
 
-from ..models.aws import APIGatewayResponse
-from ..utils.logging import logger
-from ..utils.response import (
+from .response import (
+    create_model_response,
     create_validation_error_response,
     create_unauthorized_response,
     create_rate_limit_response,
-    create_internal_error_response,
-    create_model_response,
+    create_error_response,
 )
-from ..utils.exceptions import (
+from .exceptions import (
     ValidationError,
     AuthenticationError,
     RateLimitExceededError,
-    BusinessLogicError,
-    SystemError,
+    AppException,
 )
+from .logging import logger
+from ..models.aws import APIGatewayResponse
 
 
 def api_handler(
+    extract_user_id: Optional[Callable] = None,
     user_id: Optional[str] = None,
-    extract_user_id: Optional[Callable[[Any], str]] = None,
 ) -> Callable:
     """
-    Decorator to transform a function into a complete API handler with error handling,
-    response creation, and logging.
+    Decorator for API Gateway Lambda handlers.
 
     Args:
-        user_id: Static user ID to use for logging (if known)
-        extract_user_id: Function to extract user ID from handler arguments
+        extract_user_id: Function to extract user ID from parsed data
+        user_id: Direct user ID if available
 
     Returns:
-        Decorated function with comprehensive API handling capabilities
+        Decorated function that handles common API Gateway patterns
     """
 
     def decorator(func: Callable) -> Callable:
@@ -89,23 +87,28 @@ def api_handler(
                 )
                 return create_rate_limit_response(100, 3600)  # Default rate limit
 
-            except BusinessLogicError as e:
+            except AppException as e:
+                # Handle all AppException subclasses using their own status codes and error codes
                 logger.log_error(
-                    e, {"user_id": current_user_id, "error_type": "business_logic"}
+                    e,
+                    {
+                        "user_id": current_user_id,
+                        "error_type": e.__class__.__name__.lower(),
+                    },
                 )
-                return create_internal_error_response(str(e))
-
-            except SystemError as e:
-                logger.log_error(
-                    e, {"user_id": current_user_id, "error_type": "system"}
-                )
-                return create_internal_error_response(str(e))
+                return create_error_response(e)
 
             except Exception as e:
                 logger.log_error(
                     e, {"user_id": current_user_id, "error_type": "unknown"}
                 )
-                return create_internal_error_response("An unexpected error occurred")
+                return (
+                    create_error_response(e)
+                    if isinstance(e, AppException)
+                    else create_error_response(
+                        AppException("An unexpected error occurred", "SYS_003", 500)
+                    )
+                )
 
         return wrapper
 

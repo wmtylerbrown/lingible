@@ -1,4 +1,4 @@
-"""Base envelope classes for Lambda handlers."""
+"""Envelope classes for parsing Lambda events."""
 
 from __future__ import annotations
 from typing import Any, Dict, TypeVar, TYPE_CHECKING
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from ..models.translations import TranslationRequest
 from ..models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
-
+from .exceptions import ValidationError, AuthenticationError
 
 if TYPE_CHECKING:
     T = TypeVar("T", bound=BaseModel)
@@ -23,7 +23,7 @@ class APIGatewayEnvelope(BaseEnvelope):
         """Parse API Gateway event with type checking."""
         # Ensure data is a dict for API Gateway events
         if not isinstance(data, dict):
-            raise ValueError("Expected dict for API Gateway event")
+            raise ValidationError("Expected dict for API Gateway event")
 
         # Parse the API Gateway event
         event = APIGatewayProxyEventModel(**data)
@@ -82,7 +82,9 @@ class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
 
         # Validate authentication for protected endpoints
         if not user_id:
-            raise ValueError("Valid authentication token is required for this endpoint")
+            raise AuthenticationError(
+                "Valid authentication token is required for this endpoint"
+            )
 
         # Get request metadata
         request_id = event.requestContext.requestId if event.requestContext else None
@@ -107,7 +109,7 @@ class TranslationEnvelope(AuthenticatedAPIGatewayEnvelope):
         """Parse translation-specific data."""
         # Parse the request body
         if not event.body:
-            raise ValueError("Request body is required")
+            raise ValidationError("Request body is required")
 
         request_body = TranslationRequest.model_validate_json(str(event.body))
 
@@ -118,7 +120,7 @@ class TranslationEnvelope(AuthenticatedAPIGatewayEnvelope):
 
 
 class UserProfileEnvelope(AuthenticatedAPIGatewayEnvelope):
-    """Envelope for user profile endpoints."""
+    """Envelope for user profile endpoints that extracts user info."""
 
     def _parse_api_gateway(
         self,
@@ -126,42 +128,9 @@ class UserProfileEnvelope(AuthenticatedAPIGatewayEnvelope):
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Parse user profile-specific data."""
-        # For user profile endpoints, we rely on the authorizer context
-        return base_data
-
-
-class TranslationHistoryEnvelope(APIGatewayEnvelope):
-    """Envelope for translation history endpoints that parses query parameters."""
-
-    def _parse_api_gateway(
-        self,
-        event: APIGatewayProxyEventModel,
-        model: type[T],
-        base_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """Parse translation history-specific data."""
-        # Extract query parameters
-        query_params = event.queryStringParameters or {}
-
-        # Parse pagination parameters
-        limit = int(query_params.get("limit", "10"))
-        offset = int(query_params.get("offset", "0"))
-
-        # Validate limits
-        if limit < 1 or limit > 100:
-            limit = 10
-        if offset < 0:
-            offset = 0
-
-        # Add history-specific data
-        base_data.update(
-            {
-                "limit": limit,
-                "offset": offset,
-            }
-        )
-
+        """Parse user profile specific data."""
+        # For GET requests, we don't need to parse a request body
+        # Just return the base data with user info
         return base_data
 
 
@@ -220,7 +189,7 @@ class UserUpgradeEnvelope(AuthenticatedAPIGatewayEnvelope):
         """Parse user upgrade specific data."""
         # Parse the request body
         if not event.body:
-            raise ValueError("Request body is required")
+            raise ValidationError("Request body is required")
 
         # Parse and validate the request body
         request_body = UserUpgradeRequest.model_validate_json(str(event.body))
@@ -243,7 +212,7 @@ class WebhookEnvelope(APIGatewayEnvelope):
         """Parse webhook specific data."""
         # Parse the request body
         if not event.body:
-            raise ValueError("Request body is required")
+            raise ValidationError("Request body is required")
 
         # Parse and validate the request body
         request_body = AppleWebhookRequest.model_validate_json(str(event.body))

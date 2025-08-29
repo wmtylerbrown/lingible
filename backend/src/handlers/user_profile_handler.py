@@ -10,6 +10,7 @@ from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.decorators import api_handler, extract_user_from_parsed_data
 from ..utils.envelopes import UserProfileEnvelope
+from ..utils.exceptions import ResourceNotFoundError
 
 
 # Initialize services at module level (Lambda container reuse)
@@ -29,7 +30,7 @@ def handler(event: UserProfileEvent, context: LambdaContext) -> UserResponse:
     # Get user profile (static, cacheable data)
     user = user_service.get_user(user_id)
     if not user:
-        raise ValueError(f"User not found: {user_id}")
+        raise ResourceNotFoundError("user", user_id or "unknown")
 
     # Log successful profile retrieval
     logger.log_business_event(

@@ -208,7 +208,9 @@ class ResourceAlreadyExistsError(ResourceError):
             message = f"{resource_type} with id '{resource_id}' already exists"
         if details is None:
             details = {"resource_type": resource_type, "resource_id": resource_id}
+        # Override status code to 409 Conflict
         super().__init__(message, "RES_002", details, request_id)
+        self.status_code = 409
 
 
 class ResourceConflictError(ResourceError):
@@ -220,7 +222,9 @@ class ResourceConflictError(ResourceError):
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
+        # Override status code to 409 Conflict
         super().__init__(message, "RES_003", details, request_id)
+        self.status_code = 409
 
 
 # Business Logic Exceptions
@@ -257,7 +261,10 @@ class UsageLimitExceededError(BusinessLogicError):
                 "current_usage": current_usage,
                 "limit": limit,
             }
+        # Override status code to 429 Too Many Requests and use unique error code
         super().__init__(message, "BIZ_001", details, request_id)
+        self.status_code = 429
+        self.error_code = "USAGE_001"
 
 
 class InsufficientCreditsError(BusinessLogicError):
@@ -278,6 +285,7 @@ class InsufficientCreditsError(BusinessLogicError):
                 "required_credits": required_credits,
                 "available_credits": available_credits,
             }
+        # Use unique error code
         super().__init__(message, "BIZ_002", details, request_id)
 
 
@@ -295,7 +303,10 @@ class ServiceUnavailableError(BusinessLogicError):
             message = f"Service '{service_name}' is currently unavailable"
         if details is None:
             details = {"service_name": service_name}
+        # Override status code to 503 Service Unavailable and use unique error code
         super().__init__(message, "BIZ_003", details, request_id)
+        self.status_code = 503
+        self.error_code = "SERVICE_001"
 
 
 # System Exceptions
