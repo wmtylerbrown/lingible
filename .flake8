@@ -1,0 +1,21 @@
+[flake8]
+# Line length - more reasonable for modern screens
+max-line-length = 88
+
+# Ignore specific error codes
+ignore = E203, W503, E501
+
+# Exclude patterns
+exclude = .git,__pycache__,.venv,venv,backend/venv,.mypy_cache,.pytest_cache,build,dist,*.egg-info
+
+# Show source code for each error
+show-source = True
+
+# Show error codes
+show-error-codes = True
+
+# Count errors
+count = True
+
+# Statistics
+statistics = True

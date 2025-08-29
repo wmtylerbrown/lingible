@@ -1,0 +1,100 @@
+"""Base API response models."""
+
+from enum import Enum
+from typing import Optional, Dict, Any, List
+from pydantic import BaseModel, Field
+
+
+class HTTPStatus(Enum):
+    """HTTP status codes for API responses."""
+
+    # Success codes
+    OK = 200
+    CREATED = 201
+    NO_CONTENT = 204
+
+    # Client error codes
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    CONFLICT = 409
+    UNPROCESSABLE_ENTITY = 422
+    TOO_MANY_REQUESTS = 429
+
+    # Server error codes
+    INTERNAL_SERVER_ERROR = 500
+    SERVICE_UNAVAILABLE = 503
+
+
+class ErrorCode(Enum):
+    """Application-specific error codes."""
+
+    # Authentication errors
+    INVALID_TOKEN = "AUTH_001"
+    TOKEN_EXPIRED = "AUTH_002"
+    INSUFFICIENT_PERMISSIONS = "AUTH_003"
+
+    # Validation errors
+    INVALID_INPUT = "VAL_001"
+    MISSING_REQUIRED_FIELD = "VAL_002"
+    INVALID_FORMAT = "VAL_003"
+
+    # Resource errors
+    RESOURCE_NOT_FOUND = "RES_001"
+    RESOURCE_ALREADY_EXISTS = "RES_002"
+    RESOURCE_CONFLICT = "RES_003"
+
+    # Business logic errors
+    USAGE_LIMIT_EXCEEDED = "BIZ_001"
+    INSUFFICIENT_CREDITS = "BIZ_002"
+    SERVICE_UNAVAILABLE = "BIZ_003"
+
+    # System errors
+    DATABASE_ERROR = "SYS_001"
+    EXTERNAL_SERVICE_ERROR = "SYS_002"
+    INTERNAL_ERROR = "SYS_003"
+
+
+class BaseResponse(BaseModel):
+    """Base API response model."""
+
+    success: bool = Field(..., description="Whether the request was successful")
+    message: str = Field(..., description="Human-readable response message")
+    data: Optional[Dict[str, Any]] = Field(None, description="Response data")
+    timestamp: str = Field(..., description="ISO timestamp of response")
+
+
+class ErrorResponse(BaseModel):
+    """Standardized error response model."""
+
+    success: bool = Field(False, description="Always false for error responses")
+    message: str = Field(..., description="Human-readable error message")
+    error_code: str = Field(..., description="Application-specific error code")
+    status_code: int = Field(..., description="HTTP status code")
+    details: Optional[Dict[str, Any]] = Field(
+        None, description="Additional error details"
+    )
+    timestamp: str = Field(..., description="ISO timestamp of error")
+    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+
+
+class PaginationParams(BaseModel):
+    """Pagination parameters for list requests."""
+
+    limit: int = Field(default=20, ge=1, le=100, description="Number of items per page")
+    offset: int = Field(default=0, ge=0, description="Number of items to skip")
+    sort_by: Optional[str] = Field(None, description="Field to sort by")
+    sort_order: str = Field(
+        default="desc", pattern="^(asc|desc)$", description="Sort order"
+    )
+
+
+class PaginatedResponse(BaseModel):
+    """Paginated response model."""
+
+    success: bool = Field(True, description="Whether the request was successful")
+    message: str = Field(..., description="Human-readable response message")
+    data: List[Dict[str, Any]] = Field(..., description="List of items")
+    pagination: Dict[str, Any] = Field(..., description="Pagination information")
+    timestamp: str = Field(..., description="ISO timestamp of response")

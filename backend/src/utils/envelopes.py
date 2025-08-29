@@ -1,0 +1,111 @@
+"""Base envelope classes for Lambda handlers."""
+
+from __future__ import annotations
+from typing import Any, Dict, Optional, TypeVar, TYPE_CHECKING
+from aws_lambda_powertools.utilities.parser import BaseEnvelope
+from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventModel
+from pydantic import BaseModel
+
+from ..models.translations import TranslationRequestBody
+from ..utils.cognito import cognito_extractor
+
+if TYPE_CHECKING:
+    T = TypeVar('T', bound=BaseModel)
+else:
+    T = TypeVar('T')
+
+
+class APIGatewayEnvelope(BaseEnvelope):
+    """Base envelope specifically for API Gateway events with full type safety."""
+    
+    def parse(self, data: Any, model: Any) -> Dict[str, Any]:
+        """Parse API Gateway event with type checking."""
+        # Ensure data is a dict for API Gateway events
+        if not isinstance(data, dict):
+            raise ValueError("Expected dict for API Gateway event")
+        
+        # Parse the API Gateway event
+        event = APIGatewayProxyEventModel(**data)
+        
+        # Extract common API Gateway data
+        base_data = self._extract_common_data(event)
+        
+        # Let subclasses add their specific parsing logic
+        return self._parse_api_gateway(event, model, base_data)
+    
+    def _extract_common_data(self, event: APIGatewayProxyEventModel) -> Dict[str, Any]:
+        """Extract common data from API Gateway event."""
+        # Extract user info from Cognito token
+        user_info = cognito_extractor.extract_user_from_event(event)
+        
+        # Get request metadata
+        request_id = event.requestContext.requestId if event.requestContext else None
+        
+        return {
+            "event": event.model_dump(),
+            "user_id": user_info.user_id if user_info else None,
+            "username": user_info.username if user_info else None,
+            "request_id": request_id,
+        }
+    
+    def _parse_api_gateway(self, event: APIGatewayProxyEventModel, model: type[T], base_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Override this method in subclasses to add handler-specific parsing."""
+        raise NotImplementedError("Subclasses must implement _parse_api_gateway")
+
+
+class TranslationEnvelope(APIGatewayEnvelope):
+    """Envelope for translation endpoints that parses request body."""
+    
+    def _parse_api_gateway(self, event: APIGatewayProxyEventModel, model: type[T], base_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse translation-specific data."""
+        # Parse the request body
+        if not event.body:
+            raise ValueError("Request body is required")
+        
+        request_body = TranslationRequestBody.model_validate_json(str(event.body))
+        
+        # Add translation-specific data
+        base_data["request_body"] = request_body
+        
+        return base_data
+
+
+class UserProfileEnvelope(APIGatewayEnvelope):
+    """Envelope for user profile endpoints."""
+    
+    def _parse_api_gateway(self, event: APIGatewayProxyEventModel, model: type[T], base_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse user profile-specific data."""
+        # For user profile endpoints, we might extract user ID from path parameters
+        # or just rely on the Cognito token
+        return base_data
+
+
+class TranslationHistoryEnvelope(APIGatewayEnvelope):
+    """Envelope for translation history endpoints that parses query parameters."""
+    
+    def _parse_api_gateway(self, event: APIGatewayProxyEventModel, model: type[T], base_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse translation history-specific data."""
+        # Extract query parameters
+        query_params = event.queryStringParameters or {}
+        
+        # Parse pagination parameters
+        limit = int(query_params.get("limit", "10"))
+        offset = int(query_params.get("offset", "0"))
+        
+        # Validate limits
+        if limit < 1 or limit > 100:
+            limit = 10
+        if offset < 0:
+            offset = 0
+        
+        # Add history-specific data
+        base_data.update({
+            "limit": limit,
+            "offset": offset,
+        })
+        
+        return base_data
+
+
+# Backward compatibility - keep the old name for existing code
+BaseAuthenticatedEnvelope = APIGatewayEnvelope
