@@ -12,14 +12,14 @@ from ..models.events import TranslationEvent
 from ..services.translation_service import TranslationService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
-from ..utils.decorators import handle_errors, extract_user_from_parsed_data
+from ..utils.decorators import api_handler, extract_user_from_parsed_data
 from ..utils.envelopes import TranslationEnvelope
 
 
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=TranslationEvent, envelope=TranslationEnvelope())
-@handle_errors(extract_user_id=extract_user_from_parsed_data)
+@api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(event: TranslationEvent, context: LambdaContext) -> TranslationResponse:
     """Handle translation requests from mobile app."""
 

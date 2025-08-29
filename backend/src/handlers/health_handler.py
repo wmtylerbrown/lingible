@@ -8,14 +8,14 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from ..models.events import HealthEvent
 from ..utils.logging import logger
 from ..utils.tracing import tracer
-from ..utils.decorators import handle_errors
+from ..utils.decorators import api_handler
 from ..utils.envelopes import HealthEnvelope
 
 
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=HealthEvent, envelope=HealthEnvelope())
-@handle_errors()
+@api_handler()
 def handler(event: HealthEvent, context: LambdaContext) -> Dict[str, Any]:
     """Handle health check requests."""
 

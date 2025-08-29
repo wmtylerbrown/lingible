@@ -8,14 +8,14 @@ from ..models.users import UserResponse
 from ..services.user_service import UserService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
-from ..utils.decorators import handle_errors, extract_user_from_parsed_data
+from ..utils.decorators import api_handler, extract_user_from_parsed_data
 from ..utils.envelopes import UserProfileEnvelope
 
 
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=UserProfileEvent, envelope=UserProfileEnvelope())
-@handle_errors(extract_user_id=extract_user_from_parsed_data)
+@api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(event: UserProfileEvent, context: LambdaContext) -> UserResponse:
     """Handle user profile requests from mobile app."""
 

@@ -22,19 +22,20 @@ from ..utils.exceptions import (
 )
 
 
-def handle_errors(
+def api_handler(
     user_id: Optional[str] = None,
     extract_user_id: Optional[Callable[[Any], str]] = None,
 ) -> Callable:
     """
-    Decorator to handle common errors in Lambda handlers and automatically create API responses.
+    Decorator to transform a function into a complete API handler with error handling,
+    response creation, and logging.
 
     Args:
         user_id: Static user ID to use for logging (if known)
         extract_user_id: Function to extract user ID from handler arguments
 
     Returns:
-        Decorated function with comprehensive error handling and automatic response creation
+        Decorated function with comprehensive API handling capabilities
     """
 
     def decorator(func: Callable) -> Callable:
