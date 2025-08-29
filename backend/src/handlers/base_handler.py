@@ -50,9 +50,7 @@ class BaseHandler:
             result = self.process_request(api_event, context)
 
             # Create success response
-            response = create_success_response(
-                message="Request processed successfully", data=result
-            )
+            response = create_success_response(data=result)
 
             # Log response
             duration_ms = (time.time() - self.start_time) * 1000

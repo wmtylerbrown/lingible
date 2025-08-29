@@ -1,5 +1,6 @@
 """Enhanced response utilities with proper error handling."""
 
+import json
 from datetime import datetime
 from typing import Optional, Dict, Any
 from ..models.base import BaseResponse, ErrorResponse, HTTPStatus
@@ -8,18 +9,10 @@ from .exceptions import AppException
 
 
 def create_success_response(
-    message: str,
     data: Optional[Dict[str, Any]] = None,
     status_code: int = HTTPStatus.OK.value,
 ) -> APIGatewayResponse:
     """Create a successful API Gateway response."""
-    response_data = BaseResponse(
-        success=True,
-        message=message,
-        data=data,
-        timestamp=datetime.utcnow().isoformat(),
-    )
-
     return APIGatewayResponse(
         statusCode=status_code,
         headers={
@@ -28,25 +21,17 @@ def create_success_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=response_data.model_dump_json(),
+        body=json.dumps(data) if data else "{}",
         isBase64Encoded=False,
     )
 
 
 def create_model_response(
-    message: str,
     model: Any,
     status_code: int = HTTPStatus.OK.value,
     exclude: set[str] | None = None,
 ) -> APIGatewayResponse:
     """Create a successful API Gateway response from a Pydantic model."""
-    response_data = BaseResponse(
-        success=True,
-        message=message,
-        data=model.model_dump(exclude=exclude),
-        timestamp=datetime.utcnow().isoformat(),
-    )
-
     return APIGatewayResponse(
         statusCode=status_code,
         headers={
@@ -55,7 +40,7 @@ def create_model_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=response_data.model_dump_json(),
+        body=model.model_dump_json(exclude=exclude),
         isBase64Encoded=False,
     )
 

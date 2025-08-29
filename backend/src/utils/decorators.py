@@ -25,7 +25,6 @@ from ..utils.exceptions import (
 def handle_errors(
     user_id: Optional[str] = None,
     extract_user_id: Optional[Callable[[Any], str]] = None,
-    success_message: str = "Operation completed successfully",
 ) -> Callable:
     """
     Decorator to handle common errors in Lambda handlers and automatically create API responses.
@@ -33,7 +32,6 @@ def handle_errors(
     Args:
         user_id: Static user ID to use for logging (if known)
         extract_user_id: Function to extract user ID from handler arguments
-        success_message: Default success message for API responses
 
     Returns:
         Decorated function with comprehensive error handling and automatic response creation
@@ -61,13 +59,13 @@ def handle_errors(
 
                 # If the result is a Pydantic model, create a success response
                 if isinstance(result, BaseModel):
-                    return create_model_response(success_message, result)
+                    return create_model_response(result)
 
                 # If the result is a tuple of (message, model), use the custom message
                 if isinstance(result, tuple) and len(result) == 2:
                     message, model = result
                     if isinstance(model, BaseModel):
-                        return create_model_response(message, model)
+                        return create_model_response(model)
 
                 # For any other result type, return as-is (backward compatibility)
                 return result

@@ -21,10 +21,7 @@ from ..utils.envelopes import TranslationEnvelope
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=TranslationEvent, envelope=TranslationEnvelope())
-@handle_errors(
-    extract_user_id=extract_user_from_parsed_data,
-    success_message="Translation completed successfully",
-)
+@handle_errors(extract_user_id=extract_user_from_parsed_data)
 def handler(event: TranslationEvent, context: LambdaContext) -> Any:
     """Handle translation requests from mobile app."""
 

@@ -16,7 +16,7 @@ from ..utils.envelopes import HealthEnvelope
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=Dict[str, Any], envelope=HealthEnvelope())
-@handle_errors(success_message="Service is healthy")
+@handle_errors()
 def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """Handle health check requests."""
 

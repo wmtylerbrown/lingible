@@ -60,7 +60,6 @@ class BaseResponse(BaseModel):
     """Base API response model."""
 
     success: bool = Field(..., description="Whether the request was successful")
-    message: str = Field(..., description="Human-readable response message")
     data: Optional[Dict[str, Any]] = Field(None, description="Response data")
     timestamp: str = Field(..., description="ISO timestamp of response")
 
@@ -94,7 +93,6 @@ class PaginatedResponse(BaseModel):
     """Paginated response model."""
 
     success: bool = Field(True, description="Whether the request was successful")
-    message: str = Field(..., description="Human-readable response message")
     data: List[Dict[str, Any]] = Field(..., description="List of items")
     pagination: Dict[str, Any] = Field(..., description="Pagination information")
     timestamp: str = Field(..., description="ISO timestamp of response")

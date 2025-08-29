@@ -18,10 +18,7 @@ from ..utils.envelopes import UserUsageEnvelope
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=Dict[str, Any], envelope=UserUsageEnvelope())
-@handle_errors(
-    extract_user_id=extract_user_from_parsed_data,
-    success_message="User usage statistics retrieved successfully",
-)
+@handle_errors(extract_user_id=extract_user_from_parsed_data)
 def handler(event: Dict[str, Any], context: LambdaContext) -> Any:
     """Handle user usage statistics requests from mobile app."""
 
