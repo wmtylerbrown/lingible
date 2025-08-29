@@ -38,7 +38,9 @@ class TranslationService:
         self.usage_config = self.config.get_usage_limits()
 
     @tracer.trace_method("translate_text")
-    def translate_text(self, request: TranslationRequest, user_id: str) -> TranslationResponse:
+    def translate_text(
+        self, request: TranslationRequest, user_id: str
+    ) -> TranslationResponse:
         """Translate text using AWS Bedrock."""
         start_time = time.time()
         translation_id = self.translation_repository.generate_translation_id()
@@ -48,7 +50,7 @@ class TranslationService:
             self._validate_translation_request(request)
 
             # Check usage limits and increment usage efficiently
-            self.user_service.check_and_increment_usage(user_id)
+            self.user_service.increment_usage_with_check(user_id)
 
             # Generate Bedrock prompt
             prompt = self._generate_bedrock_prompt(request)
@@ -57,7 +59,9 @@ class TranslationService:
             bedrock_response = self._call_bedrock_api(prompt)
 
             # Parse and validate response
-            translated_text = self._parse_bedrock_response(bedrock_response, request.direction)
+            translated_text = self._parse_bedrock_response(
+                bedrock_response, request.direction
+            )
 
             # Calculate processing time
             processing_time_ms = int((time.time() - start_time) * 1000)
@@ -150,7 +154,7 @@ Translation:"""
             )
 
             response_body = json.loads(response["body"].read())
-            
+
             return BedrockResponse(
                 completion=response_body.get("completion", ""),
                 stop_reason=response_body.get("stop_reason"),
@@ -161,7 +165,9 @@ Translation:"""
             logger.log_error(e, {"operation": "bedrock_api_call"})
             raise SystemError(f"Failed to call Bedrock API: {str(e)}")
 
-    def _parse_bedrock_response(self, response: BedrockResponse, direction: TranslationDirection) -> str:
+    def _parse_bedrock_response(
+        self, response: BedrockResponse, direction: TranslationDirection
+    ) -> str:
         """Parse and validate Bedrock response."""
         completion = response.completion.strip()
 
@@ -172,7 +178,9 @@ Translation:"""
         if completion.startswith('"') and completion.endswith('"'):
             completion = completion[1:-1]
 
-        if completion.startswith("Translation:") or completion.startswith("translation:"):
+        if completion.startswith("Translation:") or completion.startswith(
+            "translation:"
+        ):
             completion = completion.split(":", 1)[1].strip()
 
         if not completion:
@@ -184,10 +192,10 @@ Translation:"""
         """Calculate confidence score based on response quality."""
         # Simple heuristic - in production, you might use more sophisticated analysis
         completion = response.completion.strip()
-        
+
         if not completion:
             return 0.0
-        
+
         # Basic confidence based on response length and content
         if len(completion) < 3:
             return 0.3
@@ -196,7 +204,9 @@ Translation:"""
         else:
             return 0.7
 
-    def _save_translation_history(self, response: TranslationResponse, user_id: str) -> None:
+    def _save_translation_history(
+        self, response: TranslationResponse, user_id: str
+    ) -> None:
         """Save translation to history."""
         history_item = TranslationHistoryItem(
             translation_id=response.translation_id,
@@ -217,11 +227,16 @@ Translation:"""
             )
 
     def get_translation_history(
-        self, user_id: str, limit: int = 20, last_evaluated_key: Optional[Dict[str, Any]] = None
+        self,
+        user_id: str,
+        limit: int = 20,
+        last_evaluated_key: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Get user's translation history."""
-        result = self.translation_repository.get_user_translations(user_id, limit, last_evaluated_key)
-        
+        result = self.translation_repository.get_user_translations(
+            user_id, limit, last_evaluated_key
+        )
+
         return {
             "translations": result.items,
             "total_count": result.count,

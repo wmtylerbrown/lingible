@@ -225,55 +225,19 @@ class UserService:
                 daily_limit,
             )
 
-    @tracer.trace_method("check_and_increment_usage")
-    def check_and_increment_usage(self, user_id: str) -> None:
-        """Check usage limits and increment usage in one efficient operation."""
+    @tracer.trace_method("increment_usage_with_check")
+    def increment_usage_with_check(self, user_id: str) -> None:
+        """Increment usage after checking limits (for translation operations)."""
         try:
-            # Get usage limits only (tier is included)
-            usage = self.repository.get_usage_limits(user_id)
+            # First check limits
+            self.check_usage_limits(user_id)
 
-            if not usage:
-                # Create default usage limits for new user
-                usage = UsageLimit(
-                    tier="free",
-                    current_daily_usage=0,
-                    reset_daily_at=None,
-                )
-
-            # Get limits from config based on tier
-            tier_config = self.usage_config.get(usage.tier, self.usage_config["free"])
-            daily_limit = tier_config["daily_limit"]
-
-            # Check if limits are exceeded
-            if usage.current_daily_usage >= daily_limit:
-                raise UsageLimitExceededError(
-                    "daily",
-                    usage.current_daily_usage,
-                    daily_limit,
-                )
-
-            # Increment usage
-            usage.current_daily_usage += 1
-
-            # Update reset times if needed
-            now = datetime.now(timezone.utc)
-            if not usage.reset_daily_at or now.date() > usage.reset_daily_at.date():
-                usage.reset_daily_at = now.replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
-                usage.current_daily_usage = 1
-
-            # Save updated usage
-            success = self.repository.update_usage_limits(user_id, usage)
-            if not success:
-                logger.log_error(
-                    Exception("Failed to update usage limits"),
-                    {"user_id": user_id},
-                )
+            # Then increment usage
+            self.increment_usage(user_id)
 
         except Exception as e:
             logger.log_error(
-                e, {"operation": "check_and_increment_usage", "user_id": user_id}
+                e, {"operation": "increment_usage_with_check", "user_id": user_id}
             )
             raise
 
