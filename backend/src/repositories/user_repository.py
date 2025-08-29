@@ -154,17 +154,10 @@ class UserRepository:
             item = {
                 "PK": f"USER#{user_id}",
                 "SK": "USAGE#LIMITS",
-                "daily_limit": usage.daily_limit,
-                "monthly_limit": usage.monthly_limit,
+                "tier": usage.tier,
                 "current_daily_usage": usage.current_daily_usage,
-                "current_monthly_usage": usage.current_monthly_usage,
                 "reset_daily_at": (
                     usage.reset_daily_at.isoformat() if usage.reset_daily_at else None
-                ),
-                "reset_monthly_at": (
-                    usage.reset_monthly_at.isoformat()
-                    if usage.reset_monthly_at
-                    else None
                 ),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -178,7 +171,6 @@ class UserRepository:
                 {
                     "user_id": user_id,
                     "daily_usage": usage.current_daily_usage,
-                    "monthly_usage": usage.current_monthly_usage,
                 },
             )
             return True
@@ -209,18 +201,11 @@ class UserRepository:
 
             item = response["Item"]
             return UsageLimit(
-                daily_limit=item["daily_limit"],
-                monthly_limit=item["monthly_limit"],
+                tier=item["tier"],
                 current_daily_usage=item.get("current_daily_usage", 0),
-                current_monthly_usage=item.get("current_monthly_usage", 0),
                 reset_daily_at=(
                     datetime.fromisoformat(item["reset_daily_at"])
                     if item.get("reset_daily_at")
-                    else None
-                ),
-                reset_monthly_at=(
-                    datetime.fromisoformat(item["reset_monthly_at"])
-                    if item.get("reset_monthly_at")
                     else None
                 ),
             )
@@ -302,18 +287,11 @@ class UserRepository:
             usage_limits = None
             if usage_item:
                 usage_limits = UsageLimit(
-                    daily_limit=usage_item["daily_limit"],
-                    monthly_limit=usage_item["monthly_limit"],
+                    tier=usage_item["tier"],
                     current_daily_usage=usage_item.get("current_daily_usage", 0),
-                    current_monthly_usage=usage_item.get("current_monthly_usage", 0),
                     reset_daily_at=(
                         datetime.fromisoformat(usage_item["reset_daily_at"])
                         if usage_item.get("reset_daily_at")
-                        else None
-                    ),
-                    reset_monthly_at=(
-                        datetime.fromisoformat(usage_item["reset_monthly_at"])
-                        if usage_item.get("reset_monthly_at")
                         else None
                     ),
                 )

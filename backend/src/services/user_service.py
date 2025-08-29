@@ -87,25 +87,67 @@ class UserService:
     def get_user_usage(self, user_id: str) -> UserUsageResponse:
         """Get user usage statistics for API response (dynamic data)."""
         try:
-            # Get user and usage limits efficiently
-            user, usage_limits = self._get_user_and_usage_efficiently(user_id)
+            # Get usage limits only (tier is now included)
+            usage_limits = self.repository.get_usage_limits(user_id)
+            if not usage_limits:
+                # Create default usage limits for new user
+                usage_limits = self._create_default_usage_limits_for_user(user_id)
+
+            # Get limits from config based on tier
+            tier_config = self.usage_config.get(
+                usage_limits.tier, self.usage_config["free"]
+            )
+            daily_limit = tier_config["daily_limit"]
 
             # Calculate daily remaining
-            daily_remaining = max(
-                0, usage_limits.daily_limit - usage_limits.current_daily_usage
-            )
+            daily_remaining = max(0, daily_limit - usage_limits.current_daily_usage)
 
             return UserUsageResponse(
-                tier=user.tier.value,
-                daily_limit=usage_limits.daily_limit,
+                tier=usage_limits.tier,
+                daily_limit=daily_limit,
                 daily_used=usage_limits.current_daily_usage,
                 daily_remaining=daily_remaining,
-                total_used=user.total_translations_used,
+                total_used=0,  # We'll need to get this from user data if needed
                 reset_date=usage_limits.reset_daily_at or datetime.now(timezone.utc),
             )
 
         except Exception as e:
             logger.log_error(e, {"operation": "get_user_usage", "user_id": user_id})
+            raise
+
+    def _create_default_usage_limits_for_user(self, user_id: str) -> UsageLimit:
+        """Create default usage limits for a new user (assumes free tier)."""
+        try:
+            now = datetime.now(timezone.utc)
+
+            # Default to free tier
+            tier_config = self.usage_config["free"]
+            daily_limit = tier_config["daily_limit"]
+
+            usage = UsageLimit(
+                tier="free",
+                current_daily_usage=0,
+                reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
+            )
+
+            # Save to database
+            success = self.repository.update_usage_limits(user_id, usage)
+            if not success:
+                logger.log_error(
+                    Exception("Failed to create default usage limits"),
+                    {"user_id": user_id, "tier": "free"},
+                )
+
+            return usage
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "_create_default_usage_limits_for_user",
+                    "user_id": user_id,
+                },
+            )
             raise
 
     def _get_user_and_usage_efficiently(self, user_id: str) -> tuple[User, UsageLimit]:
@@ -141,12 +183,9 @@ class UserService:
             daily_limit = tier_config["daily_limit"]
 
             usage = UsageLimit(
-                daily_limit=daily_limit,
-                monthly_limit=0,  # No monthly limits
+                tier=tier.value,
                 current_daily_usage=0,
-                current_monthly_usage=0,
                 reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
-                reset_monthly_at=None,  # No monthly reset
             )
 
             # Save to database
@@ -176,12 +215,9 @@ class UserService:
             daily_limit = tier_config["daily_limit"]
 
             usage = UsageLimit(
-                daily_limit=daily_limit,
-                monthly_limit=0,  # No monthly limits
+                tier=tier.value,
                 current_daily_usage=0,
-                current_monthly_usage=0,
                 reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
-                reset_monthly_at=None,  # No monthly reset
             )
 
             success = self.repository.update_usage_limits(user_id, usage)
@@ -227,12 +263,9 @@ class UserService:
         if not usage:
             # Create default usage limits for new user
             usage = UsageLimit(
-                daily_limit=self.usage_config["free"]["daily_limit"],
-                monthly_limit=0,  # No monthly limits
+                tier="free",
                 current_daily_usage=0,
-                current_monthly_usage=0,
                 reset_daily_at=None,
-                reset_monthly_at=None,
             )
 
         # Check if limits are exceeded
@@ -256,16 +289,17 @@ class UserService:
             if not usage:
                 # Create default usage limits for new user
                 usage = UsageLimit(
-                    daily_limit=self.usage_config["free"]["daily_limit"],
-                    monthly_limit=0,  # No monthly limits
+                    tier="free",
                     current_daily_usage=0,
-                    current_monthly_usage=0,
                     reset_daily_at=None,
-                    reset_monthly_at=None,
                 )
 
+            # Get limits from config based on tier
+            tier_config = self.usage_config.get(usage.tier, self.usage_config["free"])
+            daily_limit = tier_config["daily_limit"]
+
             # Check if limits are exceeded
-            if usage.current_daily_usage >= usage.daily_limit:
+            if usage.current_daily_usage >= daily_limit:
                 raise UsageLimitExceededError(
                     "daily",
                     usage.current_daily_usage,
@@ -304,17 +338,13 @@ class UserService:
 
         if not usage:
             usage = UsageLimit(
-                daily_limit=self.usage_config["free"]["daily_limit"],
-                monthly_limit=self.usage_config["free"]["monthly_limit"],
+                tier="free",
                 current_daily_usage=0,
-                current_monthly_usage=0,
                 reset_daily_at=None,
-                reset_monthly_at=None,
             )
 
         # Increment usage
         usage.current_daily_usage += 1
-        usage.current_monthly_usage += 1
 
         # Update reset times if needed
         now = datetime.now(timezone.utc)
@@ -323,12 +353,6 @@ class UserService:
                 hour=0, minute=0, second=0, microsecond=0
             )
             usage.current_daily_usage = 1
-
-        if not usage.reset_monthly_at or now.month != usage.reset_monthly_at.month:
-            usage.reset_monthly_at = now.replace(
-                day=1, hour=0, minute=0, second=0, microsecond=0
-            )
-            usage.current_monthly_usage = 1
 
         success = self.repository.update_usage_limits(user_id, usage)
         if not success:
