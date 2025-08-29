@@ -59,13 +59,8 @@ class TranslationService:
                     usage_response.daily_limit,
                 )
 
-            # Get usage data for incrementing (second DB call, but simpler API)
-            usage = self.user_service.repository.get_usage_limits(user_id)
-            if not usage:
-                raise ValueError(f"No usage data found for user {user_id}")
-
-            # Increment usage
-            self.user_service.increment_usage(user_id, usage)
+            # Atomically increment usage (no need to pass UsageLimit object)
+            self.user_service.increment_usage(user_id, usage_response.tier)
 
             # Generate Bedrock prompt
             prompt = self._generate_bedrock_prompt(request)

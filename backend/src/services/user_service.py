@@ -157,22 +157,18 @@ class UserService:
             raise
 
     @tracer.trace_method("increment_usage")
-    def increment_usage(self, user_id: str, usage: UsageLimit) -> None:
-        """Increment user usage (assumes limits already checked)."""
-        # Increment usage
-        usage.current_daily_usage += 1
-
-        # Update reset times if needed
-        now = datetime.now(timezone.utc)
-        if not usage.reset_daily_at or now.date() > usage.reset_daily_at.date():
-            usage.reset_daily_at = now.replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
-            usage.current_daily_usage = 1
-
-        success = self.repository.update_usage_limits(user_id, usage)
+    def increment_usage(self, user_id: str, tier: str = "free") -> None:
+        """Atomically increment user usage (assumes limits already checked)."""
+        success = self.repository.increment_usage(user_id, tier)
         if not success:
-            raise SystemError(f"Failed to update usage limits for user {user_id}")
+            raise SystemError(f"Failed to increment usage for user {user_id}")
+
+    @tracer.trace_method("reset_daily_usage")
+    def reset_daily_usage(self, user_id: str, tier: str = "free") -> None:
+        """Reset daily usage counter to 0."""
+        success = self.repository.reset_daily_usage(user_id, tier)
+        if not success:
+            raise SystemError(f"Failed to reset usage for user {user_id}")
 
     @tracer.trace_method("upgrade_user_tier")
     def upgrade_user_tier(self, user_id: str, new_tier: UserTier) -> bool:

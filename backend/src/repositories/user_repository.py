@@ -220,6 +220,129 @@ class UserRepository:
             )
             return None
 
+    @tracer.trace_database_operation("update", "users")
+    def increment_usage(self, user_id: str, tier: str = "free") -> bool:
+        """Atomically increment usage counter and reset if needed."""
+        try:
+            now = datetime.now(timezone.utc)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            # First, try to increment usage (this will work if it's the same day)
+            try:
+                response = self.table.update_item(
+                    Key={
+                        "PK": f"USER#{user_id}",
+                        "SK": "USAGE#LIMITS",
+                    },
+                    UpdateExpression="SET current_daily_usage = if_not_exists(current_daily_usage, 0) + :one, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                    ExpressionAttributeValues={
+                        ":one": 1,
+                        ":updated_at": now.isoformat(),
+                        ":tier": tier,
+                    },
+                    ConditionExpression="attribute_not_exists(reset_daily_at) OR reset_daily_at >= :today_start",
+                    ReturnValues="UPDATED_NEW",
+                )
+
+                # Successfully incremented (same day)
+                updated_item = response.get("Attributes", {})
+                new_usage = updated_item.get("current_daily_usage", 1)
+
+                logger.log_business_event(
+                    "usage_incremented",
+                    {
+                        "user_id": user_id,
+                        "daily_usage": new_usage,
+                        "same_day": True,
+                    },
+                )
+                return True
+
+            except Exception as condition_failed:
+                # Condition failed means it's a new day, so reset and set to 1
+                response = self.table.update_item(
+                    Key={
+                        "PK": f"USER#{user_id}",
+                        "SK": "USAGE#LIMITS",
+                    },
+                    UpdateExpression="SET current_daily_usage = :one, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                    ExpressionAttributeValues={
+                        ":one": 1,
+                        ":today_start": today_start.isoformat(),
+                        ":updated_at": now.isoformat(),
+                        ":tier": tier,
+                    },
+                    ReturnValues="UPDATED_NEW",
+                )
+
+                # Successfully reset and incremented (new day)
+                updated_item = response.get("Attributes", {})
+                new_usage = updated_item.get("current_daily_usage", 1)
+                new_reset_date = updated_item.get(
+                    "reset_daily_at", today_start.isoformat()
+                )
+
+                logger.log_business_event(
+                    "usage_incremented",
+                    {
+                        "user_id": user_id,
+                        "daily_usage": new_usage,
+                        "reset_date": new_reset_date,
+                        "same_day": False,
+                    },
+                )
+                return True
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "increment_usage",
+                    "user_id": user_id,
+                },
+            )
+            return False
+
+    @tracer.trace_database_operation("update", "users")
+    def reset_daily_usage(self, user_id: str, tier: str = "free") -> bool:
+        """Reset daily usage counter to 0."""
+        try:
+            now = datetime.now(timezone.utc)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            self.table.update_item(
+                Key={
+                    "PK": f"USER#{user_id}",
+                    "SK": "USAGE#LIMITS",
+                },
+                UpdateExpression="SET current_daily_usage = :zero, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                ExpressionAttributeValues={
+                    ":zero": 0,
+                    ":today_start": today_start.isoformat(),
+                    ":updated_at": now.isoformat(),
+                    ":tier": tier,
+                },
+            )
+
+            logger.log_business_event(
+                "usage_reset",
+                {
+                    "user_id": user_id,
+                    "reset_date": today_start.isoformat(),
+                },
+            )
+            return True
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "reset_daily_usage",
+                    "user_id": user_id,
+                },
+            )
+            return False
+
     @tracer.trace_database_operation("delete", "users")
     def delete_user(self, user_id: str) -> bool:
         """Delete user and all associated data."""
