@@ -37,9 +37,6 @@ class User(BaseModel):
     status: UserStatus = Field(UserStatus.ACTIVE, description="User account status")
 
     # Usage tracking
-    monthly_translations_used: int = Field(
-        0, description="Translations used this month"
-    )
     total_translations_used: int = Field(0, description="Total translations used")
     last_translation_date: Optional[datetime] = Field(
         None, description="Last translation date"
@@ -78,7 +75,7 @@ class UserUsage(BaseModel):
 
 # API Models
 class UserProfileResponse(BaseModel):
-    """User profile API response."""
+    """User profile API response - cacheable data only."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -87,21 +84,23 @@ class UserProfileResponse(BaseModel):
     username: str = Field(..., description="Username")
     tier: str = Field(..., description="User tier")
     status: str = Field(..., description="Account status")
-    monthly_translations_used: int = Field(
-        ..., description="Translations used this month"
+    subscription_start_date: Optional[datetime] = Field(
+        None, description="Premium subscription start date"
     )
-    total_translations_used: int = Field(..., description="Total translations used")
+    subscription_end_date: Optional[datetime] = Field(
+        None, description="Premium subscription end date"
+    )
     created_at: datetime = Field(..., description="Account creation date")
 
 
 class UserUsageResponse(BaseModel):
-    """User usage API response."""
+    """User usage API response - dynamic data, not cacheable."""
 
     model_config = ConfigDict(from_attributes=True)
 
     tier: str = Field(..., description="User tier (free/premium)")
-    monthly_limit: int = Field(..., description="Monthly translation limit")
-    monthly_used: int = Field(..., description="Translations used this month")
-    monthly_remaining: int = Field(..., description="Translations remaining this month")
+    daily_limit: int = Field(..., description="Daily translation limit")
+    daily_used: int = Field(..., description="Translations used today")
+    daily_remaining: int = Field(..., description="Translations remaining today")
     total_used: int = Field(..., description="Total translations used")
-    reset_date: datetime = Field(..., description="Next usage reset date")
+    reset_date: datetime = Field(..., description="Next daily reset date")

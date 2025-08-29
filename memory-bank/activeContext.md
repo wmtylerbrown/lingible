@@ -17,9 +17,9 @@ We have successfully completed the foundational backend architecture with:
 
 ### Immediate Next Steps
 1. **Build remaining Lambda handlers**:
-   - User profile handler (`/users/profile`)
+   - User profile handler (`/users/profile`) - Static, cacheable data only
    - Translation history handler (`/translations/history`)
-   - Usage statistics handler (`/users/usage`)
+   - Usage statistics handler (`/users/usage`) - Dynamic daily usage data
    - Health check handler (`/health`)
 
 2. **Follow established patterns**:

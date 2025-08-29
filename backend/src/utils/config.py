@@ -39,9 +39,8 @@ class AppConfig:
             },
             # Usage Limits
             "usage_limits": {
-                "free": {"monthly_limit": 10, "daily_limit": 5, "max_text_length": 500},
+                "free": {"daily_limit": 5, "max_text_length": 500},
                 "premium": {
-                    "monthly_limit": 100,
                     "daily_limit": 20,
                     "max_text_length": 1000,
                 },

@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
-from ..models.users import User, UserTier, UserStatus, UserUsage
+from ..models.users import User, UserTier, UserStatus, UserUsage, UserUsageResponse
 from ..models.translations import UsageLimit
 from ..utils.logging import logger
 from ..utils.tracing import tracer
@@ -31,7 +31,6 @@ class UserService:
                 email=email,
                 tier=tier,
                 status=UserStatus.ACTIVE,
-                monthly_translations_used=0,
                 total_translations_used=0,
                 last_translation_date=None,
                 subscription_start_date=None,
@@ -67,6 +66,81 @@ class UserService:
         except Exception as e:
             logger.log_error(e, {"operation": "get_user", "user_id": user_id})
             return None
+
+    @tracer.trace_method("get_user_profile")
+    def get_user_profile(self, user_id: str) -> User:
+        """Get user profile for API response (static, cacheable data)."""
+        try:
+            user = self.repository.get_user(user_id)
+            if not user:
+                raise ValidationError(f"User not found: {user_id}")
+            
+            return user
+
+        except Exception as e:
+            logger.log_error(e, {"operation": "get_user_profile", "user_id": user_id})
+            raise
+
+    @tracer.trace_method("get_user_usage")
+    def get_user_usage(self, user_id: str) -> UserUsageResponse:
+        """Get user usage statistics for API response (dynamic data)."""
+        try:
+            # Get user and usage limits
+            user = self.repository.get_user(user_id)
+            if not user:
+                raise ValidationError(f"User not found: {user_id}")
+            
+            usage_limits = self.repository.get_usage_limits(user_id)
+            if not usage_limits:
+                # Create default usage limits if they don't exist
+                self._create_default_usage_limits(user_id, user.tier)
+                usage_limits = self.repository.get_usage_limits(user_id)
+                if not usage_limits:
+                    raise ValidationError(f"Failed to create usage limits for user: {user_id}")
+            
+            # Calculate daily remaining
+            daily_remaining = max(0, usage_limits.daily_limit - usage_limits.current_daily_usage)
+            
+            return UserUsageResponse(
+                tier=user.tier,
+                daily_limit=usage_limits.daily_limit,
+                daily_used=usage_limits.current_daily_usage,
+                daily_remaining=daily_remaining,
+                total_used=user.total_translations_used,
+                reset_date=usage_limits.reset_daily_at or datetime.now(timezone.utc),
+            )
+
+        except Exception as e:
+            logger.log_error(e, {"operation": "get_user_usage", "user_id": user_id})
+            raise
+
+    def _create_default_usage_limits(self, user_id: str, tier: UserTier) -> None:
+        """Create default usage limits for a user."""
+        try:
+            now = datetime.now(timezone.utc)
+            
+            # Get limits based on tier
+            tier_config = self.usage_config.get(tier.value, self.usage_config["free"])
+            daily_limit = tier_config["daily_limit"]
+            
+            usage = UsageLimit(
+                daily_limit=daily_limit,
+                monthly_limit=0,  # No monthly limits
+                current_daily_usage=0,
+                current_monthly_usage=0,
+                reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
+                reset_monthly_at=None,  # No monthly reset
+            )
+            
+            success = self.repository.update_usage_limits(user_id, usage)
+            if not success:
+                logger.log_error(
+                    Exception("Failed to create default usage limits"),
+                    {"user_id": user_id, "tier": tier.value},
+                )
+                
+        except Exception as e:
+            logger.log_error(e, {"operation": "_create_default_usage_limits", "user_id": user_id})
 
     @tracer.trace_method("update_user")
     def update_user(self, user: User) -> bool:
