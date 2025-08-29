@@ -119,9 +119,8 @@ class UserService:
 
             success = self.repository.update_usage_limits(user_id, usage)
             if not success:
-                logger.log_error(
-                    Exception("Failed to create default usage limits"),
-                    {"user_id": user_id, "tier": tier},
+                raise SystemError(
+                    f"Failed to create default usage limits for user {user_id}"
                 )
 
             return usage
@@ -171,10 +170,7 @@ class UserService:
 
         success = self.repository.update_usage_limits(user_id, usage)
         if not success:
-            logger.log_error(
-                Exception("Failed to update usage limits"),
-                {"user_id": user_id},
-            )
+            raise SystemError(f"Failed to update usage limits for user {user_id}")
 
     @tracer.trace_method("upgrade_user_tier")
     def upgrade_user_tier(self, user_id: str, new_tier: UserTier) -> bool:
