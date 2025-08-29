@@ -1,8 +1,9 @@
 """Translation repository for DynamoDB operations."""
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TypeVar, Generic, List
 
 from ..models.translations import (
     TranslationHistory,
@@ -12,7 +13,18 @@ from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.aws_services import aws_services
 from ..utils.config import get_config
-from .base_repository import QueryResult
+
+T = TypeVar("T")
+
+
+@dataclass
+class QueryResult(Generic[T]):
+    """Query result with pagination."""
+
+    items: List[T]
+    last_evaluated_key: Optional[Dict[str, Any]] = None
+    count: int = 0
+    scanned_count: int = 0
 
 
 class TranslationRepository:
