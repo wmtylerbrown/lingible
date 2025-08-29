@@ -81,7 +81,6 @@ class UserRepository:
                 email=item.get("email"),
                 tier=UserTier(item["tier"]),
                 status=UserStatus(item["status"]),
-
                 created_at=datetime.fromisoformat(item["created_at"]),
                 updated_at=datetime.fromisoformat(item["updated_at"]),
             )
@@ -108,7 +107,6 @@ class UserRepository:
                 "email": user.email,
                 "tier": user.tier.value,
                 "status": user.status.value,
-
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 

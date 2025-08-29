@@ -3,13 +3,10 @@ boto3>=1.40.20
 boto3-stubs[essential]>=1.34.0
 pydantic>=2.11.7
 python-jose[cryptography]>=3.5.0
-passlib[bcrypt]>=1.7.4
-python-multipart>=0.0.20
 requests>=2.32.5
 aws-lambda-powertools>=3.19.0
 
-# Receipt validation SDKs
-itunes-iap>=0.0.1
+# Google Play receipt validation
 google-api-python-client>=2.0.0
 google-auth>=2.0.0
 

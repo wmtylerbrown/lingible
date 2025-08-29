@@ -1,32 +1,31 @@
 """Receipt validation service using official Apple and Google SDKs."""
 
 import json
-
 from datetime import datetime, timezone
 
-import itunesiap
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import requests
 
-from ..models.subscriptions import (
-    SubscriptionProvider,
-    ReceiptValidationStatus,
-    ReceiptValidationResult,
+from src.models.subscriptions import (
     ReceiptValidationRequest,
+    ReceiptValidationResult,
+    ReceiptValidationStatus,
+    SubscriptionProvider,
 )
-from ..utils.logging import logger
-from ..utils.tracing import tracer
-from ..utils.config import get_config
-from ..utils.exceptions import ValidationError
+from src.utils.config import AppConfig
+from src.utils.logging import SmartLogger
+
+logger = SmartLogger("receipt-validation-service")
 
 
 class ReceiptValidationService:
     """Service for validating receipts using official Apple and Google SDKs."""
 
     def __init__(self):
-        """Initialize receipt validation service."""
-        self.config = get_config()
+        """Initialize the receipt validation service."""
+        self.config = AppConfig()
         self.apple_config = self.config.get_apple_store_config()
         self.google_config = self.config.get_google_play_config()
 
@@ -38,8 +37,7 @@ class ReceiptValidationService:
         """Get Google Play API client (lazy initialization)."""
         if self._google_client is None:
             try:
-                # Load service account credentials
-                credentials = service_account.Credentials.from_service_account_file(
+                credentials = service_account.Credentials.from_service_account_info(
                     self.google_config.get("service_account_key"),
                     scopes=["https://www.googleapis.com/auth/androidpublisher"],
                 )
@@ -51,36 +49,33 @@ class ReceiptValidationService:
                 self._google_client = None
         return self._google_client
 
-    @tracer.trace_method("validate_receipt")
     def validate_receipt(
         self, request: ReceiptValidationRequest
     ) -> ReceiptValidationResult:
-        """Validate receipt with the appropriate provider using official SDKs."""
-        try:
-            logger.log_business_event(
-                "receipt_validation_started",
-                {
-                    "provider": request.provider.value,
-                    "transaction_id": request.transaction_id,
-                    "user_id": request.user_id,
-                    "receipt_length": len(request.receipt_data),
-                },
-            )
+        """
+        Validate a receipt from Apple Store or Google Play.
 
-            # Validate based on provider
+        Args:
+            request: Receipt validation request with provider and receipt data
+
+        Returns:
+            ReceiptValidationResult: Validation result with status and details
+        """
+        try:
             if request.provider == SubscriptionProvider.APPLE:
                 result = self._validate_apple_receipt(request)
             elif request.provider == SubscriptionProvider.GOOGLE:
                 result = self._validate_google_receipt(request)
             else:
-                raise ValidationError(f"Unsupported provider: {request.provider}")
+                # This should never happen with the current enum, but handle for future extensibility
+                raise ValueError(f"Unsupported provider: {request.provider}")
 
             # Log validation result
             logger.log_business_event(
                 "receipt_validation_completed",
                 {
                     "transaction_id": request.transaction_id,
-                    "provider": request.provider.value,
+                    "provider": request.provider,
                     "is_valid": result.is_valid,
                     "status": result.status.value,
                     "product_id": result.product_id,
@@ -94,13 +89,10 @@ class ReceiptValidationService:
                 e,
                 {
                     "operation": "validate_receipt",
-                    "provider": request.provider.value,
                     "transaction_id": request.transaction_id,
-                    "user_id": request.user_id,
+                    "provider": request.provider,
                 },
             )
-
-            # Return retryable error for transient issues
             return ReceiptValidationResult(
                 is_valid=False,
                 status=ReceiptValidationStatus.RETRYABLE_ERROR,
@@ -116,23 +108,67 @@ class ReceiptValidationService:
     def _validate_apple_receipt(
         self, request: ReceiptValidationRequest
     ) -> ReceiptValidationResult:
-        """Validate Apple Store receipt using itunes-iap SDK."""
+        """Validate Apple Store receipt using direct API calls."""
         try:
-            # Use itunes-iap SDK for validation
             shared_secret = self.apple_config.get("shared_secret")
 
-            # Validate receipt
-            response = itunesiap.verify(
-                receipt_data=request.receipt_data,
-                shared_secret=shared_secret,
-                exclude_old_transactions=True,
-            )
+            # Prepare request payload
+            payload = {
+                "receipt-data": request.receipt_data,
+                "password": shared_secret,
+                "exclude-old-transactions": True,
+            }
+
+            # Try production environment first
+            production_url = "https://buy.itunes.apple.com/verifyReceipt"
+            response = requests.post(production_url, json=payload, timeout=30)
+
+            if response.status_code != 200:
+                return ReceiptValidationResult(
+                    is_valid=False,
+                    status=ReceiptValidationStatus.RETRYABLE_ERROR,
+                    transaction_id=request.transaction_id,
+                    product_id=None,
+                    purchase_date=None,
+                    expiration_date=None,
+                    environment=None,
+                    error_message=f"Apple API request failed: {response.status_code}",
+                    retry_after=60,
+                )
+
+            result_data = response.json()
+            status_code = result_data.get("status", -1)
+
+            # Check if receipt is from sandbox environment
+            if status_code == 21007:
+                # Retry with sandbox environment
+                sandbox_url = "https://sandbox.itunes.apple.com/verifyReceipt"
+                response = requests.post(sandbox_url, json=payload, timeout=30)
+
+                if response.status_code != 200:
+                    return ReceiptValidationResult(
+                        is_valid=False,
+                        status=ReceiptValidationStatus.RETRYABLE_ERROR,
+                        transaction_id=request.transaction_id,
+                        product_id=None,
+                        purchase_date=None,
+                        expiration_date=None,
+                        environment="sandbox",
+                        error_message=f"Apple sandbox API request failed: {response.status_code}",
+                        retry_after=60,
+                    )
+
+                result_data = response.json()
+                status_code = result_data.get("status", -1)
+                environment = "sandbox"
+            else:
+                environment = "production"
 
             # Check if validation was successful
-            if response.status == 0:  # Valid receipt
+            if status_code == 0:  # Valid receipt
                 # Extract transaction information
-                receipt_info = response.receipt
-                latest_receipt_info = response.latest_receipt_info
+                receipt_info = result_data.get("receipt", {})
+                latest_receipt_info = result_data.get("latest_receipt_info", [])
 
                 # Get the most recent transaction
                 if latest_receipt_info:
@@ -165,7 +201,7 @@ class ReceiptValidationService:
                         product_id=product_id,
                         purchase_date=purchase_date,
                         expiration_date=expiration_date,
-                        environment=response.environment,
+                        environment=environment,
                         error_message="Subscription has expired",
                         retry_after=None,
                     )
@@ -177,15 +213,15 @@ class ReceiptValidationService:
                     product_id=product_id,
                     purchase_date=purchase_date,
                     expiration_date=expiration_date,
-                    environment=response.environment,
+                    environment=environment,
                     error_message=None,
                     retry_after=None,
                 )
 
             else:
                 # Handle different Apple status codes
-                error_message = self._get_apple_error_message(response.status)
-                status = self._map_apple_status_to_receipt_status(response.status)
+                error_message = self._get_apple_error_message(status_code)
+                status = self._map_apple_status_to_receipt_status(status_code)
 
                 return ReceiptValidationResult(
                     is_valid=False,
@@ -194,7 +230,7 @@ class ReceiptValidationService:
                     product_id=None,
                     purchase_date=None,
                     expiration_date=None,
-                    environment=None,
+                    environment=environment,
                     error_message=error_message,
                     retry_after=(
                         300
@@ -203,6 +239,25 @@ class ReceiptValidationService:
                     ),
                 )
 
+        except requests.RequestException as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "_validate_apple_receipt",
+                    "transaction_id": request.transaction_id,
+                },
+            )
+            return ReceiptValidationResult(
+                is_valid=False,
+                status=ReceiptValidationStatus.RETRYABLE_ERROR,
+                transaction_id=request.transaction_id,
+                product_id=None,
+                purchase_date=None,
+                expiration_date=None,
+                environment=None,
+                error_message=f"Apple API request error: {str(e)}",
+                retry_after=60,
+            )
         except Exception as e:
             logger.log_error(
                 e,

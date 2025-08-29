@@ -264,22 +264,28 @@ Translation:"""
         """Delete all translations for a user. Returns number of deleted records."""
         try:
             # Get all user translations
-            translations = self.translation_repository.get_user_translations(user_id, limit=1000)
+            translations = self.translation_repository.get_user_translations(
+                user_id, limit=1000
+            )
             deleted_count = 0
-            
+
             # Delete each translation
             for translation in translations.items:
-                success = self.translation_repository.delete_translation(user_id, translation.translation_id)
+                success = self.translation_repository.delete_translation(
+                    user_id, translation.translation_id
+                )
                 if success:
                     deleted_count += 1
-            
+
             logger.log_business_event(
                 "user_translations_deleted",
-                {"user_id": user_id, "deleted_count": deleted_count}
+                {"user_id": user_id, "deleted_count": deleted_count},
             )
-            
+
             return deleted_count
-            
+
         except Exception as e:
-            logger.log_error(e, {"operation": "delete_user_translations", "user_id": user_id})
+            logger.log_error(
+                e, {"operation": "delete_user_translations", "user_id": user_id}
+            )
             return 0

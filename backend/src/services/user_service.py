@@ -38,7 +38,6 @@ class UserService:
                 email=email,
                 tier=tier,
                 status=UserStatus.ACTIVE,
-
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
@@ -256,5 +255,3 @@ class UserService:
         except Exception as e:
             logger.log_error(e, {"operation": "delete_user", "user_id": user_id})
             raise
-
-

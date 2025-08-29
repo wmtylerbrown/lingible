@@ -3,7 +3,11 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from ..models.subscriptions import UserSubscription, SubscriptionProvider, SubscriptionStatus
+from ..models.subscriptions import (
+    UserSubscription,
+    SubscriptionProvider,
+    SubscriptionStatus,
+)
 from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.aws_services import aws_services
@@ -172,7 +176,11 @@ class SubscriptionRepository:
                 "transaction_id": current_subscription.transaction_id,
                 "status": "cancelled",
                 "start_date": current_subscription.start_date.isoformat(),
-                "end_date": current_subscription.end_date.isoformat() if current_subscription.end_date else None,
+                "end_date": (
+                    current_subscription.end_date.isoformat()
+                    if current_subscription.end_date
+                    else None
+                ),
                 "cancelled_at": datetime.now(timezone.utc).isoformat(),
                 "created_at": current_subscription.created_at.isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),

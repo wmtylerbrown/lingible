@@ -16,7 +16,9 @@ subscription_service = SubscriptionService()
 @event_parser(model=WebhookEvent)
 @api_handler()
 @tracer.trace_method("apple_webhook_handler")
-def handle_apple_webhook(event: WebhookEvent, context: LambdaContext) -> WebhookResponse:
+def handle_apple_webhook(
+    event: WebhookEvent, context: LambdaContext
+) -> WebhookResponse:
     """Handle Apple subscription webhook."""
     # Extract webhook data from validated request body
     notification_type = event.request_body.notification_type.value
@@ -30,5 +32,7 @@ def handle_apple_webhook(event: WebhookEvent, context: LambdaContext) -> Webhook
 
     return WebhookResponse(
         success=success,
-        message="Webhook processed successfully" if success else "Webhook processing failed"
+        message=(
+            "Webhook processed successfully" if success else "Webhook processing failed"
+        ),
     )

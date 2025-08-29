@@ -164,10 +164,10 @@ class UserDataCleanupEvent(BaseModel):
     cleanup_steps: List[str] = Field(
         default_factory=lambda: [
             "delete_translations",
-            "delete_usage", 
+            "delete_usage",
             "archive_subscriptions",
-            "delete_other_data"
+            "delete_other_data",
         ],
-        description="List of cleanup steps to perform"
+        description="List of cleanup steps to perform",
     )
     requested_at: Optional[str] = Field(None, description="When cleanup was requested")

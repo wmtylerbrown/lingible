@@ -83,7 +83,9 @@ def cleanup_user_data_handler(
             try:
                 # Ensure subscription is cancelled and archived
                 # Note: Archived subscriptions have 1-year TTL for automatic cleanup
-                active_subscription = subscription_service.get_active_subscription(user_id)
+                active_subscription = subscription_service.get_active_subscription(
+                    user_id
+                )
                 if active_subscription:
                     subscription_service.cancel_subscription(user_id)
                     cleanup_results["steps_completed"].append("archive_subscriptions")

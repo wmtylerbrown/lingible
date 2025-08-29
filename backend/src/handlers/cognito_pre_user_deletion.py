@@ -79,9 +79,9 @@ def pre_user_deletion_handler(
                     "delete_translations",
                     "delete_usage",
                     "archive_subscriptions",
-                    "delete_other_data"
+                    "delete_other_data",
                 ],
-                "requested_at": datetime.now(timezone.utc).isoformat()
+                "requested_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # TODO: Send to SQS or invoke cleanup handler directly
