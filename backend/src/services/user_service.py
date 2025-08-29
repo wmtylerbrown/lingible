@@ -138,21 +138,23 @@ class UserService:
             user.updated_at = datetime.now(timezone.utc)
             success = self.repository.update_user(user)
 
-            if success:
-                logger.log_business_event(
-                    "user_updated",
-                    {
-                        "user_id": user.user_id,
-                        "tier": user.tier.value,
-                        "status": user.status.value,
-                    },
-                )
+            if not success:
+                raise SystemError(f"Failed to update user {user.user_id}")
 
-            return success
+            logger.log_business_event(
+                "user_updated",
+                {
+                    "user_id": user.user_id,
+                    "tier": user.tier.value,
+                    "status": user.status.value,
+                },
+            )
+
+            return True
 
         except Exception as e:
             logger.log_error(e, {"operation": "update_user", "user_id": user.user_id})
-            return False
+            raise
 
     @tracer.trace_method("increment_usage")
     def increment_usage(self, user_id: str, usage: UsageLimit) -> None:
@@ -178,7 +180,7 @@ class UserService:
         try:
             user = self.repository.get_user(user_id)
             if not user:
-                return False
+                raise ValidationError(f"User not found: {user_id}")
 
             user.tier = new_tier
             user.updated_at = datetime.now(timezone.utc)
@@ -192,20 +194,22 @@ class UserService:
 
             success = self.repository.update_user(user)
 
-            if success:
-                logger.log_business_event(
-                    "user_tier_upgraded",
-                    {
-                        "user_id": user_id,
-                        "new_tier": new_tier.value,
-                    },
-                )
+            if not success:
+                raise SystemError(f"Failed to update user {user_id}")
 
-            return success
+            logger.log_business_event(
+                "user_tier_upgraded",
+                {
+                    "user_id": user_id,
+                    "new_tier": new_tier.value,
+                },
+            )
+
+            return True
 
         except Exception as e:
             logger.log_error(e, {"operation": "upgrade_user_tier", "user_id": user_id})
-            return False
+            raise
 
     @tracer.trace_method("suspend_user")
     def suspend_user(self, user_id: str) -> bool:
@@ -213,26 +217,28 @@ class UserService:
         try:
             user = self.repository.get_user(user_id)
             if not user:
-                return False
+                raise ValidationError(f"User not found: {user_id}")
 
             user.status = UserStatus.SUSPENDED
             user.updated_at = datetime.now(timezone.utc)
 
             success = self.repository.update_user(user)
 
-            if success:
-                logger.log_business_event(
-                    "user_suspended",
-                    {
-                        "user_id": user_id,
-                    },
-                )
+            if not success:
+                raise SystemError(f"Failed to update user {user_id}")
 
-            return success
+            logger.log_business_event(
+                "user_suspended",
+                {
+                    "user_id": user_id,
+                },
+            )
+
+            return True
 
         except Exception as e:
             logger.log_error(e, {"operation": "suspend_user", "user_id": user_id})
-            return False
+            raise
 
     @tracer.trace_method("delete_user")
     def delete_user(self, user_id: str) -> bool:
@@ -240,16 +246,18 @@ class UserService:
         try:
             success = self.repository.delete_user(user_id)
 
-            if success:
-                logger.log_business_event(
-                    "user_deleted",
-                    {
-                        "user_id": user_id,
-                    },
-                )
+            if not success:
+                raise SystemError(f"Failed to delete user {user_id}")
 
-            return success
+            logger.log_business_event(
+                "user_deleted",
+                {
+                    "user_id": user_id,
+                },
+            )
+
+            return True
 
         except Exception as e:
             logger.log_error(e, {"operation": "delete_user", "user_id": user_id})
-            return False
+            raise
