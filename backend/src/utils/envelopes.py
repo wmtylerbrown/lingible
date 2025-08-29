@@ -177,8 +177,21 @@ class HealthEnvelope(APIGatewayEnvelope):
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Parse health check specific data."""
-        # For GET requests, we don't need to parse a request body
-        # Just return the base data
+        return base_data
+
+
+class SubscriptionEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for subscription endpoints that extracts user info."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse subscription-specific data."""
+        # For subscription endpoints, we extract user info from Cognito token
+        # and handle path parameters for specific subscription operations
         return base_data
 
 

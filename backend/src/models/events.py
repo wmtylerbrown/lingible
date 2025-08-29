@@ -61,3 +61,12 @@ class TranslationHistoryEvent(BaseModel):
         10, ge=1, le=100, description="Number of items to return"
     )
     offset: Optional[int] = Field(0, ge=0, description="Number of items to skip")
+
+
+class SubscriptionEvent(BaseModel):
+    """Typed event for subscription handlers."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
+    username: Optional[str] = Field(None, description="Username from Cognito token")
+    request_id: Optional[str] = Field(None, description="Request ID for tracing")
