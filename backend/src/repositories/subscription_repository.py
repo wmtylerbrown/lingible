@@ -1,314 +1,234 @@
-"""Subscription repository for DynamoDB operations."""
+"""Subscription repository for subscription data operations."""
 
-from typing import Optional, List
 from datetime import datetime, timezone
-from dataclasses import dataclass
+from typing import Optional
 
-from ..models.subscriptions import (
-    Subscription,
-    SubscriptionHistory,
-    SubscriptionStatus,
-)
+from ..models.subscriptions import UserSubscription, SubscriptionProvider, SubscriptionStatus
 from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.aws_services import aws_services
 from ..utils.config import get_config
 
 
-@dataclass
-class QueryResult:
-    """Query result with pagination."""
-
-    items: List[Subscription]
-    last_evaluated_key: Optional[dict] = None
-    count: int = 0
-    scanned_count: int = 0
-
-
 class SubscriptionRepository:
     """Repository for subscription data operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize subscription repository."""
         self.config = get_config()
         self.table_name = self.config.get_database_config()["users_table"]
         self.table = aws_services.get_table(self.table_name)
 
-    @tracer.trace_method("get_subscription")
-    def get_subscription(self, subscription_id: str) -> Optional[Subscription]:
-        """Get a subscription by ID."""
+    @tracer.trace_database_operation("create", "subscriptions")
+    def create_subscription(self, subscription: UserSubscription) -> bool:
+        """Create a new subscription record."""
         try:
-            # Query for subscription with the given ID
-            response = self.table.query(
-                IndexName="SKIndex",  # Assuming we have a GSI on SK
-                KeyConditionExpression="SK = :sk",
-                ExpressionAttributeValues={":sk": f"SUBSCRIPTION#{subscription_id}"},
-                Limit=1
-            )
+            item = {
+                "PK": f"USER#{subscription.user_id}",
+                "SK": "SUBSCRIPTION#ACTIVE",
+                "user_id": subscription.user_id,
+                "provider": subscription.provider.value,
+                "transaction_id": subscription.transaction_id,
+                "status": subscription.status.value,
+                "start_date": subscription.start_date.isoformat(),
+                "end_date": (
+                    subscription.end_date.isoformat() if subscription.end_date else None
+                ),
+                "created_at": subscription.created_at.isoformat(),
+                "updated_at": subscription.updated_at.isoformat(),
+                "ttl": int(
+                    datetime.now(timezone.utc).timestamp() + (365 * 24 * 60 * 60)
+                ),  # 1 year TTL
+            }
 
-            if not response.get("Items"):
-                return None
+            # Remove None values
+            item = {k: v for k, v in item.items() if v is not None}
 
-            item = response["Items"][0]
-            return Subscription(**item)
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_subscription", "subscription_id": subscription_id})
-            return None
-
-    @tracer.trace_method("get_active_subscription")
-    def get_active_subscription(self, user_id: str) -> Optional[Subscription]:
-        """Get the active subscription for a user."""
-        try:
-            response = self.table.query(
-                KeyConditionExpression="PK = :pk AND begins_with(SK, :sk)",
-                ExpressionAttributeValues={
-                    ":pk": f"USER#{user_id}",
-                    ":sk": "SUBSCRIPTION#"
+            self.table.put_item(Item=item)
+            logger.log_business_event(
+                "subscription_created",
+                {
+                    "user_id": subscription.user_id,
+                    "provider": subscription.provider.value,
+                    "transaction_id": subscription.transaction_id,
                 },
-                FilterExpression="#status = :active",
-                ExpressionAttributeNames={"#status": "status"},
-                ExpressionAttributeValues={":active": SubscriptionStatus.ACTIVE.value},
-                Limit=1
             )
-
-            if not response.get("Items"):
-                return None
-
-            item = response["Items"][0]
-            return Subscription(**item)
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_active_subscription", "user_id": user_id})
-            return None
-
-    @tracer.trace_method("get_user_subscriptions")
-    def get_user_subscriptions(self, user_id: str) -> List[Subscription]:
-        """Get all subscriptions for a user."""
-        try:
-            response = self.table.query(
-                KeyConditionExpression="PK = :pk AND begins_with(SK, :sk)",
-                ExpressionAttributeValues={
-                    ":pk": f"USER#{user_id}",
-                    ":sk": "SUBSCRIPTION#"
-                }
-            )
-
-            subscriptions = []
-            for item in response.get("Items", []):
-                subscriptions.append(Subscription(**item))
-
-            return subscriptions
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_user_subscriptions", "user_id": user_id})
-            return []
-
-    @tracer.trace_method("get_subscription_history")
-    def get_subscription_history(self, user_id: str, limit: int = 10) -> List[SubscriptionHistory]:
-        """Get subscription history for a user."""
-        try:
-            response = self.table.query(
-                KeyConditionExpression="PK = :pk AND begins_with(SK, :sk)",
-                ExpressionAttributeValues={
-                    ":pk": f"USER#{user_id}",
-                    ":sk": "HISTORY#"
-                },
-                ScanIndexForward=False,  # Most recent first
-                Limit=limit
-            )
-
-            history = []
-            for item in response.get("Items", []):
-                history.append(SubscriptionHistory(**item))
-
-            return history
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_subscription_history", "user_id": user_id})
-            return []
-
-    @tracer.trace_method("save_subscription_with_history")
-    def save_subscription_with_history(
-        self, subscription: Subscription, history: SubscriptionHistory, user=None
-    ) -> bool:
-        """Save subscription and history atomically."""
-        try:
-            items = []
-
-            # Add subscription
-            subscription_item = subscription.model_dump()
-            subscription_item["PK"] = f"USER#{subscription.user_id}"
-            subscription_item["SK"] = f"SUBSCRIPTION#{subscription.subscription_id}"
-            items.append(subscription_item)
-
-            # Add history
-            history_item = history.model_dump()
-            history_item["PK"] = f"USER#{history.user_id}"
-            history_item["SK"] = f"HISTORY#{history.created_at.isoformat()}"
-            items.append(history_item)
-
-            # Add user update if provided
-            if user:
-                user_item = user.model_dump()
-                user_item["PK"] = f"USER#{user.user_id}"
-                user_item["SK"] = "PROFILE"
-                items.append(user_item)
-
-            # Use batch write for atomic operation
-            with self.table.batch_writer() as batch:
-                for item in items:
-                    batch.put_item(Item=item)
-
             return True
 
         except Exception as e:
-            logger.log_error(e, {
-                "operation": "save_subscription_with_history",
-                "user_id": subscription.user_id,
-                "subscription_id": subscription.subscription_id
-            })
-            return False
-
-    @tracer.trace_method("update_subscription_with_history")
-    def update_subscription_with_history(
-        self, subscription: Subscription, history: Optional[SubscriptionHistory] = None, user=None
-    ) -> bool:
-        """Update subscription and optionally add history atomically."""
-        try:
-            # Update subscription
-            update_expression = "SET "
-            expression_attribute_names = {}
-            expression_attribute_values = {}
-
-            # Build update expression dynamically
-            updates = []
-            for field, value in subscription.model_dump().items():
-                if field not in ["PK", "SK", "subscription_id", "user_id"]:
-                    attr_name = f"#{field}"
-                    attr_value = f":{field}"
-                    updates.append(f"{attr_name} = {attr_value}")
-                    expression_attribute_names[attr_name] = field
-                    expression_attribute_values[attr_value] = value
-
-            update_expression += ", ".join(updates)
-
-            # Update subscription
-            self.table.update_item(
-                Key={
-                    "PK": f"USER#{subscription.user_id}",
-                    "SK": f"SUBSCRIPTION#{subscription.subscription_id}"
+            logger.log_error(
+                e,
+                {
+                    "operation": "create_subscription",
+                    "user_id": subscription.user_id,
                 },
-                UpdateExpression=update_expression,
-                ExpressionAttributeNames=expression_attribute_names,
-                ExpressionAttributeValues=expression_attribute_values
             )
-
-            # Add history if provided
-            if history:
-                history_item = history.model_dump()
-                history_item["PK"] = f"USER#{history.user_id}"
-                history_item["SK"] = f"HISTORY#{history.created_at.isoformat()}"
-
-                self.table.put_item(Item=history_item)
-
-            # Update user if provided
-            if user:
-                user_update_expression = "SET "
-                user_expression_attribute_names = {}
-                user_expression_attribute_values = {}
-
-                user_updates = []
-                for field, value in user.model_dump().items():
-                    if field not in ["PK", "SK", "user_id"]:
-                        attr_name = f"#{field}"
-                        attr_value = f":{field}"
-                        user_updates.append(f"{attr_name} = {attr_value}")
-                        user_expression_attribute_names[attr_name] = field
-                        user_expression_attribute_values[attr_value] = value
-
-                user_update_expression += ", ".join(user_updates)
-
-                self.table.update_item(
-                    Key={
-                        "PK": f"USER#{user.user_id}",
-                        "SK": "PROFILE"
-                    },
-                    UpdateExpression=user_update_expression,
-                    ExpressionAttributeNames=user_expression_attribute_names,
-                    ExpressionAttributeValues=user_expression_attribute_values
-                )
-
-            return True
-
-        except Exception as e:
-            logger.log_error(e, {
-                "operation": "update_subscription_with_history",
-                "user_id": subscription.user_id,
-                "subscription_id": subscription.subscription_id
-            })
             return False
 
-    @tracer.trace_method("delete_subscription")
-    def delete_subscription(self, user_id: str, subscription_id: str) -> bool:
-        """Delete a subscription."""
+    @tracer.trace_database_operation("get", "subscriptions")
+    def get_active_subscription(self, user_id: str) -> Optional[UserSubscription]:
+        """Get user's active subscription."""
         try:
-            self.table.delete_item(
+            response = self.table.get_item(
                 Key={
                     "PK": f"USER#{user_id}",
-                    "SK": f"SUBSCRIPTION#{subscription_id}"
+                    "SK": "SUBSCRIPTION#ACTIVE",
                 }
+            )
+
+            if "Item" not in response:
+                return None
+
+            item = response["Item"]
+            return UserSubscription(
+                user_id=item["user_id"],
+                provider=SubscriptionProvider(item["provider"]),
+                transaction_id=item["transaction_id"],
+                status=SubscriptionStatus(item["status"]),
+                start_date=datetime.fromisoformat(item["start_date"]),
+                end_date=(
+                    datetime.fromisoformat(item["end_date"])
+                    if item.get("end_date")
+                    else None
+                ),
+                created_at=datetime.fromisoformat(item["created_at"]),
+                updated_at=datetime.fromisoformat(item["updated_at"]),
+            )
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "get_active_subscription",
+                    "user_id": user_id,
+                },
+            )
+            return None
+
+    @tracer.trace_database_operation("update", "subscriptions")
+    def update_subscription(self, subscription: UserSubscription) -> bool:
+        """Update subscription record."""
+        try:
+            item = {
+                "PK": f"USER#{subscription.user_id}",
+                "SK": "SUBSCRIPTION#ACTIVE",
+                "user_id": subscription.user_id,
+                "provider": subscription.provider.value,
+                "transaction_id": subscription.transaction_id,
+                "status": subscription.status.value,
+                "start_date": subscription.start_date.isoformat(),
+                "end_date": (
+                    subscription.end_date.isoformat() if subscription.end_date else None
+                ),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+            # Remove None values
+            item = {k: v for k, v in item.items() if v is not None}
+
+            self.table.put_item(Item=item)
+            logger.log_business_event(
+                "subscription_updated",
+                {
+                    "user_id": subscription.user_id,
+                    "provider": subscription.provider.value,
+                    "status": subscription.status.value,
+                },
             )
             return True
 
         except Exception as e:
-            logger.log_error(e, {
-                "operation": "delete_subscription",
-                "user_id": user_id,
-                "subscription_id": subscription_id
-            })
+            logger.log_error(
+                e,
+                {
+                    "operation": "update_subscription",
+                    "user_id": subscription.user_id,
+                },
+            )
             return False
 
-    @tracer.trace_method("cleanup_expired_subscriptions")
-    def cleanup_expired_subscriptions(self) -> int:
-        """Clean up expired subscriptions."""
+    @tracer.trace_database_operation("delete", "subscriptions")
+    def cancel_subscription(self, user_id: str) -> bool:
+        """Cancel user's active subscription."""
         try:
-            # Query for expired subscriptions
-            response = self.table.query(
-                IndexName="StatusEndDateIndex",  # Assuming GSI on status and end_date
-                KeyConditionExpression="#status = :expired AND #end_date < :now",
-                ExpressionAttributeNames={
-                    "#status": "status",
-                    "#end_date": "end_date"
-                },
-                ExpressionAttributeValues={
-                    ":expired": SubscriptionStatus.EXPIRED.value,
-                    ":now": datetime.now(timezone.utc).isoformat()
-                }
-            )
+            # First get the current subscription to archive it
+            current_subscription = self.get_active_subscription(user_id)
+            if not current_subscription:
+                logger.log_business_event(
+                    "subscription_cancel_attempt_no_subscription",
+                    {"user_id": user_id},
+                )
+                return True  # No subscription to cancel
 
-            updated_count = 0
-            for item in response.get("Items", []):
-                # Update to cancelled status
-                self.table.update_item(
+            # Archive the subscription
+            archive_item = {
+                "PK": f"USER#{user_id}",
+                "SK": f"SUBSCRIPTION#HISTORY#{current_subscription.transaction_id}",
+                "user_id": user_id,
+                "provider": current_subscription.provider.value,
+                "transaction_id": current_subscription.transaction_id,
+                "status": "cancelled",
+                "start_date": current_subscription.start_date.isoformat(),
+                "end_date": current_subscription.end_date.isoformat() if current_subscription.end_date else None,
+                "cancelled_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": current_subscription.created_at.isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "ttl": int(
+                    datetime.now(timezone.utc).timestamp() + (365 * 24 * 60 * 60)
+                ),  # 1 year TTL
+            }
+
+            # Remove None values
+            archive_item = {k: v for k, v in archive_item.items() if v is not None}
+
+            # Delete active subscription and create archive
+            with self.table.batch_writer() as batch:
+                batch.delete_item(
                     Key={
-                        "PK": item["PK"],
-                        "SK": item["SK"]
-                    },
-                    UpdateExpression="SET #status = :cancelled, #updated_at = :now",
-                    ExpressionAttributeNames={
-                        "#status": "status",
-                        "#updated_at": "updated_at"
-                    },
-                    ExpressionAttributeValues={
-                        ":cancelled": SubscriptionStatus.CANCELLED.value,
-                        ":now": datetime.now(timezone.utc).isoformat()
+                        "PK": f"USER#{user_id}",
+                        "SK": "SUBSCRIPTION#ACTIVE",
                     }
                 )
-                updated_count += 1
+                batch.put_item(Item=archive_item)
 
-            return updated_count
+            logger.log_business_event(
+                "subscription_cancelled",
+                {
+                    "user_id": user_id,
+                    "provider": current_subscription.provider.value,
+                    "transaction_id": current_subscription.transaction_id,
+                },
+            )
+            return True
 
         except Exception as e:
-            logger.log_error(e, {"operation": "cleanup_expired_subscriptions"})
-            return 0
+            logger.log_error(
+                e,
+                {
+                    "operation": "cancel_subscription",
+                    "user_id": user_id,
+                },
+            )
+            return False
+
+    @tracer.trace_database_operation("get", "subscriptions")
+    def find_by_transaction_id(self, transaction_id: str) -> Optional[UserSubscription]:
+        """Find subscription by transaction ID (requires GSI)."""
+        try:
+            # TODO: Implement GSI query on transaction_id
+            # For now, this is a placeholder
+            logger.log_business_event(
+                "subscription_lookup_by_transaction",
+                {"transaction_id": transaction_id},
+            )
+            return None
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "find_by_transaction_id",
+                    "transaction_id": transaction_id,
+                },
+            )
+            return None

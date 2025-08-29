@@ -1,6 +1,5 @@
 """User models for GenZ slang translation app."""
 
-from typing import Optional
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
@@ -42,14 +41,6 @@ class User(BaseModel):
     tier: UserTier = Field(UserTier.FREE, description="User subscription tier")
     status: UserStatus = Field(UserStatus.ACTIVE, description="User account status")
 
-    # Subscription data
-    subscription_start_date: Optional[datetime] = Field(
-        None, description="Premium subscription start"
-    )
-    subscription_end_date: Optional[datetime] = Field(
-        None, description="Premium subscription end"
-    )
-
     # Metadata
     created_at: datetime = Field(
         default_factory=datetime.utcnow, description="Account creation date"
@@ -67,16 +58,6 @@ class User(BaseModel):
             username=self.username,
             tier=self.tier.value,  # Convert enum to string
             status=self.status.value,  # Convert enum to string
-            subscription_start_date=(
-                self.subscription_start_date.isoformat()
-                if self.subscription_start_date
-                else None
-            ),
-            subscription_end_date=(
-                self.subscription_end_date.isoformat()
-                if self.subscription_end_date
-                else None
-            ),
             created_at=self.created_at.isoformat(),  # Convert to ISO string
         )
 
@@ -90,12 +71,7 @@ class UserResponse(BaseModel):
     username: str = Field(..., description="Username")
     tier: str = Field(..., description="User tier")
     status: str = Field(..., description="Account status")
-    subscription_start_date: Optional[str] = Field(
-        None, description="Premium subscription start date (ISO format)"
-    )
-    subscription_end_date: Optional[str] = Field(
-        None, description="Premium subscription end date (ISO format)"
-    )
+
     created_at: str = Field(..., description="Account creation date (ISO format)")
 
 

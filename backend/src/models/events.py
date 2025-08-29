@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 
 from .translations import TranslationRequest
+from .subscriptions import UserUpgradeRequest, AppleWebhookRequest
 
 
 class TranslationEvent(BaseModel):
@@ -69,4 +70,22 @@ class SubscriptionEvent(BaseModel):
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
     user_id: Optional[str] = Field(None, description="User ID from Cognito token")
     username: Optional[str] = Field(None, description="Username from Cognito token")
+    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+
+
+class UserUpgradeEvent(BaseModel):
+    """Typed event for user upgrade handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_body: UserUpgradeRequest = Field(..., description="Parsed request body")
+    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
+    username: Optional[str] = Field(None, description="Username from Cognito token")
+    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+
+
+class WebhookEvent(BaseModel):
+    """Typed event for webhook handlers."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_body: AppleWebhookRequest = Field(..., description="Parsed request body")
     request_id: Optional[str] = Field(None, description="Request ID for tracing")

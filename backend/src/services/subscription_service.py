@@ -1,21 +1,12 @@
 """Subscription service for GenZ slang translation app."""
 
-from typing import Optional, List
-from datetime import datetime, timezone
-import uuid
+from typing import Optional
+from datetime import datetime, timezone, timedelta
 
-from ..models.subscriptions import (
-    Subscription,
-    SubscriptionHistory,
-    SubscriptionProvider,
-    SubscriptionStatus,
-    SubscriptionAction,
-    CreateSubscriptionRequest,
-    UpdateSubscriptionRequest,
-)
-from ..models.users import UserTier
+from ..models.users import User, UserTier
+from ..models.subscriptions import UserSubscription, SubscriptionProvider, SubscriptionStatus
+from ..services.user_service import UserService
 from ..repositories.subscription_repository import SubscriptionRepository
-from ..repositories.user_repository import UserRepository
 from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.exceptions import (
@@ -30,344 +21,201 @@ class SubscriptionService:
 
     def __init__(self):
         """Initialize subscription service."""
+        self.user_service = UserService()
         self.subscription_repository = SubscriptionRepository()
-        self.user_repository = UserRepository()
 
-    @tracer.trace_method("create_subscription")
-    def create_subscription(
-        self, user_id: str, request: CreateSubscriptionRequest
-    ) -> Subscription:
-        """Create a new subscription for a user."""
-        logger.log_business_event("subscription_created", {
+    @tracer.trace_method("upgrade_user")
+    def upgrade_user(
+        self, user_id: str, provider: str, receipt_data: str, transaction_id: str
+    ) -> User:
+        """Upgrade user subscription after validating purchase."""
+        logger.log_business_event("user_upgrade_attempt", {
             "user_id": user_id,
-            "provider": request.provider.value,
-            "tier": request.tier
+            "provider": provider,
+            "transaction_id": transaction_id
         })
 
         try:
-            # Validate user exists
-            user = self.user_repository.get_user(user_id)
+            # Get user
+            user = self.user_service.get_user(user_id)
             if not user:
                 raise ValidationError("User not found", error_code="USER_NOT_FOUND")
 
-            # Validate tier
-            try:
-                tier = UserTier(request.tier)
-            except ValueError:
-                raise ValidationError(
-                    f"Invalid tier: {request.tier}",
-                    error_code="INVALID_TIER"
-                )
+            # Validate receipt with provider (simplified for now)
+            # In production, this would call Apple/Google APIs to verify receipt
+            if not self._validate_receipt(provider, receipt_data, transaction_id):
+                raise ValidationError("Invalid receipt", error_code="INVALID_RECEIPT")
 
-            # Check if user already has an active subscription
-            existing_subscription = self.subscription_repository.get_active_subscription(user_id)
-            if existing_subscription:
-                raise BusinessLogicError(
-                    "User already has an active subscription",
-                    error_code="ACTIVE_SUBSCRIPTION_EXISTS"
-                )
-
-            # Create subscription
-            subscription = Subscription(
-                subscription_id=str(uuid.uuid4()),
+            # Create subscription record
+            subscription = UserSubscription(
                 user_id=user_id,
-                provider=request.provider,
-                tier=request.tier,
+                provider=SubscriptionProvider(provider),
+                transaction_id=transaction_id,
                 status=SubscriptionStatus.ACTIVE,
-                provider_data=request.provider_data,
                 start_date=datetime.now(timezone.utc),
-                end_date=self._calculate_end_date(request.provider_data, request.provider),
+                end_date=self._calculate_end_date(provider, receipt_data),
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
 
-            # Create subscription history entry
-            history = SubscriptionHistory(
-                history_id=str(uuid.uuid4()),
-                user_id=user_id,
-                subscription_id=subscription.subscription_id,
-                action=SubscriptionAction.UPGRADE,
-                old_tier=user.tier.value,
-                new_tier=request.tier,
-                provider=request.provider,
-                provider_data=request.provider_data,
-                created_at=datetime.now(timezone.utc),
-            )
+            # Save subscription
+            success = self.subscription_repository.create_subscription(subscription)
+            if not success:
+                raise SystemError("Failed to create subscription", error_code="SUBSCRIPTION_CREATE_FAILED")
 
             # Update user tier
-            user.tier = tier
+            user.tier = UserTier.PREMIUM
             user.updated_at = datetime.now(timezone.utc)
 
-            # Save all changes atomically
-            self.subscription_repository.save_subscription_with_history(
-                subscription, history, user
-            )
+            # Save user
+            success = self.user_service.update_user(user)
+            if not success:
+                raise SystemError("Failed to update user", error_code="USER_UPDATE_FAILED")
 
-            logger.log_business_event("subscription_created_success", {
+            logger.log_business_event("user_upgrade_success", {
                 "user_id": user_id,
-                "subscription_id": subscription.subscription_id,
-                "tier": request.tier
+                "tier": "premium",
+                "transaction_id": transaction_id
             })
 
-            return subscription
+            return user
 
         except (ValidationError, BusinessLogicError):
             raise
         except Exception as e:
-            logger.log_error(e, {"operation": "create_subscription", "user_id": user_id})
-            raise SystemError("Failed to create subscription", error_code="SUBSCRIPTION_CREATE_FAILED")
+            logger.log_error(e, {"operation": "upgrade_user", "user_id": user_id})
+            raise SystemError("Failed to upgrade user", error_code="USER_UPGRADE_FAILED")
 
-    @tracer.trace_method("update_subscription")
-    def update_subscription(
-        self, user_id: str, subscription_id: str, request: UpdateSubscriptionRequest
-    ) -> Subscription:
-        """Update an existing subscription."""
-        logger.log_business_event("subscription_updated", {
-            "user_id": user_id,
-            "subscription_id": subscription_id
+    @tracer.trace_method("handle_apple_webhook")
+    def handle_apple_webhook(
+        self, notification_type: str, transaction_id: str, receipt_data: str
+    ) -> bool:
+        """Handle Apple subscription webhook."""
+        logger.log_business_event("apple_webhook_received", {
+            "notification_type": notification_type,
+            "transaction_id": transaction_id
         })
 
         try:
-            # Get existing subscription
-            subscription = self.subscription_repository.get_subscription(subscription_id)
-            if not subscription:
-                raise ValidationError("Subscription not found", error_code="SUBSCRIPTION_NOT_FOUND")
-
-            # Verify ownership
-            if subscription.user_id != user_id:
-                raise ValidationError("Subscription not found", error_code="SUBSCRIPTION_NOT_FOUND")
-
-            # Track changes for history
-            old_status = subscription.status
-            old_tier = subscription.tier
-            old_end_date = subscription.end_date
-
-            # Update fields
-            if request.status is not None:
-                subscription.status = request.status
-
-            if request.provider_data is not None:
-                subscription.provider_data.update(request.provider_data)
-
-            if request.end_date is not None:
-                subscription.end_date = request.end_date
-
-            subscription.updated_at = datetime.now(timezone.utc)
-
-            # Determine action for history
-            action = self._determine_action(old_status, subscription.status, old_tier, subscription.tier)
-
-            # Create history entry if there are meaningful changes
-            history = None
-            if action != SubscriptionAction.RENEWAL or old_end_date != subscription.end_date:
-                history = SubscriptionHistory(
-                    history_id=str(uuid.uuid4()),
-                    user_id=user_id,
-                    subscription_id=subscription_id,
-                    action=action,
-                    old_tier=old_tier,
-                    new_tier=subscription.tier,
-                    provider=subscription.provider,
-                    provider_data=subscription.provider_data,
-                    created_at=datetime.now(timezone.utc),
+            # Find user by transaction ID
+            user = self._find_user_by_transaction_id(transaction_id)
+            if not user:
+                logger.log_error(
+                    ValueError(f"User not found for transaction: {transaction_id}"),
+                    {"operation": "handle_apple_webhook", "transaction_id": transaction_id}
                 )
+                return False
 
-            # Update user tier if subscription tier changed
-            user = None
-            if old_tier != subscription.tier:
-                user = self.user_repository.get_user(user_id)
-                if user:
-                    try:
-                        user.tier = UserTier(subscription.tier)
-                        user.updated_at = datetime.now(timezone.utc)
-                    except ValueError:
-                        logger.log_error(ValueError(f"Invalid tier: {subscription.tier}"), {
-                            "operation": "update_subscription",
-                            "subscription_id": subscription_id,
-                            "tier": subscription.tier
-                        })
-
-            # Save changes
-            self.subscription_repository.update_subscription_with_history(
-                subscription, history, user
-            )
-
-            logger.log_business_event("subscription_updated_success", {
-                "user_id": user_id,
-                "subscription_id": subscription_id,
-                "action": action.value
-            })
-
-            return subscription
-
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.log_error(e, {"operation": "update_subscription", "user_id": user_id, "subscription_id": subscription_id})
-            raise SystemError("Failed to update subscription", error_code="SUBSCRIPTION_UPDATE_FAILED")
-
-    @tracer.trace_method("get_user_subscriptions")
-    def get_user_subscriptions(self, user_id: str) -> List[Subscription]:
-        """Get all subscriptions for a user."""
-        logger.log_business_event("get_user_subscriptions", {"user_id": user_id})
-
-        try:
-            subscriptions = self.subscription_repository.get_user_subscriptions(user_id)
-            return subscriptions
+            # Handle different notification types
+            if notification_type == "RENEWAL":
+                return self._handle_renewal(user, receipt_data, transaction_id)
+            elif notification_type == "CANCEL":
+                return self._handle_cancellation(user)
+            elif notification_type == "FAILED_PAYMENT":
+                return self._handle_failed_payment(user)
+            else:
+                logger.log_business_event("unknown_webhook_type", {
+                    "notification_type": notification_type,
+                    "transaction_id": transaction_id
+                })
+                return True
 
         except Exception as e:
-            logger.log_error(e, {"operation": "get_user_subscriptions", "user_id": user_id})
-            raise SystemError("Failed to get subscriptions", error_code="SUBSCRIPTION_GET_FAILED")
-
-    @tracer.trace_method("get_active_subscription")
-    def get_active_subscription(self, user_id: str) -> Optional[Subscription]:
-        """Get the active subscription for a user."""
-        logger.log_business_event("get_active_subscription", {"user_id": user_id})
-
-        try:
-            subscription = self.subscription_repository.get_active_subscription(user_id)
-            return subscription
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_active_subscription", "user_id": user_id})
-            raise SystemError("Failed to get active subscription", error_code="SUBSCRIPTION_GET_FAILED")
-
-    @tracer.trace_method("get_subscription_history")
-    def get_subscription_history(self, user_id: str, limit: int = 10) -> List[SubscriptionHistory]:
-        """Get subscription history for a user."""
-        logger.log_business_event("get_subscription_history", {
-            "user_id": user_id,
-            "limit": limit
-        })
-
-        try:
-            history = self.subscription_repository.get_subscription_history(user_id, limit)
-            return history
-
-        except Exception as e:
-            logger.log_error(e, {"operation": "get_subscription_history", "user_id": user_id})
-            raise SystemError("Failed to get subscription history", error_code="SUBSCRIPTION_HISTORY_FAILED")
-
-    @tracer.trace_method("cancel_subscription")
-    def cancel_subscription(self, user_id: str, subscription_id: str) -> Subscription:
-        """Cancel a subscription."""
-        logger.log_business_event("cancel_subscription", {
-            "user_id": user_id,
-            "subscription_id": subscription_id
-        })
-
-        try:
-            # Get subscription
-            subscription = self.subscription_repository.get_subscription(subscription_id)
-            if not subscription:
-                raise ValidationError("Subscription not found", error_code="SUBSCRIPTION_NOT_FOUND")
-
-            # Verify ownership
-            if subscription.user_id != user_id:
-                raise ValidationError("Subscription not found", error_code="SUBSCRIPTION_NOT_FOUND")
-
-            # Check if already cancelled
-            if subscription.status == SubscriptionStatus.CANCELLED:
-                raise BusinessLogicError(
-                    "Subscription is already cancelled",
-                    error_code="SUBSCRIPTION_ALREADY_CANCELLED"
-                )
-
-            # Update subscription
-            subscription.status = SubscriptionStatus.CANCELLED
-            subscription.updated_at = datetime.now(timezone.utc)
-
-            # Create history entry
-            history = SubscriptionHistory(
-                history_id=str(uuid.uuid4()),
-                user_id=user_id,
-                subscription_id=subscription_id,
-                action=SubscriptionAction.CANCEL,
-                old_tier=subscription.tier,
-                new_tier=subscription.tier,  # Same tier, just cancelled
-                provider=subscription.provider,
-                provider_data=subscription.provider_data,
-                created_at=datetime.now(timezone.utc),
-            )
-
-            # Downgrade user to free tier
-            user = self.user_repository.get_user(user_id)
-            if user:
-                user.tier = UserTier.FREE
-                user.updated_at = datetime.now(timezone.utc)
-
-            # Save changes
-            self.subscription_repository.update_subscription_with_history(
-                subscription, history, user
-            )
-
-            logger.log_business_event("subscription_cancelled_success", {
-                "user_id": user_id,
-                "subscription_id": subscription_id
-            })
-
-            return subscription
-
-        except (ValidationError, BusinessLogicError):
-            raise
-        except Exception as e:
-            logger.log_error(e, {"operation": "cancel_subscription", "user_id": user_id, "subscription_id": subscription_id})
-            raise SystemError("Failed to cancel subscription", error_code="SUBSCRIPTION_CANCEL_FAILED")
-
-    def _calculate_end_date(
-        self, provider_data: dict, provider: SubscriptionProvider
-    ) -> Optional[datetime]:
-        """Calculate subscription end date from provider data."""
-        try:
-            if provider == SubscriptionProvider.APPLE:
-                # Apple provides expires_date in receipt
-                expires_date_str = provider_data.get("expires_date")
-                if expires_date_str:
-                    return datetime.fromisoformat(expires_date_str.replace("Z", "+00:00"))
-
-            elif provider == SubscriptionProvider.GOOGLE:
-                # Google provides expiryTimeMillis
-                expiry_time_ms = provider_data.get("expiry_time")
-                if expiry_time_ms:
-                    return datetime.fromtimestamp(int(expiry_time_ms) / 1000, tz=timezone.utc)
-
-            elif provider == SubscriptionProvider.STRIPE:
-                # Stripe provides current_period_end
-                period_end = provider_data.get("current_period_end")
-                if period_end:
-                    return datetime.fromtimestamp(int(period_end), tz=timezone.utc)
-
-            # Default: no end date (ongoing subscription)
-            return None
-
-        except (ValueError, TypeError) as e:
             logger.log_error(e, {
-                "operation": "parse_end_date",
-                "provider": provider.value,
-                "provider_data": provider_data
+                "operation": "handle_apple_webhook",
+                "notification_type": notification_type,
+                "transaction_id": transaction_id
             })
+            return False
+
+    def _validate_receipt(self, provider: str, receipt_data: str, transaction_id: str) -> bool:
+        """Validate receipt with provider (simplified implementation)."""
+        # TODO: Implement actual receipt validation with Apple/Google APIs
+        # For now, just return True for testing
+        logger.log_business_event("receipt_validation", {
+            "provider": provider,
+            "transaction_id": transaction_id,
+            "valid": True
+        })
+        return True
+
+    def _calculate_end_date(self, provider: str, receipt_data: str) -> Optional[datetime]:
+        """Calculate subscription end date from receipt data."""
+        # TODO: Parse actual end date from receipt data
+        # For now, set to 1 month from now
+        return datetime.now(timezone.utc).replace(day=28) + timedelta(days=30)
+
+    def _find_user_by_transaction_id(self, transaction_id: str) -> Optional[User]:
+        """Find user by transaction ID."""
+        # Find subscription by transaction ID
+        subscription = self.subscription_repository.find_by_transaction_id(transaction_id)
+        if not subscription:
             return None
 
-    def _determine_action(
-        self,
-        old_status: SubscriptionStatus,
-        new_status: SubscriptionStatus,
-        old_tier: str,
-        new_tier: str,
-    ) -> SubscriptionAction:
-        """Determine the action for history tracking."""
-        if old_tier != new_tier:
-            if old_tier == "free" and new_tier in ["premium", "pro"]:
-                return SubscriptionAction.UPGRADE
-            elif old_tier in ["premium", "pro"] and new_tier == "free":
-                return SubscriptionAction.DOWNGRADE
-            elif old_tier in ["premium", "pro"] and new_tier in ["premium", "pro"]:
-                return SubscriptionAction.UPGRADE  # or DOWNGRADE based on tier hierarchy
+        # Get user
+        return self.user_service.get_user(subscription.user_id)
 
-        if old_status != new_status:
-            if new_status == SubscriptionStatus.CANCELLED:
-                return SubscriptionAction.CANCEL
-            elif new_status == SubscriptionStatus.EXPIRED:
-                return SubscriptionAction.FAILED_PAYMENT
+    def _handle_renewal(self, user: User, receipt_data: str, transaction_id: str) -> bool:
+        """Handle subscription renewal."""
+        # Get current subscription
+        subscription = self.subscription_repository.get_active_subscription(user.user_id)
+        if not subscription:
+            logger.log_error(
+                ValueError(f"No active subscription found for user: {user.user_id}"),
+                {"operation": "_handle_renewal", "user_id": user.user_id}
+            )
+            return False
 
-        return SubscriptionAction.RENEWAL
+        # Update subscription
+        subscription.end_date = self._calculate_end_date("apple", receipt_data)
+        subscription.transaction_id = transaction_id
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.updated_at = datetime.now(timezone.utc)
+
+        success = self.subscription_repository.update_subscription(subscription)
+        if success:
+            logger.log_business_event("subscription_renewed", {
+                "user_id": user.user_id,
+                "transaction_id": transaction_id
+            })
+        return success
+
+    def _handle_cancellation(self, user: User) -> bool:
+        """Handle subscription cancellation."""
+        # Cancel subscription
+        success = self.subscription_repository.cancel_subscription(user.user_id)
+        if not success:
+            return False
+
+        # Update user tier
+        user.tier = UserTier.FREE
+        user.updated_at = datetime.now(timezone.utc)
+
+        success = self.user_service.update_user(user)
+        if success:
+            logger.log_business_event("subscription_cancelled", {
+                "user_id": user.user_id
+            })
+        return success
+
+    def _handle_failed_payment(self, user: User) -> bool:
+        """Handle failed payment."""
+        # Get current subscription
+        subscription = self.subscription_repository.get_active_subscription(user.user_id)
+        if not subscription:
+            logger.log_error(
+                ValueError(f"No active subscription found for user: {user.user_id}"),
+                {"operation": "_handle_failed_payment", "user_id": user.user_id}
+            )
+            return False
+
+        # Update subscription status
+        subscription.status = SubscriptionStatus.EXPIRED
+        subscription.updated_at = datetime.now(timezone.utc)
+
+        success = self.subscription_repository.update_subscription(subscription)
+        if success:
+            logger.log_business_event("subscription_expired", {
+                "user_id": user.user_id
+            })
+        return success

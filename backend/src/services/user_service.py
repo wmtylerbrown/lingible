@@ -38,8 +38,7 @@ class UserService:
                 email=email,
                 tier=tier,
                 status=UserStatus.ACTIVE,
-                subscription_start_date=None,
-                subscription_end_date=None,
+
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )

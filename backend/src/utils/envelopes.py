@@ -7,6 +7,7 @@ from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventMo
 from pydantic import BaseModel
 
 from ..models.translations import TranslationRequest
+from ..models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
 from ..utils.cognito import cognito_extractor
 
 if TYPE_CHECKING:
@@ -192,6 +193,52 @@ class SubscriptionEnvelope(AuthenticatedAPIGatewayEnvelope):
         """Parse subscription-specific data."""
         # For subscription endpoints, we extract user info from Cognito token
         # and handle path parameters for specific subscription operations
+        return base_data
+
+
+class UserUpgradeEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for user upgrade endpoints that parses request body."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse user upgrade specific data."""
+        # Parse the request body
+        if not event.body:
+            raise ValueError("Request body is required")
+
+        # Parse and validate the request body
+        request_body = UserUpgradeRequest.model_validate_json(str(event.body))
+
+        # Add upgrade-specific data
+        base_data["request_body"] = request_body
+
+        return base_data
+
+
+class WebhookEnvelope(APIGatewayEnvelope):
+    """Envelope for webhook endpoints that parses request body."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse webhook specific data."""
+        # Parse the request body
+        if not event.body:
+            raise ValueError("Request body is required")
+
+        # Parse and validate the request body
+        request_body = AppleWebhookRequest.model_validate_json(str(event.body))
+
+        # Add webhook-specific data
+        base_data["request_body"] = request_body
+
         return base_data
 
 
