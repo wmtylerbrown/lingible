@@ -1,9 +1,9 @@
 """User repository for user-related data operations."""
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional
 
-from ..models.users import User, UserUsage, UserTier, UserStatus
+from ..models.users import User, UserTier, UserStatus
 from ..models.translations import UsageLimit
 from ..utils.logging import logger
 from ..utils.tracing import tracer

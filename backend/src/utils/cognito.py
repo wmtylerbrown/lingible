@@ -34,7 +34,7 @@ class CognitoUserExtractor:
             # Remove bearer prefix if present
             bearer_prefix = config.get_security_config()["bearer_prefix"]
             if token.startswith(bearer_prefix):
-                token = token[len(bearer_prefix):]
+                token = token[len(bearer_prefix) :]
 
             # Get user info from Cognito
             response = self.cognito_client.get_user(AccessToken=token)

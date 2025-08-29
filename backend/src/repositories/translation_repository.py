@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 from ..models.translations import (
     TranslationHistoryItem,
@@ -12,7 +12,7 @@ from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.aws_services import aws_services
 from ..utils.config import get_config
-from .base_repository import BaseRepository, QueryResult
+from .base_repository import QueryResult
 
 
 class TranslationRepository:
@@ -158,8 +158,6 @@ class TranslationRepository:
                 },
             )
             return QueryResult(items=[], last_evaluated_key=None, count=0)
-
-
 
     @tracer.trace_database_operation("delete", "translations")
     def delete_translation(self, user_id: str, translation_id: str) -> bool:

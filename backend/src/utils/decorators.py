@@ -2,7 +2,7 @@
 
 import functools
 from typing import Callable, Any, Dict, Optional
-from aws_lambda_powertools.utilities.typing import LambdaContext
+
 
 from ..models.aws import APIGatewayResponse
 from ..utils.logging import logger
@@ -23,18 +23,19 @@ from ..utils.exceptions import (
 
 def handle_errors(
     user_id: Optional[str] = None,
-    extract_user_id: Optional[Callable[[Any], str]] = None
+    extract_user_id: Optional[Callable[[Any], str]] = None,
 ) -> Callable:
     """
     Decorator to handle common errors in Lambda handlers.
-    
+
     Args:
         user_id: Static user ID to use for logging (if known)
         extract_user_id: Function to extract user ID from handler arguments
-    
+
     Returns:
         Decorated function with comprehensive error handling
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> APIGatewayResponse:
@@ -46,36 +47,49 @@ def handle_errors(
                     current_user_id = extract_user_id(args[0] if args else None)
                 except Exception:
                     current_user_id = "unknown"
-            
+
             try:
                 # Execute the handler function
                 return func(*args, **kwargs)
-                
+
             except ValidationError as e:
-                logger.log_error(e, {"user_id": current_user_id, "error_type": "validation"})
+                logger.log_error(
+                    e, {"user_id": current_user_id, "error_type": "validation"}
+                )
                 return create_validation_error_response(str(e))
-                
+
             except AuthenticationError as e:
-                logger.log_error(e, {"user_id": current_user_id, "error_type": "authentication"})
+                logger.log_error(
+                    e, {"user_id": current_user_id, "error_type": "authentication"}
+                )
                 return create_unauthorized_response(str(e))
-                
+
             except RateLimitExceededError as e:
-                logger.log_error(e, {"user_id": current_user_id, "error_type": "rate_limit"})
+                logger.log_error(
+                    e, {"user_id": current_user_id, "error_type": "rate_limit"}
+                )
                 return create_rate_limit_response(100, 3600)  # Default rate limit
-                
+
             except BusinessLogicError as e:
-                logger.log_error(e, {"user_id": current_user_id, "error_type": "business_logic"})
+                logger.log_error(
+                    e, {"user_id": current_user_id, "error_type": "business_logic"}
+                )
                 return create_internal_error_response(str(e))
-                
+
             except SystemError as e:
-                logger.log_error(e, {"user_id": current_user_id, "error_type": "system"})
+                logger.log_error(
+                    e, {"user_id": current_user_id, "error_type": "system"}
+                )
                 return create_internal_error_response(str(e))
-                
+
             except Exception as e:
-                logger.log_error(e, {"user_id": current_user_id, "error_type": "unknown"})
+                logger.log_error(
+                    e, {"user_id": current_user_id, "error_type": "unknown"}
+                )
                 return create_internal_error_response("An unexpected error occurred")
-                
+
         return wrapper
+
     return decorator
 
 
@@ -85,9 +99,9 @@ def extract_user_from_parsed_data(parsed_data: Dict[str, Any]) -> str:
         if isinstance(parsed_data, dict) and "event" in parsed_data:
             # For handlers using custom envelopes
             event = parsed_data["event"]
-            if hasattr(event, 'request_context') and event.request_context:
-                authorizer = event.request_context.get('authorizer', {})
-                return authorizer.get('user_id', 'unknown')
+            if hasattr(event, "request_context") and event.request_context:
+                authorizer = event.request_context.get("authorizer", {})
+                return authorizer.get("user_id", "unknown")
         return "unknown"
     except Exception:
         return "unknown"
@@ -96,9 +110,9 @@ def extract_user_from_parsed_data(parsed_data: Dict[str, Any]) -> str:
 def extract_user_from_event(event: Any) -> str:
     """Extract user ID from API Gateway event."""
     try:
-        if hasattr(event, 'request_context') and event.request_context:
-            authorizer = event.request_context.get('authorizer', {})
-            return authorizer.get('user_id', 'unknown')
+        if hasattr(event, "request_context") and event.request_context:
+            authorizer = event.request_context.get("authorizer", {})
+            return authorizer.get("user_id", "unknown")
         return "unknown"
     except Exception:
         return "unknown"

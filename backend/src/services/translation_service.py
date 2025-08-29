@@ -12,7 +12,7 @@ from ..models.translations import (
     TranslationDirection,
     BedrockResponse,
 )
-from ..models.users import UserTier
+
 from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.aws_services import aws_services

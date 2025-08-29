@@ -1,7 +1,5 @@
 """Lambda handler for translation endpoint."""
 
-from typing import Dict, Any, Optional
-
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
@@ -22,7 +20,7 @@ from ..utils.envelopes import TranslationEnvelope
 @handle_errors(extract_user_id=extract_user_from_parsed_data)
 def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayResponse:
     """Handle translation requests from mobile app."""
-    
+
     # Validate user authentication
     if not event.user_id:
         raise ValueError("Valid Cognito token is required for translation requests")
@@ -33,16 +31,15 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
         direction=TranslationDirection(event.request_body.direction),
         user_id=event.user_id,  # Use the user_id from the event
     )
-    
+
     # Initialize services
     translation_service = TranslationService()
-    
+
     # Perform translation
     translation_response = translation_service.translate_text(
-        translation_request, 
-        event.user_id
+        translation_request, event.user_id
     )
-    
+
     # Log successful translation
     logger.log_business_event(
         "translation_request_completed",
@@ -52,9 +49,9 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
             "direction": translation_response.direction.value,
             "text_length": len(translation_request.text),
             "processing_time_ms": translation_response.processing_time_ms,
-        }
+        },
     )
-    
+
     # Return success response
     return create_success_response(
         "Translation completed successfully",
@@ -67,5 +64,5 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
             "processing_time_ms": translation_response.processing_time_ms,
             "model_used": translation_response.model_used,
             "created_at": translation_response.created_at.isoformat(),
-        }
+        },
     )
