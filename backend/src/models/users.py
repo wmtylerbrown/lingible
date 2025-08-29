@@ -82,8 +82,8 @@ class UserProfileResponse(BaseModel):
     user_id: str = Field(..., description="User ID")
     email: str = Field(..., description="User email")
     username: str = Field(..., description="Username")
-    tier: str = Field(..., description="User tier")
-    status: str = Field(..., description="Account status")
+    tier: UserTier = Field(..., description="User tier")
+    status: UserStatus = Field(..., description="Account status")
     subscription_start_date: Optional[datetime] = Field(
         None, description="Premium subscription start date"
     )
@@ -98,7 +98,7 @@ class UserUsageResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    tier: str = Field(..., description="User tier (free/premium)")
+    tier: UserTier = Field(..., description="User tier (free/premium)")
     daily_limit: int = Field(..., description="Daily translation limit")
     daily_used: int = Field(..., description="Translations used today")
     daily_remaining: int = Field(..., description="Translations remaining today")

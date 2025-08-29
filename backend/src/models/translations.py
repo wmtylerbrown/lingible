@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
+from .users import UserTier
+
 
 class TranslationDirection(str, Enum):
     """Translation direction enum."""
@@ -28,16 +30,7 @@ class TranslationRequestBody(BaseModel):
     text: str = Field(
         ..., min_length=1, max_length=1000, description="Text to translate"
     )
-    direction: str = Field(..., description="Translation direction")
-
-    @field_validator("direction")
-    @classmethod
-    def validate_direction(cls, v: str) -> str:
-        """Validate translation direction."""
-        valid_directions = ["genz_to_english", "english_to_genz"]
-        if v not in valid_directions:
-            raise ValueError(f"Direction must be one of: {valid_directions}")
-        return v
+    direction: TranslationDirection = Field(..., description="Translation direction")
 
 
 class TranslationRequest(BaseModel):
@@ -109,7 +102,7 @@ class UsageLimit(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    tier: str = Field(..., description="User tier (free/premium)")
+    tier: UserTier = Field(..., description="User tier (free/premium)")
     current_daily_usage: int = Field(0, ge=0, description="Current daily usage")
     reset_daily_at: Optional[datetime] = Field(
         None, description="When daily limit resets"
@@ -121,7 +114,7 @@ class UsageLimitResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    tier: str = Field(..., description="User tier (free/premium)")
+    tier: UserTier = Field(..., description="User tier (free/premium)")
     daily_limit: int = Field(..., ge=0, description="Daily translation limit")
     daily_used: int = Field(..., ge=0, description="Current daily usage")
     daily_remaining: int = Field(..., ge=0, description="Daily usage remaining")

@@ -81,7 +81,7 @@ class UserService:
 
             # Get limits from config based on tier
             tier_config = self.usage_config.get(
-                usage_limits.tier, self.usage_config["free"]
+                usage_limits.tier.value, self.usage_config["free"]
             )
             daily_limit = tier_config["daily_limit"]
 
@@ -112,7 +112,7 @@ class UserService:
             tier_config = self.usage_config.get(tier.value, self.usage_config["free"])
 
             usage = UsageLimit(
-                tier=tier.value,
+                tier=tier,
                 current_daily_usage=0,
                 reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
             )

@@ -61,7 +61,7 @@ class TranslationService:
                 )
 
             # Atomically increment usage (no need to pass UsageLimit object)
-            self.user_service.increment_usage(user_id, UserTier(usage_response.tier))
+            self.user_service.increment_usage(user_id, usage_response.tier)
 
             # Generate Bedrock prompt
             prompt = self._generate_bedrock_prompt(request)

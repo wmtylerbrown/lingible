@@ -201,7 +201,7 @@ class UserRepository:
 
             item = response["Item"]
             return UsageLimit(
-                tier=item["tier"],
+                tier=UserTier(item["tier"]),
                 current_daily_usage=item.get("current_daily_usage", 0),
                 reset_daily_at=(
                     datetime.fromisoformat(item["reset_daily_at"])
