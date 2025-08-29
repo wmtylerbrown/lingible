@@ -12,6 +12,10 @@ from ..utils.decorators import api_handler, extract_user_from_parsed_data
 from ..utils.envelopes import UserUsageEnvelope
 
 
+# Initialize services at module level (Lambda container reuse)
+user_service = UserService()
+
+
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=UserUsageEvent, envelope=UserUsageEnvelope())
@@ -21,9 +25,6 @@ def handler(event: UserUsageEvent, context: LambdaContext) -> UserUsageResponse:
 
     # Get user ID from the event (already validated by envelope)
     user_id = event.user_id
-
-    # Initialize services
-    user_service = UserService()
 
     # Get user usage statistics (dynamic data)
     user_usage = user_service.get_user_usage(user_id)

@@ -16,6 +16,10 @@ from ..utils.decorators import api_handler, extract_user_from_parsed_data
 from ..utils.envelopes import TranslationEnvelope
 
 
+# Initialize services at module level (Lambda container reuse)
+translation_service = TranslationService()
+
+
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=TranslationEvent, envelope=TranslationEnvelope())
@@ -29,9 +33,6 @@ def handler(event: TranslationEvent, context: LambdaContext) -> TranslationRespo
         direction=TranslationDirection(event.request_body.direction),
         user_id=event.user_id,  # Use the user_id from the event
     )
-
-    # Initialize services
-    translation_service = TranslationService()
 
     # Perform translation
     translation = translation_service.translate_text(translation_request, event.user_id)
