@@ -94,15 +94,8 @@ class TranslationService:
             # Save translation history
             self._save_translation_history(response, user_id)
 
-            logger.log_business_event(
-                "translation_completed",
-                {
-                    "translation_id": translation_id,
-                    "user_id": user_id,
-                    "direction": request.direction.value,
-                    "processing_time_ms": processing_time_ms,
-                },
-            )
+            # Only log errors or exceptional cases, not every successful translation
+            # This reduces log volume significantly
 
             return response
 
@@ -223,14 +216,7 @@ Translation:"""
         """Save translation to history (premium users only)."""
         # Only save translations for premium users
         if not self._is_premium_user(user_id):
-            logger.log_business_event(
-                "translation_skipped_storage",
-                {
-                    "translation_id": response.translation_id,
-                    "user_id": user_id,
-                    "reason": "premium_feature_only",
-                },
-            )
+            # Don't log every storage skip - it's expected behavior for free users
             return
 
         history_item = TranslationHistory(
@@ -323,10 +309,12 @@ Translation:"""
                 if success:
                     deleted_count += 1
 
-            logger.log_business_event(
-                "user_translations_deleted",
-                {"user_id": user_id, "deleted_count": deleted_count},
-            )
+            # Only log significant deletions (more than 10 items)
+            if deleted_count > 10:
+                logger.log_business_event(
+                    "user_translations_deleted",
+                    {"user_id": user_id, "deleted_count": deleted_count},
+                )
 
             return deleted_count
 
