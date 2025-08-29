@@ -108,9 +108,6 @@ class UserService:
         try:
             now = datetime.now(timezone.utc)
 
-            # Get limits based on tier
-            tier_config = self.usage_config.get(tier.value, self.usage_config["free"])
-
             usage = UsageLimit(
                 tier=tier,
                 current_daily_usage=0,
