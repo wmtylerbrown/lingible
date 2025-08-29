@@ -150,61 +150,6 @@ class UserService:
             )
             raise
 
-    def _get_user_and_usage_efficiently(self, user_id: str) -> tuple[User, UsageLimit]:
-        """Get user and usage limits efficiently, creating defaults if needed."""
-        try:
-            # Get both user and usage limits in one efficient operation
-            user, usage_limits = self.repository.get_user_and_usage(user_id)
-
-            if not user:
-                raise ValidationError(f"User not found: {user_id}")
-
-            if not usage_limits:
-                # Create default usage limits and return them directly
-                usage_limits = self._create_and_return_usage_limits(user_id, user.tier)
-
-            return user, usage_limits
-
-        except Exception as e:
-            logger.log_error(
-                e, {"operation": "_get_user_and_usage_efficiently", "user_id": user_id}
-            )
-            raise
-
-    def _create_and_return_usage_limits(
-        self, user_id: str, tier: UserTier
-    ) -> UsageLimit:
-        """Create default usage limits and return them directly (no additional DB call)."""
-        try:
-            now = datetime.now(timezone.utc)
-
-            # Get limits based on tier
-            tier_config = self.usage_config.get(tier.value, self.usage_config["free"])
-            daily_limit = tier_config["daily_limit"]
-
-            usage = UsageLimit(
-                tier=tier.value,
-                current_daily_usage=0,
-                reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
-            )
-
-            # Save to database
-            success = self.repository.update_usage_limits(user_id, usage)
-            if not success:
-                logger.log_error(
-                    Exception("Failed to create default usage limits"),
-                    {"user_id": user_id, "tier": tier.value},
-                )
-
-            # Return the usage object directly (no need for another DB call)
-            return usage
-
-        except Exception as e:
-            logger.log_error(
-                e, {"operation": "_create_and_return_usage_limits", "user_id": user_id}
-            )
-            raise
-
     def _create_default_usage_limits(self, user_id: str, tier: UserTier) -> None:
         """Create default usage limits for a user."""
         try:
@@ -280,11 +225,8 @@ class UserService:
     def check_and_increment_usage(self, user_id: str) -> None:
         """Check usage limits and increment usage in one efficient operation."""
         try:
-            # Get user and usage limits efficiently
-            user, usage = self.repository.get_user_and_usage(user_id)
-
-            if not user:
-                raise ValidationError(f"User not found: {user_id}")
+            # Get usage limits only (tier is included)
+            usage = self.repository.get_usage_limits(user_id)
 
             if not usage:
                 # Create default usage limits for new user
@@ -303,7 +245,7 @@ class UserService:
                 raise UsageLimitExceededError(
                     "daily",
                     usage.current_daily_usage,
-                    usage.daily_limit,
+                    daily_limit,
                 )
 
             # Increment usage
