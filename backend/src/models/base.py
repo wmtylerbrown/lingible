@@ -55,6 +55,9 @@ class ErrorCode(Enum):
     EXTERNAL_SERVICE_ERROR = "SYS_002"
     INTERNAL_ERROR = "SYS_003"
 
+    # Rate limiting errors
+    RATE_LIMIT_EXCEEDED = "RATE_001"
+
 
 class BaseResponse(BaseModel):
     """Base API response model."""

@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any
-from ..models.base import ErrorResponse, HTTPStatus
+from ..models.base import ErrorResponse, HTTPStatus, ErrorCode
 from ..models.aws import APIGatewayResponse
 from .exceptions import AppException
 
@@ -80,7 +80,7 @@ def create_validation_error_response(
     error_data = ErrorResponse(
         success=False,
         message=message,
-        error_code="VAL_001",
+        error_code=ErrorCode.INVALID_INPUT.value,
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY.value,
         details=details,
         timestamp=datetime.utcnow().isoformat(),
@@ -107,7 +107,7 @@ def create_not_found_response(
     error_data = ErrorResponse(
         success=False,
         message=f"{resource_type} with id '{resource_id}' not found",
-        error_code="RES_001",
+        error_code=ErrorCode.RESOURCE_NOT_FOUND.value,
         status_code=HTTPStatus.NOT_FOUND.value,
         details={"resource_type": resource_type, "resource_id": resource_id},
         timestamp=datetime.utcnow().isoformat(),
@@ -134,7 +134,7 @@ def create_unauthorized_response(
     error_data = ErrorResponse(
         success=False,
         message=message,
-        error_code="AUTH_001",
+        error_code=ErrorCode.INVALID_TOKEN.value,
         status_code=HTTPStatus.UNAUTHORIZED.value,
         details={"reason": "authentication_required"},
         timestamp=datetime.utcnow().isoformat(),
@@ -161,7 +161,7 @@ def create_forbidden_response(
     error_data = ErrorResponse(
         success=False,
         message=message,
-        error_code="AUTH_003",
+        error_code=ErrorCode.INSUFFICIENT_PERMISSIONS.value,
         status_code=HTTPStatus.FORBIDDEN.value,
         details={"reason": "insufficient_permissions"},
         timestamp=datetime.utcnow().isoformat(),
@@ -188,7 +188,7 @@ def create_rate_limit_response(
     error_data = ErrorResponse(
         success=False,
         message=f"Rate limit exceeded. Limit: {limit} requests per {window_seconds} seconds",
-        error_code="RATE_001",
+        error_code=ErrorCode.RATE_LIMIT_EXCEEDED.value,
         status_code=HTTPStatus.TOO_MANY_REQUESTS.value,
         details={"limit": limit, "window_seconds": window_seconds},
         timestamp=datetime.utcnow().isoformat(),
@@ -215,7 +215,7 @@ def create_internal_error_response(
     error_data = ErrorResponse(
         success=False,
         message=message,
-        error_code="SYS_003",
+        error_code=ErrorCode.INTERNAL_ERROR.value,
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
         details={"reason": "internal_error"},
         timestamp=datetime.utcnow().isoformat(),

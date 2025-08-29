@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Optional, Dict, Any
 from .logging import logger
+from ..models.base import HTTPStatus, ErrorCode
 
 
 class AppException(Exception):
@@ -12,7 +13,7 @@ class AppException(Exception):
         self,
         message: str,
         error_code: str,
-        status_code: int = 500,
+        status_code: int = HTTPStatus.INTERNAL_SERVER_ERROR.value,
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
         log_level: str = "error",
@@ -67,11 +68,18 @@ class AuthenticationError(AppException):
     def __init__(
         self,
         message: str = "Authentication failed",
-        error_code: str = "AUTH_001",
+        error_code: str = ErrorCode.INVALID_TOKEN.value,
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, error_code, 401, details, request_id, "warning")
+        super().__init__(
+            message,
+            error_code,
+            HTTPStatus.UNAUTHORIZED.value,
+            details,
+            request_id,
+            "warning",
+        )
 
 
 class InvalidTokenError(AuthenticationError):
@@ -83,7 +91,7 @@ class InvalidTokenError(AuthenticationError):
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, "AUTH_001", details, request_id)
+        super().__init__(message, ErrorCode.INVALID_TOKEN.value, details, request_id)
 
 
 class TokenExpiredError(AuthenticationError):
@@ -95,19 +103,22 @@ class TokenExpiredError(AuthenticationError):
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, "AUTH_002", details, request_id)
+        super().__init__(message, ErrorCode.TOKEN_EXPIRED.value, details, request_id)
 
 
 class InsufficientPermissionsError(AuthenticationError):
-    """User lacks required permissions."""
+    """Insufficient permissions for the requested operation."""
 
     def __init__(
         self,
-        message: str = "Insufficient permissions for this operation",
+        message: str = "Insufficient permissions",
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, "AUTH_003", details, request_id)
+        super().__init__(
+            message, ErrorCode.INSUFFICIENT_PERMISSIONS.value, details, request_id
+        )
+        self.status_code = HTTPStatus.FORBIDDEN.value
 
 
 # Validation Exceptions
@@ -116,16 +127,23 @@ class ValidationError(AppException):
 
     def __init__(
         self,
-        message: str = "Validation failed",
-        error_code: str = "VAL_001",
+        message: str = "Validation error",
+        error_code: str = ErrorCode.INVALID_INPUT.value,
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, error_code, 422, details, request_id, "warning")
+        super().__init__(
+            message,
+            error_code,
+            HTTPStatus.UNPROCESSABLE_ENTITY.value,
+            details,
+            request_id,
+            "warning",
+        )
 
 
 class MissingRequiredFieldError(ValidationError):
-    """Missing required field in request."""
+    """Required field is missing."""
 
     def __init__(
         self,
@@ -135,14 +153,16 @@ class MissingRequiredFieldError(ValidationError):
         request_id: Optional[str] = None,
     ) -> None:
         if message is None:
-            message = f"Missing required field: {field_name}"
+            message = f"Required field '{field_name}' is missing"
         if details is None:
-            details = {"field": field_name}
-        super().__init__(message, "VAL_002", details, request_id)
+            details = {"field_name": field_name}
+        super().__init__(
+            message, ErrorCode.MISSING_REQUIRED_FIELD.value, details, request_id
+        )
 
 
 class InvalidFormatError(ValidationError):
-    """Invalid data format."""
+    """Field has invalid format."""
 
     def __init__(
         self,
@@ -154,11 +174,11 @@ class InvalidFormatError(ValidationError):
     ) -> None:
         if message is None:
             message = (
-                f"Invalid format for field '{field_name}'. Expected: {expected_format}"
+                f"Field '{field_name}' has invalid format. Expected: {expected_format}"
             )
         if details is None:
-            details = {"field": field_name, "expected_format": expected_format}
-        super().__init__(message, "VAL_003", details, request_id)
+            details = {"field_name": field_name, "expected_format": expected_format}
+        super().__init__(message, ErrorCode.INVALID_FORMAT.value, details, request_id)
 
 
 # Resource Exceptions
@@ -168,11 +188,18 @@ class ResourceError(AppException):
     def __init__(
         self,
         message: str = "Resource operation failed",
-        error_code: str = "RES_001",
+        error_code: str = ErrorCode.RESOURCE_NOT_FOUND.value,
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, error_code, 404, details, request_id, "warning")
+        super().__init__(
+            message,
+            error_code,
+            HTTPStatus.NOT_FOUND.value,
+            details,
+            request_id,
+            "warning",
+        )
 
 
 class ResourceNotFoundError(ResourceError):
@@ -190,7 +217,9 @@ class ResourceNotFoundError(ResourceError):
             message = f"{resource_type} with id '{resource_id}' not found"
         if details is None:
             details = {"resource_type": resource_type, "resource_id": resource_id}
-        super().__init__(message, "RES_001", details, request_id)
+        super().__init__(
+            message, ErrorCode.RESOURCE_NOT_FOUND.value, details, request_id
+        )
 
 
 class ResourceAlreadyExistsError(ResourceError):
@@ -209,8 +238,10 @@ class ResourceAlreadyExistsError(ResourceError):
         if details is None:
             details = {"resource_type": resource_type, "resource_id": resource_id}
         # Override status code to 409 Conflict
-        super().__init__(message, "RES_002", details, request_id)
-        self.status_code = 409
+        super().__init__(
+            message, ErrorCode.RESOURCE_ALREADY_EXISTS.value, details, request_id
+        )
+        self.status_code = HTTPStatus.CONFLICT.value
 
 
 class ResourceConflictError(ResourceError):
@@ -223,8 +254,10 @@ class ResourceConflictError(ResourceError):
         request_id: Optional[str] = None,
     ) -> None:
         # Override status code to 409 Conflict
-        super().__init__(message, "RES_003", details, request_id)
-        self.status_code = 409
+        super().__init__(
+            message, ErrorCode.RESOURCE_CONFLICT.value, details, request_id
+        )
+        self.status_code = HTTPStatus.CONFLICT.value
 
 
 # Business Logic Exceptions
@@ -234,11 +267,18 @@ class BusinessLogicError(AppException):
     def __init__(
         self,
         message: str = "Business logic error",
-        error_code: str = "BIZ_001",
+        error_code: str = ErrorCode.USAGE_LIMIT_EXCEEDED.value,
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, error_code, 400, details, request_id, "warning")
+        super().__init__(
+            message,
+            error_code,
+            HTTPStatus.BAD_REQUEST.value,
+            details,
+            request_id,
+            "warning",
+        )
 
 
 class UsageLimitExceededError(BusinessLogicError):
@@ -262,9 +302,10 @@ class UsageLimitExceededError(BusinessLogicError):
                 "limit": limit,
             }
         # Override status code to 429 Too Many Requests and use unique error code
-        super().__init__(message, "BIZ_001", details, request_id)
-        self.status_code = 429
-        self.error_code = "USAGE_001"
+        super().__init__(
+            message, ErrorCode.USAGE_LIMIT_EXCEEDED.value, details, request_id
+        )
+        self.status_code = HTTPStatus.TOO_MANY_REQUESTS.value
 
 
 class InsufficientCreditsError(BusinessLogicError):
@@ -286,7 +327,9 @@ class InsufficientCreditsError(BusinessLogicError):
                 "available_credits": available_credits,
             }
         # Use unique error code
-        super().__init__(message, "BIZ_002", details, request_id)
+        super().__init__(
+            message, ErrorCode.INSUFFICIENT_CREDITS.value, details, request_id
+        )
 
 
 class ServiceUnavailableError(BusinessLogicError):
@@ -304,9 +347,10 @@ class ServiceUnavailableError(BusinessLogicError):
         if details is None:
             details = {"service_name": service_name}
         # Override status code to 503 Service Unavailable and use unique error code
-        super().__init__(message, "BIZ_003", details, request_id)
-        self.status_code = 503
-        self.error_code = "SERVICE_001"
+        super().__init__(
+            message, ErrorCode.SERVICE_UNAVAILABLE.value, details, request_id
+        )
+        self.status_code = HTTPStatus.SERVICE_UNAVAILABLE.value
 
 
 # System Exceptions
@@ -316,11 +360,18 @@ class SystemError(AppException):
     def __init__(
         self,
         message: str = "System error occurred",
-        error_code: str = "SYS_001",
+        error_code: str = ErrorCode.DATABASE_ERROR.value,
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, error_code, 500, details, request_id, "error")
+        super().__init__(
+            message,
+            error_code,
+            HTTPStatus.INTERNAL_SERVER_ERROR.value,
+            details,
+            request_id,
+            "error",
+        )
 
 
 class DatabaseError(SystemError):
@@ -338,7 +389,7 @@ class DatabaseError(SystemError):
             message = f"Database operation '{operation}' failed on table '{table}'"
         if details is None:
             details = {"operation": operation, "table": table}
-        super().__init__(message, "SYS_001", details, request_id)
+        super().__init__(message, ErrorCode.DATABASE_ERROR.value, details, request_id)
 
 
 class ExternalServiceError(SystemError):
@@ -358,7 +409,9 @@ class ExternalServiceError(SystemError):
             )
         if details is None:
             details = {"service_name": service_name, "operation": operation}
-        super().__init__(message, "SYS_002", details, request_id)
+        super().__init__(
+            message, ErrorCode.EXTERNAL_SERVICE_ERROR.value, details, request_id
+        )
 
 
 class InternalError(SystemError):
@@ -370,7 +423,7 @@ class InternalError(SystemError):
         details: Optional[Dict[str, Any]] = None,
         request_id: Optional[str] = None,
     ) -> None:
-        super().__init__(message, "SYS_003", details, request_id)
+        super().__init__(message, ErrorCode.INTERNAL_ERROR.value, details, request_id)
 
 
 # Rate Limiting Exception
@@ -389,4 +442,11 @@ class RateLimitExceededError(AppException):
             message = f"Rate limit exceeded. Limit: {limit} requests per {window_seconds} seconds"
         if details is None:
             details = {"limit": limit, "window_seconds": window_seconds}
-        super().__init__(message, "RATE_001", 429, details, request_id, "warning")
+        super().__init__(
+            message,
+            ErrorCode.RATE_LIMIT_EXCEEDED.value,
+            HTTPStatus.TOO_MANY_REQUESTS.value,
+            details,
+            request_id,
+            "warning",
+        )
