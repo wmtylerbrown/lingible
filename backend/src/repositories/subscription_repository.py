@@ -121,6 +121,9 @@ class SubscriptionRepository:
                     subscription.end_date.isoformat() if subscription.end_date else None
                 ),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
+                "ttl": int(
+                    datetime.now(timezone.utc).timestamp() + (365 * 24 * 60 * 60)
+                ),  # 1 year TTL
             }
 
             # Remove None values

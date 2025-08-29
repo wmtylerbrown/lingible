@@ -258,3 +258,28 @@ Translation:"""
     def delete_translation(self, user_id: str, translation_id: str) -> bool:
         """Delete a translation from history."""
         return self.translation_repository.delete_translation(user_id, translation_id)
+
+    @tracer.trace_method("delete_user_translations")
+    def delete_user_translations(self, user_id: str) -> int:
+        """Delete all translations for a user. Returns number of deleted records."""
+        try:
+            # Get all user translations
+            translations = self.translation_repository.get_user_translations(user_id, limit=1000)
+            deleted_count = 0
+            
+            # Delete each translation
+            for translation in translations.items:
+                success = self.translation_repository.delete_translation(user_id, translation.translation_id)
+                if success:
+                    deleted_count += 1
+            
+            logger.log_business_event(
+                "user_translations_deleted",
+                {"user_id": user_id, "deleted_count": deleted_count}
+            )
+            
+            return deleted_count
+            
+        except Exception as e:
+            logger.log_error(e, {"operation": "delete_user_translations", "user_id": user_id})
+            return 0

@@ -8,6 +8,11 @@ python-multipart>=0.0.20
 requests>=2.32.5
 aws-lambda-powertools>=3.19.0
 
+# Receipt validation SDKs
+itunes-iap>=0.0.1
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+
 # AWS CDK dependencies
 aws-cdk-lib>=2.213.0
 constructs>=10.4.2

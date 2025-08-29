@@ -61,6 +61,20 @@ class AppConfig:
                 "max_concurrent_translations": 5,
                 "translation_timeout": 30,
             },
+            # Apple Store Configuration
+            "apple_store": {
+                "environment": "sandbox",  # sandbox or production
+                "shared_secret": "your_app_specific_shared_secret",
+                "bundle_id": "com.yourapp.genztranslator",
+                "verify_url": "https://buy.itunes.apple.com/verifyReceipt",
+                "sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt",
+            },
+            # Google Play Configuration
+            "google_play": {
+                "package_name": "com.yourapp.genztranslator",
+                "service_account_key": "path/to/service-account-key.json",
+                "api_timeout": 10,
+            },
             # Database Configuration
             "database": {
                 "tables": {
@@ -68,6 +82,7 @@ class AppConfig:
                     "translations": f"{self.app_name}-translations-{self.environment}",
                     "translation_history": f"{self.app_name}-translation-history-{self.environment}",
                     "usage_tracking": f"{self.app_name}-usage-tracking-{self.environment}",
+                    "receipts": f"{self.app_name}-receipts-{self.environment}",
                 },
                 "read_capacity": 5,
                 "write_capacity": 5,
@@ -192,6 +207,14 @@ class AppConfig:
     def get_monitoring_config(self) -> Dict[str, Any]:
         """Get monitoring configuration."""
         return self.get("monitoring", self._defaults["monitoring"])
+
+    def get_apple_store_config(self) -> Dict[str, Any]:
+        """Get Apple Store configuration."""
+        return self.get("apple_store", self._defaults["apple_store"])
+
+    def get_google_play_config(self) -> Dict[str, Any]:
+        """Get Google Play configuration."""
+        return self.get("google_play", self._defaults["google_play"])
 
     def get_logging_config(self) -> Dict[str, Any]:
         """Get logging configuration."""

@@ -22,6 +22,17 @@ class SubscriptionStatus(Enum):
     CANCELLED = "cancelled"
 
 
+class ReceiptValidationStatus(Enum):
+    """Receipt validation status."""
+
+    VALID = "valid"
+    INVALID = "invalid"
+    EXPIRED = "expired"
+    ALREADY_USED = "already_used"
+    ENVIRONMENT_MISMATCH = "environment_mismatch"
+    RETRYABLE_ERROR = "retryable_error"
+
+
 class UserSubscription(BaseModel):
     """User subscription domain model (database storage)."""
 
@@ -73,6 +84,65 @@ class UserUpgradeRequest(BaseModel):
     provider: SubscriptionProvider = Field(SubscriptionProvider.APPLE, description="Subscription provider")
     receipt_data: str = Field(..., min_length=1, description="Base64 encoded receipt data")
     transaction_id: str = Field(..., min_length=1, description="Provider transaction ID")
+
+
+class ReceiptValidationRequest(BaseModel):
+    """Request model for receipt validation."""
+
+    provider: SubscriptionProvider = Field(..., description="Receipt provider")
+    receipt_data: str = Field(..., min_length=1, description="Receipt data from app store")
+    transaction_id: str = Field(..., min_length=1, description="Transaction ID")
+    user_id: Optional[str] = Field(None, description="User ID for audit logging")
+
+
+class ReceiptValidationResult(BaseModel):
+    """Result of receipt validation."""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            datetime: lambda v: v.isoformat(),
+        },
+        use_enum_values=True,
+    )
+
+    is_valid: bool = Field(..., description="Whether receipt is valid")
+    status: ReceiptValidationStatus = Field(..., description="Validation status")
+    transaction_id: str = Field(..., description="Transaction ID")
+    product_id: Optional[str] = Field(None, description="Product ID from receipt")
+    purchase_date: Optional[datetime] = Field(None, description="Purchase date")
+    expiration_date: Optional[datetime] = Field(None, description="Expiration date")
+    environment: Optional[str] = Field(None, description="Environment (sandbox/production)")
+    error_message: Optional[str] = Field(None, description="Error message if validation failed")
+    retry_after: Optional[int] = Field(None, description="Seconds to wait before retry")
+
+    def to_api_response(self) -> "ReceiptValidationResponse":
+        """Convert to API response model."""
+        return ReceiptValidationResponse(
+            is_valid=self.is_valid,
+            status=self.status.value,
+            transaction_id=self.transaction_id,
+            product_id=self.product_id,
+            purchase_date=self.purchase_date.isoformat() if self.purchase_date else None,
+            expiration_date=self.expiration_date.isoformat() if self.expiration_date else None,
+            environment=self.environment,
+            error_message=self.error_message,
+            retry_after=self.retry_after,
+        )
+
+
+class ReceiptValidationResponse(BaseModel):
+    """API response model for receipt validation."""
+
+    is_valid: bool = Field(..., description="Whether receipt is valid")
+    status: str = Field(..., description="Validation status")
+    transaction_id: str = Field(..., description="Transaction ID")
+    product_id: Optional[str] = Field(None, description="Product ID from receipt")
+    purchase_date: Optional[str] = Field(None, description="Purchase date (ISO format)")
+    expiration_date: Optional[str] = Field(None, description="Expiration date (ISO format)")
+    environment: Optional[str] = Field(None, description="Environment (sandbox/production)")
+    error_message: Optional[str] = Field(None, description="Error message if validation failed")
+    retry_after: Optional[int] = Field(None, description="Seconds to wait before retry")
 
 
 class AppleNotificationType(Enum):

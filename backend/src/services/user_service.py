@@ -256,3 +256,5 @@ class UserService:
         except Exception as e:
             logger.log_error(e, {"operation": "delete_user", "user_id": user_id})
             raise
+
+

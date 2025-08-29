@@ -4,8 +4,15 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 
 from ..models.users import User, UserTier
-from ..models.subscriptions import UserSubscription, SubscriptionProvider, SubscriptionStatus
+from ..models.subscriptions import (
+    UserSubscription, 
+    SubscriptionProvider, 
+    SubscriptionStatus,
+    ReceiptValidationRequest,
+    ReceiptValidationStatus
+)
 from ..services.user_service import UserService
+from ..services.receipt_validation_service import ReceiptValidationService
 from ..repositories.subscription_repository import SubscriptionRepository
 from ..utils.logging import logger
 from ..utils.tracing import tracer
@@ -23,6 +30,7 @@ class SubscriptionService:
         """Initialize subscription service."""
         self.user_service = UserService()
         self.subscription_repository = SubscriptionRepository()
+        self.receipt_validator = ReceiptValidationService()
 
     @tracer.trace_method("upgrade_user")
     def upgrade_user(
@@ -41,10 +49,26 @@ class SubscriptionService:
             if not user:
                 raise ValidationError("User not found", error_code="USER_NOT_FOUND")
 
-            # Validate receipt with provider (simplified for now)
-            # In production, this would call Apple/Google APIs to verify receipt
-            if not self._validate_receipt(provider, receipt_data, transaction_id):
-                raise ValidationError("Invalid receipt", error_code="INVALID_RECEIPT")
+            # Create receipt validation request
+            validation_request = ReceiptValidationRequest(
+                provider=SubscriptionProvider(provider),
+                receipt_data=receipt_data,
+                transaction_id=transaction_id,
+                user_id=user_id
+            )
+            
+            # Validate receipt with provider
+            validation_result = self.receipt_validator.validate_receipt(validation_request)
+            
+            if not validation_result.is_valid:
+                if validation_result.status == ReceiptValidationStatus.ALREADY_USED:
+                    raise ValidationError("Receipt already used", error_code="RECEIPT_ALREADY_USED")
+                elif validation_result.status == ReceiptValidationStatus.EXPIRED:
+                    raise ValidationError("Receipt expired", error_code="RECEIPT_EXPIRED")
+                elif validation_result.status == ReceiptValidationStatus.ENVIRONMENT_MISMATCH:
+                    raise ValidationError("Environment mismatch", error_code="ENVIRONMENT_MISMATCH")
+                else:
+                    raise ValidationError(f"Invalid receipt: {validation_result.error_message}", error_code="INVALID_RECEIPT")
 
             # Create subscription record
             subscription = UserSubscription(
@@ -71,6 +95,9 @@ class SubscriptionService:
             success = self.user_service.update_user(user)
             if not success:
                 raise SystemError("Failed to update user", error_code="USER_UPDATE_FAILED")
+
+            # Note: Transaction deduplication is handled by the receipt validation service
+            # No need to mark as used since we're not caching receipts in database
 
             logger.log_business_event("user_upgrade_success", {
                 "user_id": user_id,
@@ -128,17 +155,6 @@ class SubscriptionService:
             })
             return False
 
-    def _validate_receipt(self, provider: str, receipt_data: str, transaction_id: str) -> bool:
-        """Validate receipt with provider (simplified implementation)."""
-        # TODO: Implement actual receipt validation with Apple/Google APIs
-        # For now, just return True for testing
-        logger.log_business_event("receipt_validation", {
-            "provider": provider,
-            "transaction_id": transaction_id,
-            "valid": True
-        })
-        return True
-
     def _calculate_end_date(self, provider: str, receipt_data: str) -> Optional[datetime]:
         """Calculate subscription end date from receipt data."""
         # TODO: Parse actual end date from receipt data
@@ -154,6 +170,24 @@ class SubscriptionService:
 
         # Get user
         return self.user_service.get_user(subscription.user_id)
+
+    @tracer.trace_method("get_active_subscription")
+    def get_active_subscription(self, user_id: str) -> Optional[UserSubscription]:
+        """Get user's active subscription."""
+        try:
+            return self.subscription_repository.get_active_subscription(user_id)
+        except Exception as e:
+            logger.log_error(e, {"operation": "get_active_subscription", "user_id": user_id})
+            return None
+
+    @tracer.trace_method("cancel_subscription")
+    def cancel_subscription(self, user_id: str) -> bool:
+        """Cancel user's active subscription."""
+        try:
+            return self.subscription_repository.cancel_subscription(user_id)
+        except Exception as e:
+            logger.log_error(e, {"operation": "cancel_subscription", "user_id": user_id})
+            return False
 
     def _handle_renewal(self, user: User, receipt_data: str, transaction_id: str) -> bool:
         """Handle subscription renewal."""
