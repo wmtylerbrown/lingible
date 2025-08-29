@@ -81,12 +81,6 @@ class UserRepository:
                 email=item.get("email"),
                 tier=UserTier(item["tier"]),
                 status=UserStatus(item["status"]),
-                total_translations_used=item.get("total_translations_used", 0),
-                last_translation_date=(
-                    datetime.fromisoformat(item["last_translation_date"])
-                    if item.get("last_translation_date")
-                    else None
-                ),
                 subscription_start_date=(
                     datetime.fromisoformat(item["subscription_start_date"])
                     if item.get("subscription_start_date")

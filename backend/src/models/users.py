@@ -36,12 +36,6 @@ class User(BaseModel):
     tier: UserTier = Field(UserTier.FREE, description="User subscription tier")
     status: UserStatus = Field(UserStatus.ACTIVE, description="User account status")
 
-    # Usage tracking
-    total_translations_used: int = Field(0, description="Total translations used")
-    last_translation_date: Optional[datetime] = Field(
-        None, description="Last translation date"
-    )
-
     # Subscription data
     subscription_start_date: Optional[datetime] = Field(
         None, description="Premium subscription start"
@@ -57,20 +51,6 @@ class User(BaseModel):
     updated_at: datetime = Field(
         default_factory=datetime.utcnow, description="Last update date"
     )
-
-
-class UserUsage(BaseModel):
-    """User usage statistics."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    user_id: str = Field(..., description="User ID")
-    tier: UserTier = Field(..., description="Current tier")
-    monthly_limit: int = Field(..., description="Monthly translation limit")
-    monthly_used: int = Field(..., description="Translations used this month")
-    monthly_remaining: int = Field(..., description="Translations remaining this month")
-    total_used: int = Field(..., description="Total translations used")
-    reset_date: datetime = Field(..., description="Next usage reset date")
 
 
 # API Models
