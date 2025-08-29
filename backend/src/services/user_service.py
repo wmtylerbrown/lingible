@@ -215,8 +215,14 @@ class UserService:
                     usage_response.daily_limit,
                 )
 
-            # Then increment usage
-            self.increment_usage(user_id)
+            # Get the underlying UsageLimit object for incrementing
+            usage = self.repository.get_usage_limits(user_id)
+            if not usage:
+                # This shouldn't happen since get_user_usage would have created it
+                raise ValueError(f"No usage data found for user {user_id}")
+
+            # Then increment usage (pass the usage data to avoid duplicate fetch)
+            self.increment_usage(user_id, usage)
 
         except Exception as e:
             logger.log_error(
@@ -225,17 +231,8 @@ class UserService:
             raise
 
     @tracer.trace_method("increment_usage")
-    def increment_usage(self, user_id: str) -> None:
-        """Increment user usage after a translation."""
-        usage = self.repository.get_usage_limits(user_id)
-
-        if not usage:
-            usage = UsageLimit(
-                tier="free",
-                current_daily_usage=0,
-                reset_daily_at=None,
-            )
-
+    def increment_usage(self, user_id: str, usage: UsageLimit) -> None:
+        """Increment user usage (assumes limits already checked)."""
         # Increment usage
         usage.current_daily_usage += 1
 
