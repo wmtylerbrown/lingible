@@ -56,8 +56,8 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
         },
     )
 
-    # Return success response with profile data (excludes updated_at)
+    # Return success response with profile data
     return create_model_response(
         "User profile retrieved successfully",
-        user,
+        user.to_api_response(),
     )

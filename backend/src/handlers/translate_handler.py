@@ -56,5 +56,5 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
     # Return success response
     return create_model_response(
         "Translation completed successfully",
-        translation,
+        translation.to_api_response(),
     )

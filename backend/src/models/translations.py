@@ -71,6 +71,36 @@ class Translation(BaseModel):
     )
     model_used: Optional[str] = Field(None, description="AI model used for translation")
 
+    def to_api_response(self) -> "TranslationResponse":
+        """Convert to API response model."""
+        return TranslationResponse(
+            translation_id=self.translation_id,
+            original_text=self.original_text,
+            translated_text=self.translated_text,
+            direction=self.direction.value,  # Convert enum to string
+            confidence_score=self.confidence_score,
+            created_at=self.created_at.isoformat(),  # Convert to ISO string
+            processing_time_ms=self.processing_time_ms,
+            model_used=self.model_used,
+        )
+
+
+class TranslationResponse(BaseModel):
+    """API response model for translation data."""
+
+    translation_id: str = Field(..., description="Unique translation ID")
+    original_text: str = Field(..., description="Original text")
+    translated_text: str = Field(..., description="Translated text")
+    direction: str = Field(..., description="Translation direction")
+    confidence_score: Optional[float] = Field(
+        None, ge=0.0, le=1.0, description="Translation confidence score"
+    )
+    created_at: str = Field(..., description="Translation timestamp (ISO format)")
+    processing_time_ms: Optional[int] = Field(
+        None, ge=0, description="Processing time in milliseconds"
+    )
+    model_used: Optional[str] = Field(None, description="AI model used for translation")
+
 
 class TranslationHistory(BaseModel):
     """Domain model for translation history records (DB storage)."""
@@ -88,13 +118,41 @@ class TranslationHistory(BaseModel):
     created_at: datetime = Field(..., description="Translation timestamp")
     model_used: Optional[str] = Field(None, description="AI model used")
 
+    def to_api_response(self) -> "TranslationHistoryItemResponse":
+        """Convert to API response model."""
+        return TranslationHistoryItemResponse(
+            translation_id=self.translation_id,
+            user_id=self.user_id,
+            original_text=self.original_text,
+            translated_text=self.translated_text,
+            direction=self.direction.value,  # Convert enum to string
+            confidence_score=self.confidence_score,
+            created_at=self.created_at.isoformat(),  # Convert to ISO string
+            model_used=self.model_used,
+        )
+
+
+class TranslationHistoryItemResponse(BaseModel):
+    """API response model for individual translation history items."""
+
+    translation_id: str = Field(..., description="Unique translation ID")
+    user_id: str = Field(..., description="User ID")
+    original_text: str = Field(..., description="Original text")
+    translated_text: str = Field(..., description="Translated text")
+    direction: str = Field(..., description="Translation direction")
+    confidence_score: Optional[float] = Field(
+        None, description="Translation confidence score"
+    )
+    created_at: str = Field(..., description="Translation timestamp (ISO format)")
+    model_used: Optional[str] = Field(None, description="AI model used")
+
 
 class TranslationHistoryResponse(BaseModel):
     """Response model for translation history."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    translations: List[TranslationHistory] = Field(
+    translations: List[TranslationHistoryItemResponse] = Field(
         ..., description="List of translations"
     )
     total_count: int = Field(..., ge=0, description="Total number of translations")

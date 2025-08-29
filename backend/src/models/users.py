@@ -57,11 +57,48 @@ class User(BaseModel):
     updated_at: datetime = Field(
         default_factory=datetime.utcnow,
         description="Last update date",
-        exclude=True,  # Exclude from API responses
     )
+
+    def to_api_response(self) -> "UserResponse":
+        """Convert to API response model."""
+        return UserResponse(
+            user_id=self.user_id,
+            email=self.email,
+            username=self.username,
+            tier=self.tier.value,  # Convert enum to string
+            status=self.status.value,  # Convert enum to string
+            subscription_start_date=(
+                self.subscription_start_date.isoformat()
+                if self.subscription_start_date
+                else None
+            ),
+            subscription_end_date=(
+                self.subscription_end_date.isoformat()
+                if self.subscription_end_date
+                else None
+            ),
+            created_at=self.created_at.isoformat(),  # Convert to ISO string
+        )
 
 
 # API Models
+class UserResponse(BaseModel):
+    """API response model for user profile data."""
+
+    user_id: str = Field(..., description="User ID")
+    email: str = Field(..., description="User email")
+    username: str = Field(..., description="Username")
+    tier: str = Field(..., description="User tier")
+    status: str = Field(..., description="Account status")
+    subscription_start_date: Optional[str] = Field(
+        None, description="Premium subscription start date (ISO format)"
+    )
+    subscription_end_date: Optional[str] = Field(
+        None, description="Premium subscription end date (ISO format)"
+    )
+    created_at: str = Field(..., description="Account creation date (ISO format)")
+
+
 class UserUsageResponse(BaseModel):
     """User usage API response - dynamic data, not cacheable."""
 
