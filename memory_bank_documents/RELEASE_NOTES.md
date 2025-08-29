@@ -107,7 +107,7 @@ When using Memory Bank, you may occasionally need to guide the agent back to the
 
 ### 📝 Notes
 - This release builds upon v0.6-beta.1's architectural foundation
-- Significantly enhances JIT Rule Loading efficiency 
+- Significantly enhances JIT Rule Loading efficiency
 - No manual migration required
 - New files added to `.cursor/rules/isolation_rules/` directory
 

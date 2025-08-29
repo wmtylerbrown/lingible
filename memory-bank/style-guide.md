@@ -70,20 +70,20 @@ from typing import Optional, List
 
 class UserProfile(BaseModel):
     """User profile information."""
-    
+
     user_id: str = Field(..., description="Unique user identifier")
     display_name: str = Field(..., min_length=1, max_length=100)
     email: str = Field(..., regex=r"^[^@]+@[^@]+\.[^@]+$")
     tier: UserTier = Field(default=UserTier.FREE)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     @validator('display_name')
     def validate_display_name(cls, v: str) -> str:
         """Validate display name format."""
         if not v.strip():
             raise ValueError("Display name cannot be empty")
         return v.strip()
-    
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
@@ -149,10 +149,10 @@ T = TypeVar('T')
 
 class Repository(Generic[T]):
     """Generic repository interface."""
-    
+
     def get(self, id: str) -> Optional[T]:
         pass
-    
+
     def save(self, entity: T) -> T:
         pass
 ```
@@ -163,7 +163,7 @@ class Repository(Generic[T]):
 ```python
 class AppError(Exception):
     """Base application exception."""
-    
+
     def __init__(self, message: str, error_code: str = None):
         super().__init__(message)
         self.message = message
@@ -252,16 +252,16 @@ def translate_text(
 ) -> TranslationResult:
     """
     Translate text between specified languages using AWS Bedrock.
-    
+
     Args:
         text: The text to translate
         source_language: Source language code (e.g., 'en', 'es')
         target_language: Target language code (e.g., 'en', 'es')
         user_id: Optional user ID for usage tracking
-        
+
     Returns:
         TranslationResult: The translation result with metadata
-        
+
     Raises:
         ValidationError: If input validation fails
         TranslationError: If translation service fails
@@ -281,10 +281,10 @@ tracking and rate limiting.
 
 Classes:
     TranslationService: Main translation service class
-    
+
 Functions:
     translate_text: Translate text between languages
-    
+
 Exceptions:
     TranslationError: Translation service errors
     UsageLimitExceededError: Usage limit exceeded errors
@@ -301,28 +301,28 @@ from src.services.translation_service import TranslationService
 
 class TestTranslationService:
     """Test cases for TranslationService."""
-    
+
     @pytest.fixture
     def translation_service(self):
         """Create translation service instance for testing."""
         return TranslationService()
-    
+
     @pytest.fixture
     def mock_bedrock_client(self):
         """Mock AWS Bedrock client."""
         with patch('boto3.client') as mock_client:
             yield mock_client
-    
+
     def test_translate_text_success(self, translation_service, mock_bedrock_client):
         """Test successful text translation."""
         # Arrange
         text = "Hello world"
         source_lang = "en"
         target_lang = "es"
-        
+
         # Act
         result = translation_service.translate_text(text, source_lang, target_lang)
-        
+
         # Assert
         assert result.translated_text == "Hola mundo"
         assert result.source_language == source_lang
@@ -343,18 +343,18 @@ from typing import Optional
 
 class AWSServiceManager:
     """Centralized AWS service management."""
-    
+
     def __init__(self):
         self._bedrock_client: Optional[Any] = None
         self._dynamodb_client: Optional[Any] = None
-    
+
     @property
     def bedrock_client(self) -> Any:
         """Get Bedrock client with lazy initialization."""
         if self._bedrock_client is None:
             self._bedrock_client = boto3.client('bedrock-runtime')
         return self._bedrock_client
-    
+
     @property
     def dynamodb_client(self) -> Any:
         """Get DynamoDB client with lazy initialization."""
@@ -369,12 +369,12 @@ from aws_lambda_powertools.utilities.parameters import get_parameter
 
 class Config:
     """Application configuration management."""
-    
+
     @staticmethod
     def get_bedrock_model() -> str:
         """Get Bedrock model name from SSM."""
         return get_parameter('/translation-app/bedrock-model', force_fetch=True)
-    
+
     @staticmethod
     def get_max_translations_per_day() -> int:
         """Get max translations per day from SSM."""

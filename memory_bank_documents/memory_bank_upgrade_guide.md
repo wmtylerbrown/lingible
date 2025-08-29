@@ -7,10 +7,10 @@ I'm excited to introduce a significant upgrade to the Memory Bank system – evo
 ```mermaid
 graph TD
     Old["Old System<br>Monolithic Approach"] --> New["New System<br>Modular JIT Architecture"]
-    
+
     Old --- OldFeatures["• Single file structure<br>• All rules loaded at once<br>• Fixed workflow"]
     New --- NewFeatures["• Mode-specific rules<br>• Just-in-time loading<br>• Visual process maps<br>• Cursor custom modes integration"]
-    
+
     style Old fill:#f8d486,stroke:#e8b84d,color:black
     style New fill:#4da6ff,stroke:#0066cc,color:white
     style OldFeatures fill:#ffe6cc,stroke:#ffa64d,color:black
@@ -40,7 +40,7 @@ graph TD
     LoadRules --> ExecuteProcess["Execute Mode-Specific<br>Process"]
     ExecuteProcess --> UpdateMemory["Update<br>Memory Bank"]
     UpdateMemory --> NextMode["Transition to<br>Next Mode"]
-    
+
     style Command fill:#f8d486,stroke:#e8b84d,color:black
     style ModeSwitch fill:#d971ff,stroke:#a33bc2,color:white
     style LoadRules fill:#4da6ff,stroke:#0066cc,color:white
@@ -75,7 +75,7 @@ graph TD
     A -->|Condition 2| C[Process C]
     B --> D[Next Step]
     C --> D
-    
+
     style Start fill:#f9d77e,stroke:#d9b95c,color:black
     style A fill:#a8d5ff,stroke:#88b5e0,color:black
     style B fill:#c5e8b7,stroke:#a5c897,color:black
@@ -118,12 +118,12 @@ graph LR
         IMPLEMENT["IMPLEMENT MODE<br>Code Implementation"]
         QA["QA MODE<br>Validation"]
     end
-    
+
     VAN --> PLAN
     PLAN --> CREATIVE
     CREATIVE --> IMPLEMENT
     IMPLEMENT --> QA
-    
+
     style VAN fill:#80bfff,stroke:#4da6ff,color:black
     style PLAN fill:#80ffaa,stroke:#4dbb5f,color:black
     style CREATIVE fill:#d9b3ff,stroke:#b366ff,color:black
@@ -163,19 +163,19 @@ graph TD
         M2["Mode 2<br>Static Instructions"]
         M3["Mode 3<br>Static Instructions"]
     end
-    
+
     subgraph "Memory Bank's Approach"
         MB1["VAN Mode<br>Dynamic Rules"]
         MB2["PLAN Mode<br>Dynamic Rules"]
         MB3["CREATIVE Mode<br>Dynamic Rules"]
         MB4["IMPLEMENT Mode<br>Dynamic Rules"]
         MB5["QA Mode<br>Dynamic Rules"]
-        
+
         MB1 -->|"Passes Context"| MB2
         MB2 -->|"Passes Context"| MB3
         MB3 -->|"Passes Context"| MB4
         MB4 -->|"Passes Context"| MB5
-        
+
         MemBank["Memory Bank Files<br>(Shared State)"]
         MB1 <-->|"Read/Write"| MemBank
         MB2 <-->|"Read/Write"| MemBank
@@ -183,11 +183,11 @@ graph TD
         MB4 <-->|"Read/Write"| MemBank
         MB5 <-->|"Read/Write"| MemBank
     end
-    
+
     style M1 fill:#f8d486,stroke:#e8b84d,color:black
     style M2 fill:#f8d486,stroke:#e8b84d,color:black
     style M3 fill:#f8d486,stroke:#e8b84d,color:black
-    
+
     style MB1 fill:#80bfff,stroke:#4da6ff,color:black
     style MB2 fill:#80ffaa,stroke:#4dbb5f,color:black
     style MB3 fill:#d9b3ff,stroke:#b366ff,color:black
@@ -198,33 +198,33 @@ graph TD
 
 Memory Bank transforms custom modes into a comprehensive, interconnected system:
 
-1. **Graph-Based Architecture**: 
+1. **Graph-Based Architecture**:
    - Modes represent nodes in a development workflow with explicit transitions
    - Each mode understands its place in the overall development process
    - Visual process maps guide users through the appropriate sequence
 
-2. **Workflow Integration**: 
+2. **Workflow Integration**:
    - Modes form a cohesive development process (VAN → PLAN → CREATIVE → IMPLEMENT → QA)
    - Each mode is aware of preceding and subsequent modes
    - Transitions between modes are formalized with specific entry/exit criteria
 
-3. **Shared Memory**: 
+3. **Shared Memory**:
    - Persistent state maintained across mode transitions via Memory Bank files
    - Tasks.md serves as the central source of truth across all modes
    - Each mode contributes specific types of information to the shared knowledge base
 
-4. **Just-In-Time Rule Loading**: 
+4. **Just-In-Time Rule Loading**:
    - Each mode dynamically loads only its specific rule set
    - Rules are specialized for the current development phase
    - Context window is preserved for productive work
    - Rules can adapt based on project complexity level
 
-5. **Visual Process Maps**: 
+5. **Visual Process Maps**:
    - Each mode contains embedded Mermaid diagrams
    - Visual guidance for decision points and workflow options
    - Clear checkpoints to track progress within each phase
 
-6. **Complexity-Adaptive Behavior**: 
+6. **Complexity-Adaptive Behavior**:
    - Modes adjust their behavior based on the complexity level determined during initialization
    - Simpler projects follow streamlined processes
    - Complex projects receive more comprehensive guidance
@@ -283,13 +283,13 @@ From the analysis document:
 ```mermaid
 graph TD
     Start["Which system<br>should I use?"] --> Question{"What's your<br>experience level?"}
-    
+
     Question -->|"Beginner"| Old["Start with Old System<br>• Simpler to understand<br>• All in one place<br>• Easier learning curve"]
     Question -->|"Intermediate/<br>Advanced"| New["Use New System<br>• More powerful capabilities<br>• Better for complex projects<br>• Optimized context usage"]
-    
+
     Old --> Progress["As you gain experience..."]
     Progress --> New
-    
+
     style Start fill:#f8d486,stroke:#e8b84d
     style Question fill:#4da6ff,stroke:#0066cc,color:white
     style Old fill:#4dbb5f,stroke:#36873f,color:white
@@ -340,7 +340,7 @@ graph TD
     Main["main.mdc<br>Core Rules"] --> Platform["platform-awareness.mdc<br>OS Detection"]
     Main --> FileV["file-verification.mdc<br>File Structure"]
     Main --> ComplexityDT["complexity-decision-tree.mdc<br>Task Classification"]
-    
+
     subgraph "Mode-Specific Maps"
         VanMap["van-mode-map.mdc"]
         PlanMap["plan-mode-map.mdc"]
@@ -348,15 +348,15 @@ graph TD
         ImplementMap["implement-mode-map.mdc"]
         QAMap["qa-mode-map.mdc"]
     end
-    
+
     Main --> VanMap & PlanMap & CreativeMap & ImplementMap & QAMap
-    
+
     VanMap --> VanFiles["Platform Detection<br>File Verification<br>Complexity Determination"]
     PlanMap --> PlanFiles["Task Tracking<br>Planning Process<br>Component Identification"]
     CreativeMap --> CreativeFiles["Design Patterns<br>Creative Phase Enforcement<br>Options Analysis"]
     ImplementMap --> ImplementFiles["Command Execution<br>Implementation Guide<br>Testing Strategy"]
     QAMap --> QAFiles["Dependency Verification<br>Configuration Validation<br>Build Testing"]
-    
+
     style Main fill:#f8d486,stroke:#e8b84d,stroke-width:2px,color:black
     style VanMap fill:#80bfff,stroke:#4da6ff,stroke-width:2px,color:black
     style PlanMap fill:#80ffaa,stroke:#4dbb5f,stroke-width:2px,color:black
@@ -377,18 +377,18 @@ graph LR
         Progress["progress.md<br>Implementation Status"]
         Creative["creative-*.md<br>Design Decisions"]
     end
-    
+
     VAN["VAN MODE"] -.-> Tasks & Active
     PLAN["PLAN MODE"] -.-> Tasks & Active
     CREATIVE["CREATIVE MODE"] -.-> Tasks & Creative
     IMPLEMENT["IMPLEMENT MODE"] -.-> Tasks & Progress
     QA["QA MODE"] -.-> Tasks & Progress
-    
+
     style Tasks fill:#f9d77e,stroke:#d9b95c,stroke-width:3px,color:black
     style Active fill:#a8d5ff,stroke:#88b5e0,color:black
     style Progress fill:#c5e8b7,stroke:#a5c897
     style Creative fill:#f4b8c4,stroke:#d498a4,color:black
-    
+
     style VAN fill:#80bfff,stroke:#4da6ff,color:black
     style PLAN fill:#80ffaa,stroke:#4dbb5f,color:black
     style CREATIVE fill:#d9b3ff,stroke:#b366ff,color:black
@@ -485,20 +485,20 @@ graph TD
     subgraph "Old System"
         OldMain[All Rules Loaded at Start]
     end
-    
+
     subgraph "New System"
         Entry[Entry Point]
         Core[Core Rules]
         Phase1[Phase 1 Rules]
         Phase2[Phase 2 Rules]
         Phase3[Phase 3 Rules]
-        
+
         Entry --> Core
         Core --> Phase1
         Core --> Phase2
         Core --> Phase3
     end
-    
+
     style OldMain fill:#ffcccc,stroke:#ff9999,color:black
     style Entry fill:#ccffcc,stroke:#99ff99,color:black
     style Core fill:#ccffcc,stroke:#99ff99,color:black
@@ -527,7 +527,7 @@ graph TD
     A -->|Condition 2| C[Process C]
     B --> D[Next Step]
     C --> D
-    
+
     style Start fill:#f9d77e,stroke:#d9b95c,color:black
     style A fill:#a8d5ff,stroke:#88b5e0,color:black
     style B fill:#c5e8b7,stroke:#a5c897,color:black
@@ -554,7 +554,7 @@ graph TD
     Assess --> Complexity{Complexity Level?}
     Complexity -->|Simple| SimplePath[Simple Path]
     Complexity -->|Complex| ComplexPath[Complex Path]
-    
+
     style Start fill:#c5e8b7,stroke:#a5c897,color:black
     style Assess fill:#a8d5ff,stroke:#88b5e0,color:black
     style Complexity fill:#f9d77e,stroke:#d9b95c,color:black
@@ -569,4 +569,4 @@ The system now includes:
 - **Automated Platform Detection**: Automatically adapts commands for Windows, MacOS, or Linux
 - **File Structure Verification**: Validates project structure before proceeding
 - **QA Checkpoints**: Dedicated technical validation phase with specific validation criteria
-- **More Accurate Command Generation**: Platform-specific commands with higher success rates 
+- **More Accurate Command Generation**: Platform-specific commands with higher success rates

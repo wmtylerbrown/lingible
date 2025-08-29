@@ -14,14 +14,14 @@ graph TD
         CT3 --> CT4["4: Select & Document Decision"]
         CT4 --> CT5["5: Validate Decision"]
     end
-    
+
     subgraph "Memory Bank CREATIVE Mode"
         CM1["1: Component Breakdown"] --> CM2["2: Option Exploration"]
         CM2 --> CM3["3: Trade-off Analysis"]
         CM3 --> CM4["4: Decision Documentation"]
         CM4 --> CM5["5: Decision Verification"]
     end
-    
+
     style CT1 fill:#f9d77e,stroke:#d9b95c,color:black
     style CT2 fill:#f9d77e,stroke:#d9b95c,color:black
     style CT3 fill:#f9d77e,stroke:#d9b95c,color:black
@@ -254,4 +254,4 @@ The goal is to maintain the core methodology while continually improving its pra
 
 ---
 
-*Note: This document describes how Memory Bank v0.6-beta implements concepts similar to Claude's "Think" tool methodology. The implementation will continue to evolve as both systems mature.* 
+*Note: This document describes how Memory Bank v0.6-beta implements concepts similar to Claude's "Think" tool methodology. The implementation will continue to evolve as both systems mature.*

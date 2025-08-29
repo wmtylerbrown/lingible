@@ -55,7 +55,7 @@ graph TD
     C --> D[Update User Tier to PREMIUM]
     D --> E[Update Usage Limits]
     E --> F[Log Upgrade Success]
-    
+
     G[Apple Webhook: RENEWAL] --> H[Find User by Transaction ID]
     H --> I[Update Subscription End Date]
     I --> J[Keep User as PREMIUM]
@@ -89,7 +89,7 @@ graph TD
     C --> D[Archive Subscription to History]
     D --> E[Update User Tier to FREE]
     E --> F[Update Usage Limits]
-    
+
     G[Apple Webhook: FAILED_PAYMENT] --> H[Find User by Transaction ID]
     H --> I[Mark Subscription as EXPIRED]
     I --> J[Keep User Tier (for grace period)]
@@ -162,7 +162,7 @@ graph TD
     C -->|Yes| D[Increment Usage]
     C -->|No| E[Return Limit Exceeded Error]
     D --> F[Process Translation]
-    
+
     G[New Day] --> H[Reset Daily Counter]
     H --> I[Update Reset Date]
 ```
@@ -199,7 +199,7 @@ def _validate_receipt(self, provider: str, receipt_data: str, transaction_id: st
     return True
 ```
 
-**Recommendation**: 
+**Recommendation**:
 - Implement proper Apple Store receipt validation using their verification API
 - Add Google Play Store receipt validation for future expansion
 - Add receipt validation caching to reduce API calls

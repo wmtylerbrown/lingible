@@ -25,7 +25,7 @@ Services are only created when first accessed:
 class AWSServices:
     def __init__(self):
         self._cognito_client = None  # Not created yet
-    
+
     @property
     def cognito_client(self):
         if self._cognito_client is None:
@@ -76,11 +76,11 @@ class TranslationHandler(BaseHandler):
     def __init__(self):
         super().__init__("translation-handler")
         # AWS clients are automatically available when needed
-    
+
     def translate_text(self, event):
         # Cognito client is lazily initialized on first use
         user = self.get_user_from_event(event)
-        
+
         # Bedrock client is lazily initialized on first use
         response = aws_services.bedrock_client.invoke_model(...)
 ```
@@ -93,7 +93,7 @@ from src.utils.aws_services import aws_services
 class UserRepository(BaseRepository[User]):
     def __init__(self):
         super().__init__("users")  # Uses centralized DynamoDB resource
-    
+
     def get_user(self, user_id: str) -> Optional[User]:
         # Table instance is cached by name
         response = self.table.get_item(Key={"PK": f"USER#{user_id}"})
@@ -108,7 +108,7 @@ from src.utils.aws_services import aws_services
 class TranslationService:
     def __init__(self):
         self.bedrock_client = aws_services.bedrock_client  # Lazy initialization
-    
+
     def translate(self, text: str, direction: str) -> str:
         # Bedrock client is ready to use
         response = self.bedrock_client.invoke_model(...)
@@ -141,7 +141,7 @@ def test_cognito_integration(mock_boto3_client):
     # Mock the centralized Cognito client
     mock_client = mock_boto3_client.return_value
     mock_client.get_user.return_value = {'Username': 'test-user'}
-    
+
     # Test your code that uses aws_services.cognito_client
     user = cognito_extractor.get_user_from_token("test-token")
     assert user['user_id'] == 'test-user'
@@ -204,7 +204,7 @@ class MyHandler:
     def __init__(self):
         # No initialization needed - clients are lazy-loaded
         pass
-    
+
     def handle_request(self):
         # Access clients when needed
         user = aws_services.cognito_client.get_user(...)
@@ -212,5 +212,3 @@ class MyHandler:
 ```
 
 This approach ensures optimal performance and resource usage in Lambda environments while maintaining clean, testable code.
-
-

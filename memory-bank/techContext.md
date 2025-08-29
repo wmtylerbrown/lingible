@@ -37,12 +37,12 @@
 
 #### Handlers Layer
 - **Purpose**: Lambda function entry points
-- **Responsibilities**: 
+- **Responsibilities**:
   - Event parsing and validation
   - Authentication and authorization
   - Request/response formatting
   - Error handling and logging
-- **Patterns**: 
+- **Patterns**:
   - `@event_parser` with typed models
   - `@handle_errors` decorator
   - Custom envelopes for event processing

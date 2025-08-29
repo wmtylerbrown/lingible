@@ -36,14 +36,14 @@ graph TD
     Main --> Rules["Hierarchical Rule Loading"]
     Main --> Visual["Visual Process Maps"]
     Main --> Token["Token Optimization"]
-    
+
     Modes --> VAN["VAN: Initialization"]
     Modes --> PLAN["PLAN: Task Planning"]
     Modes --> CREATIVE["CREATIVE: Design"]
     Modes --> IMPLEMENT["IMPLEMENT: Building"]
     Modes --> REFLECT["REFLECT: Review"]
     Modes --> ARCHIVE["ARCHIVE: Documentation"]
-    
+
     style Main fill:#4da6ff,stroke:#0066cc,color:white
     style Modes fill:#f8d486,stroke:#e8b84d,color:black
     style Rules fill:#80ffaa,stroke:#4dbb5f,color:black
@@ -183,7 +183,7 @@ For each mode, configure as follows (If MCPs are showing, you can keep them on, 
    - **Advanced options**: Paste from `custom_modes/reflect_archive_instructions.md`
 
 <img src="assets/reflect_mode_1.png" height="300"/> <img src="assets/reflect_mode_2.png" height="300" style="display: inline-block;"/>
-   
+
 
 > **Note**: REFLECT and ARCHIVE instructions are combined in a single file and mode to optimize for Cursor's character and custom mode limits  while maintaining functionality. Thanks to GitHub user @joshmac007 for implementing this optimization.
 
@@ -221,7 +221,7 @@ QA is not a separate custom mode but rather a set of validation functions that c
    ```
 
 4. **Starting to work with your project**:
-   
+
 After successfully installing Memory Bank...
 
 ## Core Files and Their Purposes
@@ -235,7 +235,7 @@ graph LR
         Creative["creative-*.md<br>Design Decisions"]
         Reflect["reflect-*.md<br>Review Documents"]
     end
-    
+
     style Tasks fill:#f9d77e,stroke:#d9b95c,stroke-width:3px,color:black
     style Active fill:#a8d5ff,stroke:#88b5e0,color:black
     style Progress fill:#c5e8b7,stroke:#a5c897,color:black
