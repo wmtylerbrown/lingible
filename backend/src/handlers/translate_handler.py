@@ -3,13 +3,17 @@
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from ..models.translations import TranslationRequest, TranslationDirection
+from ..models.translations import (
+    TranslationRequest,
+    TranslationDirection,
+    TranslationAPIResponse,
+)
 from ..models.events import TranslationEvent
 from ..models.aws import APIGatewayResponse
 from ..services.translation_service import TranslationService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
-from ..utils.response import create_success_response
+from ..utils.response import create_model_response
 from ..utils.decorators import handle_errors, extract_user_from_parsed_data
 from ..utils.envelopes import TranslationEnvelope
 
@@ -52,17 +56,20 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
         },
     )
 
+    # Create API response model
+    api_response = TranslationAPIResponse(
+        translation_id=translation_response.translation_id,
+        original_text=translation_response.original_text,
+        translated_text=translation_response.translated_text,
+        direction=translation_response.direction.value,
+        confidence_score=translation_response.confidence_score,
+        processing_time_ms=translation_response.processing_time_ms,
+        model_used=translation_response.model_used,
+        created_at=translation_response.created_at.isoformat(),
+    )
+
     # Return success response
-    return create_success_response(
+    return create_model_response(
         "Translation completed successfully",
-        {
-            "translation_id": translation_response.translation_id,
-            "original_text": translation_response.original_text,
-            "translated_text": translation_response.translated_text,
-            "direction": translation_response.direction.value,
-            "confidence_score": translation_response.confidence_score,
-            "processing_time_ms": translation_response.processing_time_ms,
-            "model_used": translation_response.model_used,
-            "created_at": translation_response.created_at.isoformat(),
-        },
+        api_response,
     )
