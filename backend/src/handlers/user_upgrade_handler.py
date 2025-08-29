@@ -13,6 +13,7 @@ from ..utils.tracing import tracer
 subscription_service = SubscriptionService()
 
 
+# Lambda handler entry point - API Gateway authorizer handles authentication
 @event_parser(model=UserUpgradeEvent)
 @api_handler()
 @tracer.trace_method("upgrade_user_handler")

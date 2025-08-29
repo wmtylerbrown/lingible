@@ -16,7 +16,7 @@ from ..utils.envelopes import UserUsageEnvelope
 user_service = UserService()
 
 
-# Lambda handler entry point with correct decorator order
+# Lambda handler entry point - API Gateway authorizer handles authentication
 @tracer.trace_lambda
 @event_parser(model=UserUsageEvent, envelope=UserUsageEnvelope())
 @api_handler(extract_user_id=extract_user_from_parsed_data)

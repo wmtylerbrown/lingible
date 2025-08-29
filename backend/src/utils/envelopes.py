@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from ..models.translations import TranslationRequest
 from ..models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
-from ..utils.cognito import cognito_extractor
+
 
 if TYPE_CHECKING:
     T = TypeVar("T", bound=BaseModel)
@@ -36,16 +36,23 @@ class APIGatewayEnvelope(BaseEnvelope):
 
     def _extract_common_data(self, event: APIGatewayProxyEventModel) -> Dict[str, Any]:
         """Extract common data from API Gateway event."""
-        # Extract user info from Cognito token
-        user_info = cognito_extractor.extract_user_from_event(event)
+        # Extract user info from authorizer context (set by API Gateway authorizer)
+        user_id = None
+        username = None
+
+        if event.requestContext and event.requestContext.authorizer:
+            authorizer_context = event.requestContext.authorizer
+            # Access authorizer context as a dictionary
+            user_id = getattr(authorizer_context, "user_id", None)
+            username = getattr(authorizer_context, "username", None)
 
         # Get request metadata
         request_id = event.requestContext.requestId if event.requestContext else None
 
         return {
             "event": event.model_dump(),
-            "user_id": user_info.user_id if user_info else None,
-            "username": user_info.username if user_info else None,
+            "user_id": user_id,
+            "username": username,
             "request_id": request_id,
         }
 
@@ -64,20 +71,26 @@ class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
 
     def _extract_common_data(self, event: APIGatewayProxyEventModel) -> Dict[str, Any]:
         """Extract common data from API Gateway event with authentication validation."""
-        # Extract user info from Cognito token
-        user_info = cognito_extractor.extract_user_from_event(event)
+        # Extract user info from authorizer context (set by API Gateway authorizer)
+        user_id = None
+        username = None
+
+        if event.requestContext and event.requestContext.authorizer:
+            authorizer_context = event.requestContext.authorizer
+            user_id = getattr(authorizer_context, "user_id", None)
+            username = getattr(authorizer_context, "username", None)
 
         # Validate authentication for protected endpoints
-        if not user_info:
-            raise ValueError("Valid Cognito token is required for this endpoint")
+        if not user_id:
+            raise ValueError("Valid authentication token is required for this endpoint")
 
         # Get request metadata
         request_id = event.requestContext.requestId if event.requestContext else None
 
         return {
             "event": event.model_dump(),
-            "user_id": user_info.user_id,
-            "username": user_info.username,
+            "user_id": user_id,
+            "username": username,
             "request_id": request_id,
         }
 
@@ -114,8 +127,7 @@ class UserProfileEnvelope(AuthenticatedAPIGatewayEnvelope):
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Parse user profile-specific data."""
-        # For user profile endpoints, we might extract user ID from path parameters
-        # or just rely on the Cognito token
+        # For user profile endpoints, we rely on the authorizer context
         return base_data
 
 
@@ -191,7 +203,7 @@ class SubscriptionEnvelope(AuthenticatedAPIGatewayEnvelope):
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Parse subscription-specific data."""
-        # For subscription endpoints, we extract user info from Cognito token
+        # For subscription endpoints, we extract user info from authorizer context
         # and handle path parameters for specific subscription operations
         return base_data
 
