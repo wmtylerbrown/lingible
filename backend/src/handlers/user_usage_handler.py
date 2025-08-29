@@ -6,10 +6,11 @@ from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from ..models.aws import APIGatewayResponse
+from ..models.users import UserUsageResponse
 from ..services.user_service import UserService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
-from ..utils.response import create_success_response
+from ..utils.response import create_model_response
 from ..utils.decorators import handle_errors, extract_user_from_parsed_data
 from ..utils.envelopes import APIGatewayEnvelope
 
@@ -56,14 +57,7 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
     )
 
     # Return success response with usage data
-    return create_success_response(
+    return create_model_response(
         "User usage statistics retrieved successfully",
-        {
-            "tier": user_usage.tier.value,
-            "daily_limit": user_usage.daily_limit,
-            "daily_used": user_usage.daily_used,
-            "daily_remaining": user_usage.daily_remaining,
-            "total_used": user_usage.total_used,
-            "reset_date": user_usage.reset_date.isoformat(),
-        },
+        user_usage,
     )

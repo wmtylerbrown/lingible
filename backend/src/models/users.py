@@ -54,6 +54,25 @@ class User(BaseModel):
 
 
 # API Models
+class UserProfileAPIResponse(BaseModel):
+    """User profile API response model - excludes internal fields."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: str = Field(..., description="User ID")
+    email: str = Field(..., description="User email")
+    username: str = Field(..., description="Username")
+    tier: str = Field(..., description="User tier")
+    status: str = Field(..., description="Account status")
+    subscription_start_date: Optional[str] = Field(
+        None, description="Premium subscription start date (ISO format)"
+    )
+    subscription_end_date: Optional[str] = Field(
+        None, description="Premium subscription end date (ISO format)"
+    )
+    created_at: str = Field(..., description="Account creation date (ISO format)")
+
+
 class UserUsageResponse(BaseModel):
     """User usage API response - dynamic data, not cacheable."""
 
