@@ -6,7 +6,6 @@ from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from ..models.aws import APIGatewayResponse
-from ..models.users import UserProfileAPIResponse
 from ..services.user_service import UserService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
@@ -57,28 +56,8 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> APIGatewayResponse
         },
     )
 
-    # Create API response model
-    profile_response = UserProfileAPIResponse(
-        user_id=user.user_id,
-        email=user.email,
-        username=user.username,
-        tier=user.tier.value,
-        status=user.status.value,
-        subscription_start_date=(
-            user.subscription_start_date.isoformat()
-            if user.subscription_start_date
-            else None
-        ),
-        subscription_end_date=(
-            user.subscription_end_date.isoformat()
-            if user.subscription_end_date
-            else None
-        ),
-        created_at=user.created_at.isoformat(),
-    )
-
-    # Return success response with profile data
+    # Return success response with profile data (excludes updated_at)
     return create_model_response(
         "User profile retrieved successfully",
-        profile_response,
+        user,
     )

@@ -37,12 +37,16 @@ def create_model_response(
     message: str,
     model: Any,
     status_code: int = HTTPStatus.OK.value,
+    exclude_internal: bool = True,
 ) -> APIGatewayResponse:
     """Create a successful API Gateway response from a Pydantic model."""
+    # Exclude internal fields for API responses
+    exclude_fields = {"updated_at"} if exclude_internal else set()
+
     response_data = BaseResponse(
         success=True,
         message=message,
-        data=model.model_dump(),
+        data=model.model_dump(exclude=exclude_fields),
         timestamp=datetime.utcnow().isoformat(),
     )
 

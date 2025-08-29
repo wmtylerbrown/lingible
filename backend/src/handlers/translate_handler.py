@@ -6,7 +6,6 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from ..models.translations import (
     TranslationRequest,
     TranslationDirection,
-    TranslationAPIResponse,
 )
 from ..models.events import TranslationEvent
 from ..models.aws import APIGatewayResponse
@@ -56,20 +55,8 @@ def handler(event: TranslationEvent, context: LambdaContext) -> APIGatewayRespon
         },
     )
 
-    # Create API response model
-    api_response = TranslationAPIResponse(
-        translation_id=translation_response.translation_id,
-        original_text=translation_response.original_text,
-        translated_text=translation_response.translated_text,
-        direction=translation_response.direction.value,
-        confidence_score=translation_response.confidence_score,
-        processing_time_ms=translation_response.processing_time_ms,
-        model_used=translation_response.model_used,
-        created_at=translation_response.created_at.isoformat(),
-    )
-
     # Return success response
     return create_model_response(
         "Translation completed successfully",
-        api_response,
+        translation_response,
     )

@@ -48,7 +48,13 @@ class TranslationRequest(BaseModel):
 class TranslationResponse(BaseModel):
     """Response model for translation."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            datetime: lambda v: v.isoformat(),
+        },
+        use_enum_values=True,  # Serialize enums as their values
+    )
 
     original_text: str = Field(..., description="Original text")
     translated_text: str = Field(..., description="Translated text")
@@ -149,25 +155,6 @@ class BedrockRequest(BaseModel):
         0.7, ge=0.0, le=1.0, description="Temperature for generation"
     )
     top_p: float = Field(0.9, ge=0.0, le=1.0, description="Top-p sampling parameter")
-
-
-class TranslationAPIResponse(BaseModel):
-    """Translation API response model - excludes internal fields."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    translation_id: str = Field(..., description="Unique translation ID")
-    original_text: str = Field(..., description="Original text")
-    translated_text: str = Field(..., description="Translated text")
-    direction: str = Field(..., description="Translation direction")
-    confidence_score: Optional[float] = Field(
-        None, ge=0.0, le=1.0, description="Translation confidence score"
-    )
-    processing_time_ms: Optional[int] = Field(
-        None, ge=0, description="Processing time in milliseconds"
-    )
-    model_used: Optional[str] = Field(None, description="AI model used for translation")
-    created_at: str = Field(..., description="Translation timestamp (ISO format)")
 
 
 class BedrockResponse(BaseModel):
