@@ -9,11 +9,9 @@ from ..models.translations import (
     TranslationDirection,
 )
 from ..models.events import TranslationEvent
-from ..models.aws import APIGatewayResponse
 from ..services.translation_service import TranslationService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
-from ..utils.response import create_model_response
 from ..utils.decorators import handle_errors, extract_user_from_parsed_data
 from ..utils.envelopes import TranslationEnvelope
 

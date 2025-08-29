@@ -5,11 +5,9 @@ from typing import Dict, Any
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from ..models.aws import APIGatewayResponse
 from ..services.user_service import UserService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
-from ..utils.response import create_model_response
 from ..utils.decorators import handle_errors, extract_user_from_parsed_data
 from ..utils.envelopes import UserProfileEnvelope
 

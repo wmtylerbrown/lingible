@@ -1,7 +1,7 @@
 """Decorators for Lambda handlers."""
 
 import functools
-from typing import Callable, Any, Dict, Optional, Union
+from typing import Callable, Any, Dict, Optional
 from pydantic import BaseModel
 
 from ..models.aws import APIGatewayResponse
