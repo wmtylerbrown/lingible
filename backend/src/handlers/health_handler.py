@@ -5,6 +5,7 @@ from typing import Dict, Any
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+from ..models.events import HealthEvent
 from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.decorators import handle_errors
@@ -13,17 +14,17 @@ from ..utils.envelopes import HealthEnvelope
 
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
-@event_parser(model=Dict[str, Any], envelope=HealthEnvelope())
+@event_parser(model=HealthEvent, envelope=HealthEnvelope())
 @handle_errors()
-def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
+def handler(event: HealthEvent, context: LambdaContext) -> Dict[str, Any]:
     """Handle health check requests."""
 
     # Log health check request
     logger.log_business_event(
         "health_check_requested",
         {
-            "request_id": event.get("request_id"),
-            "timestamp": event.get("timestamp"),
+            "request_id": event.request_id,
+            "timestamp": event.timestamp,
         },
     )
 
@@ -32,5 +33,5 @@ def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
         "status": "healthy",
         "service": "genz-translation-api",
         "version": "1.0.0",
-        "timestamp": event.get("timestamp"),
+        "timestamp": event.timestamp,
     }

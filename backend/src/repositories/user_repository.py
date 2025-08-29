@@ -252,7 +252,7 @@ class UserRepository:
                 )
                 return True
 
-            except Exception as condition_failed:
+            except Exception:
                 # Condition failed means it's a new day, so reset and set to 1
                 response = self.table.update_item(
                     Key={

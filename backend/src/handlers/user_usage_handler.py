@@ -1,10 +1,11 @@
 """Lambda handler for user usage statistics endpoint."""
 
-from typing import Dict, Any
+from typing import Any
 
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+from ..models.events import UserUsageEvent
 from ..services.user_service import UserService
 from ..utils.logging import logger
 from ..utils.tracing import tracer
@@ -14,13 +15,13 @@ from ..utils.envelopes import UserUsageEnvelope
 
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
-@event_parser(model=Dict[str, Any], envelope=UserUsageEnvelope())
+@event_parser(model=UserUsageEvent, envelope=UserUsageEnvelope())
 @handle_errors(extract_user_id=extract_user_from_parsed_data)
-def handler(event: Dict[str, Any], context: LambdaContext) -> Any:
+def handler(event: UserUsageEvent, context: LambdaContext) -> Any:
     """Handle user usage statistics requests from mobile app."""
 
     # Extract user info from the event
-    user_id = event.get("user_id")
+    user_id = event.user_id
     if not user_id:
         raise ValueError("Valid Cognito token is required for usage requests")
 

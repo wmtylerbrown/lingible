@@ -31,6 +31,23 @@ class UserProfileEvent(BaseModel):
     request_id: Optional[str] = Field(None, description="Request ID for tracing")
 
 
+class UserUsageEvent(BaseModel):
+    """Typed event for user usage handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
+    username: Optional[str] = Field(None, description="Username from Cognito token")
+    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+
+
+class HealthEvent(BaseModel):
+    """Typed event for health check handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    timestamp: Optional[str] = Field(None, description="Request timestamp")
+
+
 class TranslationHistoryEvent(BaseModel):
     """Typed event for translation history handler."""
 
