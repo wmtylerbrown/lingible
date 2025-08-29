@@ -82,9 +82,21 @@ class UserRepository:
                 tier=UserTier(item["tier"]),
                 status=UserStatus(item["status"]),
                 total_translations_used=item.get("total_translations_used", 0),
-                last_translation_date=datetime.fromisoformat(item["last_translation_date"]) if item.get("last_translation_date") else None,
-                subscription_start_date=datetime.fromisoformat(item["subscription_start_date"]) if item.get("subscription_start_date") else None,
-                subscription_end_date=datetime.fromisoformat(item["subscription_end_date"]) if item.get("subscription_end_date") else None,
+                last_translation_date=(
+                    datetime.fromisoformat(item["last_translation_date"])
+                    if item.get("last_translation_date")
+                    else None
+                ),
+                subscription_start_date=(
+                    datetime.fromisoformat(item["subscription_start_date"])
+                    if item.get("subscription_start_date")
+                    else None
+                ),
+                subscription_end_date=(
+                    datetime.fromisoformat(item["subscription_end_date"])
+                    if item.get("subscription_end_date")
+                    else None
+                ),
                 created_at=datetime.fromisoformat(item["created_at"]),
                 updated_at=datetime.fromisoformat(item["updated_at"]),
             )
@@ -146,8 +158,14 @@ class UserRepository:
                 "monthly_limit": usage.monthly_limit,
                 "current_daily_usage": usage.current_daily_usage,
                 "current_monthly_usage": usage.current_monthly_usage,
-                "reset_daily_at": usage.reset_daily_at.isoformat() if usage.reset_daily_at else None,
-                "reset_monthly_at": usage.reset_monthly_at.isoformat() if usage.reset_monthly_at else None,
+                "reset_daily_at": (
+                    usage.reset_daily_at.isoformat() if usage.reset_daily_at else None
+                ),
+                "reset_monthly_at": (
+                    usage.reset_monthly_at.isoformat()
+                    if usage.reset_monthly_at
+                    else None
+                ),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -195,8 +213,16 @@ class UserRepository:
                 monthly_limit=item["monthly_limit"],
                 current_daily_usage=item.get("current_daily_usage", 0),
                 current_monthly_usage=item.get("current_monthly_usage", 0),
-                reset_daily_at=datetime.fromisoformat(item["reset_daily_at"]) if item.get("reset_daily_at") else None,
-                reset_monthly_at=datetime.fromisoformat(item["reset_monthly_at"]) if item.get("reset_monthly_at") else None,
+                reset_daily_at=(
+                    datetime.fromisoformat(item["reset_daily_at"])
+                    if item.get("reset_daily_at")
+                    else None
+                ),
+                reset_monthly_at=(
+                    datetime.fromisoformat(item["reset_monthly_at"])
+                    if item.get("reset_monthly_at")
+                    else None
+                ),
             )
 
         except Exception as e:
@@ -208,6 +234,101 @@ class UserRepository:
                 },
             )
             return None
+
+    @tracer.trace_database_operation("batch_get", "users")
+    def get_user_and_usage(
+        self, user_id: str
+    ) -> tuple[Optional[User], Optional[UsageLimit]]:
+        """Get both user profile and usage limits in one efficient operation."""
+        try:
+            # Use BatchGetItem to fetch both items in one call
+            response = self.table.batch_get_item(
+                RequestItems={
+                    self.table.name: {
+                        "Keys": [
+                            {
+                                "PK": f"USER#{user_id}",
+                                "SK": "PROFILE",
+                            },
+                            {
+                                "PK": f"USER#{user_id}",
+                                "SK": "USAGE#LIMITS",
+                            },
+                        ]
+                    }
+                }
+            )
+
+            user_item = None
+            usage_item = None
+
+            # Parse the response
+            for item in response.get("Responses", {}).get(self.table.name, []):
+                if item.get("SK") == "PROFILE":
+                    user_item = item
+                elif item.get("SK") == "USAGE#LIMITS":
+                    usage_item = item
+
+            # Parse user
+            user = None
+            if user_item:
+                user = User(
+                    user_id=user_item["user_id"],
+                    username=user_item["username"],
+                    email=user_item.get("email"),
+                    tier=UserTier(user_item["tier"]),
+                    status=UserStatus(user_item["status"]),
+                    total_translations_used=user_item.get("total_translations_used", 0),
+                    last_translation_date=(
+                        datetime.fromisoformat(user_item["last_translation_date"])
+                        if user_item.get("last_translation_date")
+                        else None
+                    ),
+                    subscription_start_date=(
+                        datetime.fromisoformat(user_item["subscription_start_date"])
+                        if user_item.get("subscription_start_date")
+                        else None
+                    ),
+                    subscription_end_date=(
+                        datetime.fromisoformat(user_item["subscription_end_date"])
+                        if user_item.get("subscription_end_date")
+                        else None
+                    ),
+                    created_at=datetime.fromisoformat(user_item["created_at"]),
+                    updated_at=datetime.fromisoformat(user_item["updated_at"]),
+                )
+
+            # Parse usage limits
+            usage_limits = None
+            if usage_item:
+                usage_limits = UsageLimit(
+                    daily_limit=usage_item["daily_limit"],
+                    monthly_limit=usage_item["monthly_limit"],
+                    current_daily_usage=usage_item.get("current_daily_usage", 0),
+                    current_monthly_usage=usage_item.get("current_monthly_usage", 0),
+                    reset_daily_at=(
+                        datetime.fromisoformat(usage_item["reset_daily_at"])
+                        if usage_item.get("reset_daily_at")
+                        else None
+                    ),
+                    reset_monthly_at=(
+                        datetime.fromisoformat(usage_item["reset_monthly_at"])
+                        if usage_item.get("reset_monthly_at")
+                        else None
+                    ),
+                )
+
+            return user, usage_limits
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "get_user_and_usage",
+                    "user_id": user_id,
+                },
+            )
+            return None, None
 
     @tracer.trace_database_operation("delete", "users")
     def delete_user(self, user_id: str) -> bool:

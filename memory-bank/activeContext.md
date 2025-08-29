@@ -17,10 +17,10 @@ We have successfully completed the foundational backend architecture with:
 
 ### Immediate Next Steps
 1. **Build remaining Lambda handlers**:
-   - User profile handler (`/users/profile`) - Static, cacheable data only
-   - Translation history handler (`/translations/history`)
-   - Usage statistics handler (`/users/usage`) - Dynamic daily usage data
-   - Health check handler (`/health`)
+   - User profile handler (`/users/profile`) - ✅ Complete - Static, cacheable data only
+   - Translation history handler (`/translations/history`) - ⏳ Pending
+   - Usage statistics handler (`/users/usage`) - ✅ Complete - Dynamic daily usage data
+   - Health check handler (`/health`) - ✅ Complete
 
 2. **Follow established patterns**:
    - Use `@event_parser` with typed event models

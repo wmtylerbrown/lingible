@@ -10,9 +10,6 @@ from ..models.translations import (
     TranslationResponse,
     TranslationHistoryItem,
     TranslationDirection,
-    TranslationError,
-    UsageLimit,
-    BedrockRequest,
     BedrockResponse,
 )
 from ..utils.logging import logger
@@ -21,7 +18,6 @@ from ..utils.aws_services import aws_services
 from ..utils.config import get_config
 from ..utils.exceptions import (
     ValidationError,
-    UsageLimitExceededError,
     BusinessLogicError,
     SystemError,
 )
@@ -51,8 +47,8 @@ class TranslationService:
             # Validate request
             self._validate_translation_request(request)
 
-            # Check usage limits
-            self.user_service.check_usage_limits(user_id)
+            # Check usage limits and increment usage efficiently
+            self.user_service.check_and_increment_usage(user_id)
 
             # Generate Bedrock prompt
             prompt = self._generate_bedrock_prompt(request)
@@ -80,9 +76,6 @@ class TranslationService:
 
             # Save translation history
             self._save_translation_history(response, user_id)
-
-            # Update usage limits
-            self.user_service.increment_usage(user_id)
 
             logger.log_business_event(
                 "translation_completed",
