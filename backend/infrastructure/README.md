@@ -43,8 +43,7 @@ This project contains the complete infrastructure for Lingible, including:
 npm install
 
 # 2. Configure Apple credentials
-cp app-config.json.example app-config.json
-# Edit app-config.json with your Apple credentials
+# Edit shared/config/environments/dev.json and prod.json with your Apple credentials
 
 # 3. Store Apple private key securely
 npm run apple-secret create dev
@@ -75,7 +74,7 @@ npm run deploy:prod
 
 The infrastructure uses Apple Sign-In for authentication. Credentials are split for security:
 
-**Non-sensitive credentials** (stored in `app-config.json`):
+**Non-sensitive credentials** (stored in `shared/config/environments/dev.json` and `prod.json`):
 - Client ID
 - Team ID
 - Key ID
@@ -97,14 +96,15 @@ npm run apple-secret info dev
 npm run apple-secret delete dev
 ```
 
-**Note**: `app-config.json` is gitignored and won't be committed to version control.
+**Note**: Apple credentials in `shared/config/environments/dev.json` and `prod.json` should be updated with your actual values before deployment.
 
 ## 📁 Project Structure
 
 ```
 infrastructure/
 ├── app.ts                    # Main CDK application
-├── app-config.json           # Application configuration (gitignored)
+├── utils/
+│   └── config-loader.ts      # Shared config loader
 ├── scripts/
 │   ├── manage-apple-secret.ts # Apple secret management
 │   ├── get-dns-info.js       # DNS information utility
@@ -167,7 +167,7 @@ npm run clean                        # Clean build artifacts
 
 ### Configuration File
 
-Create `app-config.json` with your credentials:
+Update `shared/config/environments/dev.json` and `prod.json` with your credentials:
 
 ```json
 {
@@ -200,7 +200,7 @@ npm run apple-secret create dev  # Create if missing
 
 **"TO_BE_SET" in Cognito configuration**
 - Ensure you've created the private key secret
-- Check that `app-config.json` is properly configured
+- Check that `shared/config/environments/dev.json` and `prod.json` are properly configured
 
 **DNS issues**
 - Verify NS records are added to Squarespace DNS

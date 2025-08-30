@@ -39,10 +39,10 @@ class AppConfig:
             },
             # Usage Limits
             "usage_limits": {
-                "free": {"daily_limit": 5, "max_text_length": 500},
+                "free": {"daily_limit": 10, "max_text_length": 50},
                 "premium": {
-                    "daily_limit": 20,
-                    "max_text_length": 1000,
+                    "daily_limit": 100,
+                    "max_text_length": 100,
                 },
             },
             # Bedrock Configuration
@@ -143,7 +143,9 @@ class AppConfig:
 
             return value
 
-        except Exception:
+        except Exception as e:
+            # Log the error for debugging but don't fail
+            print(f"Failed to get SSM parameter {parameter_name}: {e}")
             # Return default if SSM fails
             return default
 

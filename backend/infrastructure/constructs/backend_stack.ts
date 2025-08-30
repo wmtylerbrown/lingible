@@ -11,11 +11,13 @@ import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as sns from 'aws-cdk-lib/aws-sns';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 
 import { Duration, RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ConfigLoader } from '../utils/config-loader';
 
 export class BackendStack extends cdk.Stack {
   // Database resources
@@ -83,12 +85,21 @@ export class BackendStack extends cdk.Stack {
     // Create DynamoDB tables
     this.createDatabaseTables(environment);
 
+    // Load configuration from shared config files
+    const configLoader = new ConfigLoader(path.join(__dirname, '../../../..'));
+    const lambdaConfig = configLoader.getLambdaConfig(environment);
+
+    // Create SSM parameters for configuration
+    this.createSsmParameters(environment, lambdaConfig);
+
     // Common environment variables
     const commonEnv = {
       POWERTOOLS_SERVICE_NAME: 'lingible-api',
       LOG_LEVEL: 'INFO',
       USERS_TABLE: this.usersTable.tableName,
       TRANSLATIONS_TABLE: this.translationsTable.tableName,
+      ENVIRONMENT: environment,
+      APP_NAME: 'lingible-backend',
     };
 
     // Common IAM policy statements for Lambda functions
@@ -118,6 +129,17 @@ export class BackendStack extends cdk.Stack {
           'logs:PutLogEvents',
         ],
         resources: ['*'],
+      }),
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'ssm:GetParameter',
+          'ssm:GetParameters',
+          'ssm:GetParametersByPath',
+        ],
+        resources: [
+          `arn:aws:ssm:${this.region}:${this.account}:parameter/lingible-backend/${environment}/*`,
+        ],
       }),
     ];
 
@@ -197,6 +219,51 @@ export class BackendStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING,
       },
       projectionType: dynamodb.ProjectionType.ALL,
+    });
+  }
+
+  private createSsmParameters(environment: string, config: Record<string, any>): void {
+    const appName = 'lingible-backend';
+    const parameterPrefix = `/${appName}/${environment}`;
+
+    // Create SSM parameters for configuration
+    new ssm.StringParameter(this, 'UsageLimitsParameter', {
+      parameterName: `${parameterPrefix}/usage_limits`,
+      stringValue: JSON.stringify(config.usage_limits),
+      description: 'Usage limits configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'TranslationConfigParameter', {
+      parameterName: `${parameterPrefix}/translation`,
+      stringValue: JSON.stringify(config.translation),
+      description: 'Translation configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'FeaturesConfigParameter', {
+      parameterName: `${parameterPrefix}/features`,
+      stringValue: JSON.stringify(config.features),
+      description: 'Features configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'SubscriptionConfigParameter', {
+      parameterName: `${parameterPrefix}/subscription`,
+      stringValue: JSON.stringify(config.subscription),
+      description: 'Subscription configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'AppConfigParameter', {
+      parameterName: `${parameterPrefix}/app`,
+      stringValue: JSON.stringify({
+        name: config.app_name,
+        bundle_id: config.bundle_id,
+        version: config.version,
+      }),
+      description: 'App configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
     });
   }
 

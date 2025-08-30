@@ -1,0 +1,46 @@
+{
+  "app": {
+    "name": "Lingible",
+    "bundle_id": "com.lingible.lingible",
+    "version": "1.0.0",
+    "description": "Translate GenZ/teen slang to English and vice versa using AI"
+  },
+  "translation": {
+    "type": "teen_slang",
+    "source_language": "en",
+    "target_language": "en",
+    "context": "GenZ slang to formal English and vice versa",
+    "directions": {
+      "genz_to_english": "genz_to_english",
+      "english_to_genz": "english_to_genz"
+    },
+    "max_concurrent_translations": 5,
+    "translation_timeout": 30
+  },
+  "features": {
+    "translation_history": {
+      "free": false,
+      "premium": true
+    },
+    "custom_context": {
+      "free": false,
+      "premium": true
+    }
+  },
+  "subscription": {
+    "platforms": ["apple", "google"],
+    "tiers": ["free", "premium"]
+  },
+  "limits": {
+    "free_tier": {
+      "daily_translations": 10,
+      "max_text_length": 50,
+      "history_retention_days": 0
+    },
+    "premium_tier": {
+      "daily_translations": 100,
+      "max_text_length": 100,
+      "history_retention_days": 30
+    }
+  }
+}

@@ -15,52 +15,104 @@ A serverless backend for translating GenZ slang to English and vice versa using 
 
 ```
 backend/
-├── src/
-│   ├── models/              # Pydantic models (domain + API)
-│   ├── services/            # Business logic layer
-│   ├── repositories/        # Data access layer
-│   ├── handlers/            # Lambda handlers
-│   └── utils/               # Shared utilities
-├── tests/                   # Unit and integration tests
-├── infrastructure/          # AWS CDK infrastructure
-├── requirements.txt         # Python dependencies
-└── venv/                   # Virtual environment
+├── lambda/                  # Python Lambda functions
+│   ├── src/                # Lambda function source code
+│   │   ├── models/         # Pydantic models (domain + API)
+│   │   ├── services/       # Business logic layer
+│   │   ├── repositories/   # Data access layer
+│   │   ├── handlers/       # Lambda handlers
+│   │   └── utils/          # Shared utilities
+│   ├── tests/              # Unit and integration tests
+│   ├── requirements.txt    # Python dependencies
+│   ├── pytest.ini         # Pytest configuration
+│   ├── run_tests.py       # Test execution script
+│   └── README.md          # Lambda development guide
+├── infrastructure/         # AWS CDK infrastructure
+│   ├── app.ts             # CDK app entry point
+│   ├── constructs/        # CDK constructs
+│   ├── stacks/            # CDK stacks
+│   ├── scripts/           # Infrastructure scripts
+│   ├── package.json       # Node.js dependencies
+│   └── README.md          # Infrastructure guide
+└── docs/                  # Backend documentation
+```
+
+## Quick Start
+
+### Lambda Development
+```bash
+# Navigate to Lambda code
+cd backend/lambda
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Run tests
+python run_tests.py
+
+# Run with coverage
+python run_tests.py --coverage
+```
+
+### Infrastructure Development
+```bash
+# Navigate to infrastructure
+cd backend/infrastructure
+
+# Install Node.js dependencies
+npm install
+
+# Build TypeScript
+npm run build
+
+# Deploy to dev environment
+npm run deploy:dev
 ```
 
 ## Setup
 
 ### Prerequisites
 
-- Python 3.13+
+- Python 3.13+ (for Lambda functions)
+- Node.js 18+ (for CDK infrastructure)
 - AWS CLI configured
-- Node.js 18+ (for CDK)
 
 ### Local Development
 
-1. **Create virtual environment:**
+1. **Lambda Functions:**
    ```bash
-   python3.13 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies:**
-   ```bash
+   cd backend/lambda
    pip install -r requirements.txt
+   python run_tests.py
    ```
 
-3. **Test setup:**
+2. **Infrastructure:**
    ```bash
-   python test_setup.py
+   cd backend/infrastructure
+   npm install
+   npm run build
    ```
 
-4. **Run type checking:**
+3. **Type checking:**
    ```bash
+   # Python
+   cd backend/lambda
    mypy src/
+
+   # TypeScript
+   cd backend/infrastructure
+   npm run lint
    ```
 
-5. **Format code:**
+4. **Format code:**
    ```bash
+   # Python
+   cd backend/lambda
    black src/
+
+   # TypeScript
+   cd backend/infrastructure
+   npm run lint:fix
    ```
 
 ## Usage Limits
@@ -71,10 +123,14 @@ backend/
 
 ## API Endpoints
 
-- `POST /api/translate` - Translate text
-- `GET /api/translations/{id}` - Get translation status
-- `GET /api/history` - Get user's translation history
-- `GET /api/usage` - Get user's usage statistics
+- `POST /translate` - Translate text
+- `GET /translations` - Get translation history (premium)
+- `DELETE /translations/{id}` - Delete specific translation
+- `DELETE /translations` - Clear all translations
+- `GET /user/profile` - Get user profile
+- `GET /user/usage` - Get usage statistics
+- `POST /user/upgrade` - Upgrade user subscription
+- `GET /health` - Health check
 
 ## Development
 
@@ -105,4 +161,71 @@ bedrock_client = aws_services.bedrock_client
 
 See [AWS Services Efficiency Guide](docs/aws_services_efficiency.md) for detailed documentation.
 
-All code is strictly typed and follows Python best practices.
+## Testing
+
+### Lambda Functions
+```bash
+cd backend/lambda
+
+# Run all tests
+python run_tests.py
+
+# Run specific test types
+python run_tests.py --type unit
+python run_tests.py --type integration
+python run_tests.py --type handler
+
+# Run with coverage
+python run_tests.py --coverage
+```
+
+### Infrastructure
+```bash
+cd backend/infrastructure
+
+# Run tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+```
+
+## Deployment
+
+### Development Environment
+```bash
+cd backend/infrastructure
+
+# Deploy hosted zones first
+npm run deploy:hosted-zones:dev
+
+# Deploy full stack
+npm run deploy:dev
+```
+
+### Production Environment
+```bash
+cd backend/infrastructure
+
+# Deploy hosted zones first
+npm run deploy:hosted-zones:prod
+
+# Deploy full stack
+npm run deploy:prod
+```
+
+## Code Quality
+
+All code is strictly typed and follows best practices:
+
+- **Python**: Type hints, mypy, flake8, black
+- **TypeScript**: ESLint, Prettier, strict mode
+- **Testing**: 90%+ coverage requirement
+- **TDD**: Mandatory test-driven development workflow
+
+## Related Documentation
+
+- [Lambda Functions](lambda/README.md) - Python Lambda development guide
+- [Infrastructure](infrastructure/README.md) - CDK infrastructure guide
+- [API Documentation](docs/) - API documentation and guides
+- [Project Overview](../../README.md) - Main project documentation

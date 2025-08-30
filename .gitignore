@@ -216,7 +216,7 @@ backend/infrastructure/lambda-hashes.json
 .env.production
 
 # Configuration files with sensitive data
-backend/infrastructure/app-config.json
+# Apple credentials are now in shared/config/constants/app-constants.json
 
 # OS specific
 .DS_Store

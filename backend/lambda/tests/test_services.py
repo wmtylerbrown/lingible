@@ -144,7 +144,7 @@ class TestUserService:
         """Test getting user usage statistics."""
         user_service.user_repository.get_user.return_value = sample_user
         user_service.user_repository.get_usage_limits.return_value = {
-            "daily_used": 5,
+            "daily_used": 7,
             "daily_limit": 10,
             "tier": "free"
         }
@@ -152,7 +152,7 @@ class TestUserService:
         result = user_service.get_user_usage("test_user_123")
 
         assert result["user_id"] == "test_user_123"
-        assert result["daily_used"] == 5
+        assert result["daily_used"] == 7
         assert result["daily_limit"] == 10
         assert result["tier"] == "free"
 
@@ -189,8 +189,8 @@ class TestUserService:
     def test_check_usage_limits_premium_user(self, user_service, sample_premium_user):
         """Test usage limit checking for premium user."""
         user_service.user_repository.get_usage_limits.return_value = {
-            "daily_used": 100,
-            "daily_limit": 1000,
+            "daily_used": 95,
+            "daily_limit": 100,
             "tier": "premium"
         }
 

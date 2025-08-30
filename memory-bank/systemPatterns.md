@@ -99,6 +99,27 @@ src/
 - **Batch Operations**: Batch processing for performance
 - **Error Handling**: Proper error handling and retry logic
 
+## API Management Patterns
+
+### Shared API Contract
+- **Single Source of Truth**: All API definitions in shared files
+- **OpenAPI Specification**: `shared/api/openapi/lingible-api.yaml` defines the complete API contract
+- **TypeScript Types**: `shared/api/types/typescript/api.ts` provides type safety
+- **Cross-Platform Consistency**: Shared definitions ensure consistency across backend, iOS, and Android
+
+### API Change Management
+- **MANDATORY**: Any API changes require updates to shared files
+- **OpenAPI Updates**: Endpoint definitions, schemas, examples, error responses
+- **Type Updates**: Interface definitions, constants, type exports
+- **Configuration Updates**: API-related constants in shared config
+- **Verification**: Test config loader and validate OpenAPI spec
+
+### API Documentation
+- **Living Documentation**: OpenAPI spec serves as living API documentation
+- **Code Generation**: Shared types enable code generation for client SDKs
+- **Testing**: Shared types ensure consistent testing across platforms
+- **Version Control**: API changes tracked in version control with shared files
+
 ### Caching Strategy
 - **Application Cache**: In-memory caching for frequently accessed data
 - **TTL Management**: Appropriate time-to-live for cached data

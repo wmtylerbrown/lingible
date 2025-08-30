@@ -1,0 +1,25 @@
+{
+  "environment": "development",
+  "api": {
+    "base_url": "https://api-dev.lingible.com",
+    "timeout": 30000,
+    "retries": 3
+  },
+  "aws": {
+    "region": "us-east-1",
+    "cognito": {
+      "user_pool_id": "us-east-1_lingible_dev",
+      "client_id": "lingible_dev_client"
+    }
+  },
+  "features": {
+    "debug_mode": true,
+    "analytics": false,
+    "crash_reporting": false
+  },
+  "apple": {
+    "clientId": "com.lingible.lingible.dev",
+    "teamId": "YOUR_TEAM_ID",
+    "keyId": "YOUR_KEY_ID"
+  }
+}

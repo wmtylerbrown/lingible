@@ -1,0 +1,490 @@
+openapi: 3.0.3
+info:
+  title: Lingible API
+  description: API for translating GenZ/teen slang to English and vice versa using AWS Bedrock
+  version: 1.0.0
+  contact:
+    name: Lingible Team
+    url: https://lingible.com
+  license:
+    name: Proprietary
+    url: https://lingible.com/license
+
+servers:
+  - url: https://api.lingible.com
+    description: Production server
+  - url: https://api-dev.lingible.com
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the API
+      tags:
+        - System
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /translate:
+    post:
+      summary: Translate teen slang
+      description: Translate GenZ/teen slang to formal English and vice versa using AWS Bedrock AI
+      tags:
+        - Translation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslationRequest'
+      responses:
+        '200':
+          description: Translation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /translations:
+    get:
+      summary: Get slang translation history
+      description: Get user's slang translation history (premium feature)
+      tags:
+        - Translation
+      parameters:
+        - name: limit
+          in: query
+          description: Number of translations to return
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of translations to skip
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Translation history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationHistoryResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Premium feature required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Clear all slang translations
+      description: Delete all slang translations for the user (premium feature)
+      tags:
+        - Translation
+      responses:
+        '200':
+          description: All translations deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Premium feature required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /translations/{id}:
+    delete:
+      summary: Delete specific slang translation
+      description: Delete a specific slang translation by ID
+      tags:
+        - Translation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Translation ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Translation deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Slang translation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/profile:
+    get:
+      summary: Get user profile
+      description: Get the current user's profile information
+      tags:
+        - User
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/usage:
+    get:
+      summary: Get usage statistics
+      description: Get the current user's usage statistics
+      tags:
+        - User
+      responses:
+        '200':
+          description: Usage statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/upgrade:
+    post:
+      summary: Upgrade user subscription
+      description: Upgrade user to premium subscription
+      tags:
+        - User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradeRequest'
+      responses:
+        '200':
+          description: User upgraded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpgradeResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-12-19T10:30:00Z"
+        service:
+          type: string
+          example: "lingible-api"
+        version:
+          type: string
+          example: "1.0.0"
+
+    TranslationRequest:
+      type: object
+      required:
+        - text
+        - source_language
+        - target_language
+      properties:
+        text:
+          type: string
+          description: Text to translate
+          maxLength: 1000
+          example: "That's cap fr fr"
+        source_language:
+          type: string
+          description: Source language code
+          example: "en"
+        target_language:
+          type: string
+          description: Target language code
+          example: "en"
+        context:
+          type: string
+          description: Optional context for better translation
+          example: "GenZ slang to formal English or vice versa"
+
+    TranslationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique translation ID
+          example: "trans_123456789"
+        original_text:
+          type: string
+          example: "That's cap fr fr"
+        translated_text:
+          type: string
+          example: "That's not true, for real for real"
+        source_language:
+          type: string
+          example: "en"
+        target_language:
+          type: string
+          example: "en"
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-12-19T10:30:00Z"
+
+    TranslationHistoryResponse:
+      type: object
+      properties:
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranslationResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+          example: 150
+        limit:
+          type: integer
+          description: Number of items per page
+          example: 20
+        offset:
+          type: integer
+          description: Number of items skipped
+          example: 0
+        has_more:
+          type: boolean
+          description: Whether there are more items
+          example: true
+
+    UserProfileResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          example: "user_123456789"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        tier:
+          type: string
+          enum: [free, premium]
+          example: "free"
+        status:
+          type: string
+          enum: [active, cancelled, suspended]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-12-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-12-19T10:30:00Z"
+
+    UsageResponse:
+      type: object
+      properties:
+        current_period:
+          $ref: '#/components/schemas/UsagePeriod'
+        limits:
+          $ref: '#/components/schemas/UsageLimits'
+
+    UsagePeriod:
+      type: object
+      properties:
+        translations_used:
+          type: integer
+          description: Number of translations used today
+          example: 7
+        translations_limit:
+          type: integer
+          description: Daily translation limit
+          example: 10
+        period_start:
+          type: string
+          format: date-time
+          example: "2024-12-19T00:00:00Z"
+        period_end:
+          type: string
+          format: date-time
+          example: "2024-12-19T23:59:59Z"
+
+    UsageLimits:
+      type: object
+      properties:
+        free_tier:
+          type: integer
+          description: Daily translations for free tier
+          example: 10
+        premium_tier:
+          type: integer
+          description: Daily translations for premium tier
+          example: 100
+
+    UpgradeRequest:
+      type: object
+      required:
+        - platform
+        - receipt_data
+      properties:
+        platform:
+          type: string
+          enum: [apple, google]
+          description: App store platform
+          example: "apple"
+        receipt_data:
+          type: string
+          description: Receipt data from app store
+          example: "base64_encoded_receipt_data"
+
+    UpgradeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        tier:
+          type: string
+          enum: [premium]
+          example: "premium"
+        expires_at:
+          type: string
+          format: date-time
+          description: Subscription expiration date
+          example: "2025-01-19T10:30:00Z"
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid request parameters"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            field: "text"
+            constraint: "maxLength"
+            value: 1001

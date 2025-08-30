@@ -2,6 +2,7 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { LingibleStack } from './stacks/lingible_stack';
+import { ConfigLoader } from './utils/config-loader';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -13,22 +14,15 @@ const environment = app.node.tryGetContext('environment') || 'dev';
 // Check if we should deploy the full stack or just hosted zones
 const deployBackend = app.node.tryGetContext('deploy-backend') !== false; // Default to true
 
-// Load application configuration
-let appConfig: any = {};
+// Load application configuration from shared config
+let appleCredentials: { clientId: string; teamId: string; keyId: string };
 try {
-  const configPath = path.join(__dirname, 'app-config.json');
-  const configContent = fs.readFileSync(configPath, 'utf8');
-  appConfig = JSON.parse(configContent);
+  const configLoader = new ConfigLoader(path.join(__dirname, '../..'));
+  appleCredentials = configLoader.getAppleCredentials(environment);
 } catch (error) {
-  console.warn('⚠️  app-config.json not found or invalid. Using default values.');
-  appConfig = {
-    dev: { apple: { clientId: 'TO_BE_SET', teamId: 'TO_BE_SET', keyId: 'TO_BE_SET' } },
-    prod: { apple: { clientId: 'TO_BE_SET', teamId: 'TO_BE_SET', keyId: 'TO_BE_SET' } }
-  };
+  console.warn('⚠️  Failed to load Apple credentials from shared config. Using default values.');
+  appleCredentials = { clientId: 'TO_BE_SET', teamId: 'TO_BE_SET', keyId: 'TO_BE_SET' };
 }
-
-const envConfig = appConfig[environment] || appConfig.dev;
-const appleCredentials = envConfig.apple || { clientId: 'TO_BE_SET', teamId: 'TO_BE_SET', keyId: 'TO_BE_SET' };
 
 if (deployBackend) {
   // Full stack deployment (hosted zones + backend)

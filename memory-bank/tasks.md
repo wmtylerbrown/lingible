@@ -490,3 +490,49 @@ Discussed Apple Identity Provider setup for Sign in with Apple integration with 
 - Security best practices for mobile app authentication
 
 ---
+
+## 📋 DEVELOPMENT RULES
+
+### **🔄 API Change Management Rule**
+**CRITICAL**: Whenever making ANY changes to API endpoints, request/response models, or API behavior, ALWAYS update the shared API files to maintain consistency:
+
+#### **Required Updates:**
+1. **OpenAPI Specification**: `shared/api/openapi/lingible-api.yaml`
+   - Update endpoint definitions
+   - Update request/response schemas
+   - Update examples and descriptions
+   - Update error responses
+
+2. **TypeScript Types**: `shared/api/types/typescript/api.ts`
+   - Update interface definitions
+   - Update type exports
+   - Update constants (endpoints, status codes, etc.)
+
+3. **Shared Constants**: `shared/config/app.json` (if API-related constants change)
+   - Update API timeouts
+   - Update retry configurations
+   - Update feature flags
+
+#### **Change Types That Require Updates:**
+- ✅ **New Endpoints**: Add to OpenAPI spec and TypeScript types
+- ✅ **Modified Endpoints**: Update schemas, examples, descriptions
+- ✅ **Request/Response Changes**: Update all type definitions
+- ✅ **Error Handling**: Update error response schemas
+- ✅ **Authentication**: Update security schemes
+- ✅ **Rate Limiting**: Update API limits and headers
+- ✅ **Feature Flags**: Update shared configuration
+
+#### **Verification Steps:**
+1. **Test Config Loader**: Run `npm run test:config` in infrastructure
+2. **Validate OpenAPI**: Use Swagger UI or similar to verify spec
+3. **Type Check**: Ensure TypeScript types compile correctly
+4. **Documentation**: Update any API documentation
+
+#### **Why This Matters:**
+- **Single Source of Truth**: Shared files define the API contract
+- **Cross-Platform Consistency**: iOS/Android will use these definitions
+- **Type Safety**: Prevents runtime errors from mismatched types
+- **Documentation**: Keeps API docs in sync with implementation
+- **Testing**: Shared types enable better testing across platforms
+
+---
