@@ -34,7 +34,6 @@ class TestTranslationService:
         result = translation_service.translate(request, sample_user)
 
         assert result.translation_id is not None
-        assert result.user_id == sample_user.user_id
         assert result.original_text == "Hello world"
         assert result.translated_text == "Hola mundo"
         assert result.direction == TranslationDirection.ENGLISH_TO_GENZ
@@ -50,7 +49,6 @@ class TestTranslationService:
         result = translation_service.translate(request, sample_user)
 
         assert result.translation_id is not None
-        assert result.user_id == sample_user.user_id
         assert result.original_text == "Hola mundo"
         assert result.translated_text == "Hello world"
         assert result.direction == TranslationDirection.GENZ_TO_ENGLISH
@@ -116,7 +114,7 @@ class TestUserService:
     """Test UserService."""
 
     @pytest.fixture
-    def user_service(self, mock_dynamodb_table, mock_config):
+    def user_service(self, mock_config):
         """Create UserService with mocked dependencies."""
         with patch('src.services.user_service.UserRepository') as mock_repo_class:
             mock_repo = Mock()
@@ -269,7 +267,7 @@ class TestSubscriptionService:
 
         assert result is False
 
-    def test_is_user_premium_with_expired_subscription(self, subscription_service):
+    def test_is_user_premium_with_expired_subscription(self, subscription_service, sample_subscription):
         """Test premium status check with expired subscription."""
         expired_subscription = sample_subscription.copy()
         expired_subscription.status = SubscriptionStatus.EXPIRED

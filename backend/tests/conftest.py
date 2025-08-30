@@ -160,28 +160,27 @@ def mock_tracer():
 @pytest.fixture
 def mock_config():
     """Mock configuration for testing."""
-    with patch('src.utils.config.Config') as mock_config_class:
+    with patch('src.utils.config.AppConfig') as mock_config_class:
         mock_config = Mock()
-        mock_config.app_name = "lingible-backend"
         mock_config.environment = "test"
-        mock_config.bedrock_config = {
-            "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
+        mock_config.app_name = "lingible-backend"
+        mock_config.get_bedrock_config.return_value = {
+            "model": "anthropic.claude-3-sonnet-20240229-v1:0",
             "max_tokens": 1000,
             "temperature": 0.7,
-            "top_p": 0.9
         }
-        mock_config.apple_store = {
+        mock_config.get_apple_store_config.return_value = {
             "bundle_id": "com.lingible.lingible",
             "shared_secret": "test_secret",
             "sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt",
-            "production_url": "https://buy.itunes.apple.com/verifyReceipt"
+            "verify_url": "https://buy.itunes.apple.com/verifyReceipt"
         }
-        mock_config.google_play = {
+        mock_config.get_google_play_config.return_value = {
             "package_name": "com.lingible.lingible",
             "service_account_key": "test_key.json",
             "api_timeout": 10
         }
-        mock_config.database = {
+        mock_config.get_database_config.return_value = {
             "tables": {
                 "users": "lingible-users-test",
                 "translations": "lingible-translations-test"

@@ -42,7 +42,6 @@ class TestTranslateAPIHandler:
             mock_service = Mock()
             mock_service.translate.return_value = Mock(
                 translation_id="trans_789",
-                user_id="test_user_123",
                 original_text="Hello world",
                 translated_text="Hola mundo",
                 direction=TranslationDirection.ENGLISH_TO_GENZ,

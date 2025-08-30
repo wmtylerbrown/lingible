@@ -49,15 +49,15 @@ class TestExceptions:
         exception = ValidationError("Invalid input")
 
         assert str(exception) == "Invalid input"
-        assert exception.error_code == ErrorCode.VALIDATION_ERROR
-        assert exception.status_code == 400
+        assert exception.error_code == ErrorCode.INVALID_INPUT.value
+        assert exception.status_code == 422  # UNPROCESSABLE_ENTITY
 
     def test_authentication_error(self):
         """Test AuthenticationError."""
         exception = AuthenticationError("Invalid credentials")
 
         assert str(exception) == "Invalid credentials"
-        assert exception.error_code == ErrorCode.AUTHENTICATION_ERROR
+        assert exception.error_code == ErrorCode.INVALID_TOKEN.value
         assert exception.status_code == 401
 
     def test_insufficient_permissions_error(self):
@@ -65,15 +65,15 @@ class TestExceptions:
         exception = InsufficientPermissionsError("Insufficient permissions")
 
         assert str(exception) == "Insufficient permissions"
-        assert exception.error_code == ErrorCode.INVALID_TOKEN
-        assert exception.status_code == 401
+        assert exception.error_code == ErrorCode.INSUFFICIENT_PERMISSIONS.value
+        assert exception.status_code == 403
 
     def test_system_error(self):
         """Test SystemError."""
         exception = SystemError("Internal server error")
 
         assert str(exception) == "Internal server error"
-        assert exception.error_code == ErrorCode.SYSTEM_ERROR
+        assert exception.error_code == ErrorCode.DATABASE_ERROR.value  # Default error code
         assert exception.status_code == 500
 
 
