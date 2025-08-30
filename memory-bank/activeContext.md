@@ -29,6 +29,14 @@
 - **Security**: Apple Identity Provider integration with AWS Secrets Manager for private key storage
 - **Monitoring**: CloudWatch metrics, logging, and alerting configured
 
+### ✅ **COMPLETED: Lambda Layer Architecture & CDK Docker Bundling (2024-12-19)**
+- **Dual Layer Strategy**: Separate dependencies layer (Python packages) and shared code layer (custom code)
+- **CDK Docker Bundling**: Replaced custom build scripts with CDK's built-in Docker container bundling
+- **Platform-Specific Dependencies**: Use `--platform manylinux2014_x86_64` for Lambda runtime compatibility
+- **Resolved Import Issues**: Fixed persistent `pydantic_core._pydantic_core` errors through proper platform targeting
+- **Container-Based Building**: Dependencies built in Python 3.13 containers matching Lambda runtime
+- **Eliminated Platform Mismatches**: No more macOS-compiled packages causing Lambda import failures
+
 ### ✅ **COMPLETED: API Design & Implementation (2024-12-19)**
 - **Translation APIs**: POST `/translate`, GET `/translations`, DELETE `/translations/{id}`, DELETE `/translations`
 - **User Management**: GET `/user/profile`, GET `/user/usage`, POST `/user/upgrade`
@@ -74,10 +82,12 @@
 
 ### 🎯 **CURRENT PRIORITIES:**
 
-#### **1. Infrastructure Deployment**
+#### **1. Infrastructure Deployment & Lambda Layer Resolution**
 - **Environment-Based Deployment**: CDK infrastructure supports dev/prod environments
 - **Resource Naming**: All resources properly namespaced (e.g., `lingible-users-dev`, `lingible-api-prod`)
 - **Deployment Scripts**: `deploy-dev.py` and `deploy-prod.py` for streamlined deployments
+- **Lambda Layer Architecture**: Successfully implemented with CDK Docker bundling
+- **Import Structure Resolution**: Need to fix relative vs absolute imports for local development
 
 #### **2. Security Enhancements**
 - **Apple Identity Provider Private Key**: Secure storage in AWS Secrets Manager
@@ -96,7 +106,13 @@
 - **Integration Testing**: End-to-end testing for critical user flows
 - **Performance Testing**: Load testing for API endpoints
 
-#### **5. Documentation & Onboarding**
+#### **5. Development Environment & Import Resolution**
+- **Lambda Layer Success**: Dependencies now working correctly in production
+- **Import Structure Issue**: Relative imports in handlers need resolution for local development
+- **PYTHONPATH Strategy**: Planning to use package.json scripts with PYTHONPATH for local development
+- **Code Consistency**: Maintain same import structure between local and production environments
+
+#### **6. Documentation & Onboarding**
 - **API Documentation**: OpenAPI/Swagger documentation
 - **Deployment Guides**: Step-by-step deployment instructions
 - **Developer Onboarding**: Setup guides and development environment configuration
@@ -108,12 +124,13 @@
 
 ### **Core Technologies:**
 - **Backend**: Python 3.13 with AWS Lambda
-- **Infrastructure**: AWS CDK with TypeScript
+- **Infrastructure**: AWS CDK with TypeScript and Docker-based bundling
 - **Database**: DynamoDB with single-table design
 - **Authentication**: AWS Cognito with Apple Identity Provider
 - **AI/ML**: AWS Bedrock for translation services
 - **Testing**: Pytest with moto for AWS service mocking
 - **Code Quality**: Black, flake8, mypy, pre-commit hooks
+- **Lambda Layers**: Dual-layer architecture with dependencies and shared code separation
 
 ### **Key Design Patterns:**
 - **Clean Architecture**: Separation of concerns with service and repository layers
