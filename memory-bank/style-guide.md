@@ -1,4 +1,4 @@
-# Style Guide - GenZ Slang Translation App
+# Style Guide - Lingible
 
 ## Python Code Style
 

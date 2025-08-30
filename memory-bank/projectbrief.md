@@ -1,4 +1,4 @@
-# Project Brief - GenZ Slang Translation App
+# Project Brief - Lingible
 
 ## Project Overview
 

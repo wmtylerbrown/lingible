@@ -104,4 +104,4 @@ class SmartLogger:
 
 
 # Global logger instance
-logger = SmartLogger("mobile-app-backend")
+logger = SmartLogger("lingible-backend")

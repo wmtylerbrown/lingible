@@ -1,11 +1,11 @@
-# Mobile App with AWS Backend
+# Lingible
 
 A comprehensive mobile application project with AWS-powered backend infrastructure using API Gateway and individual Lambda handlers.
 
 ## Project Structure
 
 ```
-mobile-app-aws-backend/
+lingible/
 ├── backend/                 # AWS Backend API
 │   ├── src/                # Lambda function source code
 │   │   ├── handlers/       # Individual Lambda handlers
@@ -14,7 +14,7 @@ mobile-app-aws-backend/
 │   │   └── utils/          # Shared utilities
 │   ├── tests/              # Unit and integration tests
 │   └── infrastructure/     # AWS CDK infrastructure
-├── mobile/                 # Mobile applications
+├── mobile/                 # Mobile applications (iOS/Android)
 │   ├── react-native/       # React Native app
 │   └── flutter/           # Flutter app
 └── docs/                  # Documentation

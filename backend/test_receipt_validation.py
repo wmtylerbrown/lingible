@@ -50,7 +50,7 @@ def test_google_receipt_validation():
 
     # Sample Google Play receipt data (this would come from the Android app)
     sample_receipt_data = json.dumps({
-        "packageName": "com.yourapp.genztranslator",
+        "packageName": "com.lingible.lingible",
         "productId": "premium_monthly",
         "purchaseToken": "sample_purchase_token_123",
         "orderId": "order_123456"

@@ -1,4 +1,4 @@
-# Project Progress - GenZ Slang Translation App
+# Project Progress - Lingible
 
 ## Implementation Status
 

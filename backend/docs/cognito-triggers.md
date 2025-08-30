@@ -45,7 +45,7 @@ Deploy the trigger handlers as separate Lambda functions:
 ```bash
 # Deploy post confirmation handler
 aws lambda create-function \
-  --function-name genz-app-post-confirmation \
+  --function-name lingible-post-confirmation \
   --runtime python3.11 \
   --handler src.handlers.cognito_post_confirmation.post_confirmation_handler \
   --role arn:aws:iam::ACCOUNT:role/lambda-execution-role \
@@ -53,7 +53,7 @@ aws lambda create-function \
 
 # Deploy pre authentication handler
 aws lambda create-function \
-  --function-name genz-app-pre-authentication \
+  --function-name lingible-pre-authentication \
   --runtime python3.11 \
   --handler src.handlers.cognito_pre_authentication.pre_authentication_handler \
   --role arn:aws:iam::ACCOUNT:role/lambda-execution-role \
@@ -68,8 +68,8 @@ Add the triggers to your Cognito User Pool:
 aws cognito-idp update-user-pool \
   --user-pool-id YOUR_USER_POOL_ID \
   --lambda-config \
-    PostConfirmation=arn:aws:lambda:REGION:ACCOUNT:function:genz-app-post-confirmation,\
-    PreAuthentication=arn:aws:lambda:REGION:ACCOUNT:function:genz-app-pre-authentication
+    PostConfirmation=arn:aws:lambda:REGION:ACCOUNT:function:lingible-post-confirmation,\
+PreAuthentication=arn:aws:lambda:REGION:ACCOUNT:function:lingible-pre-authentication
 ```
 
 ### 3. Grant Cognito Permissions
@@ -79,7 +79,7 @@ Add permission for Cognito to invoke the Lambda functions:
 ```bash
 # Post confirmation
 aws lambda add-permission \
-  --function-name genz-app-post-confirmation \
+    --function-name lingible-post-confirmation \
   --statement-id cognito-post-confirmation \
   --action lambda:InvokeFunction \
   --principal cognito-idp.amazonaws.com \
@@ -87,7 +87,7 @@ aws lambda add-permission \
 
 # Pre authentication
 aws lambda add-permission \
-  --function-name genz-app-pre-authentication \
+    --function-name lingible-pre-authentication \
   --statement-id cognito-pre-authentication \
   --action lambda:InvokeFunction \
   --principal cognito-idp.amazonaws.com \

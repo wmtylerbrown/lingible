@@ -1,8 +1,8 @@
-# Receipt Validation Guide - GenZ Slang Translation App
+# Receipt Validation Guide - Lingible
 
 ## Overview
 
-This guide covers the implementation of secure receipt validation for Apple Store and Google Play Store subscriptions in our GenZ slang translation app. Receipt validation is critical for preventing fraud and ensuring only legitimate payments grant premium access.
+This guide covers the implementation of secure receipt validation for Apple Store and Google Play Store subscriptions in our Lingible app. Receipt validation is critical for preventing fraud and ensuring only legitimate payments grant premium access.
 
 ## Architecture
 
@@ -41,10 +41,10 @@ Add to your SSM Parameter Store:
 
 ```json
 {
-  "/mobile-app-backend/production/apple_store": {
+  "/lingible-backend/production/apple_store": {
     "environment": "production",
     "shared_secret": "your_app_specific_shared_secret",
-    "bundle_id": "com.yourapp.genztranslator",
+    "bundle_id": "com.lingible.lingible",
     "verify_url": "https://buy.itunes.apple.com/verifyReceipt",
     "sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt"
   }
@@ -130,8 +130,8 @@ Add to your SSM Parameter Store:
 
 ```json
 {
-  "/mobile-app-backend/production/google_play": {
-    "package_name": "com.yourapp.genztranslator",
+  "/lingible-backend/production/google_play": {
+    "package_name": "com.lingible.lingible",
     "service_account_key": "path/to/service-account-key.json",
     "api_timeout": 10
   }
@@ -155,7 +155,7 @@ validation_result = self.receipt_validator.validate_receipt(
 ```json
 {
   "orderId": "GPA.1234-5678-9012-34567",
-  "packageName": "com.yourapp.genztranslator",
+          "packageName": "com.lingible.lingible",
   "productId": "premium_monthly",
   "purchaseTime": 1705312200000,
   "purchaseState": 0,
@@ -291,7 +291,7 @@ ReceiptValidationErrorRate:
   Type: AWS::CloudWatch::Alarm
   Properties:
     MetricName: ReceiptValidationErrors
-    Namespace: GenZApp/ReceiptValidation
+    Namespace: Lingible/ReceiptValidation
     Statistic: Sum
     Period: 300
     EvaluationPeriods: 2

@@ -29,7 +29,7 @@ from ..services.user_service import UserService
 
 
 class TranslationService:
-    """Service for GenZ slang translation using AWS Bedrock."""
+    """Service for Lingible translation using AWS Bedrock."""
 
     def __init__(self) -> None:
         """Initialize translation service."""
@@ -127,7 +127,7 @@ class TranslationService:
         text = request.text
 
         if direction == TranslationDirection.GENZ_TO_ENGLISH:
-            prompt = f"""You are a GenZ slang translator. Translate the following GenZ slang or internet language to clear, standard English.
+            prompt = f"""You are a Lingible translator. Translate the following GenZ slang or internet language to clear, standard English.
 
 Text to translate: "{text}"
 
@@ -135,7 +135,7 @@ Provide only the translated text in standard English. Do not include explanation
 
 Translation:"""
         else:
-            prompt = f"""You are a GenZ slang translator. Translate the following standard English to GenZ slang or internet language.
+            prompt = f"""You are a Lingible translator. Translate the following standard English to GenZ slang or internet language.
 
 Text to translate: "{text}"
 
@@ -283,7 +283,25 @@ Translation:"""
                 message="Translation history management is a premium feature. Upgrade to manage your translation history.",
             )
 
-        return self.translation_repository.delete_translation(user_id, translation_id)
+        # Attempt to delete the translation
+        success = self.translation_repository.delete_translation(
+            user_id, translation_id
+        )
+
+        if not success:
+            # Log the failed deletion attempt for security monitoring
+            logger.log_error(
+                Exception(
+                    "Translation deletion failed - translation not found or access denied"
+                ),
+                {
+                    "operation": "delete_translation",
+                    "translation_id": translation_id,
+                    "user_id": user_id,
+                },
+            )
+
+        return success
 
     @tracer.trace_method("delete_user_translations")
     def delete_user_translations(self, user_id: str) -> int:

@@ -1,0 +1,56 @@
+{
+  "app": "python3 app.py",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "requirements*.txt",
+      "source.bat",
+      "**/__init__.py",
+      "**/__pycache__",
+      "**/*.pyc",
+      "**/*.pyo",
+      "**/*.pyd",
+      ".Python",
+      "build",
+      "develop-eggs",
+      "dist",
+      "downloads",
+      "eggs",
+      ".eggs",
+      "lib",
+      "lib64",
+      "parts",
+      "sdist",
+      "var",
+      "wheels",
+      "share/python-wheels",
+      "*.egg-info",
+      ".installed.cfg",
+      "*.egg",
+      "MANIFEST"
+    ]
+  },
+  "context": {
+    "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
+    "@aws-cdk/core:stackRelativeExports": true,
+    "@aws-cdk/aws-rds:lowercaseDbIdentifier": true,
+    "@aws-cdk/aws-lambda:recognizeVersionProps": true,
+    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
+    "@aws-cdk/aws-appsync:useArnForSourceApiAssociationIdentifier": true,
+    "@aws-cdk/aws-rds:databaseProxyUniqueResourceName": true,
+    "@aws-cdk/aws-codedeploy:removeAlarmsFromDeploymentGroup": true,
+    "@aws-cdk/aws-apigateway:disableCloudWatchRole": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/core:target-partitions": [
+      "aws",
+      "aws-cn"
+    ],
+    "account": "123456789012",
+    "region": "us-east-1"
+  }
+}

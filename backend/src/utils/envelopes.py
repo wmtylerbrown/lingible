@@ -46,8 +46,13 @@ class APIGatewayEnvelope(BaseEnvelope):
             user_id = getattr(authorizer_context, "user_id", None)
             username = getattr(authorizer_context, "username", None)
 
-        # Get request metadata
-        request_id = event.requestContext.requestId if event.requestContext else None
+        # Get request metadata (API Gateway always provides requestContext)
+        if not event.requestContext:
+            raise ValidationError("Invalid API Gateway event: missing requestContext")
+
+        request_id = event.requestContext.requestId
+        if not request_id:
+            raise ValidationError("Invalid API Gateway event: missing requestId")
 
         return {
             "event": event.model_dump(),
@@ -86,8 +91,17 @@ class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
                 "Valid authentication token is required for this endpoint"
             )
 
-        # Get request metadata
-        request_id = event.requestContext.requestId if event.requestContext else None
+        # Ensure username is provided (fallback to user_id if not available)
+        if not username:
+            username = user_id
+
+        # Get request metadata (API Gateway always provides requestContext)
+        if not event.requestContext:
+            raise ValidationError("Invalid API Gateway event: missing requestContext")
+
+        request_id = event.requestContext.requestId
+        if not request_id:
+            raise ValidationError("Invalid API Gateway event: missing requestId")
 
         return {
             "event": event.model_dump(),
@@ -196,6 +210,66 @@ class UserUpgradeEnvelope(AuthenticatedAPIGatewayEnvelope):
 
         # Add upgrade-specific data
         base_data["request_body"] = request_body
+
+        return base_data
+
+
+class SimpleAuthenticatedEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Simple envelope for basic authenticated operations (GET, DELETE) that only need user info."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse simple authenticated data - just return base data with user info."""
+        return base_data
+
+
+class PathParameterEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for operations that need path parameters (DELETE /{id}, etc.)."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse path parameters and add them to base data."""
+        # Extract path parameters
+        if event.pathParameters:
+            base_data["path_parameters"] = event.pathParameters
+        else:
+            base_data["path_parameters"] = {}
+
+        return base_data
+
+
+class TranslationHistoryEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for translation history endpoints that extracts query parameters."""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse translation history specific data."""
+        # Extract query parameters for pagination
+        if event.queryStringParameters:
+            try:
+                limit = int(event.queryStringParameters.get("limit", "20"))
+                base_data["limit"] = limit
+            except ValueError:
+                base_data["limit"] = 20
+
+            base_data["last_evaluated_key"] = event.queryStringParameters.get(
+                "last_evaluated_key"
+            )
+        else:
+            base_data["limit"] = 20
+            base_data["last_evaluated_key"] = None
 
         return base_data
 

@@ -6,7 +6,6 @@ from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from ..models.events import HealthEvent
-from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.decorators import api_handler
 from ..utils.envelopes import HealthEnvelope
@@ -20,14 +19,6 @@ def handler(event: HealthEvent, context: LambdaContext) -> Dict[str, Any]:
     """Handle health check requests."""
 
     # Log health check request
-    logger.log_business_event(
-        "health_check_requested",
-        {
-            "request_id": event.request_id,
-            "timestamp": event.timestamp,
-        },
-    )
-
     # Return health status data - decorator handles the API response creation
     return {
         "status": "healthy",

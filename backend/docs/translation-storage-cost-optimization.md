@@ -101,7 +101,7 @@ def get_translation_history(self, user_id: str, ...) -> Dict[str, Any]:
 
 ## 🚀 **Recommendation**
 
-**Premium-Only Storage** is the optimal strategy for a GenZ slang translator:
+**Premium-Only Storage** is the optimal strategy for Lingible:
 
 1. **Free Users**: Get translation, no history
 2. **Premium Users**: Get translation + full history

@@ -57,14 +57,7 @@ class TranslationRepository:
             }
 
             self.table.put_item(Item=item)
-            logger.log_business_event(
-                "translation_created",
-                {
-                    "translation_id": translation.translation_id,
-                    "user_id": translation.user_id,
-                    "direction": translation.direction.value,
-                },
-            )
+            # Don't log every translation creation - it's a routine operation for premium users
             return True
 
         except Exception as e:
@@ -175,6 +168,20 @@ class TranslationRepository:
     def delete_translation(self, user_id: str, translation_id: str) -> bool:
         """Delete a translation record."""
         try:
+            # First, verify the translation exists and belongs to the user
+            existing_translation = self.get_translation(user_id, translation_id)
+            if not existing_translation:
+                logger.log_error(
+                    Exception("Translation not found or access denied"),
+                    {
+                        "operation": "delete_translation",
+                        "translation_id": translation_id,
+                        "user_id": user_id,
+                    },
+                )
+                return False
+
+            # Delete the translation (DynamoDB ensures it's in the user's partition)
             self.table.delete_item(
                 Key={
                     "PK": f"USER#{user_id}",

@@ -12,7 +12,7 @@ class AppConfig:
     def __init__(self) -> None:
         """Initialize configuration manager."""
         self.environment = os.environ.get("ENVIRONMENT", "development")
-        self.app_name = os.environ.get("APP_NAME", "mobile-app-backend")
+        self.app_name = os.environ.get("APP_NAME", "lingible-backend")
 
         # Default values for development/local testing
         self._defaults = self._get_default_config()
@@ -65,13 +65,13 @@ class AppConfig:
             "apple_store": {
                 "environment": "sandbox",  # sandbox or production
                 "shared_secret": "your_app_specific_shared_secret",
-                "bundle_id": "com.yourapp.genztranslator",
+                "bundle_id": "com.lingible.lingible",
                 "verify_url": "https://buy.itunes.apple.com/verifyReceipt",
                 "sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt",
             },
             # Google Play Configuration
             "google_play": {
-                "package_name": "com.yourapp.genztranslator",
+                "package_name": "com.lingible.lingible",
                 "service_account_key": "path/to/service-account-key.json",
                 "api_timeout": 10,
             },

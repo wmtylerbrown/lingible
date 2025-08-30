@@ -1,4 +1,4 @@
-# GenZ Translation App Backend
+# Lingible Backend
 
 A serverless backend for translating GenZ slang to English and vice versa using AWS Bedrock.
 

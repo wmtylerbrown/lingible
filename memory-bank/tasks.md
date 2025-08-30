@@ -136,3 +136,109 @@ Implemented a complete authorization system with API Gateway authorizers and Lam
 ## Current Status: ✅ RECEIPT VALIDATION COMPLETE
 
 The receipt validation service is now production-ready with official Apple and Google SDKs, providing reliable, maintainable, and industry-standard receipt validation for both iOS and Android apps.
+
+---
+
+# Tasks - Lingible
+
+## 🎯 Current Focus: Infrastructure & API Development
+
+### ✅ **COMPLETED: Lingible Rebranding (2024-12-19)**
+
+**🎯 Objective:** Complete rebranding from "GenZ Translation App" to "Lingible" across entire codebase
+
+**✅ Completed Tasks:**
+1. **Infrastructure Rebranding:**
+   - ✅ Main Stack: `GenZAppStack` → `LingibleStack`
+   - ✅ Resource Names: All AWS resources updated to use "lingible-" prefix
+   - ✅ DynamoDB Tables: `genz-app-users` → `lingible-users`
+   - ✅ API Gateway: `genz-translation-api` → `lingible-api`
+   - ✅ Cognito: `genz-translation-app-users` → `lingible-users`
+   - ✅ Lambda Functions: All functions now use `lingible-` prefix
+   - ✅ Monitoring: Updated dashboard and alarm names
+
+2. **App Configuration:**
+   - ✅ Bundle ID: `com.yourapp.genztranslator` → `com.lingible.lingible`
+   - ✅ Package Name: `com.yourapp.genztranslator` → `com.lingible.lingible`
+   - ✅ App Name: `mobile-app-backend` → `lingible-backend`
+   - ✅ Service Name: `genz-translation-app` → `lingible`
+
+3. **Documentation Updates:**
+   - ✅ Project Brief: Updated to "Lingible"
+   - ✅ Memory Bank: All context files updated
+   - ✅ README Files: Main and backend READMEs updated
+   - ✅ Infrastructure Docs: All CDK documentation updated
+   - ✅ API Documentation: Updated with new naming
+   - ✅ Receipt Validation: Updated bundle IDs and namespaces
+   - ✅ Cognito Triggers: Updated Lambda function names
+
+4. **Code Updates:**
+   - ✅ Translation Service: Updated prompts to use "Lingible translator"
+   - ✅ Health Handler: Updated service name to "lingible-api"
+   - ✅ Configuration: Updated all app references
+   - ✅ Logging: Updated logger name to "lingible-backend"
+   - ✅ Test Files: Updated bundle IDs in test data
+
+5. **Apple Integration:**
+   - ✅ Apple Identity Provider: Updated bundle ID to `com.lingible.lingible`
+   - ✅ Setup Scripts: Updated example bundle IDs
+   - ✅ Secure Setup: Updated for new bundle ID
+   - ✅ Config Templates: Updated with new bundle ID
+
+**📊 Impact:**
+- **Consistent Branding**: All resources now use "Lingible" naming
+- **Professional Bundle ID**: `com.lingible.lingible` for app stores
+- **Clear Resource Organization**: Easy to identify Lingible resources in AWS
+- **Domain Alignment**: Ready for `lingible.com` domain integration
+
+**🔗 Related Files:**
+- All infrastructure files updated
+- All documentation files updated
+- All source code files updated
+- All configuration files updated
+
+---
+
+## 🔐 PENDING: Apple Identity Provider Security Discussion
+
+### **🎯 Context:**
+Discussed Apple Identity Provider setup for Sign in with Apple integration with Cognito. User has Apple Developer account and wants to understand private key protection options.
+
+### **📋 Key Points to Discuss:**
+1. **Current Security State**: Private key stored in plain text in CDK code (not secure)
+2. **Security Options Available**:
+   - AWS Secrets Manager (recommended - encrypted, audited, rotated)
+   - Environment Variables (basic protection)
+   - SSM Parameter Store (good middle ground)
+   - Plain text (current - not secure)
+
+3. **Files Created for Secure Setup**:
+   - `constructs/cognito_stack_secure.py` - Secure version using Secrets Manager
+   - `setup-apple-provider-secure.py` - Interactive setup script
+   - `setup-apple-provider.py` - Basic setup script
+
+### **🔒 Security Considerations:**
+- **Cost**: Secrets Manager = $0.40/month vs SSM = $0.05/month
+- **Encryption**: All AWS options provide encryption at rest
+- **Access Control**: IAM policies control who can access secrets
+- **Audit Logging**: CloudTrail tracks all access attempts
+- **Rotation**: Automatic key rotation capabilities
+
+### **📝 Next Discussion Points:**
+1. **Production vs Development**: Different security requirements
+2. **Cost vs Security**: Balancing security needs with budget
+3. **Implementation Strategy**: How to migrate from plain text to secure storage
+4. **Monitoring**: Setting up alerts for secret access
+5. **Compliance**: Meeting security standards for production
+
+### **🎯 Decision Needed:**
+- Which security approach to use for Apple Identity Provider
+- Whether to implement secure setup now or later
+- How to handle the transition from development to production
+
+### **📚 Resources:**
+- AWS Secrets Manager documentation
+- Apple Developer Console setup guide
+- Security best practices for mobile app authentication
+
+---

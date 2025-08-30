@@ -40,14 +40,7 @@ class UserRepository:
             }
 
             self.table.put_item(Item=item)
-            logger.log_business_event(
-                "user_created",
-                {
-                    "user_id": user.user_id,
-                    "username": user.username,
-                    "tier": user.tier.value,
-                },
-            )
+            # Don't log every user creation - it's a routine operation
             return True
 
         except Exception as e:
@@ -111,14 +104,7 @@ class UserRepository:
             }
 
             self.table.put_item(Item=item)
-            logger.log_business_event(
-                "user_updated",
-                {
-                    "user_id": user.user_id,
-                    "tier": user.tier.value,
-                    "status": user.status.value,
-                },
-            )
+            # Don't log every user update - it's a routine operation
             return True
 
         except Exception as e:
@@ -150,13 +136,7 @@ class UserRepository:
             item = {k: v for k, v in item.items() if v is not None}
 
             self.table.put_item(Item=item)
-            logger.log_business_event(
-                "usage_limits_updated",
-                {
-                    "user_id": user_id,
-                    "daily_usage": usage.daily_used,
-                },
-            )
+            # Don't log every usage limit update - it's a routine operation
             return True
 
         except Exception as e:
@@ -213,7 +193,7 @@ class UserRepository:
 
             # First, try to increment usage (this will work if it's the same day)
             try:
-                response = self.table.update_item(
+                self.table.update_item(
                     Key={
                         "PK": f"USER#{user_id}",
                         "SK": "USAGE#LIMITS",
@@ -228,23 +208,11 @@ class UserRepository:
                     ReturnValues="UPDATED_NEW",
                 )
 
-                # Successfully incremented (same day)
-                updated_item = response.get("Attributes", {})
-                new_usage = updated_item.get("daily_used", 1)
-
-                logger.log_business_event(
-                    "usage_incremented",
-                    {
-                        "user_id": user_id,
-                        "daily_usage": new_usage,
-                        "same_day": True,
-                    },
-                )
                 return True
 
             except Exception:
                 # Condition failed means it's a new day, so reset and set to 1
-                response = self.table.update_item(
+                self.table.update_item(
                     Key={
                         "PK": f"USER#{user_id}",
                         "SK": "USAGE#LIMITS",
@@ -260,21 +228,7 @@ class UserRepository:
                 )
 
                 # Successfully reset and incremented (new day)
-                updated_item = response.get("Attributes", {})
-                new_usage = updated_item.get("daily_used", 1)
-                new_reset_date = updated_item.get(
-                    "reset_daily_at", today_start.isoformat()
-                )
-
-                logger.log_business_event(
-                    "usage_incremented",
-                    {
-                        "user_id": user_id,
-                        "daily_usage": new_usage,
-                        "reset_date": new_reset_date,
-                        "same_day": False,
-                    },
-                )
+                # Don't log every usage increment - it's a routine operation
                 return True
 
         except Exception as e:
@@ -308,13 +262,7 @@ class UserRepository:
                 },
             )
 
-            logger.log_business_event(
-                "usage_reset",
-                {
-                    "user_id": user_id,
-                    "reset_date": today_start.isoformat(),
-                },
-            )
+            # Don't log every usage reset - it's a routine operation
             return True
 
         except Exception as e:

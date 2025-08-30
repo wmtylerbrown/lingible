@@ -1,4 +1,4 @@
-# System Patterns - GenZ Slang Translation App
+# System Patterns - Lingible
 
 ## Architectural Patterns
 

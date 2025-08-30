@@ -10,7 +10,6 @@ from ..models.translations import (
 )
 from ..models.events import TranslationEvent
 from ..services.translation_service import TranslationService
-from ..utils.logging import logger
 from ..utils.tracing import tracer
 from ..utils.decorators import api_handler, extract_user_from_parsed_data
 from ..utils.envelopes import TranslationEnvelope
@@ -36,18 +35,6 @@ def handler(event: TranslationEvent, context: LambdaContext) -> TranslationRespo
 
     # Perform translation
     translation = translation_service.translate_text(translation_request, event.user_id)
-
-    # Log successful translation
-    logger.log_business_event(
-        "translation_request_completed",
-        {
-            "user_id": event.user_id,
-            "translation_id": translation.translation_id,
-            "direction": translation.direction.value,
-            "text_length": len(translation_request.text),
-            "processing_time_ms": translation.processing_time_ms,
-        },
-    )
 
     # Return the response model - decorator handles the API response creation
     return translation.to_api_response()

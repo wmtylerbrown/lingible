@@ -14,12 +14,18 @@ class TranslationEvent(BaseModel):
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
     request_body: TranslationRequest = Field(..., description="Parsed request body")
 
-    # Extracted user info (if available)
-    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
-    username: Optional[str] = Field(None, description="Username from Cognito token")
+    # Extracted user info (guaranteed by envelope)
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
 
     # Request metadata
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
     timestamp: Optional[str] = Field(None, description="Request timestamp")
 
 
@@ -27,25 +33,72 @@ class UserProfileEvent(BaseModel):
     """Typed event for user profile handler."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
-    username: Optional[str] = Field(None, description="Username from Cognito token")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
 
 
 class UserUsageEvent(BaseModel):
     """Typed event for user usage handler."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
-    username: Optional[str] = Field(None, description="Username from Cognito token")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+
+class SimpleAuthenticatedEvent(BaseModel):
+    """Simple authenticated event for basic operations (GET, DELETE) that only need user info."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+
+class PathParameterEvent(BaseModel):
+    """Authenticated event for operations that need path parameters (DELETE /{id}, etc.)."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+    path_parameters: Dict[str, str] = Field(
+        ..., description="Path parameters extracted by envelope"
+    )
 
 
 class HealthEvent(BaseModel):
     """Typed event for health check handler."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
     timestamp: Optional[str] = Field(None, description="Request timestamp")
 
 
@@ -53,9 +106,15 @@ class TranslationHistoryEvent(BaseModel):
     """Typed event for translation history handler."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
-    username: Optional[str] = Field(None, description="Username from Cognito token")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
 
     # Query parameters
     limit: Optional[int] = Field(
@@ -68,9 +127,15 @@ class SubscriptionEvent(BaseModel):
     """Typed event for subscription handlers."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
-    username: Optional[str] = Field(None, description="Username from Cognito token")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
 
 
 class UserUpgradeEvent(BaseModel):
@@ -78,9 +143,15 @@ class UserUpgradeEvent(BaseModel):
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
     request_body: UserUpgradeRequest = Field(..., description="Parsed request body")
-    user_id: Optional[str] = Field(None, description="User ID from Cognito token")
-    username: Optional[str] = Field(None, description="Username from Cognito token")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
 
 
 class WebhookEvent(BaseModel):
@@ -88,7 +159,9 @@ class WebhookEvent(BaseModel):
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
     request_body: AppleWebhookRequest = Field(..., description="Parsed request body")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
 
 
 class CognitoUserAttributes(BaseModel):

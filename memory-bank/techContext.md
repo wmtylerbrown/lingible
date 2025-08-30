@@ -1,4 +1,4 @@
-# Technical Context - GenZ Slang Translation App
+# Technical Context - Lingible
 
 ## Technology Stack
 
