@@ -1,5 +1,77 @@
 # Active Task: Receipt Validation Implementation with Official SDKs
 
+## ✅ COMPLETED: Unified Deployment Architecture (2024-12-19)
+
+### **🎯 Major Accomplishment:**
+Successfully unified the CDK deployment architecture to use a single `app.ts` file with conditional deployment modes, eliminating the risk of double deployment while maintaining clean separation between DNS setup and backend deployment.
+
+### **🔧 Key Improvements:**
+1. **✅ Single App File Architecture**
+   - **Before**: `app.ts` + `app-hosted-zones.ts` (two separate files)
+   - **After**: `app.ts` only (handles both deployment modes)
+   - **Benefit**: Single source of truth, easier maintenance
+
+2. **✅ Conditional Deployment Modes**
+   - **DNS Only**: `--context deploy-backend=false` - Deploys only hosted zones
+   - **Full Stack**: `--context deploy-backend=true` (default) - Deploys backend (references existing hosted zones)
+   - **Benefit**: Flexible deployment without code duplication
+
+3. **✅ Eliminated Double Deployment Risk**
+   - **Problem**: Previous approach would create hosted zones twice
+   - **Solution**: DNS-only mode creates hosted zones, full stack mode imports them
+   - **Benefit**: No resource conflicts, proper cross-stack references
+
+4. **✅ Proper Cross-Stack References**
+   - Uses `cdk.Fn.importValue()` to reference hosted zone ID
+   - Uses `route53.HostedZone.fromHostedZoneId()` to import existing hosted zones
+   - Updated `BackendStack` to accept `route53.IHostedZone` for compatibility
+
+5. **✅ Clean Script Organization**
+   - Updated `package.json` scripts to use unified approach
+   - Removed redundant `app-hosted-zones.ts` file
+   - Maintained clear deployment intent with context flags
+
+### **📁 Files Modified/Created:**
+- `backend/infrastructure/app.ts` - Unified entry point with conditional deployment
+- `backend/infrastructure/stacks/lingible_stack.ts` - Updated to import hosted zones instead of creating them
+- `backend/infrastructure/constructs/backend_stack.ts` - Updated to accept `IHostedZone` interface
+- `backend/infrastructure/package.json` - Updated deployment scripts
+- `backend/infrastructure/README.md` - Updated documentation
+- `backend/infrastructure/app-hosted-zones.ts` - **DELETED** (no longer needed)
+
+### **📋 Deployment Flow:**
+```bash
+# Step 1: Deploy hosted zones only (creates DNS infrastructure)
+npm run deploy:hosted-zones:dev
+
+# Step 2: Add NS records to Squarespace DNS
+# (Use the output from step 1)
+
+# Step 3: Deploy full backend (references existing hosted zones)
+npm run deploy:dev
+```
+
+### **🔧 Technical Implementation:**
+1. **Type Safety**: Updated `BackendStack` to accept `route53.IHostedZone` interface
+2. **Cross-Stack References**: Uses CDK's `Fn.importValue()` for proper stack dependencies
+3. **Conditional Logic**: Single `app.ts` file handles both deployment scenarios
+4. **Error Prevention**: No possibility of creating duplicate hosted zones
+
+### **🎯 Benefits:**
+- **No Double Deployment**: Hosted zones created only once
+- **Clean Separation**: DNS setup separate from application deployment
+- **Proper Dependencies**: Full stack waits for hosted zones to exist
+- **Type Safety**: All imports use proper CDK patterns
+- **Single App File**: Unified approach as requested
+- **Maintainable**: Easier to understand and modify
+
+### **🚀 Next Steps:**
+1. **Test Deployment**: Verify both deployment modes work correctly
+2. **Documentation**: Update any remaining documentation references
+3. **Production Deployment**: Use the same pattern for production environment
+
+---
+
 ## ✅ COMPLETED: Official Apple and Google SDK Integration
 
 ### **🎯 Major Accomplishment:**
@@ -142,6 +214,74 @@ The receipt validation service is now production-ready with official Apple and G
 # Tasks - Lingible
 
 ## 🎯 Current Focus: Infrastructure & API Development
+
+### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
+
+**🎯 Objective:** Establish mandatory TDD workflow for all backend development
+
+**✅ Completed Tasks:**
+1. **TDD Rule Creation:**
+   - ✅ Comprehensive TDD rule document (`memory-bank/tdd-rule.md`)
+   - ✅ Red-Green-Refactor workflow definition
+   - ✅ Test requirements and coverage standards (90% minimum)
+   - ✅ Implementation guidelines for new features, bug fixes, and refactoring
+   - ✅ Quality metrics and success criteria
+   - ✅ Development workflow and best practices
+   - ✅ Tools and commands for test execution
+   - ✅ Examples and practical guidance
+
+2. **Rule Enforcement:**
+   - ✅ Mandatory TDD for all backend changes
+   - ✅ Test coverage requirements (90% minimum, 100% for critical logic)
+   - ✅ Pre-commit test execution requirements
+   - ✅ Code review rejection criteria for missing tests
+   - ✅ Emergency hotfix exceptions with 24-hour test requirement
+
+3. **Quality Standards:**
+   - ✅ Test categories: Unit, Integration, Model, Service, Repository, Handler, Utility
+   - ✅ Test quality standards: AAA pattern, mocking, descriptive names
+   - ✅ Coverage standards and reporting
+   - ✅ Continuous integration requirements
+
+**📋 TDD Workflow (Mandatory):**
+1. **RED**: Write failing tests first
+2. **GREEN**: Write minimal code to pass tests
+3. **REFACTOR**: Clean up code while keeping tests green
+
+**🔧 Implementation Requirements:**
+- All new features must start with tests
+- All bug fixes must include regression tests
+- All refactoring must maintain test coverage
+- 90% minimum code coverage for new code
+- 100% coverage for critical business logic
+
+**📊 Success Criteria:**
+- ✅ All tests pass (0 failures)
+- ✅ Coverage ≥ 90% for new code
+- ✅ No test interdependence
+- ✅ Tests are readable and maintainable
+- ✅ Error scenarios are covered
+- ✅ Edge cases are tested
+
+**🚀 Development Commands:**
+```bash
+# Run all tests
+python run_tests.py
+
+# Run with coverage
+python run_tests.py --coverage
+
+# Run specific test categories
+python run_tests.py --type unit
+```
+
+**📁 Related Files:**
+- `memory-bank/tdd-rule.md` - Comprehensive TDD rule document
+- `tests/` - Test suite directory
+- `run_tests.py` - Test execution script
+- `pytest.ini` - Pytest configuration
+
+---
 
 ### ✅ **COMPLETED: Comprehensive Test Suite Creation (2024-12-19)**
 

@@ -177,16 +177,46 @@ aws-credentials
 
 # CDK
 cdk.out/
+cdk.context.json
+
+# TypeScript build artifacts
 *.d.ts
+*.js.map
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node.js dependencies (but allow package.json and package-lock.json)
+node_modules/
+
+# Compiled JavaScript files from TypeScript
+backend/infrastructure/*.js
+backend/infrastructure/constructs/*.js
+backend/infrastructure/stacks/*.js
+backend/infrastructure/test/*.js
+
+# TypeScript declaration files
+backend/infrastructure/**/*.d.ts
+
+# Keep original JavaScript files in scripts directory
+!backend/infrastructure/scripts/*.js
 
 # Lambda deployment packages
 *.zip
+
+# Lambda build artifacts (from smart builder)
+backend/infrastructure/lambda-layer/
+backend/infrastructure/lambda-packages/
+backend/infrastructure/lambda-hashes.json
 
 # Local development
 .env.local
 .env.development
 .env.test
 .env.production
+
+# Configuration files with sensitive data
+backend/infrastructure/app-config.json
 
 # OS specific
 .DS_Store

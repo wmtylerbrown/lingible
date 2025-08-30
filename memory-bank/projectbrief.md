@@ -1,127 +1,176 @@
 # Project Brief - Lingible
 
-## Project Overview
+## 🎯 **Project Overview**
 
-### Vision
-Build a mobile-first GenZ slang translation application that bridges the communication gap between GenZ internet language and standard English, powered by AWS Bedrock AI.
+**Lingible** is a modern, serverless translation application that provides real-time translation services between English and GenZ language patterns. The application is built on AWS infrastructure with a focus on scalability, security, and cost efficiency.
 
-### Core Value Proposition
-- **Bidirectional Translation**: GenZ slang ↔ Standard English
-- **AI-Powered Accuracy**: AWS Bedrock for context-aware translations
-- **Mobile-First Design**: iOS app with intuitive interface
-- **Usage-Based Model**: Free tier with limits, premium for power users
-- **No Authentication Overhead**: Leverage AWS Cognito for seamless user management
+## 🏗 **Architecture & Technology Stack**
 
-## Technical Requirements
+### **Backend Infrastructure:**
+- **Runtime**: Python 3.13 with AWS Lambda
+- **Infrastructure**: AWS CDK with TypeScript
+- **Database**: DynamoDB with single-table design
+- **Authentication**: AWS Cognito with Apple Identity Provider
+- **AI/ML**: AWS Bedrock for translation services
+- **API Gateway**: REST API with Lambda authorizer
+- **Monitoring**: CloudWatch metrics, logging, and alerting
 
-### Backend Architecture
-- **Serverless**: AWS Lambda with API Gateway
-- **Database**: DynamoDB for scalability and performance
-- **AI Service**: AWS Bedrock for translation capabilities
-- **Authentication**: AWS Cognito for user management
-- **Observability**: Lambda Powertools for logging, tracing, metrics
-- **Infrastructure**: AWS CDK for infrastructure as code
+### **Development Tools:**
+- **Testing**: Pytest with moto for AWS service mocking
+- **Code Quality**: Black, flake8, mypy, pre-commit hooks
+- **Type Safety**: Comprehensive type hints throughout
+- **Documentation**: Comprehensive inline documentation
 
-### Development Standards
-- **Language**: Python 3.13 with strict typing
-- **Architecture**: Clean Architecture with separation of concerns
-- **Code Quality**: mypy, flake8, black for consistency
-- **Testing**: Comprehensive unit and integration tests
-- **Documentation**: OpenAPI specs and architecture docs
+## 🚀 **Core Features**
 
-### User Management
-- **Free Tier**: Limited translations per day/month
-- **Premium Tier**: Higher limits with advanced features
-- **Usage Tracking**: Monitor and enforce limits
-- **User Profiles**: Store preferences and history
+### **Translation Services:**
+- **Real-time Translation**: English ↔ GenZ language patterns
+- **AI-Powered**: AWS Bedrock integration for high-quality translations
+- **Premium Features**: Translation history storage for premium users
+- **Usage Limits**: Tiered usage limits (free: 5/day, premium: 20/day)
 
-## Functional Requirements
+### **User Management:**
+- **Authentication**: Apple Sign-In integration via Cognito
+- **User Profiles**: Comprehensive user profile management
+- **Subscription Management**: Apple Store and Google Play integration
+- **Usage Tracking**: Real-time usage monitoring and limits
 
-### Core Features
-1. **Translation Service**
-   - Bidirectional GenZ ↔ English translation
-   - Context-aware AI processing
-   - Translation history and favorites
-   - Confidence scoring
+### **API Endpoints:**
+- **Translation**: `POST /translate` (core functionality)
+- **User Management**: Profile, usage, upgrade endpoints
+- **Translation History**: GET/DELETE for premium users
+- **System**: Health checks and monitoring
+- **Webhooks**: Receipt validation for app stores
 
-2. **User Management**
-   - Seamless Cognito authentication
-   - Usage tracking and limits
-   - Tier-based access control
-   - User preferences and settings
+## 🔒 **Security & Compliance**
 
-3. **API Endpoints**
-   - `/translate` - Core translation functionality
-   - `/users/profile` - User profile management
-   - `/translations/history` - Translation history
-   - `/users/usage` - Usage statistics
-   - `/health` - System health check
+### **Authentication & Authorization:**
+- **JWT-based Authentication**: Secure token-based authentication
+- **API Gateway Authorizer**: Separate Lambda function for JWT validation
+- **User Context Injection**: Secure user context in Lambda functions
+- **Apple Identity Provider**: External authentication integration
 
-### Non-Functional Requirements
-- **Performance**: Sub-second translation response times
-- **Scalability**: Handle concurrent users efficiently
-- **Reliability**: 99.9% uptime with graceful error handling
-- **Security**: Secure API endpoints with proper authentication
-- **Cost Efficiency**: Optimize AWS resource usage
+### **Data Protection:**
+- **Encryption**: At rest and in transit encryption
+- **Secrets Management**: AWS Secrets Manager for sensitive credentials
+- **IAM Policies**: Least privilege access controls
+- **Audit Logging**: Comprehensive security event logging
 
-## Success Criteria
+## 📊 **Performance & Scalability**
 
-### Technical Metrics
-- **API Response Time**: < 1 second for translations
-- **Error Rate**: < 1% for successful requests
-- **Code Coverage**: > 80% for critical paths
-- **Type Safety**: 100% typed codebase
-- **Documentation**: Complete API documentation
+### **Serverless Architecture:**
+- **Auto-scaling**: Lambda functions scale automatically
+- **Cost Optimization**: Pay-per-use pricing model
+- **Cold Start Optimization**: Efficient function design
+- **Caching**: DynamoDB DAX for read performance
 
-### Business Metrics
-- **User Adoption**: Target user growth metrics
-- **Translation Accuracy**: High-quality AI translations
-- **Usage Patterns**: Understand user behavior
-- **Cost Optimization**: Efficient AWS resource utilization
+### **Monitoring & Observability:**
+- **CloudWatch Metrics**: Real-time performance monitoring
+- **Structured Logging**: JSON-formatted logs for analysis
+- **Error Tracking**: Comprehensive error handling and reporting
+- **Alerting**: Automated alerts for critical issues
 
-## Constraints & Assumptions
+## 🧪 **Quality Assurance**
 
-### Technical Constraints
-- **AWS Services**: Leverage existing AWS infrastructure
-- **Mobile Platform**: iOS-first development
-- **AI Model**: AWS Bedrock for translation capabilities
-- **Budget**: Cost-conscious AWS resource usage
+### **Test-Driven Development (TDD):**
+- **Mandatory TDD Workflow**: Red-Green-Refactor for all development
+- **Test Coverage**: 90% minimum for new code, 100% for critical logic
+- **Comprehensive Testing**: Unit, integration, and end-to-end tests
+- **Quality Enforcement**: Code review rejection for missing tests
 
-### Business Constraints
-- **Time to Market**: Rapid development and deployment
-- **Team Size**: Small, focused development team
-- **User Base**: GenZ demographic with mobile-first usage
+### **Code Quality:**
+- **Type Safety**: Comprehensive type hints throughout
+- **Style Guidelines**: Black formatting, flake8 linting, mypy checking
+- **Pre-commit Hooks**: Automated quality checks
+- **Documentation**: Comprehensive inline documentation
 
-### Assumptions
-- **User Behavior**: Users prefer mobile over web interface
-- **Translation Quality**: AWS Bedrock provides sufficient accuracy
-- **Scalability**: Serverless architecture handles growth
-- **Cost Model**: Usage-based pricing is sustainable
+## 🏢 **Business Model**
 
-## Risk Mitigation
+### **Freemium Structure:**
+- **Free Tier**: 5 translations per day, basic features
+- **Premium Tier**: 20 translations per day, translation history, advanced features
+- **Subscription**: Monthly/yearly subscriptions via Apple Store and Google Play
 
-### Technical Risks
-- **AI Translation Quality**: Monitor and improve Bedrock prompts
-- **Scalability Issues**: Design for auto-scaling from day one
-- **Cost Overruns**: Implement usage monitoring and alerts
-- **Security Vulnerabilities**: Regular security audits and testing
+### **Revenue Streams:**
+- **App Store Subscriptions**: Apple Store and Google Play
+- **Premium Features**: Translation history and advanced capabilities
+- **Enterprise Plans**: Future enterprise features and support
 
-### Business Risks
-- **User Adoption**: Focus on user experience and feedback
-- **Competition**: Build unique features and strong brand
-- **Regulatory Changes**: Stay compliant with data privacy laws
-- **Technology Changes**: Maintain flexibility in architecture
+## 🌍 **Target Market**
 
-## Future Enhancements
+### **Primary Users:**
+- **Gen Z Users**: Young adults who use GenZ language patterns
+- **Content Creators**: Social media influencers and content creators
+- **Students**: Young people learning and communicating online
+- **Professionals**: Those needing to understand GenZ communication
 
-### Phase 2 Features
-- **Real-time Collaboration**: Shared translation workspaces
-- **Custom Dictionaries**: User-defined slang terms
-- **Social Features**: Share and discover translations
-- **Advanced Analytics**: Usage insights and trends
+### **Use Cases:**
+- **Social Media**: Understanding and creating GenZ content
+- **Communication**: Bridging generational language gaps
+- **Content Creation**: Creating relatable content for young audiences
+- **Education**: Learning modern language patterns
 
-### Phase 3 Features
-- **Multi-language Support**: Beyond GenZ slang
-- **Voice Translation**: Speech-to-text capabilities
-- **Offline Mode**: Local translation capabilities
-- **Enterprise Features**: Team and organization management
+## 📈 **Growth Strategy**
+
+### **Phase 1: Core Platform (Current)**
+- ✅ **MVP Development**: Core translation functionality
+- ✅ **Infrastructure Setup**: AWS-based serverless architecture
+- ✅ **Security Implementation**: Authentication and authorization
+- ✅ **Testing Framework**: Comprehensive test suite with TDD
+
+### **Phase 2: Scale & Optimize (Next 3-6 months)**
+- **Performance Optimization**: Load testing and optimization
+- **Feature Enhancement**: Additional translation models
+- **User Experience**: Improved UI/UX and mobile app
+- **Analytics**: User behavior and usage analytics
+
+### **Phase 3: Expansion (6-12 months)**
+- **Internationalization**: Multi-language support
+- **Enterprise Features**: Team and organization features
+- **API Platform**: Public API for third-party integrations
+- **Advanced AI**: Custom translation models and features
+
+## 🎯 **Success Metrics**
+
+### **Technical Metrics:**
+- **Uptime**: 99.9% availability target
+- **Performance**: < 2 second response times
+- **Coverage**: 90%+ test coverage maintained
+- **Security**: Zero security incidents
+
+### **Business Metrics:**
+- **User Growth**: Monthly active user growth
+- **Conversion**: Free to premium conversion rate
+- **Retention**: User retention and engagement
+- **Revenue**: Monthly recurring revenue growth
+
+## 🔧 **Development Workflow**
+
+### **TDD Process:**
+1. **RED**: Write failing tests first
+2. **GREEN**: Write minimal code to pass tests
+3. **REFACTOR**: Clean up code while keeping tests green
+
+### **Quality Gates:**
+- **Pre-commit**: Automated tests and quality checks
+- **Code Review**: Mandatory review with test coverage requirements
+- **Integration Testing**: End-to-end testing for all features
+- **Performance Testing**: Load testing for critical paths
+
+## 📚 **Documentation & Resources**
+
+### **Technical Documentation:**
+- **API Documentation**: OpenAPI/Swagger specifications
+- **Architecture Guides**: System design and patterns
+- **Deployment Guides**: Step-by-step deployment instructions
+- **Troubleshooting**: Common issues and solutions
+
+### **Development Resources:**
+- **Setup Guides**: Development environment configuration
+- **Testing Guidelines**: TDD best practices and examples
+- **Code Standards**: Style guides and conventions
+- **Security Guidelines**: Security best practices
+
+---
+
+**Current Status**: Ready for infrastructure deployment and production readiness phase. All core functionality implemented with comprehensive test coverage and TDD workflow established. The platform is positioned for rapid growth and scaling in the GenZ translation market.
