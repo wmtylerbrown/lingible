@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigLoader } from '../utils/config-loader';
 
-export class BackendStack extends cdk.Stack {
+export class BackendStack extends Construct {
   // Database resources
   public usersTable!: dynamodb.Table;
   public translationsTable!: dynamodb.Table;
@@ -28,8 +28,9 @@ export class BackendStack extends cdk.Stack {
   public userPool!: cognito.UserPool;
   public userPoolClient!: cognito.UserPoolClient;
 
-  // Shared Lambda layer
+  // Lambda layers
   public sharedLayer!: lambda.LayerVersion;
+  public dependenciesLayer!: lambda.LayerVersion;
 
   // Lambda functions
   public authorizerLambda!: lambda.Function;
@@ -58,7 +59,7 @@ export class BackendStack extends cdk.Stack {
   constructor(
     scope: Construct,
     id: string,
-    props: cdk.StackProps & {
+    props: {
       environment: string;
       hostedZone: route53.IHostedZone;
       appleClientId?: string;
@@ -66,28 +67,27 @@ export class BackendStack extends cdk.Stack {
       appleKeyId?: string;
     }
   ) {
-    super(scope, id, props);
+    super(scope, id);
 
     const { environment, hostedZone, appleClientId, appleTeamId, appleKeyId } = props;
 
-    // Common Lambda configuration
-    const lambdaConfig = {
-      runtime: lambda.Runtime.PYTHON_3_13,
-      timeout: Duration.seconds(30),
-      memorySize: 512,
-      logRetention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: RemovalPolicy.DESTROY, // For development
-    };
-
-    // Create shared Lambda layer for common code
+    // Create Lambda layers
+    this.dependenciesLayer = this.createDependenciesLayer(environment);
     this.sharedLayer = this.createSharedLayer(environment);
 
     // Create DynamoDB tables
     this.createDatabaseTables(environment);
 
     // Load configuration from shared config files
-    const configLoader = new ConfigLoader(path.join(__dirname, '../../../..'));
-    const lambdaConfig = configLoader.getLambdaConfig(environment);
+    const configLoader = new ConfigLoader(path.resolve(__dirname, '../../..'));
+    const lambdaConfig = {
+      runtime: lambda.Runtime.PYTHON_3_13,
+      timeout: Duration.seconds(30),
+      memorySize: 512,
+      logRetention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: RemovalPolicy.DESTROY, // For development
+      ...configLoader.getLambdaConfig(environment),
+    };
 
     // Create SSM parameters for configuration
     this.createSsmParameters(environment, lambdaConfig);
@@ -138,7 +138,7 @@ export class BackendStack extends cdk.Stack {
           'ssm:GetParametersByPath',
         ],
         resources: [
-          `arn:aws:ssm:${this.region}:${this.account}:parameter/lingible-backend/${environment}/*`,
+          `arn:aws:ssm:*:*:parameter/lingible-backend/${environment}/*`,
         ],
       }),
     ];
@@ -347,13 +347,27 @@ export class BackendStack extends cdk.Stack {
     });
   }
 
-  private createSharedLayer(environment: string): lambda.LayerVersion {
-    const layerDir = 'lambda-layer';
-    const layerCode = lambda.Code.fromAsset(layerDir);
+  private createDependenciesLayer(environment: string): lambda.LayerVersion {
+    return new lambda.LayerVersion(this, 'DependenciesLayer', {
+      layerVersionName: `lingible-dependencies-layer-${environment}`,
+      code: lambda.Code.fromAsset('lambda-dependencies-layer', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+          command: [
+            'bash', '-c',
+            'rm -rf /asset-output/python && pip install --platform manylinux2014_x86_64 --implementation cp --python-version 3.13 --only-binary=:all: --upgrade --target /asset-output/python -r requirements.txt'
+          ],
+        },
+      }),
+      compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
+      description: 'Python dependencies for Lingible Lambda functions',
+    });
+  }
 
+  private createSharedLayer(environment: string): lambda.LayerVersion {
     return new lambda.LayerVersion(this, 'SharedLayer', {
       layerVersionName: `lingible-shared-layer-${environment}`,
-      code: layerCode,
+      code: lambda.Code.fromAsset('lambda-layer'),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
       description: 'Shared code for Lingible Lambda functions',
     });
@@ -418,7 +432,7 @@ export class BackendStack extends cdk.Stack {
         USER_POOL_ID: this.userPool.userPoolId,
         USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
       },
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.authorizerLambda.addToRolePolicy(statement));
@@ -428,7 +442,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'translate_api_handler.handler',
       code: this.createHandlerPackage('src.handlers.translate_api.translate_api_handler'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.translateLambda.addToRolePolicy(statement));
@@ -438,7 +452,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'user_profile_api_handler.handler',
       code: this.createHandlerPackage('src.handlers.user_profile_api.user_profile_api_handler'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userProfileLambda.addToRolePolicy(statement));
@@ -448,7 +462,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'user_usage_api_handler.handler',
       code: this.createHandlerPackage('src.handlers.user_usage_api.user_usage_api_handler'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userUsageLambda.addToRolePolicy(statement));
@@ -458,7 +472,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'user_upgrade_api_handler.handler',
       code: this.createHandlerPackage('src.handlers.user_upgrade_api.user_upgrade_api_handler'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userUpgradeLambda.addToRolePolicy(statement));
@@ -468,7 +482,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'get_translation_history.handler',
       code: this.createHandlerPackage('src.handlers.translation_history_api.get_translation_history'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.translationHistoryLambda.addToRolePolicy(statement));
@@ -478,7 +492,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'delete_translation.handler',
       code: this.createHandlerPackage('src.handlers.translation_history_api.delete_translation'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.deleteTranslationLambda.addToRolePolicy(statement));
@@ -488,7 +502,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'delete_all_translations.handler',
       code: this.createHandlerPackage('src.handlers.translation_history_api.delete_all_translations'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.deleteAllTranslationsLambda.addToRolePolicy(statement));
@@ -498,7 +512,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'health_api_handler.handler',
       code: this.createHandlerPackage('src.handlers.health_api.health_api_handler'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.healthLambda.addToRolePolicy(statement));
@@ -509,7 +523,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'apple_webhook_handler.handler',
       code: this.createHandlerPackage('src.handlers.apple_webhook.apple_webhook_handler'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.appleWebhookLambda.addToRolePolicy(statement));
@@ -520,7 +534,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'cognito_post_confirmation.cognito_post_confirmation.lambda_handler',
       code: this.createHandlerPackage('src.handlers.cognito_post_confirmation.cognito_post_confirmation'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.postConfirmationLambda.addToRolePolicy(statement));
@@ -530,7 +544,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'cognito_pre_authentication.cognito_pre_authentication.lambda_handler',
       code: this.createHandlerPackage('src.handlers.cognito_pre_authentication.cognito_pre_authentication'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.preAuthenticationLambda.addToRolePolicy(statement));
@@ -540,7 +554,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'cognito_pre_user_deletion.cognito_pre_user_deletion.lambda_handler',
       code: this.createHandlerPackage('src.handlers.cognito_pre_user_deletion.cognito_pre_user_deletion'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.preUserDeletionLambda.addToRolePolicy(statement));
@@ -551,7 +565,7 @@ export class BackendStack extends cdk.Stack {
       handler: 'user_data_cleanup.user_data_cleanup.lambda_handler',
       code: this.createHandlerPackage('src.handlers.user_data_cleanup.user_data_cleanup'),
       environment: commonEnv,
-      layers: [this.sharedLayer],
+      layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userDataCleanupLambda.addToRolePolicy(statement));
@@ -623,7 +637,7 @@ export class BackendStack extends cdk.Stack {
     // Create API models
     const errorModel = this.api.addModel('ErrorModel', {
       contentType: 'application/json',
-      modelName: 'Error',
+      modelName: 'LingibleError',
       schema: {
         type: apigateway.JsonSchemaType.OBJECT,
         properties: {
@@ -635,7 +649,7 @@ export class BackendStack extends cdk.Stack {
 
     const successModel = this.api.addModel('SuccessModel', {
       contentType: 'application/json',
-      modelName: 'Success',
+      modelName: 'LingibleSuccess',
       schema: {
         type: apigateway.JsonSchemaType.OBJECT,
         properties: {

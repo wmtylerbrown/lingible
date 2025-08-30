@@ -24,16 +24,12 @@ describe('BackendStack', () => {
     });
 
     // Create the backend stack
-    stack = new BackendStack(app, 'TestBackendStack', {
+    stack = new BackendStack(mockStack, 'TestBackendStack', {
       environment: 'dev',
       hostedZone: mockHostedZone,
-      env: {
-        account: '123456789012',
-        region: 'us-east-1',
-      },
     });
 
-    template = Template.fromStack(stack);
+    template = Template.fromStack(mockStack);
   });
 
   test('creates DynamoDB tables', () => {

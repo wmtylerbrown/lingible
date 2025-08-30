@@ -6,8 +6,9 @@ const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 // Configuration
-const SRC_DIR = '../src';
+const SRC_DIR = '../lambda/src';
 const LAMBDA_LAYER_DIR = 'lambda-layer';
+const LAMBDA_DEPENDENCIES_LAYER_DIR = 'lambda-dependencies-layer';
 const LAMBDA_PACKAGES_DIR = 'lambda-packages';
 const HASH_FILE = 'lambda-hashes.json';
 
@@ -124,8 +125,63 @@ function saveHashes(hashes) {
   fs.writeFileSync(HASH_FILE, JSON.stringify(hashes, null, 2));
 }
 
+function buildDependenciesLayer() {
+  console.log('📦 Building dependencies Lambda layer...');
+
+  const layerDir = LAMBDA_DEPENDENCIES_LAYER_DIR;
+  const layerHashKey = 'dependencies-layer';
+
+  // Calculate hash for requirements.txt
+  const requirementsPath = path.join(__dirname, '..', 'lambda-layer-requirements.txt');
+  let requirementsHash = '';
+  if (fs.existsSync(requirementsPath)) {
+    const content = fs.readFileSync(requirementsPath);
+    requirementsHash = crypto.createHash('sha256').update(content).digest('hex');
+  }
+
+  const hashes = loadHashes();
+
+  if (hashes[layerHashKey] === requirementsHash) {
+    console.log('✅ Dependencies layer unchanged, skipping rebuild');
+    return;
+  }
+
+  // Clean and rebuild layer
+  if (fs.existsSync(layerDir)) {
+    fs.rmSync(layerDir, { recursive: true, force: true });
+  }
+
+  fs.mkdirSync(layerDir, { recursive: true });
+
+  // Create python directory for dependencies
+  const pythonDir = path.join(layerDir, 'python');
+  fs.mkdirSync(pythonDir, { recursive: true });
+
+  // Copy requirements.txt and install dependencies
+  if (fs.existsSync(requirementsPath)) {
+    fs.copyFileSync(requirementsPath, path.join(layerDir, 'requirements.txt'));
+
+    console.log('📦 Installing Python dependencies...');
+    try {
+      execSync(`pip3 install -r requirements.txt -t python`, {
+        stdio: 'inherit',
+        cwd: layerDir
+      });
+      console.log('✅ Dependencies installed successfully');
+    } catch (error) {
+      console.log('❌ Error: Failed to install dependencies');
+      throw error;
+    }
+  }
+
+  hashes[layerHashKey] = requirementsHash;
+  saveHashes(hashes);
+
+  console.log('✅ Dependencies layer built successfully');
+}
+
 function buildSharedLayer() {
-  console.log('📦 Building shared Lambda layer...');
+  console.log('📦 Building shared code Lambda layer...');
 
   const layerDir = LAMBDA_LAYER_DIR;
   const pythonDir = path.join(layerDir, 'python');
@@ -165,16 +221,10 @@ function buildSharedLayer() {
     }
   }
 
-  // Copy requirements.txt for layer dependencies
-  const requirementsPath = path.join(SRC_DIR, 'requirements.txt');
-  if (fs.existsSync(requirementsPath)) {
-    fs.copyFileSync(requirementsPath, path.join(layerDir, 'requirements.txt'));
-  }
-
   hashes[layerHashKey] = sharedHash;
   saveHashes(hashes);
 
-  console.log('✅ Shared layer built successfully');
+  console.log('✅ Shared code layer built successfully');
 }
 
 function buildHandlerPackages() {
@@ -248,7 +298,10 @@ function main() {
     fs.mkdirSync(LAMBDA_PACKAGES_DIR, { recursive: true });
   }
 
-  // Build shared layer
+  // Build dependencies layer first
+  buildDependenciesLayer();
+
+  // Build shared code layer
   buildSharedLayer();
 
   // Build handler packages
@@ -256,7 +309,8 @@ function main() {
 
   console.log('\n🎉 Lambda package build completed successfully!');
   console.log('\n📁 Generated artifacts:');
-  console.log(`   - Shared layer: ${LAMBDA_LAYER_DIR}/`);
+  console.log(`   - Dependencies layer: ${LAMBDA_DEPENDENCIES_LAYER_DIR}/`);
+  console.log(`   - Shared code layer: ${LAMBDA_LAYER_DIR}/`);
   console.log(`   - Handler packages: ${LAMBDA_PACKAGES_DIR}/`);
   console.log(`   - Build hashes: ${HASH_FILE}`);
 }

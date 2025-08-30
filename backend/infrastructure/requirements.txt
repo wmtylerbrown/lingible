@@ -1,3 +1,0 @@
-# CDK Infrastructure Dependencies
-aws-cdk-lib>=2.213.0
-constructs>=10.4.2

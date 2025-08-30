@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { LingibleStack } from './stacks/lingible_stack';
 import { ConfigLoader } from './utils/config-loader';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,18 +13,24 @@ const environment = app.node.tryGetContext('environment') || 'dev';
 // Check if we should deploy the full stack or just hosted zones
 const deployBackend = app.node.tryGetContext('deploy-backend') !== false; // Default to true
 
-// Load application configuration from shared config
-let appleCredentials: { clientId: string; teamId: string; keyId: string };
-try {
-  const configLoader = new ConfigLoader(path.join(__dirname, '../..'));
-  appleCredentials = configLoader.getAppleCredentials(environment);
-} catch (error) {
-  console.warn('⚠️  Failed to load Apple credentials from shared config. Using default values.');
-  appleCredentials = { clientId: 'TO_BE_SET', teamId: 'TO_BE_SET', keyId: 'TO_BE_SET' };
+// Load application configuration from shared config (only for full stack deployment)
+let appleCredentials: { clientId: string; teamId: string; keyId: string } | undefined;
+if (deployBackend) {
+  try {
+    const configLoader = new ConfigLoader(path.resolve(__dirname, '../..'));
+    appleCredentials = configLoader.getAppleCredentials(environment);
+  } catch (error) {
+    console.warn('⚠️  Failed to load Apple credentials from shared config. Using default values.');
+    appleCredentials = { clientId: 'TO_BE_SET', teamId: 'TO_BE_SET', keyId: 'TO_BE_SET' };
+  }
 }
 
 if (deployBackend) {
   // Full stack deployment (hosted zones + backend)
+  if (!appleCredentials) {
+    throw new Error('Apple credentials are required for full stack deployment');
+  }
+  const { LingibleStack } = require('./stacks/lingible_stack');
   new LingibleStack(app, `Lingible-${environment.charAt(0).toUpperCase() + environment.slice(1)}`, {
     description: `Lingible - ${environment.charAt(0).toUpperCase() + environment.slice(1)} Environment`,
     environment: environment,

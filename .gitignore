@@ -208,6 +208,8 @@ backend/infrastructure/**/*.d.ts
 backend/infrastructure/lambda-layer/
 backend/infrastructure/lambda-packages/
 backend/infrastructure/lambda-hashes.json
+backend/infrastructure/lambda-dependencies-layer/
+backend/infrastructure/utils/config-loader.js
 
 # Local development
 .env.local

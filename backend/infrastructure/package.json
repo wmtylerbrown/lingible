@@ -33,7 +33,13 @@
     "clean:system": "find . -name '.DS_Store' -delete && find . -name 'Thumbs.db' -delete && find . -name '*.log' -delete && find . -name '*.tmp' -delete && find . -name '*.swp' -delete && find . -name '*.swo' -delete",
     "clean:build": "find . -name 'build' -type d -exec rm -rf {} + 2>/dev/null || true && find . -name 'dist' -type d -exec rm -rf {} + 2>/dev/null || true && find . -name '*.egg-info' -type d -exec rm -rf {} + 2>/dev/null || true",
     "clean:workspace": "npm run clean && npm run clean:python && npm run clean:system && npm run clean:build",
-    "test:config": "ts-node test-config.ts"
+    "test:config": "ts-node test-config.ts",
+    "python:dev": "PYTHONPATH=../lambda/src python",
+    "python:test": "PYTHONPATH=../lambda/src python -m pytest ../lambda/tests/",
+    "python:test:watch": "PYTHONPATH=../lambda/src python -m pytest ../lambda/tests/ --watch",
+    "python:test:coverage": "PYTHONPATH=../lambda/src python -m pytest ../lambda/tests/ --cov=../lambda/src --cov-report=html",
+    "python:lint": "PYTHONPATH=../lambda/src python -m flake8 ../lambda/src/",
+    "python:type-check": "PYTHONPATH=../lambda/src python -m mypy ../lambda/src/"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

@@ -1,5 +1,5 @@
 {
-  "app": "python3 app.py",
+  "app": "npx ts-node app.ts",
   "watch": {
     "include": [
       "**"
@@ -50,7 +50,7 @@
       "aws",
       "aws-cn"
     ],
-    "account": "123456789012",
+    "account": "480421270075",
     "region": "us-east-1"
   }
 }

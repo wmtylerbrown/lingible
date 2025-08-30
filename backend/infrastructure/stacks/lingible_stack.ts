@@ -22,16 +22,15 @@ export class LingibleStack extends cdk.Stack {
 
     // Import the hosted zone from the separately deployed HostedZonesStack
     const hostedZoneId = cdk.Fn.importValue(`Lingible-${environment}-HostedZoneId`);
-    const hostedZone = route53.HostedZone.fromHostedZoneId(this, 'ImportedHostedZone', hostedZoneId);
+    const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'ImportedHostedZone', {
+      hostedZoneId: hostedZoneId,
+      zoneName: `${environment}.lingible.com`,
+    });
 
     // Backend Stack (combines database, cognito/lambda, API gateway, and monitoring)
     this.backendStack = new BackendStack(this, 'Backend', {
       environment: environment,
       hostedZone: hostedZone,
-      env: {
-        account: this.account,
-        region: this.region,
-      },
       appleClientId: props.appleClientId,
       appleTeamId: props.appleTeamId,
       appleKeyId: props.appleKeyId,

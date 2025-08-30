@@ -18,8 +18,8 @@
     "crash_reporting": true
   },
   "apple": {
-    "clientId": "com.lingible.lingible",
-    "teamId": "YOUR_TEAM_ID",
+    "clientId": "com.lingible.lingible.signin",
+    "teamId": "PH33VX3MUL",
     "keyId": "YOUR_KEY_ID"
   }
 }
