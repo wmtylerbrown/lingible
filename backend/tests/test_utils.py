@@ -10,19 +10,18 @@ from src.utils.exceptions import (
     BusinessLogicError,
     ValidationError,
     AuthenticationError,
-    AuthorizationError,
+    InsufficientPermissionsError,
     SystemError,
     ErrorCode
 )
 from src.utils.response import create_success_response, create_error_response
 from src.utils.envelopes import (
     AuthenticatedAPIGatewayEnvelope,
-    TranslationRequestEnvelope,
-    TranslationHistoryEnvelope,
+    TranslationEnvelope,
     SimpleAuthenticatedEnvelope,
     PathParameterEnvelope
 )
-from src.utils.config import Config
+from src.utils.config import AppConfig
 from src.utils.logging import SmartLogger
 
 
@@ -31,10 +30,10 @@ class TestExceptions:
 
     def test_app_exception_base(self):
         """Test base AppException."""
-        exception = AppException("Test error", ErrorCode.VALIDATION_ERROR, 400)
+        exception = AppException("Test error", ErrorCode.INVALID_INPUT, 400)
 
         assert str(exception) == "Test error"
-        assert exception.error_code == ErrorCode.VALIDATION_ERROR
+        assert exception.error_code == ErrorCode.INVALID_INPUT
         assert exception.status_code == 400
 
     def test_business_logic_error(self):
@@ -61,13 +60,13 @@ class TestExceptions:
         assert exception.error_code == ErrorCode.AUTHENTICATION_ERROR
         assert exception.status_code == 401
 
-    def test_authorization_error(self):
-        """Test AuthorizationError."""
-        exception = AuthorizationError("Insufficient permissions")
+    def test_insufficient_permissions_error(self):
+        """Test InsufficientPermissionsError."""
+        exception = InsufficientPermissionsError("Insufficient permissions")
 
         assert str(exception) == "Insufficient permissions"
-        assert exception.error_code == ErrorCode.AUTHORIZATION_ERROR
-        assert exception.status_code == 403
+        assert exception.error_code == ErrorCode.INVALID_TOKEN
+        assert exception.status_code == 401
 
     def test_system_error(self):
         """Test SystemError."""
@@ -146,8 +145,8 @@ class TestEnvelopes:
         assert parsed_event.username == "testuser"
         assert parsed_event.request_id == "req_123"
 
-    def test_translation_request_envelope(self):
-        """Test TranslationRequestEnvelope."""
+    def test_translation_envelope(self):
+        """Test TranslationEnvelope."""
         event = {
             "requestContext": {
                 "authorizer": {
@@ -159,12 +158,12 @@ class TestEnvelopes:
             "body": '{"text": "Hello world", "direction": "english_to_genz"}'
         }
 
-        envelope = TranslationRequestEnvelope()
+        envelope = TranslationEnvelope()
         parsed_event = envelope.parse(event)
 
         assert parsed_event.user_id == "test_user_123"
-        assert parsed_event.text == "Hello world"
-        assert parsed_event.direction.value == "english_to_genz"
+        assert parsed_event.request_body.text == "Hello world"
+        assert parsed_event.request_body.direction.value == "english_to_genz"
 
     def test_translation_history_envelope(self):
         """Test TranslationHistoryEnvelope."""
@@ -267,8 +266,8 @@ class TestConfig:
         'AWS_REGION': 'us-east-1'
     })
     def test_config_initialization(self):
-        """Test Config initialization with environment variables."""
-        config = Config()
+        """Test AppConfig initialization with environment variables."""
+        config = AppConfig()
 
         assert config.environment == "test"
         assert config.app_name == "lingible-test"
@@ -276,15 +275,15 @@ class TestConfig:
 
     @patch.dict('os.environ', {}, clear=True)
     def test_config_defaults(self):
-        """Test Config initialization with defaults."""
-        config = Config()
+        """Test AppConfig initialization with defaults."""
+        config = AppConfig()
 
         assert config.environment == "development"
         assert config.app_name == "lingible-backend"
 
     def test_config_bedrock_config(self):
         """Test Bedrock configuration."""
-        config = Config()
+        config = AppConfig()
 
         assert "model_id" in config.bedrock_config
         assert "max_tokens" in config.bedrock_config
@@ -292,7 +291,7 @@ class TestConfig:
 
     def test_config_apple_store_config(self):
         """Test Apple Store configuration."""
-        config = Config()
+        config = AppConfig()
 
         assert config.apple_store["bundle_id"] == "com.lingible.lingible"
         assert "sandbox_url" in config.apple_store
@@ -300,7 +299,7 @@ class TestConfig:
 
     def test_config_google_play_config(self):
         """Test Google Play configuration."""
-        config = Config()
+        config = AppConfig()
 
         assert config.google_play["package_name"] == "com.lingible.lingible"
         assert "api_timeout" in config.google_play

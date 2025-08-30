@@ -6,7 +6,7 @@ import json
 
 from src.models.translations import TranslationDirection
 from src.models.users import UserTier, UserStatus
-from src.models.events import TranslationRequestEvent, TranslationHistoryEvent
+from src.models.events import TranslationEvent, SimpleAuthenticatedEvent, PathParameterEvent
 from src.utils.exceptions import BusinessLogicError, ValidationError
 
 
