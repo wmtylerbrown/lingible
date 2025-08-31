@@ -2,6 +2,7 @@
 
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
+from aws_lambda_powertools.utilities.parser.models import APIGatewayEventRequestContext, APIGatewayProxyEventModel
 
 from .translations import TranslationRequest
 from .subscriptions import UserUpgradeRequest, AppleWebhookRequest
@@ -244,3 +245,31 @@ class UserDataCleanupEvent(BaseModel):
         description="List of cleanup steps to perform",
     )
     requested_at: Optional[str] = Field(None, description="When cleanup was requested")
+
+
+# Custom API Gateway Event Models for Authorizer Context
+class CustomAuthorizerContext(BaseModel):
+    """Custom authorizer context model for our Cognito authorizer."""
+    token_issued_at: str | None = None
+    token_expires_at: str | None = None
+    user_id: str | None = None
+    principalId: str | None = None
+    user_tier: str | None = None
+    integrationLatency: int | None = None
+    email: str | None = None
+    username: str | None = None
+
+
+class CustomRequestContext(APIGatewayEventRequestContext):
+    """Custom request context that extends the base one with our custom authorizer."""
+
+    authorizer: Optional[CustomAuthorizerContext] = Field(
+        None, description="Custom authorizer context"
+    )  # type: ignore[assignment]
+
+
+class CustomAPIGatewayProxyEventModel(APIGatewayProxyEventModel):
+    """API Gateway event with Lingible-specific validation."""
+
+    # Override the request context to use our custom one
+    requestContext: Optional[CustomRequestContext] = Field(None, description="Request context with custom authorizer")  # type: ignore[assignment]

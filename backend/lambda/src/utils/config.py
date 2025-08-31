@@ -4,6 +4,7 @@ import os
 import json
 from typing import Dict, Any
 from aws_lambda_powertools.utilities.parameters import get_parameter
+from .config_models import DatabaseConfig
 
 
 class AppConfig:
@@ -77,13 +78,8 @@ class AppConfig:
             },
             # Database Configuration
             "database": {
-                "tables": {
-                    "users": f"{self.app_name}-users-{self.environment}",
-                    "translations": f"{self.app_name}-translations-{self.environment}",
-                    "translation_history": f"{self.app_name}-translation-history-{self.environment}",
-                    "usage_tracking": f"{self.app_name}-usage-tracking-{self.environment}",
-                    "receipts": f"{self.app_name}-receipts-{self.environment}",
-                },
+                "users_table": f"{self.app_name}-users-{self.environment}",
+                "translations_table": f"{self.app_name}-translations-{self.environment}",
                 "read_capacity": 5,
                 "write_capacity": 5,
             },
@@ -197,6 +193,11 @@ class AppConfig:
     def get_database_config(self) -> Dict[str, Any]:
         """Get database configuration."""
         return self.get("database", self._defaults["database"])
+
+    def get_database_config_typed(self) -> DatabaseConfig:
+        """Get database configuration as a typed model."""
+        raw_config = self.get("database", self._defaults["database"])
+        return DatabaseConfig(**raw_config)
 
     def get_security_config(self) -> Dict[str, Any]:
         """Get security configuration."""

@@ -15,7 +15,7 @@ class SmartLogger:
     def __init__(self, service_name: str) -> None:
         """Initialize smart logger."""
         logging_config = config.get_logging_config()
-        environment = config.environment
+        self.environment = config.environment
 
         self.logger = Logger(
             service=service_name,

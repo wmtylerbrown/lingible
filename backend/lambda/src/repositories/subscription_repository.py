@@ -20,7 +20,7 @@ class SubscriptionRepository:
     def __init__(self) -> None:
         """Initialize subscription repository."""
         self.config = get_config()
-        self.table_name = self.config.get_database_config()["users_table"]
+        self.table_name = self.config.get_database_config_typed().users_table
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "subscriptions")

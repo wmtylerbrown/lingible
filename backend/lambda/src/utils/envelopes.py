@@ -3,11 +3,11 @@
 from __future__ import annotations
 from typing import Any, Dict, TypeVar, TYPE_CHECKING
 from aws_lambda_powertools.utilities.parser import BaseEnvelope
-from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventModel
 from pydantic import BaseModel
 
 from models.translations import TranslationRequest
 from models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
+from models.events import CustomAPIGatewayProxyEventModel
 from .exceptions import ValidationError, AuthenticationError
 
 if TYPE_CHECKING:
@@ -25,19 +25,19 @@ class APIGatewayEnvelope(BaseEnvelope):
         if not isinstance(data, dict):
             raise ValidationError("Expected dict for API Gateway event")
 
-        # Parse the API Gateway event
-        event = APIGatewayProxyEventModel(**data)
+        # Parse the API Gateway event with our custom model
+        event = CustomAPIGatewayProxyEventModel(**data)
 
         # Extract common API Gateway data
         base_data = self._extract_common_data(event)
 
-        # Let subclasses add their specific parsing logic          # Let subclasses add their specific parsing logic
+        # Let subclasses add their specific parsing logic
         result = self._parse_api_gateway(event, model, base_data)
 
         # Return the model instance instead of the dictionary
         return model(**result)
 
-    def _extract_common_data(self, event: APIGatewayProxyEventModel) -> Dict[str, Any]:
+    def _extract_common_data(self, event: CustomAPIGatewayProxyEventModel) -> Dict[str, Any]:
         """Extract common data from API Gateway event."""
         # Extract user info from authorizer context (set by API Gateway authorizer)
         user_id = None
@@ -66,7 +66,7 @@ class APIGatewayEnvelope(BaseEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -77,7 +77,7 @@ class APIGatewayEnvelope(BaseEnvelope):
 class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
     """Base envelope for authenticated API Gateway events."""
 
-    def _extract_common_data(self, event: APIGatewayProxyEventModel) -> Dict[str, Any]:
+    def _extract_common_data(self, event: CustomAPIGatewayProxyEventModel) -> Dict[str, Any]:
         """Extract common data from API Gateway event with authentication validation."""
         # Extract user info from authorizer context (set by API Gateway authorizer)
         user_id = None
@@ -85,6 +85,7 @@ class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
 
         if event.requestContext and event.requestContext.authorizer:
             authorizer_context = event.requestContext.authorizer
+            # Access authorizer context as a dictionary
             user_id = getattr(authorizer_context, "user_id", None)
             username = getattr(authorizer_context, "username", None)
 
@@ -119,7 +120,7 @@ class TranslationEnvelope(AuthenticatedAPIGatewayEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -141,7 +142,7 @@ class UserUpgradeEnvelope(AuthenticatedAPIGatewayEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -164,7 +165,7 @@ class SimpleEnvelope(APIGatewayEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -177,7 +178,7 @@ class SimpleAuthenticatedEnvelope(AuthenticatedAPIGatewayEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -190,7 +191,7 @@ class PathParameterEnvelope(AuthenticatedAPIGatewayEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -209,7 +210,7 @@ class TranslationHistoryEnvelope(AuthenticatedAPIGatewayEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -237,7 +238,7 @@ class WebhookEnvelope(APIGatewayEnvelope):
 
     def _parse_api_gateway(
         self,
-        event: APIGatewayProxyEventModel,
+        event: CustomAPIGatewayProxyEventModel,
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:

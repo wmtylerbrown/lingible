@@ -254,13 +254,8 @@ export class BackendStack extends Construct {
     new ssm.StringParameter(this, 'DatabaseConfigParameter', {
       parameterName: `${parameterPrefix}/database`,
       stringValue: JSON.stringify({
-        tables: {
-          users: `lingible-users-${environment}`,
-          translations: `lingible-translations-${environment}`,
-          translation_history: `lingible-translation-history-${environment}`,
-          usage_tracking: `lingible-usage-tracking-${environment}`,
-          receipts: `lingible-receipts-${environment}`,
-        },
+        users_table: `lingible-users-${environment}`,
+        translations_table: `lingible-translations-${environment}`,
         read_capacity: 5,
         write_capacity: 5,
       }),
@@ -574,6 +569,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
         USER_POOL_ID: this.userPool.userPoolId,
         USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
+        API_GATEWAY_ARN: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:*`,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,

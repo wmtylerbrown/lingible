@@ -33,7 +33,7 @@ class TranslationRepository:
     def __init__(self) -> None:
         """Initialize translation repository."""
         self.config = get_config()
-        self.table_name = self.config.get_database_config()["translations_table"]
+        self.table_name = self.config.get_database_config_typed().translations_table
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "translations")

@@ -4,7 +4,6 @@ pydantic>=2.11.7
 pydantic-core>=2.33.2
 python-jose[cryptography]>=3.5.0
 requests>=2.32.5
-PyJWT>=2.8.0
 cryptography>=45.0.0
 aws-lambda-powertools[all]>=3.19.0
 
@@ -19,3 +18,5 @@ aws-lambda-powertools[all]>=3.19.0
 # black>=25.1.0
 # flake8>=7.3.0
 # mypy>=1.17.1
+types-python-jose>=3.5.0
+types-pyasn1>=0.6.0

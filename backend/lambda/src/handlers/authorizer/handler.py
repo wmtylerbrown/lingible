@@ -4,9 +4,13 @@ import json
 import os
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-import jwt
+from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTError
 import requests
-from jwt.algorithms import RSAAlgorithm
+import base64
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 
 from utils.logging import SmartLogger
 from utils.config import AppConfig
@@ -26,6 +30,7 @@ class CognitoAuthorizer:
     def __init__(self) -> None:
         """Initialize the authorizer."""
         self.user_pool_id = os.environ.get("USER_POOL_ID")
+        self.user_pool_client_id = os.environ.get("USER_POOL_CLIENT_ID")
         self.user_pool_region = os.environ.get("USER_POOL_REGION", "us-east-1")
         self.api_gateway_arn = os.environ.get("API_GATEWAY_ARN")
 
@@ -60,13 +65,41 @@ class CognitoAuthorizer:
             )
             raise AuthenticationError("Failed to retrieve JWT keys")
 
+    def _base64url_decode(self, value: str) -> int:
+        """Decode base64url-encoded value to integer."""
+        # Add padding if needed
+        padding = 4 - (len(value) % 4)
+        if padding != 4:
+            value += "=" * padding
+
+        # Convert base64url to base64 (replace - with + and _ with /)
+        value = value.replace("-", "+").replace("_", "/")
+
+        # Decode base64 to bytes
+        decoded_bytes = base64.b64decode(value)
+
+        # Convert bytes to integer (big-endian)
+        return int.from_bytes(decoded_bytes, byteorder='big')
+
     def _get_public_key(self, kid: str) -> str:
         """Get public key for a specific key ID."""
         jwks = self._get_jwks()
 
         for key in jwks.get("keys", []):
             if key.get("kid") == kid:
-                return RSAAlgorithm.from_jwk(json.dumps(key))
+                # Convert JWK to PEM format using cryptography
+                n = self._base64url_decode(key.get("n"))  # modulus
+                e = self._base64url_decode(key.get("e"))  # exponent
+
+                numbers = RSAPublicNumbers(e, n)
+                public_key = numbers.public_key()
+
+                pem = public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.PKCS1
+                )
+
+                return pem.decode('utf-8')
 
         raise InvalidTokenError(f"JWT key ID '{kid}' not found")
 
@@ -88,21 +121,15 @@ class CognitoAuthorizer:
                 token,
                 public_key,
                 algorithms=["RS256"],
-                audience=self.user_pool_id,
+                audience=self.user_pool_client_id,
                 issuer=f"https://cognito-idp.{self.user_pool_region}.amazonaws.com/{self.user_pool_id}",
-                options={
-                    "verify_signature": True,
-                    "verify_exp": True,
-                    "verify_aud": True,
-                    "verify_iss": True,
-                },
             )
 
             return payload
 
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             raise TokenExpiredError("JWT token has expired")
-        except jwt.InvalidTokenError as e:
+        except JWTError as e:
             raise InvalidTokenError(f"Invalid JWT token: {str(e)}")
         except Exception as e:
             logger.log_error(e, {"operation": "validate_token"})
@@ -152,7 +179,8 @@ class CognitoAuthorizer:
 
             # Extract user information
             user_id = claims.get("sub")
-            username = claims.get("cognito:username")
+            # For AccessToken, username is the same as user_id (UUID)
+            username = claims.get("username") or claims.get("cognito:username") or user_id
             email = claims.get("email")
 
             if not user_id:
