@@ -3,15 +3,15 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from ..models.subscriptions import (
+from models.subscriptions import (
     UserSubscription,
     SubscriptionProvider,
     SubscriptionStatus,
 )
-from ..utils.logging import logger
-from ..utils.tracing import tracer
-from ..utils.aws_services import aws_services
-from ..utils.config import get_config
+from utils.logging import logger
+from utils.tracing import tracer
+from utils.aws_services import aws_services
+from utils.config import get_config
 
 
 class SubscriptionRepository:
@@ -31,9 +31,9 @@ class SubscriptionRepository:
                 "PK": f"USER#{subscription.user_id}",
                 "SK": "SUBSCRIPTION#ACTIVE",
                 "user_id": subscription.user_id,
-                "provider": subscription.provider.value,
+                "provider": subscription.provider,
                 "transaction_id": subscription.transaction_id,
-                "status": subscription.status.value,
+                "status": subscription.status,
                 "start_date": subscription.start_date.isoformat(),
                 "end_date": (
                     subscription.end_date.isoformat() if subscription.end_date else None
@@ -53,7 +53,7 @@ class SubscriptionRepository:
                 "subscription_created",
                 {
                     "user_id": subscription.user_id,
-                    "provider": subscription.provider.value,
+                    "provider": subscription.provider,
                     "transaction_id": subscription.transaction_id,
                 },
             )
@@ -117,9 +117,9 @@ class SubscriptionRepository:
                 "PK": f"USER#{subscription.user_id}",
                 "SK": "SUBSCRIPTION#ACTIVE",
                 "user_id": subscription.user_id,
-                "provider": subscription.provider.value,
+                "provider": subscription.provider,
                 "transaction_id": subscription.transaction_id,
-                "status": subscription.status.value,
+                "status": subscription.status,
                 "start_date": subscription.start_date.isoformat(),
                 "end_date": (
                     subscription.end_date.isoformat() if subscription.end_date else None
@@ -138,8 +138,8 @@ class SubscriptionRepository:
                 "subscription_updated",
                 {
                     "user_id": subscription.user_id,
-                    "provider": subscription.provider.value,
-                    "status": subscription.status.value,
+                    "provider": subscription.provider,
+                    "status": subscription.status,
                 },
             )
             return True
@@ -172,7 +172,7 @@ class SubscriptionRepository:
                 "PK": f"USER#{user_id}",
                 "SK": f"SUBSCRIPTION#HISTORY#{current_subscription.transaction_id}",
                 "user_id": user_id,
-                "provider": current_subscription.provider.value,
+                "provider": current_subscription.provider,
                 "transaction_id": current_subscription.transaction_id,
                 "status": "cancelled",
                 "start_date": current_subscription.start_date.isoformat(),
@@ -206,7 +206,7 @@ class SubscriptionRepository:
                 "subscription_cancelled",
                 {
                     "user_id": user_id,
-                    "provider": current_subscription.provider.value,
+                    "provider": current_subscription.provider,
                     "transaction_id": current_subscription.transaction_id,
                 },
             )

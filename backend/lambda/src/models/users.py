@@ -56,9 +56,9 @@ class User(BaseModel):
             user_id=self.user_id,
             email=self.email,
             username=self.username,
-            tier=self.tier.value,  # Convert enum to string
-            status=self.status.value,  # Convert enum to string
-            created_at=self.created_at.isoformat(),  # Convert to ISO string
+            tier=self.tier,
+            status=self.status,
+            created_at=self.created_at.isoformat(),
         )
 
 
@@ -69,8 +69,8 @@ class UserResponse(BaseModel):
     user_id: str = Field(..., description="User ID")
     email: str = Field(..., description="User email")
     username: str = Field(..., description="Username")
-    tier: str = Field(..., description="User tier")
-    status: str = Field(..., description="Account status")
+    tier: UserTier = Field(..., description="User tier")
+    status: UserStatus = Field(..., description="Account status")
 
     created_at: str = Field(..., description="Account creation date (ISO format)")
 

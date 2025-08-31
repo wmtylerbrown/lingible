@@ -175,6 +175,10 @@ aws-credentials
 *.pem
 *.key
 
+# Apple credentials and private keys
+AuthKey_*.p8
+*.p8
+
 # CDK
 cdk.out/
 cdk.context.json

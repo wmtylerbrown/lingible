@@ -62,9 +62,9 @@ class UserSubscription(BaseModel):
     def to_api_response(self) -> "UserSubscriptionResponse":
         """Convert to API response model."""
         return UserSubscriptionResponse(
-            provider=self.provider.value,
+            provider=self.provider,
             transaction_id=self.transaction_id,
-            status=self.status.value,
+            status=self.status,
             start_date=self.start_date.isoformat(),
             end_date=self.end_date.isoformat() if self.end_date else None,
             created_at=self.created_at.isoformat(),
@@ -75,9 +75,9 @@ class UserSubscription(BaseModel):
 class UserSubscriptionResponse(BaseModel):
     """API response model for user subscription data."""
 
-    provider: str = Field(..., description="Subscription provider")
+    provider: SubscriptionProvider = Field(..., description="Subscription provider")
     transaction_id: str = Field(..., description="Provider transaction ID")
-    status: str = Field(..., description="Subscription status")
+    status: SubscriptionStatus = Field(..., description="Subscription status")
     start_date: str = Field(..., description="Subscription start date (ISO format)")
     end_date: Optional[str] = Field(
         None, description="Subscription end date (ISO format)"
@@ -140,7 +140,7 @@ class ReceiptValidationResult(BaseModel):
         """Convert to API response model."""
         return ReceiptValidationResponse(
             is_valid=self.is_valid,
-            status=self.status.value,
+            status=self.status,
             transaction_id=self.transaction_id,
             product_id=self.product_id,
             purchase_date=(
@@ -159,7 +159,7 @@ class ReceiptValidationResponse(BaseModel):
     """API response model for receipt validation."""
 
     is_valid: bool = Field(..., description="Whether receipt is valid")
-    status: str = Field(..., description="Validation status")
+    status: ReceiptValidationStatus = Field(..., description="Validation status")
     transaction_id: str = Field(..., description="Transaction ID")
     product_id: Optional[str] = Field(None, description="Product ID from receipt")
     purchase_date: Optional[str] = Field(None, description="Purchase date (ISO format)")

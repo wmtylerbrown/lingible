@@ -77,9 +77,9 @@ class Translation(BaseModel):
             translation_id=self.translation_id,
             original_text=self.original_text,
             translated_text=self.translated_text,
-            direction=self.direction.value,  # Convert enum to string
+            direction=self.direction,
             confidence_score=self.confidence_score,
-            created_at=self.created_at.isoformat(),  # Convert to ISO string
+            created_at=self.created_at.isoformat(),
             processing_time_ms=self.processing_time_ms,
             model_used=self.model_used,
         )
@@ -91,7 +91,7 @@ class TranslationResponse(BaseModel):
     translation_id: str = Field(..., description="Unique translation ID")
     original_text: str = Field(..., description="Original text")
     translated_text: str = Field(..., description="Translated text")
-    direction: str = Field(..., description="Translation direction")
+    direction: TranslationDirection = Field(..., description="Translation direction")
     confidence_score: Optional[float] = Field(
         None, ge=0.0, le=1.0, description="Translation confidence score"
     )
@@ -125,9 +125,9 @@ class TranslationHistory(BaseModel):
             user_id=self.user_id,
             original_text=self.original_text,
             translated_text=self.translated_text,
-            direction=self.direction.value,  # Convert enum to string
+            direction=self.direction,
             confidence_score=self.confidence_score,
-            created_at=self.created_at.isoformat(),  # Convert to ISO string
+            created_at=self.created_at.isoformat(),
             model_used=self.model_used,
         )
 
@@ -139,7 +139,7 @@ class TranslationHistoryItemResponse(BaseModel):
     user_id: str = Field(..., description="User ID")
     original_text: str = Field(..., description="Original text")
     translated_text: str = Field(..., description="Translated text")
-    direction: str = Field(..., description="Translation direction")
+    direction: TranslationDirection = Field(..., description="Translation direction")
     confidence_score: Optional[float] = Field(
         None, description="Translation confidence score"
     )

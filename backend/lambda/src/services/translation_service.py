@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
-from ..models.translations import (
+from models.translations import (
     TranslationRequestInternal,
     Translation,
     TranslationHistory,
@@ -13,19 +13,19 @@ from ..models.translations import (
     BedrockResponse,
 )
 
-from ..utils.logging import logger
-from ..utils.tracing import tracer
-from ..utils.aws_services import aws_services
-from ..utils.config import get_config
-from ..utils.exceptions import (
+from utils.logging import logger
+from utils.tracing import tracer
+from utils.aws_services import aws_services
+from utils.config import get_config
+from utils.exceptions import (
     ValidationError,
     BusinessLogicError,
     SystemError,
     UsageLimitExceededError,
     InsufficientPermissionsError,
 )
-from ..repositories.translation_repository import TranslationRepository
-from ..services.user_service import UserService
+from repositories.translation_repository import TranslationRepository
+from services.user_service import UserService
 
 
 class TranslationService:

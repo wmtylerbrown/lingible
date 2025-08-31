@@ -99,3 +99,9 @@ class PaginatedResponse(BaseModel):
     data: List[Dict[str, Any]] = Field(..., description="List of items")
     pagination: Dict[str, Any] = Field(..., description="Pagination information")
     timestamp: str = Field(..., description="ISO timestamp of response")
+
+
+class HealthResponse(BaseModel):
+    """Health check response model."""
+
+    status: str = Field(..., description="Service status (healthy, unhealthy, etc.)")

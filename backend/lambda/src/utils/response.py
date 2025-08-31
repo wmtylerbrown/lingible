@@ -3,8 +3,8 @@
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any
-from ..models.base import ErrorResponse, HTTPStatus, ErrorCode
-from ..models.aws import APIGatewayResponse
+from models.base import ErrorResponse, HTTPStatus, ErrorCode
+from models.aws import APIGatewayResponse
 from .exceptions import AppException
 
 

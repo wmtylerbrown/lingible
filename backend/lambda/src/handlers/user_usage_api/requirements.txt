@@ -1,8 +1,0 @@
-# User Usage API Handler Dependencies
-# References core requirements and adds any specific dependencies
-
-# Include core requirements
--r ../core-requirements.txt
-
-# No additional dependencies needed beyond core requirements
-l

@@ -3,16 +3,16 @@
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from ..models.translations import (
+from models.translations import (
     TranslationRequestInternal,
     TranslationDirection,
     TranslationResponse,
 )
-from ..models.events import TranslationEvent
-from ..services.translation_service import TranslationService
-from ..utils.tracing import tracer
-from ..utils.decorators import api_handler, extract_user_from_parsed_data
-from ..utils.envelopes import TranslationEnvelope
+from models.events import TranslationEvent
+from services.translation_service import TranslationService
+from utils.tracing import tracer
+from utils.decorators import api_handler, extract_user_from_parsed_data
+from utils.envelopes import TranslationEnvelope
 
 
 # Initialize services at module level (Lambda container reuse)
@@ -21,7 +21,7 @@ translation_service = TranslationService()
 
 # Lambda handler entry point - API Gateway authorizer handles authentication
 @tracer.trace_lambda
-@event_parser(model=TranslationEvent, envelope=TranslationEnvelope())
+@event_parser(model=TranslationEvent, envelope=TranslationEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(event: TranslationEvent, context: LambdaContext) -> TranslationResponse:
     """Handle translation requests from mobile app."""

@@ -15,6 +15,7 @@ class SmartLogger:
     def __init__(self, service_name: str) -> None:
         """Initialize smart logger."""
         logging_config = config.get_logging_config()
+        environment = config.environment
 
         self.logger = Logger(
             service=service_name,
@@ -27,8 +28,6 @@ class SmartLogger:
 
     def log_request(self, event: Dict[str, Any], include_body: bool = False) -> None:
         """Log API request with selective body inclusion."""
-        environment = config.get("environment", "development")
-
         log_data = {
             "http_method": event.get("httpMethod"),
             "path": event.get("path"),
@@ -36,7 +35,7 @@ class SmartLogger:
             "headers": self._sanitize_headers(event.get("headers", {})),
         }
 
-        if include_body and environment != "production":
+        if include_body and self.environment != "production":
             body = event.get("body")
             if body is not None:
                 log_data["body"] = self._sanitize_body(str(body))
@@ -45,8 +44,6 @@ class SmartLogger:
 
     def log_response(self, response: Dict[str, Any], duration_ms: float) -> None:
         """Log API response with performance metrics."""
-        environment = config.get("environment", "development")
-
         log_data = {
             "status_code": response.get("statusCode"),
             "duration_ms": duration_ms,
@@ -54,7 +51,7 @@ class SmartLogger:
         }
 
         # Only log response body for errors or in development
-        if response.get("statusCode", 200) >= 400 or environment == "development":
+        if response.get("statusCode", 200) >= 400 or self.environment == "dev":
             log_data["response_body"] = response.get("body")
 
         self.logger.info("API Response", extra=log_data)
@@ -73,11 +70,8 @@ class SmartLogger:
 
     def log_business_event(self, event_type: str, data: Dict[str, Any]) -> None:
         """Log business events (user actions, etc.)."""
-        environment = config.get("environment", "development")
-
-        # Only log business events in staging/production, not development
-        if environment != "development":
-            self.logger.info(f"Business Event: {event_type}", extra=data)
+        # Log business events in all environments
+        self.logger.info(f"Business Event: {event_type}", extra=data)
 
     def _sanitize_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
         """Remove sensitive data from headers."""
@@ -104,4 +98,4 @@ class SmartLogger:
 
 
 # Global logger instance
-logger = SmartLogger("lingible-backend")
+logger = SmartLogger("lingible")

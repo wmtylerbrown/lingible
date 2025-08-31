@@ -3,12 +3,12 @@
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.parser import event_parser
 
-from ..models.events import UserDataCleanupEvent
-from ..services.user_service import UserService
-from ..services.subscription_service import SubscriptionService
-from ..services.translation_service import TranslationService
-from ..utils.tracing import tracer
-from ..utils.logging import logger
+from models.events import UserDataCleanupEvent
+from services.user_service import UserService
+from services.subscription_service import SubscriptionService
+from services.translation_service import TranslationService
+from utils.tracing import tracer
+from utils.logging import logger
 
 
 # Initialize services at module level for Lambda container reuse
@@ -17,8 +17,9 @@ subscription_service = SubscriptionService()
 translation_service = TranslationService()
 
 
+
+@tracer.trace_lambda
 @event_parser(model=UserDataCleanupEvent)
-@tracer.trace_method("user_data_cleanup")
 def cleanup_user_data_handler(
     event: UserDataCleanupEvent, context: LambdaContext
 ) -> dict:

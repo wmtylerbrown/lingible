@@ -3,18 +3,18 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from ..models.users import (
+from models.users import (
     User,
     UserTier,
     UserStatus,
     UserUsageResponse,
 )
-from ..models.translations import UsageLimit
-from ..utils.logging import logger
-from ..utils.tracing import tracer
-from ..utils.config import get_config
-from ..utils.exceptions import ValidationError
-from ..repositories.user_repository import UserRepository
+from models.translations import UsageLimit
+from utils.logging import logger
+from utils.tracing import tracer
+from utils.config import get_config
+from utils.exceptions import ValidationError
+from repositories.user_repository import UserRepository
 
 
 class UserService:
@@ -51,7 +51,7 @@ class UserService:
                 {
                     "user_id": user_id,
                     "username": username,
-                    "tier": tier.value,
+                    "tier": tier,
                 },
             )
 
@@ -82,7 +82,7 @@ class UserService:
 
             # Get limits from config based on tier
             tier_config = self.usage_config.get(
-                usage_limits.tier.value, self.usage_config["free"]
+                usage_limits.tier, self.usage_config["free"]
             )
             daily_limit = tier_config["daily_limit"]
 
@@ -143,8 +143,8 @@ class UserService:
                 "user_updated",
                 {
                     "user_id": user.user_id,
-                    "tier": user.tier.value,
-                    "status": user.status.value,
+                                "tier": user.tier,
+            "status": user.status,
                 },
             )
 
@@ -195,7 +195,7 @@ class UserService:
                 "user_tier_upgraded",
                 {
                     "user_id": user_id,
-                    "new_tier": new_tier.value,
+                    "new_tier": new_tier,
                 },
             )
 

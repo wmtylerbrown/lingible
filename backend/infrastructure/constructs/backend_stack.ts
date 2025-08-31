@@ -44,8 +44,6 @@ export class BackendStack extends Construct {
   public healthLambda!: lambda.Function;
   public appleWebhookLambda!: lambda.Function;
   public postConfirmationLambda!: lambda.Function;
-  public preAuthenticationLambda!: lambda.Function;
-  public preUserDeletionLambda!: lambda.Function;
   public userDataCleanupLambda!: lambda.Function;
 
   // API Gateway resources
@@ -92,14 +90,18 @@ export class BackendStack extends Construct {
     // Create SSM parameters for configuration
     this.createSsmParameters(environment, lambdaConfig);
 
-    // Common environment variables
-    const commonEnv = {
-      POWERTOOLS_SERVICE_NAME: 'lingible-api',
-      LOG_LEVEL: 'INFO',
-      USERS_TABLE: this.usersTable.tableName,
-      TRANSLATIONS_TABLE: this.translationsTable.tableName,
-      ENVIRONMENT: environment,
-      APP_NAME: 'lingible-backend',
+    // Common environment variables function
+    const getCommonEnv = () => {
+      const baseEnv: { [key: string]: string } = {
+        POWERTOOLS_SERVICE_NAME: 'lingible-api',
+        LOG_LEVEL: 'INFO',
+        POWERTOOLS_LOGGER_LOG_EVENT: 'true',
+        USERS_TABLE: this.usersTable.tableName,
+        TRANSLATIONS_TABLE: this.translationsTable.tableName,
+        ENVIRONMENT: environment,
+        APP_NAME: 'lingible',
+      };
+      return baseEnv;
     };
 
     // Common IAM policy statements for Lambda functions
@@ -138,7 +140,7 @@ export class BackendStack extends Construct {
           'ssm:GetParametersByPath',
         ],
         resources: [
-          `arn:aws:ssm:*:*:parameter/lingible-backend/${environment}/*`,
+          `arn:aws:ssm:*:*:parameter/lingible/${environment}/*`,
         ],
       }),
     ];
@@ -147,7 +149,7 @@ export class BackendStack extends Construct {
     this.createCognitoUserPool(environment, appleClientId, appleTeamId, appleKeyId);
 
     // Create Lambda functions
-    this.createLambdaFunctions(environment, commonEnv, lambdaConfig, lambdaPolicyStatements);
+    this.createLambdaFunctions(environment, getCommonEnv, lambdaConfig, lambdaPolicyStatements);
 
     // Configure Cognito triggers
     this.setupCognitoTriggers();
@@ -173,33 +175,27 @@ export class BackendStack extends Construct {
     this.usersTable = new dynamodb.Table(this, 'UsersTable', {
       tableName: `lingible-users-${environment}`,
       partitionKey: {
-        name: 'user_id',
+        name: 'PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'SK',
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.DESTROY, // For development
       pointInTimeRecovery: true,
-    });
-
-    // Add GSI for email lookups
-    this.usersTable.addGlobalSecondaryIndex({
-      indexName: 'email-index',
-      partitionKey: {
-        name: 'email',
-        type: dynamodb.AttributeType.STRING,
-      },
-      projectionType: dynamodb.ProjectionType.ALL,
     });
 
     // Translations table
     this.translationsTable = new dynamodb.Table(this, 'TranslationsTable', {
       tableName: `lingible-translations-${environment}`,
       partitionKey: {
-        name: 'translation_id',
+        name: 'PK',
         type: dynamodb.AttributeType.STRING,
       },
       sortKey: {
-        name: 'user_id',
+        name: 'SK',
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -207,23 +203,11 @@ export class BackendStack extends Construct {
       pointInTimeRecovery: true,
     });
 
-    // Add GSI for user translations
-    this.translationsTable.addGlobalSecondaryIndex({
-      indexName: 'user-translations-index',
-      partitionKey: {
-        name: 'user_id',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'created_at',
-        type: dynamodb.AttributeType.STRING,
-      },
-      projectionType: dynamodb.ProjectionType.ALL,
-    });
+
   }
 
   private createSsmParameters(environment: string, config: Record<string, any>): void {
-    const appName = 'lingible-backend';
+    const appName = 'lingible';
     const parameterPrefix = `/${appName}/${environment}`;
 
     // Create SSM parameters for configuration
@@ -263,6 +247,143 @@ export class BackendStack extends Construct {
         version: config.version,
       }),
       description: 'App configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Database configuration
+    new ssm.StringParameter(this, 'DatabaseConfigParameter', {
+      parameterName: `${parameterPrefix}/database`,
+      stringValue: JSON.stringify({
+        tables: {
+          users: `lingible-users-${environment}`,
+          translations: `lingible-translations-${environment}`,
+          translation_history: `lingible-translation-history-${environment}`,
+          usage_tracking: `lingible-usage-tracking-${environment}`,
+          receipts: `lingible-receipts-${environment}`,
+        },
+        read_capacity: 5,
+        write_capacity: 5,
+      }),
+      description: 'Database configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Security configuration
+    new ssm.StringParameter(this, 'SecurityConfigParameter', {
+      parameterName: `${parameterPrefix}/security`,
+      stringValue: JSON.stringify({
+        sensitive_fields: [
+          "password",
+          "token",
+          "secret",
+          "key",
+          "authorization",
+          "cookie",
+          "x-api-key",
+        ],
+        bearer_prefix: "Bearer ",
+        jwt_expiration: 3600,
+        rate_limiting: {
+          enabled: true,
+          requests_per_minute: 100,
+          burst_limit: 20,
+        },
+      }),
+      description: 'Security configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // API configuration
+    new ssm.StringParameter(this, 'ApiConfigParameter', {
+      parameterName: `${parameterPrefix}/api`,
+      stringValue: JSON.stringify({
+        cors: {
+          allowed_origins: ["*"],
+          allowed_headers: ["Content-Type", "Authorization"],
+          allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        },
+        pagination: { default_limit: 20, max_limit: 100 },
+      }),
+      description: 'API configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Monitoring configuration
+    new ssm.StringParameter(this, 'MonitoringConfigParameter', {
+      parameterName: `${parameterPrefix}/monitoring`,
+      stringValue: JSON.stringify({
+        enable_metrics: true,
+        enable_logging: true,
+        enable_tracing: true,
+        log_retention_days: 14,
+        metrics_namespace: `lingible/${environment}`,
+      }),
+      description: 'Monitoring configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Logging configuration
+    new ssm.StringParameter(this, 'LoggingConfigParameter', {
+      parameterName: `${parameterPrefix}/logging`,
+      stringValue: JSON.stringify({
+        level: environment === "production" ? "INFO" : "DEBUG",
+        enable_correlation: true,
+        enable_structured_logging: true,
+      }),
+      description: 'Logging configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Tracing configuration
+    new ssm.StringParameter(this, 'TracingConfigParameter', {
+      parameterName: `${parameterPrefix}/tracing`,
+      stringValue: JSON.stringify({
+        enabled: true,
+        service_name: "lingible",
+        auto_patch: false,
+        capture_response: true,
+        capture_error: true,
+      }),
+      description: 'Tracing configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Apple Store configuration
+    new ssm.StringParameter(this, 'AppleStoreConfigParameter', {
+      parameterName: `${parameterPrefix}/apple_store`,
+      stringValue: JSON.stringify({
+        environment: "sandbox",
+        shared_secret: "your_app_specific_shared_secret",
+        bundle_id: "com.lingible.lingible",
+        verify_url: "https://buy.itunes.apple.com/verifyReceipt",
+        sandbox_url: "https://sandbox.itunes.apple.com/verifyReceipt",
+      }),
+      description: 'Apple Store configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Google Play configuration
+    new ssm.StringParameter(this, 'GooglePlayConfigParameter', {
+      parameterName: `${parameterPrefix}/google_play`,
+      stringValue: JSON.stringify({
+        package_name: "com.lingible.lingible",
+        service_account_key: "path/to/service-account-key.json",
+        api_timeout: 10,
+      }),
+      description: 'Google Play configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    // Bedrock configuration
+    new ssm.StringParameter(this, 'BedrockConfigParameter', {
+      parameterName: `${parameterPrefix}/bedrock`,
+      stringValue: JSON.stringify({
+        model: "anthropic.claude-3-sonnet-20240229-v1:0",
+        region: "us-east-1",
+        max_tokens: 1000,
+        temperature: 0.7,
+      }),
+      description: 'Bedrock configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
   }
@@ -350,7 +471,7 @@ export class BackendStack extends Construct {
   private createDependenciesLayer(environment: string): lambda.LayerVersion {
     return new lambda.LayerVersion(this, 'DependenciesLayer', {
       layerVersionName: `lingible-dependencies-layer-${environment}`,
-      code: lambda.Code.fromAsset('lambda-dependencies-layer', {
+      code: lambda.Code.fromAsset('../lambda', {
         bundling: {
           image: lambda.Runtime.PYTHON_3_13.bundlingImage,
           command: [
@@ -358,6 +479,19 @@ export class BackendStack extends Construct {
             'rm -rf /asset-output/python && pip install --platform manylinux2014_x86_64 --implementation cp --python-version 3.13 --only-binary=:all: --upgrade --target /asset-output/python -r requirements.txt'
           ],
         },
+        // Only redeploy requirements layer when requirements.txt changes
+        assetHashType: cdk.AssetHashType.SOURCE,
+        exclude: [
+          '**/*',
+          '!requirements.txt',
+          '**/__pycache__/**',
+          '**/*.pyc',
+          '**/*.pyo',
+          '**/*.pyd',
+          '**/.pytest_cache/**',
+          '**/.coverage',
+          '**/.mypy_cache/**'
+        ]
       }),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
       description: 'Python dependencies for Lingible Lambda functions',
@@ -367,68 +501,77 @@ export class BackendStack extends Construct {
   private createSharedLayer(environment: string): lambda.LayerVersion {
     return new lambda.LayerVersion(this, 'SharedLayer', {
       layerVersionName: `lingible-shared-layer-${environment}`,
-      code: lambda.Code.fromAsset('lambda-layer'),
+      description: `Shared services, repositories, and models for Lingible Lambda functions`,
+      code: lambda.Code.fromAsset('../lambda/src', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+          command: [
+            'bash', '-c',
+            'mkdir -p /asset-output/python && cp -r services repositories models utils /asset-output/python/ && find /asset-output/python -name "*.pyc" -delete && find /asset-output/python -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true'
+          ]
+        },
+        exclude: [
+          '**/__pycache__/**',
+          '**/*.pyc',
+          '**/*.pyo',
+          '**/*.pyd',
+          '**/.pytest_cache/**',
+          '**/.coverage',
+          '**/.mypy_cache/**',
+          '**/tests/**',
+          '**/handlers/**'
+        ]
+      }),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
-      description: 'Shared code for Lingible Lambda functions',
     });
   }
 
   private createHandlerPackage(handlerPath: string): lambda.Code {
-    // Create handler-specific package directory
-    const handlerName = handlerPath.split('.').slice(-2, -1)[0]; // Extract handler name from path
-    const packageDir = `lambda-packages/${handlerName}`;
+    // Extract handler name from the handler path
+    // handlerPath format: 'src.handlers.translate_api.translate_api_handler' -> handlerName = 'translate_api'
+    const pathParts = handlerPath.split('.');
+    const handlerName = pathParts[pathParts.length - 2]; // e.g., "translate_api", "health_api", etc.
 
-    if (!fs.existsSync(packageDir)) {
-      fs.mkdirSync(packageDir, { recursive: true });
-    }
+    // Determine the actual Python file name based on the handler directory
+    let pythonFileName: string;
+    pythonFileName = `handler.py`;
 
-    // Copy only the specific handler code
-    const handlerDir = `../src/handlers/${handlerName}`;
-    if (fs.existsSync(handlerDir)) {
-      this.copyDirectory(handlerDir, packageDir);
-    }
-
-    // Create __init__.py if it doesn't exist
-    const initFile = `${packageDir}/__init__.py`;
-    if (!fs.existsSync(initFile)) {
-      fs.writeFileSync(initFile, '# Handler package\n');
-    }
-
-    return lambda.Code.fromAsset(packageDir);
+    // Simple approach: bundle from individual handler directories
+    return lambda.Code.fromAsset(`../lambda/src/handlers/${handlerName}`, {
+      bundling: {
+        image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+        command: [
+          'bash', '-c',
+          `cp ${pythonFileName} /asset-output/`
+        ]
+      },
+      exclude: [
+        '**/__pycache__/**',
+        '**/*.pyc',
+        '**/*.pyo',
+        '**/*.pyd',
+        '**/.pytest_cache/**',
+        '**/.coverage',
+        '**/.mypy_cache/**'
+      ]
+    });
   }
 
-  private copyDirectory(src: string, dest: string): void {
-    if (!fs.existsSync(dest)) {
-      fs.mkdirSync(dest, { recursive: true });
-    }
 
-    const entries = fs.readdirSync(src, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const srcPath = path.join(src, entry.name);
-      const destPath = path.join(dest, entry.name);
-
-      if (entry.isDirectory()) {
-        this.copyDirectory(srcPath, destPath);
-      } else {
-        fs.copyFileSync(srcPath, destPath);
-      }
-    }
-  }
 
   private createLambdaFunctions(
     environment: string,
-    commonEnv: any,
+    getCommonEnv: any,
     lambdaConfig: any,
     lambdaPolicyStatements: iam.PolicyStatement[]
   ): void {
     // API Handlers
     this.authorizerLambda = new lambda.Function(this, 'AuthorizerLambda', {
       functionName: `lingible-authorizer-${environment}`,
-      handler: 'authorizer.authorizer.lambda_handler',
+      handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.authorizer.authorizer'),
       environment: {
-        ...commonEnv,
+        ...getCommonEnv(),
         USER_POOL_ID: this.userPool.userPoolId,
         USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
       },
@@ -439,9 +582,11 @@ export class BackendStack extends Construct {
 
     this.translateLambda = new lambda.Function(this, 'TranslateLambda', {
       functionName: `lingible-translate-${environment}`,
-      handler: 'translate_api_handler.handler',
-      code: this.createHandlerPackage('src.handlers.translate_api.translate_api_handler'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.translate_api.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -449,9 +594,11 @@ export class BackendStack extends Construct {
 
     this.userProfileLambda = new lambda.Function(this, 'UserProfileLambda', {
       functionName: `lingible-user-profile-${environment}`,
-      handler: 'user_profile_api_handler.handler',
-      code: this.createHandlerPackage('src.handlers.user_profile_api.user_profile_api_handler'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.user_profile_api.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -459,9 +606,11 @@ export class BackendStack extends Construct {
 
     this.userUsageLambda = new lambda.Function(this, 'UserUsageLambda', {
       functionName: `lingible-user-usage-${environment}`,
-      handler: 'user_usage_api_handler.handler',
-      code: this.createHandlerPackage('src.handlers.user_usage_api.user_usage_api_handler'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.user_usage_api.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -469,9 +618,11 @@ export class BackendStack extends Construct {
 
     this.userUpgradeLambda = new lambda.Function(this, 'UserUpgradeLambda', {
       functionName: `lingible-user-upgrade-${environment}`,
-      handler: 'user_upgrade_api_handler.handler',
-      code: this.createHandlerPackage('src.handlers.user_upgrade_api.user_upgrade_api_handler'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.user_upgrade_api.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -479,9 +630,11 @@ export class BackendStack extends Construct {
 
     this.translationHistoryLambda = new lambda.Function(this, 'TranslationHistoryLambda', {
       functionName: `lingible-translation-history-${environment}`,
-      handler: 'get_translation_history.handler',
-      code: this.createHandlerPackage('src.handlers.translation_history_api.get_translation_history'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.get_translation_history.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -489,9 +642,11 @@ export class BackendStack extends Construct {
 
     this.deleteTranslationLambda = new lambda.Function(this, 'DeleteTranslationLambda', {
       functionName: `lingible-delete-translation-${environment}`,
-      handler: 'delete_translation.handler',
-      code: this.createHandlerPackage('src.handlers.translation_history_api.delete_translation'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.delete_translation.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -499,9 +654,11 @@ export class BackendStack extends Construct {
 
     this.deleteAllTranslationsLambda = new lambda.Function(this, 'DeleteAllTranslationsLambda', {
       functionName: `lingible-delete-all-translations-${environment}`,
-      handler: 'delete_all_translations.handler',
-      code: this.createHandlerPackage('src.handlers.translation_history_api.delete_all_translations'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.delete_translations.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -509,9 +666,11 @@ export class BackendStack extends Construct {
 
     this.healthLambda = new lambda.Function(this, 'HealthLambda', {
       functionName: `lingible-health-${environment}`,
-      handler: 'health_api_handler.handler',
-      code: this.createHandlerPackage('src.handlers.health_api.health_api_handler'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.health_api.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -520,9 +679,11 @@ export class BackendStack extends Construct {
     // Webhook Handlers
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
       functionName: `lingible-apple-webhook-${environment}`,
-      handler: 'apple_webhook_handler.handler',
-      code: this.createHandlerPackage('src.handlers.apple_webhook.apple_webhook_handler'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.apple_webhook.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -531,40 +692,26 @@ export class BackendStack extends Construct {
     // Cognito Triggers
     this.postConfirmationLambda = new lambda.Function(this, 'PostConfirmationLambda', {
       functionName: `lingible-post-confirmation-${environment}`,
-      handler: 'cognito_post_confirmation.cognito_post_confirmation.lambda_handler',
-      code: this.createHandlerPackage('src.handlers.cognito_post_confirmation.cognito_post_confirmation'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.cognito_post_confirmation.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.postConfirmationLambda.addToRolePolicy(statement));
 
-    this.preAuthenticationLambda = new lambda.Function(this, 'PreAuthenticationLambda', {
-      functionName: `lingible-pre-authentication-${environment}`,
-      handler: 'cognito_pre_authentication.cognito_pre_authentication.lambda_handler',
-      code: this.createHandlerPackage('src.handlers.cognito_pre_authentication.cognito_pre_authentication'),
-      environment: commonEnv,
-      layers: [this.dependenciesLayer, this.sharedLayer],
-      ...lambdaConfig,
-    });
-    lambdaPolicyStatements.forEach(statement => this.preAuthenticationLambda.addToRolePolicy(statement));
 
-    this.preUserDeletionLambda = new lambda.Function(this, 'PreUserDeletionLambda', {
-      functionName: `lingible-pre-user-deletion-${environment}`,
-      handler: 'cognito_pre_user_deletion.cognito_pre_user_deletion.lambda_handler',
-      code: this.createHandlerPackage('src.handlers.cognito_pre_user_deletion.cognito_pre_user_deletion'),
-      environment: commonEnv,
-      layers: [this.dependenciesLayer, this.sharedLayer],
-      ...lambdaConfig,
-    });
-    lambdaPolicyStatements.forEach(statement => this.preUserDeletionLambda.addToRolePolicy(statement));
 
     // Background Processing
     this.userDataCleanupLambda = new lambda.Function(this, 'UserDataCleanupLambda', {
       functionName: `lingible-user-data-cleanup-${environment}`,
-      handler: 'user_data_cleanup.user_data_cleanup.lambda_handler',
-      code: this.createHandlerPackage('src.handlers.user_data_cleanup.user_data_cleanup'),
-      environment: commonEnv,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.user_data_cleanup.handler'),
+      environment: {
+        ...getCommonEnv(),
+      },
       layers: [this.dependenciesLayer, this.sharedLayer],
       ...lambdaConfig,
     });
@@ -578,16 +725,7 @@ export class BackendStack extends Construct {
       this.postConfirmationLambda,
     );
 
-    this.userPool.addTrigger(
-      cognito.UserPoolOperation.PRE_AUTHENTICATION,
-      this.preAuthenticationLambda,
-    );
 
-    // Note: PRE_USER_DELETION is not available in the current CDK version
-    // this.userPool.addTrigger(
-    //   cognito.UserPoolOperation.PRE_USER_DELETION,
-    //   this.preUserDeletionLambda,
-    // );
 
     // Grant Cognito permission to invoke Lambda functions
     this.postConfirmationLambda.addPermission('CognitoPostConfirmation', {
@@ -595,14 +733,54 @@ export class BackendStack extends Construct {
       sourceArn: this.userPool.userPoolArn,
     });
 
-    this.preAuthenticationLambda.addPermission('CognitoPreAuthentication', {
-      principal: new iam.ServicePrincipal('cognito-idp.amazonaws.com'),
-      sourceArn: this.userPool.userPoolArn,
+
+  }
+
+  private grantApiGatewayPermissions(): void {
+    // Grant API Gateway permission to invoke Lambda functions
+    this.healthLambda.addPermission('ApiGatewayHealth', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
     });
 
-    this.preUserDeletionLambda.addPermission('CognitoPreUserDeletion', {
-      principal: new iam.ServicePrincipal('cognito-idp.amazonaws.com'),
-      sourceArn: this.userPool.userPoolArn,
+    this.translateLambda.addPermission('ApiGatewayTranslate', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.userProfileLambda.addPermission('ApiGatewayUserProfile', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.userUsageLambda.addPermission('ApiGatewayUserUsage', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.userUpgradeLambda.addPermission('ApiGatewayUserUpgrade', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.translationHistoryLambda.addPermission('ApiGatewayTranslationHistory', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.deleteTranslationLambda.addPermission('ApiGatewayDeleteTranslation', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.deleteAllTranslationsLambda.addPermission('ApiGatewayDeleteAllTranslations', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.appleWebhookLambda.addPermission('ApiGatewayAppleWebhook', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
     });
   }
 
@@ -662,10 +840,13 @@ export class BackendStack extends Construct {
     // Create API resources and methods
     this.createApiResources(authorizer, errorModel, successModel);
 
+    // Grant API Gateway permission to invoke Lambda functions
+    this.grantApiGatewayPermissions();
+
     // Create DNS record
     new route53.ARecord(this, 'ApiAliasRecord', {
       zone: hostedZone,
-      recordName: `api.${environment}`,
+      recordName: `api`,
       target: route53.RecordTarget.fromAlias(
         new targets.ApiGateway(this.api)
       ),

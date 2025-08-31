@@ -1,22 +1,21 @@
 # Lambda function dependencies
 boto3>=1.40.20
-boto3-stubs[essential]>=1.34.0
 pydantic>=2.11.7
+pydantic-core>=2.33.2
 python-jose[cryptography]>=3.5.0
 requests>=2.32.5
-types-requests>=2.32.4
 PyJWT>=2.8.0
 cryptography>=45.0.0
-aws-lambda-powertools>=3.19.0
+aws-lambda-powertools[all]>=3.19.0
 
-# Google Play receipt validation
-google-api-python-client>=2.0.0
-google-auth>=2.0.0
+# Google Play receipt validation - temporarily removed to reduce layer size
+# google-api-python-client>=2.0.0
+# google-auth>=2.0.0
 
-# Development dependencies
-pytest>=8.4.1
-pytest-mock>=3.14.1
-moto>=5.1.11
-black>=25.1.0
-flake8>=7.3.0
-mypy>=1.17.1
+# Development dependencies (not included in Lambda layer)
+# pytest>=8.4.1
+# pytest-mock>=3.14.1
+# moto>=5.1.11
+# black>=25.1.0
+# flake8>=7.3.0
+# mypy>=1.17.1

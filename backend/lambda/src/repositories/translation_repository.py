@@ -5,14 +5,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, TypeVar, Generic, List
 
-from ..models.translations import (
+from models.translations import (
     TranslationHistory,
     TranslationDirection,
 )
-from ..utils.logging import logger
-from ..utils.tracing import tracer
-from ..utils.aws_services import aws_services
-from ..utils.config import get_config
+from utils.logging import logger
+from utils.tracing import tracer
+from utils.aws_services import aws_services
+from utils.config import get_config
 
 T = TypeVar("T")
 
@@ -47,7 +47,7 @@ class TranslationRepository:
                 "user_id": translation.user_id,
                 "original_text": translation.original_text,
                 "translated_text": translation.translated_text,
-                "direction": translation.direction.value,
+                "direction": translation.direction,
                 "confidence_score": translation.confidence_score,
                 "created_at": translation.created_at.isoformat(),
                 "model_used": translation.model_used,

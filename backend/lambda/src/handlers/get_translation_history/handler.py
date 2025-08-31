@@ -3,12 +3,12 @@
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from ...models.events import TranslationHistoryEvent
-from ...models.translations import TranslationHistoryResponse
-from ...services.translation_service import TranslationService
-from ...utils.tracing import tracer
-from ...utils.decorators import api_handler, extract_user_from_parsed_data
-from ...utils.envelopes import TranslationHistoryEnvelope
+from models.events import TranslationHistoryEvent
+from models.translations import TranslationHistoryResponse
+from services.translation_service import TranslationService
+from utils.tracing import tracer
+from utils.decorators import api_handler, extract_user_from_parsed_data
+from utils.envelopes import TranslationHistoryEnvelope
 
 
 # Initialize service at module level (Lambda container reuse)
@@ -17,7 +17,7 @@ translation_service = TranslationService()
 
 # Lambda handler entry point - API Gateway authorizer handles authentication
 @tracer.trace_lambda
-@event_parser(model=TranslationHistoryEvent, envelope=TranslationHistoryEnvelope())
+@event_parser(model=TranslationHistoryEvent, envelope=TranslationHistoryEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(
     event: TranslationHistoryEvent, context: LambdaContext

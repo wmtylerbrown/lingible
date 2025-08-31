@@ -3,13 +3,13 @@
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from ..models.events import UserProfileEvent
-from ..models.users import UserResponse
-from ..services.user_service import UserService
-from ..utils.tracing import tracer
-from ..utils.decorators import api_handler, extract_user_from_parsed_data
-from ..utils.envelopes import UserProfileEnvelope
-from ..utils.exceptions import ResourceNotFoundError
+from models.events import UserProfileEvent
+from models.users import UserResponse
+from services.user_service import UserService
+from utils.tracing import tracer
+from utils.decorators import api_handler, extract_user_from_parsed_data
+from utils.envelopes import SimpleAuthenticatedEnvelope
+from utils.exceptions import ResourceNotFoundError
 
 
 # Initialize services at module level (Lambda container reuse)
@@ -18,7 +18,7 @@ user_service = UserService()
 
 # Lambda handler entry point - API Gateway authorizer handles authentication
 @tracer.trace_lambda
-@event_parser(model=UserProfileEvent, envelope=UserProfileEnvelope())
+@event_parser(model=UserProfileEvent, envelope=SimpleAuthenticatedEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(event: UserProfileEvent, context: LambdaContext) -> UserResponse:
     """Handle user profile requests from mobile app."""

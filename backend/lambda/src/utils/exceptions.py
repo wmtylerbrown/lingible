@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional, Dict, Any
 from .logging import logger
-from ..models.base import HTTPStatus, ErrorCode
+from models.base import HTTPStatus, ErrorCode
 
 
 class AppException(Exception):

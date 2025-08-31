@@ -8,9 +8,9 @@ import jwt
 import requests
 from jwt.algorithms import RSAAlgorithm
 
-from src.utils.logging import SmartLogger
-from src.utils.config import AppConfig
-from src.utils.exceptions import (
+from utils.logging import SmartLogger
+from utils.config import AppConfig
+from utils.exceptions import (
     AuthenticationError,
     InvalidTokenError,
     TokenExpiredError,
@@ -223,7 +223,7 @@ class CognitoAuthorizer:
 authorizer = CognitoAuthorizer()
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda handler for API Gateway authorizer.
 

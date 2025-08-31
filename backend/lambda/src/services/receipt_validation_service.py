@@ -8,15 +8,15 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import requests
 
-from src.models.subscriptions import (
+from models.subscriptions import (
     ReceiptValidationRequest,
     ReceiptValidationResult,
     ReceiptValidationStatus,
     SubscriptionProvider,
 )
-from src.utils.config import AppConfig
-from src.utils.logging import SmartLogger
-from src.utils.exceptions import ValidationError
+from utils.config import AppConfig
+from utils.logging import SmartLogger
+from utils.exceptions import ValidationError
 
 logger = SmartLogger("receipt-validation-service")
 
@@ -78,7 +78,7 @@ class ReceiptValidationService:
                     "transaction_id": request.transaction_id,
                     "provider": request.provider,
                     "is_valid": result.is_valid,
-                    "status": result.status.value,
+                    "status": result.status,
                     "product_id": result.product_id,
                 },
             )

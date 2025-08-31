@@ -4,12 +4,12 @@ from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from datetime import datetime
-from ...models.events import PathParameterEvent
-from ...models.base import BaseResponse
-from ...services.translation_service import TranslationService
-from ...utils.tracing import tracer
-from ...utils.decorators import api_handler, extract_user_from_parsed_data
-from ...utils.envelopes import PathParameterEnvelope
+from models.events import PathParameterEvent
+from models.base import BaseResponse
+from services.translation_service import TranslationService
+from utils.tracing import tracer
+from utils.decorators import api_handler, extract_user_from_parsed_data
+from utils.envelopes import PathParameterEnvelope
 
 
 # Initialize service at module level (Lambda container reuse)
@@ -18,7 +18,7 @@ translation_service = TranslationService()
 
 # Lambda handler entry point - API Gateway authorizer handles authentication
 @tracer.trace_lambda
-@event_parser(model=PathParameterEvent, envelope=PathParameterEnvelope())
+@event_parser(model=PathParameterEvent, envelope=PathParameterEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(event: PathParameterEvent, context: LambdaContext) -> BaseResponse:
     """Handle translation deletion requests from mobile app (premium users only)."""

@@ -18,7 +18,7 @@ from .exceptions import (
     AppException,
 )
 from .logging import logger
-from ..models.aws import APIGatewayResponse
+from models.aws import APIGatewayResponse
 
 
 def api_handler(
@@ -52,19 +52,11 @@ def api_handler(
                 # Execute the handler function
                 result = func(*args, **kwargs)
 
-                # If the result is already an APIGatewayResponse, return it as-is
-                if isinstance(result, APIGatewayResponse):
-                    return result
-
                 # If the result is a Pydantic model, create a success response
                 if isinstance(result, BaseModel):
-                    return create_model_response(result)
+                    return create_model_response(result).model_dump()
 
-                # If the result is a tuple of (message, model), use the custom message
-                if isinstance(result, tuple) and len(result) == 2:
-                    message, model = result
-                    if isinstance(model, BaseModel):
-                        return create_model_response(model)
+
 
                 # For any other result type, return as-is (backward compatibility)
                 return result

@@ -6,8 +6,8 @@ from aws_lambda_powertools.utilities.parser import BaseEnvelope
 from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventModel
 from pydantic import BaseModel
 
-from ..models.translations import TranslationRequest
-from ..models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
+from models.translations import TranslationRequest
+from models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
 from .exceptions import ValidationError, AuthenticationError
 
 if TYPE_CHECKING:
@@ -31,8 +31,11 @@ class APIGatewayEnvelope(BaseEnvelope):
         # Extract common API Gateway data
         base_data = self._extract_common_data(event)
 
-        # Let subclasses add their specific parsing logic
-        return self._parse_api_gateway(event, model, base_data)
+        # Let subclasses add their specific parsing logic          # Let subclasses add their specific parsing logic
+        result = self._parse_api_gateway(event, model, base_data)
+
+        # Return the model instance instead of the dictionary
+        return model(**result)
 
     def _extract_common_data(self, event: APIGatewayProxyEventModel) -> Dict[str, Any]:
         """Extract common data from API Gateway event."""
@@ -133,64 +136,6 @@ class TranslationEnvelope(AuthenticatedAPIGatewayEnvelope):
         return base_data
 
 
-class UserProfileEnvelope(AuthenticatedAPIGatewayEnvelope):
-    """Envelope for user profile endpoints that extracts user info."""
-
-    def _parse_api_gateway(
-        self,
-        event: APIGatewayProxyEventModel,
-        model: type[T],
-        base_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """Parse user profile specific data."""
-        # For GET requests, we don't need to parse a request body
-        # Just return the base data with user info
-        return base_data
-
-
-class UserUsageEnvelope(AuthenticatedAPIGatewayEnvelope):
-    """Envelope for user usage endpoints that extracts user info."""
-
-    def _parse_api_gateway(
-        self,
-        event: APIGatewayProxyEventModel,
-        model: type[T],
-        base_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """Parse user usage specific data."""
-        # For GET requests, we don't need to parse a request body
-        # Just return the base data with user info
-        return base_data
-
-
-class HealthEnvelope(APIGatewayEnvelope):
-    """Envelope for health check endpoints."""
-
-    def _parse_api_gateway(
-        self,
-        event: APIGatewayProxyEventModel,
-        model: type[T],
-        base_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """Parse health check specific data."""
-        return base_data
-
-
-class SubscriptionEnvelope(AuthenticatedAPIGatewayEnvelope):
-    """Envelope for subscription endpoints that extracts user info."""
-
-    def _parse_api_gateway(
-        self,
-        event: APIGatewayProxyEventModel,
-        model: type[T],
-        base_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """Parse subscription-specific data."""
-        # For subscription endpoints, we extract user info from authorizer context
-        # and handle path parameters for specific subscription operations
-        return base_data
-
-
 class UserUpgradeEnvelope(AuthenticatedAPIGatewayEnvelope):
     """Envelope for user upgrade endpoints that parses request body."""
 
@@ -211,6 +156,19 @@ class UserUpgradeEnvelope(AuthenticatedAPIGatewayEnvelope):
         # Add upgrade-specific data
         base_data["request_body"] = request_body
 
+        return base_data
+
+
+class SimpleEnvelope(APIGatewayEnvelope):
+    """Simple envelope for basic operations (GET)"""
+
+    def _parse_api_gateway(
+        self,
+        event: APIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse data."""
         return base_data
 
 

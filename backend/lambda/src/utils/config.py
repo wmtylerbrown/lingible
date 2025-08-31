@@ -11,8 +11,8 @@ class AppConfig:
 
     def __init__(self) -> None:
         """Initialize configuration manager."""
-        self.environment = os.environ.get("ENVIRONMENT", "development")
-        self.app_name = os.environ.get("APP_NAME", "lingible-backend")
+        self.environment = os.environ.get("ENVIRONMENT", "dev")
+        self.app_name = os.environ.get("APP_NAME", "lingible")
 
         # Default values for development/local testing
         self._defaults = self._get_default_config()

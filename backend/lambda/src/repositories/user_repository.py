@@ -3,12 +3,12 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from ..models.users import User, UserTier, UserStatus
-from ..models.translations import UsageLimit
-from ..utils.logging import logger
-from ..utils.tracing import tracer
-from ..utils.aws_services import aws_services
-from ..utils.config import get_config
+from models.users import User, UserTier, UserStatus
+from models.translations import UsageLimit
+from utils.logging import logger
+from utils.tracing import tracer
+from utils.aws_services import aws_services
+from utils.config import get_config
 
 
 class UserRepository:
@@ -17,7 +17,7 @@ class UserRepository:
     def __init__(self) -> None:
         """Initialize user repository."""
         self.config = get_config()
-        self.table_name = self.config.get_database_config()["users_table"]
+        self.table_name = self.config.get_database_config()["tables"]["users"]
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "users")
@@ -30,8 +30,8 @@ class UserRepository:
                 "user_id": user.user_id,
                 "username": user.username,
                 "email": user.email,
-                "tier": user.tier.value,
-                "status": user.status.value,
+                "tier": user.tier,
+                "status": user.status,
                 "created_at": user.created_at.isoformat(),
                 "updated_at": user.updated_at.isoformat(),
                 "ttl": int(
@@ -98,8 +98,8 @@ class UserRepository:
                 "user_id": user.user_id,
                 "username": user.username,
                 "email": user.email,
-                "tier": user.tier.value,
-                "status": user.status.value,
+                "tier": user.tier,
+                "status": user.status,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -202,7 +202,7 @@ class UserRepository:
                     ExpressionAttributeValues={
                         ":one": 1,
                         ":updated_at": now.isoformat(),
-                        ":tier": tier.value,
+                        ":tier": tier,
                     },
                     ConditionExpression="attribute_not_exists(reset_daily_at) OR reset_daily_at >= :today_start",
                     ReturnValues="UPDATED_NEW",
@@ -222,7 +222,7 @@ class UserRepository:
                         ":one": 1,
                         ":today_start": today_start.isoformat(),
                         ":updated_at": now.isoformat(),
-                        ":tier": tier.value,
+                        ":tier": tier,
                     },
                     ReturnValues="UPDATED_NEW",
                 )
@@ -258,7 +258,7 @@ class UserRepository:
                     ":zero": 0,
                     ":today_start": today_start.isoformat(),
                     ":updated_at": now.isoformat(),
-                    ":tier": tier.value,
+                    ":tier": tier,
                 },
             )
 
