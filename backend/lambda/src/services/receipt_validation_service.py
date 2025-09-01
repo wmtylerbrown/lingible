@@ -4,8 +4,8 @@ import json
 from datetime import datetime, timezone
 
 from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+from googleapiclient.discovery import build  # type: ignore
+from googleapiclient.errors import HttpError  # type: ignore
 import requests
 
 from models.subscriptions import (
@@ -14,7 +14,7 @@ from models.subscriptions import (
     ReceiptValidationStatus,
     SubscriptionProvider,
 )
-from utils.config import AppConfig
+from utils.config import get_config_service, AppleConfig
 from utils.logging import SmartLogger
 from utils.exceptions import ValidationError
 

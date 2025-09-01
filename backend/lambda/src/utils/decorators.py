@@ -38,7 +38,7 @@ def api_handler(
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> APIGatewayResponse:
+        def wrapper(*args: Any, **kwargs: Any) -> Dict[str, Any]:
             # Extract user ID for logging
             current_user_id = user_id
             if extract_user_id and not current_user_id:
@@ -54,9 +54,7 @@ def api_handler(
 
                 # If the result is a Pydantic model, create a success response
                 if isinstance(result, BaseModel):
-                    return create_model_response(result).model_dump()
-
-
+                    return create_model_response(result)
 
                 # For any other result type, return as-is (backward compatibility)
                 return result

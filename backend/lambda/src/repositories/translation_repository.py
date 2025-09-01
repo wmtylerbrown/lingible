@@ -12,7 +12,7 @@ from models.translations import (
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config
+from utils.config import get_config_service, TableConfig
 
 T = TypeVar("T")
 
@@ -32,8 +32,9 @@ class TranslationRepository:
 
     def __init__(self) -> None:
         """Initialize translation repository."""
-        self.config = get_config()
-        self.table_name = self.config.get_database_config_typed().translations_table
+        self.config_service = get_config_service()
+        translations_table_config = self.config_service.get_config(TableConfig, "translations")
+        self.table_name = translations_table_config.name
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "translations")
@@ -47,7 +48,7 @@ class TranslationRepository:
                 "user_id": translation.user_id,
                 "original_text": translation.original_text,
                 "translated_text": translation.translated_text,
-                "direction": translation.direction,
+                "direction": translation.direction.value,
                 "confidence_score": translation.confidence_score,
                 "created_at": translation.created_at.isoformat(),
                 "model_used": translation.model_used,

@@ -1,46 +1,43 @@
 {
   "app": {
     "name": "Lingible",
-    "bundle_id": "com.lingible.lingible",
     "version": "1.0.0",
-    "description": "Translate GenZ/teen slang to English and vice versa using AI"
+    "description": "GenZ slang translator"
   },
+
   "translation": {
-    "type": "teen_slang",
-    "source_language": "en",
-    "target_language": "en",
     "context": "GenZ slang to formal English and vice versa",
-    "directions": {
-      "genz_to_english": "genz_to_english",
-      "english_to_genz": "english_to_genz"
-    },
-    "max_concurrent_translations": 5,
-    "translation_timeout": 30
+    "max_concurrent": 5,
+    "timeout_seconds": 30
   },
-  "features": {
-    "translation_history": {
-      "free": false,
-      "premium": true
-    },
-    "custom_context": {
-      "free": false,
-      "premium": true
-    }
-  },
-  "subscription": {
-    "platforms": ["apple", "google"],
-    "tiers": ["free", "premium"]
-  },
+
   "limits": {
-    "free_tier": {
-      "daily_translations": 10,
-      "max_text_length": 50,
-      "history_retention_days": 0
-    },
-    "premium_tier": {
-      "daily_translations": 100,
-      "max_text_length": 100,
-      "history_retention_days": 30
-    }
+    "free_daily_translations": 10,
+    "free_max_text_length": 50,
+    "free_history_retention_days": 0,
+    "premium_daily_translations": 100,
+    "premium_max_text_length": 100,
+    "premium_history_retention_days": 30
+  },
+
+  "security": {
+    "sensitive_field_patterns": ["*password*", "*token*", "*secret*", "*key*", "*auth*"],
+    "bearer_prefix": "Bearer ",
+    "jwt_expiration_seconds": 7200
+  },
+
+  "api": {
+    "cors_headers": ["Content-Type", "Authorization"],
+    "cors_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "pagination_default": 20,
+    "pagination_max": 100,
+    "timeout_ms": 30000,
+    "max_retries": 3
+  },
+
+  "stores": {
+    "apple_verify_url": "https://buy.itunes.apple.com/verifyReceipt",
+    "apple_sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt",
+    "google_api_timeout": 10
   }
 }

@@ -44,6 +44,10 @@ export class BackendStack extends Construct {
   public healthLambda!: lambda.Function;
   public appleWebhookLambda!: lambda.Function;
   public postConfirmationLambda!: lambda.Function;
+
+  // Configuration loader
+  private configLoader!: ConfigLoader;
+  private environment!: string;
   public userDataCleanupLambda!: lambda.Function;
 
   // API Gateway resources
@@ -69,26 +73,28 @@ export class BackendStack extends Construct {
 
     const { environment, hostedZone, appleClientId, appleTeamId, appleKeyId } = props;
 
+    // Load configuration from shared config files
+    this.configLoader = new ConfigLoader(path.resolve(__dirname, '../../..'));
+    this.environment = environment;
+    const config = this.configLoader.getMergedConfig(environment);
+
     // Create Lambda layers
     this.dependenciesLayer = this.createDependenciesLayer(environment);
     this.sharedLayer = this.createSharedLayer(environment);
 
     // Create DynamoDB tables
-    this.createDatabaseTables(environment);
-
-    // Load configuration from shared config files
-    const configLoader = new ConfigLoader(path.resolve(__dirname, '../../..'));
+    this.createDatabaseTables(environment, config.users_table, config.translations_table);
     const lambdaConfig = {
       runtime: lambda.Runtime.PYTHON_3_13,
       timeout: Duration.seconds(30),
       memorySize: 512,
       logRetention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: RemovalPolicy.DESTROY, // For development
-      ...configLoader.getLambdaConfig(environment),
+      ...this.configLoader.getLambdaConfig(environment),
     };
 
     // Create SSM parameters for configuration
-    this.createSsmParameters(environment, lambdaConfig);
+    this.createSsmParameters(environment, config);
 
     // Common environment variables function
     const getCommonEnv = () => {
@@ -170,10 +176,14 @@ export class BackendStack extends Construct {
     this.createOutputs(environment);
   }
 
-  private createDatabaseTables(environment: string): void {
+  private createDatabaseTables(
+    environment: string,
+    usersTableConfig: { name: string; read_capacity: number; write_capacity: number },
+    translationsTableConfig: { name: string; read_capacity: number; write_capacity: number }
+  ): void {
     // Users table
     this.usersTable = new dynamodb.Table(this, 'UsersTable', {
-      tableName: `lingible-users-${environment}`,
+      tableName: usersTableConfig.name,
       partitionKey: {
         name: 'PK',
         type: dynamodb.AttributeType.STRING,
@@ -189,7 +199,7 @@ export class BackendStack extends Construct {
 
     // Translations table
     this.translationsTable = new dynamodb.Table(this, 'TranslationsTable', {
-      tableName: `lingible-translations-${environment}`,
+      tableName: translationsTableConfig.name,
       partitionKey: {
         name: 'PK',
         type: dynamodb.AttributeType.STRING,
@@ -206,15 +216,15 @@ export class BackendStack extends Construct {
 
   }
 
-  private createSsmParameters(environment: string, config: Record<string, any>): void {
+  private createSsmParameters(environment: string, config: any): void {
     const appName = 'lingible';
     const parameterPrefix = `/${appName}/${environment}`;
 
-    // Create SSM parameters for configuration
-    new ssm.StringParameter(this, 'UsageLimitsParameter', {
-      parameterName: `${parameterPrefix}/usage_limits`,
-      stringValue: JSON.stringify(config.usage_limits),
-      description: 'Usage limits configuration for Lingible',
+    // App-wide configuration parameters
+    new ssm.StringParameter(this, 'AppConfigParameter', {
+      parameterName: `${parameterPrefix}/app`,
+      stringValue: JSON.stringify(config.app),
+      description: 'App configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
 
@@ -225,160 +235,88 @@ export class BackendStack extends Construct {
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    new ssm.StringParameter(this, 'FeaturesConfigParameter', {
-      parameterName: `${parameterPrefix}/features`,
-      stringValue: JSON.stringify(config.features),
-      description: 'Features configuration for Lingible',
+    new ssm.StringParameter(this, 'LimitsConfigParameter', {
+      parameterName: `${parameterPrefix}/limits`,
+      stringValue: JSON.stringify(config.limits),
+      description: 'Usage limits configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    new ssm.StringParameter(this, 'SubscriptionConfigParameter', {
-      parameterName: `${parameterPrefix}/subscription`,
-      stringValue: JSON.stringify(config.subscription),
-      description: 'Subscription configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'AppConfigParameter', {
-      parameterName: `${parameterPrefix}/app`,
-      stringValue: JSON.stringify({
-        name: config.app_name,
-        bundle_id: config.bundle_id,
-        version: config.version,
-      }),
-      description: 'App configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    // Database configuration
-    new ssm.StringParameter(this, 'DatabaseConfigParameter', {
-      parameterName: `${parameterPrefix}/database`,
-      stringValue: JSON.stringify({
-        users_table: `lingible-users-${environment}`,
-        translations_table: `lingible-translations-${environment}`,
-        read_capacity: 5,
-        write_capacity: 5,
-      }),
-      description: 'Database configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    // Security configuration
     new ssm.StringParameter(this, 'SecurityConfigParameter', {
       parameterName: `${parameterPrefix}/security`,
-      stringValue: JSON.stringify({
-        sensitive_fields: [
-          "password",
-          "token",
-          "secret",
-          "key",
-          "authorization",
-          "cookie",
-          "x-api-key",
-        ],
-        bearer_prefix: "Bearer ",
-        jwt_expiration: 3600,
-        rate_limiting: {
-          enabled: true,
-          requests_per_minute: 100,
-          burst_limit: 20,
-        },
-      }),
+      stringValue: JSON.stringify(config.security),
       description: 'Security configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    // API configuration
     new ssm.StringParameter(this, 'ApiConfigParameter', {
       parameterName: `${parameterPrefix}/api`,
-      stringValue: JSON.stringify({
-        cors: {
-          allowed_origins: ["*"],
-          allowed_headers: ["Content-Type", "Authorization"],
-          allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        },
-        pagination: { default_limit: 20, max_limit: 100 },
-      }),
+      stringValue: JSON.stringify(config.api),
       description: 'API configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    // Monitoring configuration
-    new ssm.StringParameter(this, 'MonitoringConfigParameter', {
-      parameterName: `${parameterPrefix}/monitoring`,
-      stringValue: JSON.stringify({
-        enable_metrics: true,
-        enable_logging: true,
-        enable_tracing: true,
-        log_retention_days: 14,
-        metrics_namespace: `lingible/${environment}`,
-      }),
-      description: 'Monitoring configuration for Lingible',
+    new ssm.StringParameter(this, 'StoresConfigParameter', {
+      parameterName: `${parameterPrefix}/stores`,
+      stringValue: JSON.stringify(config.stores),
+      description: 'Store configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    // Logging configuration
-    new ssm.StringParameter(this, 'LoggingConfigParameter', {
-      parameterName: `${parameterPrefix}/logging`,
-      stringValue: JSON.stringify({
-        level: environment === "production" ? "INFO" : "DEBUG",
-        enable_correlation: true,
-        enable_structured_logging: true,
-      }),
-      description: 'Logging configuration for Lingible',
+    // Environment-specific configuration parameters
+    new ssm.StringParameter(this, 'AwsConfigParameter', {
+      parameterName: `${parameterPrefix}/aws`,
+      stringValue: JSON.stringify(config.aws),
+      description: 'AWS configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    // Tracing configuration
-    new ssm.StringParameter(this, 'TracingConfigParameter', {
-      parameterName: `${parameterPrefix}/tracing`,
-      stringValue: JSON.stringify({
-        enabled: true,
-        service_name: "lingible",
-        auto_patch: false,
-        capture_response: true,
-        capture_error: true,
-      }),
-      description: 'Tracing configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    // Apple Store configuration
-    new ssm.StringParameter(this, 'AppleStoreConfigParameter', {
-      parameterName: `${parameterPrefix}/apple_store`,
-      stringValue: JSON.stringify({
-        environment: "sandbox",
-        shared_secret: "your_app_specific_shared_secret",
-        bundle_id: "com.lingible.lingible",
-        verify_url: "https://buy.itunes.apple.com/verifyReceipt",
-        sandbox_url: "https://sandbox.itunes.apple.com/verifyReceipt",
-      }),
-      description: 'Apple Store configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    // Google Play configuration
-    new ssm.StringParameter(this, 'GooglePlayConfigParameter', {
-      parameterName: `${parameterPrefix}/google_play`,
-      stringValue: JSON.stringify({
-        package_name: "com.lingible.lingible",
-        service_account_key: "path/to/service-account-key.json",
-        api_timeout: 10,
-      }),
-      description: 'Google Play configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    // Bedrock configuration
     new ssm.StringParameter(this, 'BedrockConfigParameter', {
       parameterName: `${parameterPrefix}/bedrock`,
-      stringValue: JSON.stringify({
-        model: "anthropic.claude-3-sonnet-20240229-v1:0",
-        region: "us-east-1",
-        max_tokens: 1000,
-        temperature: 0.7,
-      }),
+      stringValue: JSON.stringify(config.bedrock),
       description: 'Bedrock configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'CognitoConfigParameter', {
+      parameterName: `${parameterPrefix}/cognito`,
+      stringValue: JSON.stringify(config.cognito),
+      description: 'Cognito configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'UsersTableConfigParameter', {
+      parameterName: `${parameterPrefix}/users_table`,
+      stringValue: JSON.stringify(config.users_table),
+      description: 'Users table configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'TranslationsTableConfigParameter', {
+      parameterName: `${parameterPrefix}/translations_table`,
+      stringValue: JSON.stringify(config.translations_table),
+      description: 'Translations table configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'AppleConfigParameter', {
+      parameterName: `${parameterPrefix}/apple`,
+      stringValue: JSON.stringify(config.apple),
+      description: 'Apple configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'GoogleConfigParameter', {
+      parameterName: `${parameterPrefix}/google`,
+      stringValue: JSON.stringify(config.google),
+      description: 'Google configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'ObservabilityConfigParameter', {
+      parameterName: `${parameterPrefix}/observability`,
+      stringValue: JSON.stringify(config.observability),
+      description: 'Observability configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
   }
@@ -572,6 +510,7 @@ export class BackendStack extends Construct {
         API_GATEWAY_ARN: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:*`,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.authorizerLambda.addToRolePolicy(statement));
@@ -584,9 +523,24 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.translateLambda.addToRolePolicy(statement));
+
+    // Add Bedrock permissions for translation Lambda
+    this.translateLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'bedrock:InvokeModel',
+      ],
+      resources: [
+        (() => {
+          const bedrock = this.configLoader.getBedrockConfig(this.environment);
+          return `arn:aws:bedrock:${bedrock.region}::foundation-model/${bedrock.model}`;
+        })(),
+      ],
+    }));
 
     this.userProfileLambda = new lambda.Function(this, 'UserProfileLambda', {
       functionName: `lingible-user-profile-${environment}`,
@@ -596,6 +550,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userProfileLambda.addToRolePolicy(statement));
@@ -608,6 +563,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userUsageLambda.addToRolePolicy(statement));
@@ -620,6 +576,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userUpgradeLambda.addToRolePolicy(statement));
@@ -632,6 +589,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.translationHistoryLambda.addToRolePolicy(statement));
@@ -644,6 +602,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.deleteTranslationLambda.addToRolePolicy(statement));
@@ -656,6 +615,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.deleteAllTranslationsLambda.addToRolePolicy(statement));
@@ -668,6 +628,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.healthLambda.addToRolePolicy(statement));
@@ -681,6 +642,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.appleWebhookLambda.addToRolePolicy(statement));
@@ -694,6 +656,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.postConfirmationLambda.addToRolePolicy(statement));
@@ -709,6 +672,7 @@ export class BackendStack extends Construct {
         ...getCommonEnv(),
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
+
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userDataCleanupLambda.addToRolePolicy(statement));
@@ -867,11 +831,8 @@ export class BackendStack extends Construct {
       ],
     });
 
-    // API v1
-    const v1 = this.api.root.addResource('v1');
-
     // Translate endpoint
-    const translate = v1.addResource('translate');
+    const translate = this.api.root.addResource('translate');
     translate.addMethod('POST', new apigateway.LambdaIntegration(this.translateLambda), {
       authorizer: authorizer,
       methodResponses: [
@@ -891,7 +852,7 @@ export class BackendStack extends Construct {
     });
 
     // User profile endpoints
-    const user = v1.addResource('user');
+    const user = this.api.root.addResource('user');
     const profile = user.addResource('profile');
     profile.addMethod('GET', new apigateway.LambdaIntegration(this.userProfileLambda), {
       authorizer: authorizer,
@@ -952,7 +913,7 @@ export class BackendStack extends Construct {
     });
 
     // Translation history endpoints
-    const translations = v1.addResource('translations');
+    const translations = this.api.root.addResource('translations');
     translations.addMethod('GET', new apigateway.LambdaIntegration(this.translationHistoryLambda), {
       authorizer: authorizer,
       methodResponses: [

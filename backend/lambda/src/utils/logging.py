@@ -3,10 +3,10 @@
 from typing import Dict, Any, Optional
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.logging import correlation_paths
-from .config import get_config
+from .config import get_config_service, ObservabilityConfig, SecurityConfig
 
 # Get configuration
-config = get_config()
+config_service = get_config_service()
 
 
 class SmartLogger:
@@ -14,12 +14,12 @@ class SmartLogger:
 
     def __init__(self, service_name: str) -> None:
         """Initialize smart logger."""
-        logging_config = config.get_logging_config()
-        self.environment = config.environment
+        observability_config = config_service.get_config(ObservabilityConfig)
+        self.environment = config_service.environment
 
         self.logger = Logger(
             service=service_name,
-            level=logging_config["level"],
+            level=observability_config.log_level,
             correlation_paths=[
                 correlation_paths.API_GATEWAY_REST,
                 correlation_paths.API_GATEWAY_HTTP,
@@ -75,7 +75,8 @@ class SmartLogger:
 
     def _sanitize_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
         """Remove sensitive data from headers."""
-        sensitive_fields = config.get_security_config()["sensitive_fields"]
+        security_config = config_service.get_config(SecurityConfig)
+        sensitive_fields = security_config.sensitive_field_patterns
         sanitized = headers.copy()
         for field in sensitive_fields:
             if field.lower() in sanitized:
@@ -87,7 +88,8 @@ class SmartLogger:
         if not body:
             return body
 
-        sensitive_fields = config.get_security_config()["sensitive_fields"]
+        security_config = config_service.get_config(SecurityConfig)
+        sensitive_fields = security_config.sensitive_field_patterns
 
         # Simple redaction - in production, use more sophisticated parsing
         sanitized = body

@@ -1,25 +1,59 @@
 {
-  "environment": "development",
-  "api": {
-    "base_url": "https://api-dev.lingible.com",
-    "timeout": 30000,
-    "retries": 3
-  },
+  "environment": "dev",
+
   "aws": {
+    "region": "us-east-1"
+  },
+
+  "bedrock": {
+    "model": "anthropic.claude-3-5-haiku-20241022-v1:0",
     "region": "us-east-1",
-    "cognito": {
-      "user_pool_id": "us-east-1_lingible_dev",
-      "client_id": "lingible_dev_client"
-    }
+    "max_tokens": 1000,
+    "temperature": 0.7
   },
-  "features": {
-    "debug_mode": true,
-    "analytics": false,
-    "crash_reporting": false
+
+  "cognito": {
+    "user_pool_id": "us-east-1_lingible_dev",
+    "client_id": "lingible_dev_client"
   },
+
+  "users_table": {
+    "name": "lingible-users-dev",
+    "read_capacity": 5,
+    "write_capacity": 5
+  },
+
+  "translations_table": {
+    "name": "lingible-translations-dev",
+    "read_capacity": 5,
+    "write_capacity": 5
+  },
+
   "apple": {
-    "clientId": "com.lingible.lingible.signin.dev",
-    "teamId": "PH33VX3MUL",
-    "keyId": "2M28GNMU86"
+    "client_id": "com.lingible.lingible.signin.dev",
+    "team_id": "PH33VX3MUL",
+    "key_id": "2M28GNMU86",
+    "bundle_id": "com.lingible.lingible.dev",
+    "environment": "sandbox",
+    "shared_secret": "your_app_specific_shared_secret"
+  },
+
+  "google": {
+    "package_name": "com.lingible.lingible.dev",
+    "service_account_key": "path/to/service-account-key.json"
+  },
+
+  "api": {
+    "base_url": "https://api.dev.lingible.com",
+    "cors_origins": ["*", "http://localhost:3000", "http://localhost:3001"]
+  },
+
+  "observability": {
+    "debug_mode": true,
+    "log_level": "DEBUG",
+    "enable_metrics": false,
+    "enable_tracing": true,
+    "log_retention_days": 7,
+    "service_name": "lingible-dev"
   }
 }

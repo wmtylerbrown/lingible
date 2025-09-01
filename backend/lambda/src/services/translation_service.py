@@ -16,7 +16,7 @@ from models.translations import (
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config
+from utils.config import get_config_service, BedrockConfig, UsageLimitsConfig, TranslationConfig
 from utils.exceptions import (
     ValidationError,
     BusinessLogicError,
@@ -33,13 +33,15 @@ class TranslationService:
 
     def __init__(self) -> None:
         """Initialize translation service."""
-        self.config = get_config()
+        self.config_service = get_config_service()
         self.bedrock_client = aws_services.bedrock_client
         self.translation_repository = TranslationRepository()
         self.user_service = UserService()
-        self.bedrock_config = self.config.get_bedrock_config()
-        self.usage_config = self.config.get_usage_limits()
-        self.storage_config = self.config.get_translation_storage_config()
+        self.bedrock_config = self.config_service.get_config(BedrockConfig)
+        self.usage_config = self.config_service.get_config(UsageLimitsConfig)
+        self.translation_config = self.config_service.get_config(TranslationConfig)
+
+
 
     @tracer.trace_method("translate_text")
     def translate_text(
@@ -88,7 +90,7 @@ class TranslationService:
                 translation_id=translation_id,
                 created_at=datetime.now(timezone.utc),
                 processing_time_ms=processing_time_ms,
-                model_used=self.bedrock_config["model_id"],
+                model_used=self.bedrock_config.model,
             )
 
             # Save translation history
@@ -151,13 +153,13 @@ Translation:"""
         try:
             request_body = {
                 "prompt": prompt,
-                "max_tokens": self.bedrock_config.get("max_tokens", 1000),
-                "temperature": self.bedrock_config.get("temperature", 0.7),
-                "top_p": self.bedrock_config.get("top_p", 0.9),
+                "max_tokens": self.bedrock_config.max_tokens,
+                "temperature": self.bedrock_config.temperature,
+                "top_p": 0.9,  # Not in config model, hardcoded
             }
 
             response = self.bedrock_client.invoke_model(
-                modelId=self.bedrock_config["model_id"],
+                modelId=self.bedrock_config.model,
                 body=json.dumps(request_body),
             )
 

@@ -1,0 +1,18 @@
+{
+  "include": [
+    "backend/lambda/src"
+  ],
+  "executionEnvironments": [
+    {
+      "root": "backend/lambda/src",
+      "pythonVersion": "3.13",
+      "extraPaths": [
+        "backend/lambda/src"
+      ]
+    }
+  ],
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": false
+}

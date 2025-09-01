@@ -1,25 +1,59 @@
 {
-  "environment": "production",
+  "environment": "prod",
+
+  "aws": {
+    "region": "us-east-1"
+  },
+
+  "bedrock": {
+    "model": "anthropic.claude-3-5-haiku-20241022-v1:0",
+    "region": "us-east-1",
+    "max_tokens": 1000,
+    "temperature": 0.7
+  },
+
+  "cognito": {
+    "user_pool_id": "us-east-1_lingible_prod",
+    "client_id": "lingible_prod_client"
+  },
+
+  "users_table": {
+    "name": "lingible-users-prod",
+    "read_capacity": 10,
+    "write_capacity": 10
+  },
+
+  "translations_table": {
+    "name": "lingible-translations-prod",
+    "read_capacity": 10,
+    "write_capacity": 10
+  },
+
+  "apple": {
+    "client_id": "com.lingible.lingible.signin",
+    "team_id": "PH33VX3MUL",
+    "key_id": "YOUR_KEY_ID",
+    "bundle_id": "com.lingible.lingible",
+    "environment": "production",
+    "shared_secret": "your_app_specific_shared_secret"
+  },
+
+  "google": {
+    "package_name": "com.lingible.lingible",
+    "service_account_key": "path/to/service-account-key.json"
+  },
+
   "api": {
     "base_url": "https://api.lingible.com",
-    "timeout": 30000,
-    "retries": 3
+    "cors_origins": ["https://lingible.com", "https://www.lingible.com", "https://api.lingible.com"]
   },
-  "aws": {
-    "region": "us-east-1",
-    "cognito": {
-      "user_pool_id": "us-east-1_lingible_prod",
-      "client_id": "lingible_prod_client"
-    }
-  },
-  "features": {
+
+  "observability": {
     "debug_mode": false,
-    "analytics": true,
-    "crash_reporting": true
-  },
-  "apple": {
-    "clientId": "com.lingible.lingible.signin",
-    "teamId": "PH33VX3MUL",
-    "keyId": "YOUR_KEY_ID"
+    "log_level": "INFO",
+    "enable_metrics": true,
+    "enable_tracing": true,
+    "log_retention_days": 30,
+    "service_name": "lingible-prod"
   }
 }

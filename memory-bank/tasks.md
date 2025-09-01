@@ -534,6 +534,63 @@ Successfully reorganized the entire project structure and implemented a comprehe
 
 ---
 
+## 🔄 IN PROGRESS: Translation API Debugging & Production Readiness
+
+### **🎯 Current Context:**
+Working on debugging the translation API to achieve successful end-to-end functionality. The API is 95% working with only a final authorization issue remaining.
+
+### **✅ MAJOR PROGRESS COMPLETED:**
+1. **Authentication System**: ✅ Working perfectly with fresh JWT tokens from Cognito
+2. **Enum Serialization Issues**: ✅ Completely resolved across all repositories
+   - Fixed `UserTier` enum serialization in `user_repository.py`
+   - Fixed `TranslationDirection` enum serialization in `translation_repository.py`
+   - Fixed `SubscriptionProvider` and `SubscriptionStatus` enum serialization in `subscription_repository.py`
+3. **Configuration Management**: ✅ Bedrock configuration loading correctly
+4. **IAM Permissions**: ✅ Added `bedrock:InvokeModel` permission to Lambda function
+5. **Model Access**: ✅ Updated to accessible Bedrock model (`anthropic.claude-3-5-sonnet-20241022-v2:0`)
+6. **SSM Parameter Store**: ✅ Updated with correct model configuration
+
+### **❌ CURRENT BLOCKER:**
+**"User is not authorized to access this resource with an explicit deny"** - This suggests there might be an explicit deny policy somewhere in the API Gateway or IAM configuration.
+
+### **🔧 TECHNICAL ISSUES RESOLVED:**
+1. **Enum Serialization**: Fixed `TypeError: Unsupported type "<enum 'UserTier'>"` by using `.value` for all enum types in DynamoDB operations
+2. **Configuration Mismatch**: Fixed `KeyError: 'model_id'` by updating both default config and SSM Parameter Store
+3. **IAM Permissions**: Fixed `AccessDeniedException` for Bedrock by adding explicit IAM policy
+4. **Model Access**: Fixed model access issues by switching to a more accessible Bedrock model
+5. **Token Expiration**: Resolved expired JWT tokens by obtaining fresh tokens from Cognito
+
+### **📁 FILES MODIFIED:**
+- `backend/lambda/src/repositories/user_repository.py` - Fixed enum serialization
+- `backend/lambda/src/repositories/translation_repository.py` - Fixed enum serialization
+- `backend/lambda/src/repositories/subscription_repository.py` - Fixed enum serialization
+- `backend/lambda/src/utils/config.py` - Updated Bedrock model configuration
+- `backend/infrastructure/constructs/backend_stack.ts` - Added Bedrock IAM permissions
+- SSM Parameter Store - Updated `/lingible/dev/bedrock` with correct model ID
+
+### **🎯 NEXT STEPS:**
+1. **Investigate API Gateway Resource Policy** - Check for explicit deny policies
+2. **Review IAM Policy Conflicts** - Ensure no conflicting permissions
+3. **Verify Lambda Function Invocation** - Confirm the error is not from API Gateway before reaching Lambda
+4. **Test Translation API** - Once authorization is resolved, validate end-to-end functionality
+
+### **📊 SUCCESS METRICS:**
+- ✅ Authentication working (JWT tokens valid)
+- ✅ Enum serialization working (no more DynamoDB errors)
+- ✅ Configuration working (Bedrock config loaded)
+- ✅ IAM permissions working (Bedrock access granted)
+- ✅ Model access working (accessible model configured)
+- ❌ Final authorization issue (explicit deny policy)
+
+### **🚀 EXPECTED OUTCOME:**
+Once the final authorization issue is resolved, the translation API should work end-to-end with:
+- Successful authentication via Cognito JWT tokens
+- Proper enum serialization to DynamoDB
+- Correct Bedrock model invocation
+- Translation response returned to client
+
+---
+
 ## 🔐 PENDING: Apple Identity Provider Security Discussion
 
 ### **🎯 Context:**

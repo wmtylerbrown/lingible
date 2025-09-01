@@ -11,7 +11,7 @@ from .exceptions import AppException
 def create_success_response(
     data: Optional[Dict[str, Any]] = None,
     status_code: int = HTTPStatus.OK.value,
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create a successful API Gateway response."""
     return APIGatewayResponse(
         statusCode=status_code,
@@ -23,13 +23,13 @@ def create_success_response(
         },
         body=json.dumps(data) if data else "{}",
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_model_response(
     model: Any,
     status_code: int = HTTPStatus.OK.value,
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create a successful API Gateway response from a Pydantic model."""
     return APIGatewayResponse(
         statusCode=status_code,
@@ -41,12 +41,12 @@ def create_model_response(
         },
         body=model.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_error_response(
     exception: AppException, request_id: Optional[str] = None
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create an error API Gateway response from an exception."""
     error_data = ErrorResponse(
         success=False,
@@ -68,14 +68,14 @@ def create_error_response(
         },
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_validation_error_response(
     message: str,
     details: Optional[Dict[str, Any]] = None,
     request_id: Optional[str] = None,
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create a validation error response."""
     error_data = ErrorResponse(
         success=False,
@@ -97,12 +97,12 @@ def create_validation_error_response(
         },
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_not_found_response(
     resource_type: str, resource_id: str, request_id: Optional[str] = None
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create a not found error response."""
     error_data = ErrorResponse(
         success=False,
@@ -124,12 +124,12 @@ def create_not_found_response(
         },
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_unauthorized_response(
     message: str = "Authentication required", request_id: Optional[str] = None
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create an unauthorized error response."""
     error_data = ErrorResponse(
         success=False,
@@ -151,12 +151,12 @@ def create_unauthorized_response(
         },
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_forbidden_response(
     message: str = "Insufficient permissions", request_id: Optional[str] = None
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create a forbidden error response."""
     error_data = ErrorResponse(
         success=False,
@@ -178,12 +178,12 @@ def create_forbidden_response(
         },
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_rate_limit_response(
     limit: int, window_seconds: int, request_id: Optional[str] = None
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create a rate limit exceeded response."""
     error_data = ErrorResponse(
         success=False,
@@ -205,12 +205,12 @@ def create_rate_limit_response(
         },
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def create_internal_error_response(
     message: str = "Internal server error", request_id: Optional[str] = None
-) -> APIGatewayResponse:
+) -> Dict[str, Any]:
     """Create an internal server error response."""
     error_data = ErrorResponse(
         success=False,
@@ -232,7 +232,7 @@ def create_internal_error_response(
         },
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
-    )
+    ).model_dump()
 
 
 def response_to_dict(response: APIGatewayResponse) -> Dict[str, Any]:

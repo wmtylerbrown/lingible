@@ -1,0 +1,35 @@
+{
+  "environment": "dev",
+  "debug_mode": true,
+
+  "aws_region": "us-east-1",
+  "bedrock_model": "anthropic.claude-3-5-haiku-20241022-v1:0",
+  "bedrock_region": "us-east-1",
+  "bedrock_max_tokens": 1000,
+  "bedrock_temperature": 0.7,
+
+  "users_table_name": "lingible-users-dev",
+  "users_table_read_capacity": 5,
+  "users_table_write_capacity": 5,
+
+  "translations_table_name": "lingible-translations-dev",
+  "translations_table_read_capacity": 5,
+  "translations_table_write_capacity": 5,
+
+  "cognito_user_pool_id": "us-east-1_lingible_dev",
+  "cognito_client_id": "lingible_dev_client",
+
+  "apple_client_id": "com.lingible.lingible.signin.dev",
+  "apple_team_id": "PH33VX3MUL",
+  "apple_key_id": "2M28GNMU86",
+  "apple_bundle_id": "com.lingible.lingible.dev",
+  "apple_environment": "sandbox",
+
+  "api_base_url": "https://api.dev.lingible.com",
+  "api_cors_origins": ["*", "http://localhost:3000"],
+
+  "log_level": "DEBUG",
+  "enable_metrics": false,
+  "enable_tracing": true,
+  "service_name": "lingible-dev"
+}

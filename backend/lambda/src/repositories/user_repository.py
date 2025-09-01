@@ -8,7 +8,7 @@ from models.translations import UsageLimit
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config
+from utils.config import get_config_service, TableConfig
 
 
 class UserRepository:
@@ -16,8 +16,9 @@ class UserRepository:
 
     def __init__(self) -> None:
         """Initialize user repository."""
-        self.config = get_config()
-        self.table_name = self.config.get_database_config_typed().users_table
+        self.config_service = get_config_service()
+        users_table_config = self.config_service.get_config(TableConfig, "users")
+        self.table_name = users_table_config.name
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "users")
@@ -124,7 +125,7 @@ class UserRepository:
             item = {
                 "PK": f"USER#{user_id}",
                 "SK": "USAGE#LIMITS",
-                "tier": usage.tier,
+                "tier": usage.tier.value,
                 "daily_used": usage.daily_used,
                 "reset_daily_at": (
                     usage.reset_daily_at.isoformat() if usage.reset_daily_at else None
@@ -202,7 +203,7 @@ class UserRepository:
                     ExpressionAttributeValues={
                         ":one": 1,
                         ":updated_at": now.isoformat(),
-                        ":tier": tier,
+                        ":tier": tier.value,
                     },
                     ConditionExpression="attribute_not_exists(reset_daily_at) OR reset_daily_at >= :today_start",
                     ReturnValues="UPDATED_NEW",
@@ -222,7 +223,7 @@ class UserRepository:
                         ":one": 1,
                         ":today_start": today_start.isoformat(),
                         ":updated_at": now.isoformat(),
-                        ":tier": tier,
+                        ":tier": tier.value,
                     },
                     ReturnValues="UPDATED_NEW",
                 )
@@ -258,7 +259,7 @@ class UserRepository:
                     ":zero": 0,
                     ":today_start": today_start.isoformat(),
                     ":updated_at": now.isoformat(),
-                    ":tier": tier,
+                    ":tier": tier.value,
                 },
             )
 

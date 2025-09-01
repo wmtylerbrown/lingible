@@ -2,10 +2,10 @@
 
 from typing import Optional
 from aws_lambda_powertools import Tracer
-from .config import get_config
+from .config import get_config_service, ObservabilityConfig
 
 # Get configuration
-config = get_config()
+config_service = get_config_service()
 
 
 class PerformanceTracer:
@@ -15,10 +15,10 @@ class PerformanceTracer:
 
     def __init__(self) -> None:
         """Initialize performance tracer."""
-        tracing_config = config.get_tracing_config()
+        observability_config = config_service.get_config(ObservabilityConfig)
 
-        if tracing_config["enabled"]:
-            self.tracer = Tracer(service=tracing_config["service_name"])
+        if observability_config.enable_tracing:
+            self.tracer = Tracer(service=observability_config.service_name)
         else:
             self.tracer = None
 

@@ -12,7 +12,7 @@ from models.users import (
 from models.translations import UsageLimit
 from utils.logging import logger
 from utils.tracing import tracer
-from utils.config import get_config
+from utils.config import get_config_service, UsageLimitsConfig
 from utils.exceptions import ValidationError
 from repositories.user_repository import UserRepository
 
@@ -22,9 +22,9 @@ class UserService:
 
     def __init__(self) -> None:
         """Initialize user service."""
-        self.config = get_config()
+        self.config_service = get_config_service()
         self.repository = UserRepository()
-        self.usage_config = self.config.get_usage_limits()
+        self.usage_config = self.config_service.get_config(UsageLimitsConfig)
 
     @tracer.trace_method("create_user")
     def create_user(
@@ -81,10 +81,10 @@ class UserService:
                 usage_limits = self._create_default_usage_limits(user_id)
 
             # Get limits from config based on tier
-            tier_config = self.usage_config.get(
-                usage_limits.tier, self.usage_config["free"]
-            )
-            daily_limit = tier_config["daily_limit"]
+            if usage_limits.tier == UserTier.FREE:
+                daily_limit = self.usage_config.free_daily_translations
+            else:  # PREMIUM
+                daily_limit = self.usage_config.premium_daily_translations
 
             # Calculate daily remaining
             daily_remaining = max(0, daily_limit - usage_limits.daily_used)

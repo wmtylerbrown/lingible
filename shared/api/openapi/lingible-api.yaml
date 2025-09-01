@@ -121,6 +121,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /translations/delete-all:
     delete:
       summary: Clear all slang translations
       description: Delete all slang translations for the user (premium feature)
@@ -146,14 +148,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /translations/{id}:
+  /translations/{translationId}:
     delete:
       summary: Delete specific slang translation
       description: Delete a specific slang translation by ID
       tags:
         - Translation
       parameters:
-        - name: id
+        - name: translationId
           in: path
           required: true
           description: Translation ID
@@ -251,6 +253,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /webhook/apple:
+    post:
+      summary: Apple webhook for subscription notifications
+      description: Webhook endpoint for Apple App Store subscription notifications
+      tags:
+        - Webhooks
+      security: []  # No authentication required for webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppleWebhookRequest'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          description: Invalid webhook payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -280,31 +309,23 @@ components:
       type: object
       required:
         - text
-        - source_language
-        - target_language
+        - direction
       properties:
         text:
           type: string
           description: Text to translate
           maxLength: 1000
           example: "That's cap fr fr"
-        source_language:
+        direction:
           type: string
-          description: Source language code
-          example: "en"
-        target_language:
-          type: string
-          description: Target language code
-          example: "en"
-        context:
-          type: string
-          description: Optional context for better translation
-          example: "GenZ slang to formal English or vice versa"
+          description: Translation direction
+          enum: ["english_to_genz", "genz_to_english"]
+          example: "english_to_genz"
 
     TranslationResponse:
       type: object
       properties:
-        id:
+        translation_id:
           type: string
           description: Unique translation ID
           example: "trans_123456789"
@@ -314,13 +335,12 @@ components:
         translated_text:
           type: string
           example: "That's not true, for real for real"
-        source_language:
+        direction:
           type: string
-          example: "en"
-        target_language:
-          type: string
-          example: "en"
-        confidence:
+          description: Translation direction used
+          enum: ["english_to_genz", "genz_to_english"]
+          example: "english_to_genz"
+        confidence_score:
           type: number
           format: float
           minimum: 0
@@ -330,6 +350,14 @@ components:
           type: string
           format: date-time
           example: "2024-12-19T10:30:00Z"
+        processing_time_ms:
+          type: integer
+          description: Processing time in milliseconds
+          example: 1250
+        model_used:
+          type: string
+          description: AI model used for translation
+          example: "anthropic.claude-3-5-haiku-20241022-v1:0"
 
     TranslationHistoryResponse:
       type: object
@@ -488,3 +516,42 @@ components:
             field: "text"
             constraint: "maxLength"
             value: 1001
+
+    AppleWebhookRequest:
+      type: object
+      required:
+        - notification_type
+        - transaction_id
+        - receipt_data
+      properties:
+        notification_type:
+          type: string
+          description: Type of Apple subscription notification
+          enum:
+            - INITIAL_BUY
+            - CANCEL
+            - RENEWAL
+            - INTERACTIVE_RENEWAL
+            - DID_CHANGE_RENEWAL_PREF
+            - DID_CHANGE_RENEWAL_STATUS
+            - PRICE_INCREASE_CONSENT
+            - REFUND
+          example: "INITIAL_BUY"
+        transaction_id:
+          type: string
+          description: Apple transaction ID
+          example: "1000000123456789"
+        receipt_data:
+          type: string
+          description: Base64 encoded receipt data from Apple
+          example: "ewoJInNpZ25hdHVyZSIgPSAiQWh..."
+
+    WebhookResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Webhook processed successfully"

@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from utils.logging import SmartLogger
-from utils.config import AppConfig
+from utils.config import get_config_service, SecurityConfig
 from utils.exceptions import (
     AuthenticationError,
     InvalidTokenError,
@@ -21,7 +21,7 @@ from utils.exceptions import (
 )
 
 logger = SmartLogger("api-authorizer")
-config = AppConfig()
+config_service = get_config_service()
 
 
 class CognitoAuthorizer:
@@ -48,7 +48,7 @@ class CognitoAuthorizer:
             and self._jwks_cache_time is not None
             and (current_time - self._jwks_cache_time).seconds < self._jwks_cache_ttl
         ):
-            return self._jwks_cache
+            return self._jwks_cache  # type: ignore  # We just checked it's not None
 
         try:
             jwks_url = f"https://cognito-idp.{self.user_pool_region}.amazonaws.com/{self.user_pool_id}/.well-known/jwks.json"
@@ -58,7 +58,7 @@ class CognitoAuthorizer:
             self._jwks_cache = response.json()
             self._jwks_cache_time = current_time
 
-            return self._jwks_cache
+            return self._jwks_cache  # type: ignore  # Just assigned from response.json()
         except Exception as e:
             logger.log_error(
                 e, {"operation": "get_jwks", "user_pool_id": self.user_pool_id}

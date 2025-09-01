@@ -11,7 +11,7 @@ from models.subscriptions import (
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config
+from utils.config import get_config_service, TableConfig
 
 
 class SubscriptionRepository:
@@ -19,8 +19,9 @@ class SubscriptionRepository:
 
     def __init__(self) -> None:
         """Initialize subscription repository."""
-        self.config = get_config()
-        self.table_name = self.config.get_database_config_typed().users_table
+        self.config_service = get_config_service()
+        users_table_config = self.config_service.get_config(TableConfig, "users")
+        self.table_name = users_table_config.name
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "subscriptions")
@@ -31,9 +32,9 @@ class SubscriptionRepository:
                 "PK": f"USER#{subscription.user_id}",
                 "SK": "SUBSCRIPTION#ACTIVE",
                 "user_id": subscription.user_id,
-                "provider": subscription.provider,
+                "provider": subscription.provider.value,
                 "transaction_id": subscription.transaction_id,
-                "status": subscription.status,
+                "status": subscription.status.value,
                 "start_date": subscription.start_date.isoformat(),
                 "end_date": (
                     subscription.end_date.isoformat() if subscription.end_date else None
@@ -117,9 +118,9 @@ class SubscriptionRepository:
                 "PK": f"USER#{subscription.user_id}",
                 "SK": "SUBSCRIPTION#ACTIVE",
                 "user_id": subscription.user_id,
-                "provider": subscription.provider,
+                "provider": subscription.provider.value,
                 "transaction_id": subscription.transaction_id,
-                "status": subscription.status,
+                "status": subscription.status.value,
                 "start_date": subscription.start_date.isoformat(),
                 "end_date": (
                     subscription.end_date.isoformat() if subscription.end_date else None
@@ -172,7 +173,7 @@ class SubscriptionRepository:
                 "PK": f"USER#{user_id}",
                 "SK": f"SUBSCRIPTION#HISTORY#{current_subscription.transaction_id}",
                 "user_id": user_id,
-                "provider": current_subscription.provider,
+                "provider": current_subscription.provider.value,
                 "transaction_id": current_subscription.transaction_id,
                 "status": "cancelled",
                 "start_date": current_subscription.start_date.isoformat(),
@@ -205,8 +206,8 @@ class SubscriptionRepository:
             logger.log_business_event(
                 "subscription_cancelled",
                 {
-                    "user_id": user_id,
-                    "provider": current_subscription.provider,
+                                    "user_id": user_id,
+                "provider": current_subscription.provider.value,
                     "transaction_id": current_subscription.transaction_id,
                 },
             )

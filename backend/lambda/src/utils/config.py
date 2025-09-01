@@ -1,264 +1,206 @@
-"""Dynamic configuration management using Lambda Powertools and SSM Parameter Store."""
+"""
+Configuration service for Lambda functions.
 
-import os
+This service loads configuration from SSM Parameter Store and provides
+easy access to typed configuration objects.
+"""
+
 import json
-from typing import Dict, Any
+import os
+from typing import Dict, Any, Optional, TypeVar, Type
+
+from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.parameters import get_parameter
-from .config_models import DatabaseConfig
+
+# Import the Pydantic models we defined
+from models.config import (
+    BedrockModel as BedrockConfig,
+    TableConfigModel as TableConfig,
+    LimitsModel as UsageLimitsConfig,
+    TranslationModel as TranslationConfig,
+    SecurityModel as SecurityConfig,
+    ObservabilityModel as ObservabilityConfig,
+    AppleModel as AppleConfig,
+)
+
+logger = Logger()
+
+# Type variable for generic config loading
+T = TypeVar('T')
 
 
-class AppConfig:
-    """Application configuration manager with SSM Parameter Store integration."""
+class ConfigurationError(Exception):
+    """Raised when configuration is invalid or missing."""
+    pass
 
-    def __init__(self) -> None:
-        """Initialize configuration manager."""
-        self.environment = os.environ.get("ENVIRONMENT", "dev")
-        self.app_name = os.environ.get("APP_NAME", "lingible")
 
-        # Default values for development/local testing
-        self._defaults = self._get_default_config()
+class ConfigService:
+    """
+    Configuration service for Lambda functions.
 
-    def _get_default_config(self) -> Dict[str, Any]:
-        """Get default configuration values."""
-        return {
-            # Environment
-            "environment": self.environment,
-            "app_name": self.app_name,
-            # Logging
-            "logging": {
-                "level": "INFO" if self.environment == "production" else "DEBUG",
-                "enable_correlation": True,
-                "enable_structured_logging": True,
-            },
-            # Tracing
-            "tracing": {
-                "enabled": True,
-                "service_name": self.app_name,
-                "auto_patch": False,
-                "capture_response": True,
-                "capture_error": True,
-            },
-            # Usage Limits
-            "usage_limits": {
-                "free": {"daily_limit": 10, "max_text_length": 50},
-                "premium": {
-                    "daily_limit": 100,
-                    "max_text_length": 100,
-                },
-            },
-            # Bedrock Configuration
-            "bedrock": {
-                "model": "anthropic.claude-3-sonnet-20240229-v1:0",
-                "region": "us-east-1",
-                "max_tokens": 1000,
-                "temperature": 0.7,
-            },
-            # Translation Configuration
-            "translation": {
-                "directions": {
-                    "genz_to_english": "genz_to_english",
-                    "english_to_genz": "english_to_genz",
-                },
-                "max_concurrent_translations": 5,
-                "translation_timeout": 30,
-            },
-            # Apple Store Configuration
-            "apple_store": {
-                "environment": "sandbox",  # sandbox or production
-                "shared_secret": "your_app_specific_shared_secret",
-                "bundle_id": "com.lingible.lingible",
-                "verify_url": "https://buy.itunes.apple.com/verifyReceipt",
-                "sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt",
-            },
-            # Google Play Configuration
-            "google_play": {
-                "package_name": "com.lingible.lingible",
-                "service_account_key": "path/to/service-account-key.json",
-                "api_timeout": 10,
-            },
-            # Database Configuration
-            "database": {
-                "users_table": f"{self.app_name}-users-{self.environment}",
-                "translations_table": f"{self.app_name}-translations-{self.environment}",
-                "read_capacity": 5,
-                "write_capacity": 5,
-            },
-            # Security Configuration
-            "security": {
-                "sensitive_fields": [
-                    "password",
-                    "token",
-                    "secret",
-                    "key",
-                    "authorization",
-                    "cookie",
-                    "x-api-key",
-                ],
-                "bearer_prefix": "Bearer ",
-                "jwt_expiration": 3600,
-                "rate_limiting": {
-                    "enabled": True,
-                    "requests_per_minute": 100,
-                    "burst_limit": 20,
-                },
-            },
-            # API Configuration
-            "api": {
-                "cors": {
-                    "allowed_origins": ["*"],
-                    "allowed_headers": ["Content-Type", "Authorization"],
-                    "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-                },
-                "pagination": {"default_limit": 20, "max_limit": 100},
-            },
-            # Monitoring Configuration
-            "monitoring": {
-                "enable_metrics": True,
-                "enable_logging": True,
-                "enable_tracing": True,
-                "log_retention_days": 14,
-                "metrics_namespace": f"{self.app_name}/{self.environment}",
-            },
-        }
+    Loads configuration from SSM Parameter Store and provides easy access
+    to typed configuration objects.
+    """
 
-    def _get_ssm_parameter(self, parameter_name: str, default: Any = None) -> Any:
-        """Get parameter from SSM Parameter Store using Powertools caching."""
+    # Mapping of config types to their SSM parameter names
+    # For table configs, we use a tuple: (parameter_name, default_name_template)
+    CONFIG_MAPPING = {
+        BedrockConfig: "bedrock",
+        UsageLimitsConfig: "limits",
+        TranslationConfig: "translation",
+        SecurityConfig: "security",
+        ObservabilityConfig: "observability",
+        AppleConfig: "apple",
+    }
+
+    # Special table config mappings
+    TABLE_CONFIG_MAPPING = {
+        "users": ("users_table", "lingible-users-{environment}"),
+        "translations": ("translations_table", "lingible-translations-{environment}"),
+    }
+
+    def __init__(self, app_name: str = "lingible", environment: Optional[str] = None):
+        self.app_name = app_name
+        self.environment = environment or os.environ.get("ENVIRONMENT", "dev")
+        self.parameter_prefix = f"/{self.app_name}/{self.environment}"
+
+    def _get_ssm_parameter(self, parameter_name: str, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Get a configuration section from SSM Parameter Store.
+
+        Args:
+            parameter_name: The parameter name (without prefix)
+            default: Default value if parameter doesn't exist
+
+        Returns:
+            Parsed JSON configuration
+
+        Raises:
+            ConfigurationError: If parameter doesn't exist and no default provided
+        """
+        full_parameter_name = f"{self.parameter_prefix}/{parameter_name}"
+
         try:
-            # Get from SSM Parameter Store using Powertools built-in caching (5 minutes)
-            full_parameter_name = (
-                f"/{self.app_name}/{self.environment}/{parameter_name}"
-            )
-            value = get_parameter(full_parameter_name, max_age=300)
-
-            # Parse JSON if it's a string
-            if isinstance(value, str):
-                try:
-                    value = json.loads(value)
-                except json.JSONDecodeError:
-                    pass  # Keep as string if not JSON
-
-            return value
-
+            # Get from SSM Parameter Store using Powertools built-in caching (5 minutes default)
+            # No additional caching needed - Powertools handles this efficiently
+            value = get_parameter(full_parameter_name)
+            return json.loads(value)
         except Exception as e:
-            # Log the error for debugging but don't fail
-            print(f"Failed to get SSM parameter {parameter_name}: {e}")
-            # Return default if SSM fails
-            return default
-
-    def _get_ssm_parameters(self, parameter_names: list[str]) -> Dict[str, Any]:
-        """Get multiple parameters from SSM Parameter Store."""
-        try:
-            # Get parameters one by one since get_parameters expects a path pattern
-            result = {}
-            for name in parameter_names:
-                value = self._get_ssm_parameter(name)
-                if value is not None:
-                    result[name] = value
-            return result
-
-        except Exception:
-            return {}
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get configuration value with SSM fallback."""
-        # Try to get from SSM first
-        ssm_value = self._get_ssm_parameter(key, default)
-        if ssm_value is not None:
-            return ssm_value
-
-        # Fall back to defaults
-        keys = key.split(".")
-        value = self._defaults
-
-        for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
-            else:
+            if default is not None:
+                logger.warning(f"Failed to load parameter {full_parameter_name}, using default: {str(e)}")
                 return default
 
-        return value
+            logger.error(f"Failed to load configuration parameter {full_parameter_name}: {str(e)}")
+            raise ConfigurationError(f"Configuration parameter '{parameter_name}' not found: {str(e)}")
 
-    def get_usage_limits(self) -> Dict[str, Dict[str, int]]:
-        """Get usage limits configuration."""
-        return self.get("usage_limits", self._defaults["usage_limits"])
+    def get_config(self, config_type: Type[T], table_name: Optional[str] = None) -> T:
+        """
+        Get configuration of the specified type.
 
-    def get_bedrock_config(self) -> Dict[str, Any]:
-        """Get Bedrock configuration."""
-        return self.get("bedrock", self._defaults["bedrock"])
+        Args:
+            config_type: The configuration class type to load
+            table_name: For TableConfig, specify which table ("users" or "translations")
 
-    def get_translation_config(self) -> Dict[str, Any]:
-        """Get translation configuration."""
-        return self.get("translation", self._defaults["translation"])
+        Returns:
+            Instance of the requested configuration type
 
-    def get_database_config(self) -> Dict[str, Any]:
-        """Get database configuration."""
-        return self.get("database", self._defaults["database"])
+        Example:
+            bedrock = config.get_config(BedrockConfig)
+            limits = config.get_config(UsageLimitsConfig)
+            users_table = config.get_config(TableConfig, "users")
+            translations_table = config.get_config(TableConfig, "translations")
+        """
+        # Handle table configs specially
+        if config_type == TableConfig:
+            if table_name is None:
+                raise ConfigurationError("table_name is required when getting TableConfig")
 
-    def get_database_config_typed(self) -> DatabaseConfig:
-        """Get database configuration as a typed model."""
-        raw_config = self.get("database", self._defaults["database"])
-        return DatabaseConfig(**raw_config)
+            if table_name not in self.TABLE_CONFIG_MAPPING:
+                raise ConfigurationError(f"Unknown table name: {table_name}. Available: {list(self.TABLE_CONFIG_MAPPING.keys())}")
 
-    def get_security_config(self) -> Dict[str, Any]:
-        """Get security configuration."""
-        return self.get("security", self._defaults["security"])
+            parameter_name, default_name_template = self.TABLE_CONFIG_MAPPING[table_name]
+            table_data = self._get_ssm_parameter(parameter_name, {})
 
-    def get_api_config(self) -> Dict[str, Any]:
-        """Get API configuration."""
-        return self.get("api", self._defaults["api"])
+            # Apply default name if not specified
+            if "name" not in table_data:
+                table_data["name"] = default_name_template.format(environment=self.environment)
 
-    def get_monitoring_config(self) -> Dict[str, Any]:
-        """Get monitoring configuration."""
-        return self.get("monitoring", self._defaults["monitoring"])
+            return config_type(**table_data)  # type: ignore
 
-    def get_apple_store_config(self) -> Dict[str, Any]:
-        """Get Apple Store configuration."""
-        return self.get("apple_store", self._defaults["apple_store"])
+        # Handle regular configs
+        parameter_name = self.CONFIG_MAPPING.get(config_type)  # type: ignore
 
-    def get_google_play_config(self) -> Dict[str, Any]:
-        """Get Google Play configuration."""
-        return self.get("google_play", self._defaults["google_play"])
+        if parameter_name is None:
+            raise ConfigurationError(f"Unknown config type: {config_type}")
 
-    def get_logging_config(self) -> Dict[str, Any]:
-        """Get logging configuration."""
-        return self.get("logging", self._defaults["logging"])
+        config_data = self._get_ssm_parameter(parameter_name, {})
 
-    def get_tracing_config(self) -> Dict[str, Any]:
-        """Get tracing configuration."""
-        return self.get("tracing", self._defaults["tracing"])
+        # Add special environment-based defaults for certain configs
+        if config_type == ObservabilityConfig:
+            # Apply environment-specific defaults
+            if "debug_mode" not in config_data:
+                config_data["debug_mode"] = self.environment != "prod"
+            if "log_level" not in config_data:
+                config_data["log_level"] = "INFO" if self.environment == "prod" else "DEBUG"
+            if "enable_metrics" not in config_data:
+                config_data["enable_metrics"] = self.environment == "prod"
+            if "log_retention_days" not in config_data:
+                config_data["log_retention_days"] = 30 if self.environment == "prod" else 7
+            if "service_name" not in config_data:
+                config_data["service_name"] = f"lingible-{self.environment}"
 
-    def get_translation_storage_config(self) -> Dict[str, Any]:
-        """Get translation storage configuration."""
-        return {
-            "ttl_days": int(os.environ.get("TRANSLATION_TTL_DAYS", "365")),
-        }
-
-    def refresh_cache(self) -> None:
-        """Refresh the configuration cache."""
-        # Powertools handles caching automatically - this is a no-op for compatibility
-        pass
-
-    def get_all_config(self) -> Dict[str, Any]:
-        """Get all configuration values."""
-        return {
-            "environment": self.environment,
-            "app_name": self.app_name,
-            "usage_limits": self.get_usage_limits(),
-            "bedrock": self.get_bedrock_config(),
-            "translation": self.get_translation_config(),
-            "database": self.get_database_config(),
-            "security": self.get_security_config(),
-            "api": self.get_api_config(),
-            "monitoring": self.get_monitoring_config(),
-            "logging": self.get_logging_config(),
-            "tracing": self.get_tracing_config(),
-        }
+        return config_type(**config_data)
 
 
-# Global configuration instance
-config = AppConfig()
+
+    # Raw configuration access (for backward compatibility)
+    def get_raw_config(self, section: str, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Get raw configuration section."""
+        return self._get_ssm_parameter(section, default or {})
+
+    def clear_cache(self):
+        """
+        Clear the configuration cache. Useful for testing.
+
+        Note: This service relies on AWS Lambda Powertools caching,
+        which automatically expires after 5 minutes. For immediate
+        cache clearing in tests, you may need to restart the Lambda
+        function or use Powertools' cache clearing mechanisms.
+        """
+        # Powertools handles caching internally - no manual clearing needed
+        logger.info("Config cache clear requested - relying on Powertools cache expiration")
 
 
-def get_config() -> AppConfig:
-    """Get the global configuration instance."""
-    return config
+# Global configuration service instance
+_config_service: Optional[ConfigService] = None
+
+
+def get_config_service() -> ConfigService:
+    """
+    Get the global configuration service instance.
+
+    Returns:
+        ConfigService instance
+    """
+    global _config_service
+    if _config_service is None:
+        _config_service = ConfigService()
+    return _config_service
+
+
+# Usage pattern:
+# from utils.config import get_config_service, BedrockConfig, UsageLimitsConfig, TableConfig
+# config = get_config_service()
+#
+# # Generic method for most configs
+# bedrock = config.get_config(BedrockConfig)
+# limits = config.get_config(UsageLimitsConfig)
+# security = config.get_config(SecurityConfig)
+#
+# # Table configs with table name parameter
+# users_table = config.get_config(TableConfig, "users")
+# translations_table = config.get_config(TableConfig, "translations")
+#
+# # Use the validated models with defaults and validation
+# model = bedrock.model  # Required field, will fail if missing
+# max_tokens = bedrock.max_tokens  # Has default of 1000
