@@ -200,10 +200,11 @@ class UserRepository:
                         "PK": f"USER#{user_id}",
                         "SK": "USAGE#LIMITS",
                     },
-                    UpdateExpression="SET daily_used = if_not_exists(daily_used, 0) + :one, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                    UpdateExpression="SET daily_used = if_not_exists(daily_used, 0) + :one, reset_daily_at = if_not_exists(reset_daily_at, :tomorrow_start), updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
                     ExpressionAttributeValues={
                         ":one": 1,
                         ":today_start": today_start.isoformat(),
+                        ":tomorrow_start": tomorrow_start.isoformat(),
                         ":updated_at": now.isoformat(),
                         ":tier": tier.value,
                     },
