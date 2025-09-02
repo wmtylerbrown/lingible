@@ -12,13 +12,13 @@ config_service = get_config_service()
 class SmartLogger:
     """Smart logger with cost optimization and sensitive data protection."""
 
-    def __init__(self, service_name: str) -> None:
+    def __init__(self) -> None:
         """Initialize smart logger."""
         observability_config = config_service.get_config(ObservabilityConfig)
         self.environment = config_service.environment
 
+        # Use POWERTOOLS_SERVICE_NAME environment variable (set per Lambda function)
         self.logger = Logger(
-            service=service_name,
             level=observability_config.log_level,
             correlation_paths=[
                 correlation_paths.API_GATEWAY_REST,
@@ -100,4 +100,4 @@ class SmartLogger:
 
 
 # Global logger instance
-logger = SmartLogger("lingible")
+logger = SmartLogger()

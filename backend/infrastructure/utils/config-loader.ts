@@ -53,10 +53,6 @@ export interface EnvironmentConfig {
     max_tokens: number;
     temperature: number;
   };
-  cognito: {
-    user_pool_id: string;
-    client_id: string;
-  };
   users_table: {
     name: string;
     read_capacity: number;
@@ -89,13 +85,41 @@ export interface EnvironmentConfig {
     enable_metrics: boolean;
     enable_tracing: boolean;
     log_retention_days: number;
-    service_name: string;
   };
 }
 
 // Merged configuration (app + environment)
-export interface MergedConfig extends AppConfig, EnvironmentConfig {
-  // Inherits all properties from both AppConfig and EnvironmentConfig
+export interface MergedConfig {
+  // From AppConfig
+  app: AppConfig['app'];
+  translation: AppConfig['translation'];
+  limits: AppConfig['limits'];
+  security: AppConfig['security'];
+  stores: AppConfig['stores'];
+
+  // From EnvironmentConfig
+  environment: EnvironmentConfig['environment'];
+  aws: EnvironmentConfig['aws'];
+  bedrock: EnvironmentConfig['bedrock'];
+  users_table: EnvironmentConfig['users_table'];
+  translations_table: EnvironmentConfig['translations_table'];
+  apple: EnvironmentConfig['apple'];
+  google: EnvironmentConfig['google'];
+  observability: EnvironmentConfig['observability'];
+
+  // Merged API config (combines both app and environment)
+  api: {
+    // From AppConfig
+    cors_headers: string[];
+    cors_methods: string[];
+    pagination_default: number;
+    pagination_max: number;
+    timeout_ms: number;
+    max_retries: number;
+    // From EnvironmentConfig
+    base_url: string;
+    cors_origins: string[];
+  };
 }
 
 export class ConfigLoader {
@@ -119,10 +143,10 @@ export class ConfigLoader {
         if (sourceValue && typeof sourceValue === 'object' && !Array.isArray(sourceValue) &&
             targetValue && typeof targetValue === 'object' && !Array.isArray(targetValue)) {
           // Recursively merge nested objects
-          result[key] = this.deepMerge(targetValue, sourceValue);
-        } else {
+          (result as any)[key] = this.deepMerge(targetValue, sourceValue);
+        } else if (sourceValue !== undefined) {
           // Override with source value (including arrays)
-          result[key] = sourceValue;
+          (result as any)[key] = sourceValue;
         }
       }
     }
@@ -173,11 +197,6 @@ export class ConfigLoader {
   public getBedrockConfig(environment: string): EnvironmentConfig['bedrock'] {
     const envConfig = this.loadEnvironmentConfig(environment);
     return envConfig.bedrock;
-  }
-
-  public getCognitoConfig(environment: string): EnvironmentConfig['cognito'] {
-    const envConfig = this.loadEnvironmentConfig(environment);
-    return envConfig.cognito;
   }
 
   public getUsersTableConfig(environment: string): EnvironmentConfig['users_table'] {
@@ -251,7 +270,7 @@ export class ConfigLoader {
     return {
       app_name: merged.app.name,
       version: merged.app.version,
-      environment: merged.environment,
+      // Note: removed environment property to avoid conflicts with Lambda environment configuration
 
       // Bedrock config
       bedrock: merged.bedrock,
@@ -271,8 +290,7 @@ export class ConfigLoader {
       apple: merged.apple,
       google: merged.google,
       observability: merged.observability,
-      aws: merged.aws,
-      cognito: merged.cognito
+      aws: merged.aws
     };
   }
 
@@ -323,11 +341,5 @@ export class ConfigLoader {
   /**
    * @deprecated Use getObservabilityConfig instead
    */
-  public getTracingConfig(environment: string): { enabled: boolean; service_name: string } {
-    const envConfig = this.loadEnvironmentConfig(environment);
-    return {
-      enabled: envConfig.observability.enable_tracing,
-      service_name: envConfig.observability.service_name
-    };
-  }
+
 }

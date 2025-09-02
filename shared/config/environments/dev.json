@@ -6,15 +6,10 @@
   },
 
   "bedrock": {
-    "model": "anthropic.claude-3-5-haiku-20241022-v1:0",
+    "model": "anthropic.claude-3-haiku-20240307-v1:0",
     "region": "us-east-1",
     "max_tokens": 1000,
     "temperature": 0.7
-  },
-
-  "cognito": {
-    "user_pool_id": "us-east-1_lingible_dev",
-    "client_id": "lingible_dev_client"
   },
 
   "users_table": {
@@ -53,7 +48,6 @@
     "log_level": "DEBUG",
     "enable_metrics": false,
     "enable_tracing": true,
-    "log_retention_days": 7,
-    "service_name": "lingible-dev"
+    "log_retention_days": 7
   }
 }

@@ -85,7 +85,6 @@ class ObservabilityModel(BaseModel):
     enable_metrics: bool = False
     enable_tracing: bool = True
     log_retention_days: int = 7
-    service_name: str = "lingible-dev"
 
 
 class AppleModel(BaseModel):
@@ -96,3 +95,17 @@ class AppleModel(BaseModel):
     bundle_id: str = ""
     environment: StoreEnvironment = StoreEnvironment.SANDBOX
     shared_secret: str = ""
+
+
+class GoogleModel(BaseModel):
+    """Google configuration."""
+    package_name: str  # Required - no default
+    service_account_key: str = ""  # Path to service account key file
+
+
+class CognitoModel(BaseModel):
+    """Cognito configuration populated by CDK with actual resource IDs."""
+    user_pool_id: str  # Required - populated by CDK
+    user_pool_client_id: str  # Required - populated by CDK
+    user_pool_region: str  # Required - populated by CDK
+    api_gateway_arn: str  # Required - populated by CDK

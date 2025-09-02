@@ -4,7 +4,7 @@
   "description": "AWS CDK infrastructure for Lingible",
   "main": "app.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/build-lambda-packages.js",
     "watch": "tsc -w",
     "test": "jest",
     "test:watch": "jest --watch",

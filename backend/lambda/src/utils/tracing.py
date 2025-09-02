@@ -18,7 +18,8 @@ class PerformanceTracer:
         observability_config = config_service.get_config(ObservabilityConfig)
 
         if observability_config.enable_tracing:
-            self.tracer = Tracer(service=observability_config.service_name)
+            # Use POWERTOOLS_SERVICE_NAME environment variable (set per Lambda function)
+            self.tracer = Tracer()
         else:
             self.tracer = None
 

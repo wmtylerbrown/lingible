@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import { Stack } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -47,6 +48,7 @@ export class BackendStack extends Construct {
 
   // Configuration loader
   private configLoader!: ConfigLoader;
+  private mergedConfig: any;
   private environment!: string;
   public userDataCleanupLambda!: lambda.Function;
 
@@ -77,6 +79,7 @@ export class BackendStack extends Construct {
     this.configLoader = new ConfigLoader(path.resolve(__dirname, '../../..'));
     this.environment = environment;
     const config = this.configLoader.getMergedConfig(environment);
+    this.mergedConfig = config;  // Store for later use
 
     // Create Lambda layers
     this.dependenciesLayer = this.createDependenciesLayer(environment);
@@ -93,22 +96,7 @@ export class BackendStack extends Construct {
       ...this.configLoader.getLambdaConfig(environment),
     };
 
-    // Create SSM parameters for configuration
-    this.createSsmParameters(environment, config);
-
-    // Common environment variables function
-    const getCommonEnv = () => {
-      const baseEnv: { [key: string]: string } = {
-        POWERTOOLS_SERVICE_NAME: 'lingible-api',
-        LOG_LEVEL: 'INFO',
-        POWERTOOLS_LOGGER_LOG_EVENT: 'true',
-        USERS_TABLE: this.usersTable.tableName,
-        TRANSLATIONS_TABLE: this.translationsTable.tableName,
-        ENVIRONMENT: environment,
-        APP_NAME: 'lingible',
-      };
-      return baseEnv;
-    };
+    // Environment variables are now inlined in each Lambda function
 
     // Common IAM policy statements for Lambda functions
     const lambdaPolicyStatements = [
@@ -155,7 +143,7 @@ export class BackendStack extends Construct {
     this.createCognitoUserPool(environment, appleClientId, appleTeamId, appleKeyId);
 
     // Create Lambda functions
-    this.createLambdaFunctions(environment, getCommonEnv, lambdaConfig, lambdaPolicyStatements);
+    this.createLambdaFunctions(environment, lambdaConfig, lambdaPolicyStatements);
 
     // Configure Cognito triggers
     this.setupCognitoTriggers();
@@ -278,10 +266,16 @@ export class BackendStack extends Construct {
       tier: ssm.ParameterTier.STANDARD,
     });
 
+    // Cognito config populated with actual resource IDs (not from static config)
     new ssm.StringParameter(this, 'CognitoConfigParameter', {
       parameterName: `${parameterPrefix}/cognito`,
-      stringValue: JSON.stringify(config.cognito),
-      description: 'Cognito configuration for Lingible',
+      stringValue: JSON.stringify({
+        user_pool_id: this.userPool.userPoolId,
+        user_pool_client_id: this.userPoolClient.userPoolClientId,
+        user_pool_region: Stack.of(this).region,
+        api_gateway_arn: `arn:aws:execute-api:${Stack.of(this).region}:${Stack.of(this).account}:${this.api.restApiId}`,
+      }),
+      description: 'Cognito configuration populated with actual resource IDs',
       tier: ssm.ParameterTier.STANDARD,
     });
 
@@ -435,14 +429,7 @@ export class BackendStack extends Construct {
     return new lambda.LayerVersion(this, 'SharedLayer', {
       layerVersionName: `lingible-shared-layer-${environment}`,
       description: `Shared services, repositories, and models for Lingible Lambda functions`,
-      code: lambda.Code.fromAsset('../lambda/src', {
-        bundling: {
-          image: lambda.Runtime.PYTHON_3_13.bundlingImage,
-          command: [
-            'bash', '-c',
-            'mkdir -p /asset-output/python && cp -r services repositories models utils /asset-output/python/ && find /asset-output/python -name "*.pyc" -delete && find /asset-output/python -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true'
-          ]
-        },
+      code: lambda.Code.fromAsset('./lambda-layer', {
         exclude: [
           '**/__pycache__/**',
           '**/*.pyc',
@@ -451,8 +438,6 @@ export class BackendStack extends Construct {
           '**/.pytest_cache/**',
           '**/.coverage',
           '**/.mypy_cache/**',
-          '**/tests/**',
-          '**/handlers/**'
         ]
       }),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
@@ -494,7 +479,6 @@ export class BackendStack extends Construct {
 
   private createLambdaFunctions(
     environment: string,
-    getCommonEnv: any,
     lambdaConfig: any,
     lambdaPolicyStatements: iam.PolicyStatement[]
   ): void {
@@ -504,10 +488,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.authorizer.authorizer'),
       environment: {
-        ...getCommonEnv(),
-        USER_POOL_ID: this.userPool.userPoolId,
-        USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
-        API_GATEWAY_ARN: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:*`,
+        POWERTOOLS_SERVICE_NAME: 'lingible-authorizer',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -520,7 +503,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.translate_api.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-translate',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -547,7 +532,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.user_profile_api.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-user-profile',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -560,7 +547,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.user_usage_api.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-user-usage',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -573,7 +562,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.user_upgrade_api.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-user-upgrade',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -586,7 +577,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.get_translation_history.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-translation-history',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -599,7 +592,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.delete_translation.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-delete-translation',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -612,7 +607,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.delete_translations.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-delete-all-translations',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -625,7 +622,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.health_api.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-health',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -639,7 +638,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.apple_webhook.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-apple-webhook',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -653,7 +654,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.cognito_post_confirmation.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-post-confirmation',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -669,7 +672,9 @@ export class BackendStack extends Construct {
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.user_data_cleanup.handler'),
       environment: {
-        ...getCommonEnv(),
+        POWERTOOLS_SERVICE_NAME: 'lingible-user-data-cleanup',
+        ENVIRONMENT: environment,
+
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
@@ -802,6 +807,9 @@ export class BackendStack extends Construct {
 
     // Grant API Gateway permission to invoke Lambda functions
     this.grantApiGatewayPermissions();
+
+    // Create SSM parameters for configuration (after all resources are created)
+    this.createSsmParameters(environment, this.mergedConfig);
 
     // Create DNS record
     new route53.ARecord(this, 'ApiAliasRecord', {

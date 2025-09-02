@@ -37,8 +37,20 @@ function shouldExclude(filePath) {
   const relativePath = path.relative(SRC_DIR, filePath);
   return EXCLUDE_PATTERNS.some(pattern => {
     if (pattern.includes('*')) {
-      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-      return regex.test(relativePath);
+      // Convert glob pattern to proper regex
+      // For simple patterns like *.ext, just check the file extension
+      if (pattern.startsWith('*.')) {
+        const extension = pattern.substring(1); // Remove the *
+        return relativePath.endsWith(extension) || path.basename(relativePath).endsWith(extension);
+      }
+
+      // For more complex patterns, convert to regex properly
+      const escapedPattern = pattern
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
+        .replace(/\\\*/g, '.*'); // Convert escaped * back to .*
+
+      const regex = new RegExp('^' + escapedPattern + '$');
+      return regex.test(path.basename(relativePath)) || regex.test(relativePath);
     }
     return relativePath.includes(pattern);
   });

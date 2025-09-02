@@ -159,7 +159,7 @@ class AuthenticatedLingibleClient:
         # Create request object
         request = TranslationRequest(text=text, direction=direction)
 
-        return self.translation_api.v1_translate_post(translation_request=request)
+        return self.translation_api.translate_post(translation_request=request)
 
     def get_translation_history(
         self,
@@ -179,7 +179,7 @@ class AuthenticatedLingibleClient:
         # Ensure we have auth headers
         self._add_auth_headers()
 
-        return self.translation_api.v1_translations_get(limit=limit, offset=offset)
+        return self.translation_api.translations_get(limit=limit, offset=offset)
 
     def delete_translation(self, translation_id: str):
         """
@@ -194,7 +194,7 @@ class AuthenticatedLingibleClient:
         # Ensure we have auth headers
         self._add_auth_headers()
 
-        return self.translation_api.v1_translations_id_delete(id=translation_id)
+        return self.translation_api.translations_translation_id_delete(translation_id=translation_id)
 
     def delete_all_translations(self):
         """
@@ -206,7 +206,7 @@ class AuthenticatedLingibleClient:
         # Ensure we have auth headers
         self._add_auth_headers()
 
-        return self.translation_api.v1_translations_delete()
+        return self.translation_api.translations_delete_all_delete()
 
     # User API methods
     def get_user_profile(self):
@@ -219,7 +219,7 @@ class AuthenticatedLingibleClient:
         # Ensure we have auth headers
         self._add_auth_headers()
 
-        return self.user_api.v1_user_profile_get()
+        return self.user_api.user_profile_get()
 
     def get_usage_stats(self):
         """
@@ -231,7 +231,7 @@ class AuthenticatedLingibleClient:
         # Ensure we have auth headers
         self._add_auth_headers()
 
-        return self.user_api.v1_user_usage_get()
+        return self.user_api.user_usage_get()
 
     def upgrade_subscription(
         self,
@@ -254,7 +254,7 @@ class AuthenticatedLingibleClient:
         # Create request object
         request = UpgradeRequest(platform=platform, receipt_data=receipt_data)
 
-        return self.user_api.v1_user_upgrade_post(upgrade_request=request)
+        return self.user_api.user_upgrade_post(upgrade_request=request)
 
 
 # Convenience functions for common configurations

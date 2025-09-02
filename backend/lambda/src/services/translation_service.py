@@ -124,7 +124,7 @@ class TranslationService:
             raise ValidationError("Text exceeds maximum length of 1000 characters")
 
     def _generate_bedrock_prompt(self, request: TranslationRequestInternal) -> str:
-        """Generate prompt for Bedrock API."""
+        """Generate prompt for Bedrock API (Messages API format)."""
         direction = request.direction
         text = request.text
 
@@ -133,29 +133,32 @@ class TranslationService:
 
 Text to translate: "{text}"
 
-Provide only the translated text in standard English. Do not include explanations or additional text.
-
-Translation:"""
+Provide only the translated text in standard English. Do not include explanations or additional text."""
         else:
             prompt = f"""You are a Lingible translator. Translate the following standard English to GenZ slang or internet language.
 
 Text to translate: "{text}"
 
-Provide only the translated text in GenZ slang. Do not include explanations or additional text.
-
-Translation:"""
+Provide only the translated text in GenZ slang. Do not include explanations or additional text."""
 
         return prompt
 
     @tracer.trace_external_call("bedrock", "invoke")
     def _call_bedrock_api(self, prompt: str) -> BedrockResponse:
-        """Call AWS Bedrock API."""
+        """Call AWS Bedrock API using Messages API format for Claude 3."""
         try:
+            # Claude 3 models use the Messages API format
             request_body = {
-                "prompt": prompt,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
                 "max_tokens": self.bedrock_config.max_tokens,
                 "temperature": self.bedrock_config.temperature,
                 "top_p": 0.9,  # Not in config model, hardcoded
+                "anthropic_version": "bedrock-2023-05-31"
             }
 
             response = self.bedrock_client.invoke_model(
@@ -165,8 +168,14 @@ Translation:"""
 
             response_body = json.loads(response["body"].read())
 
+            # Extract the text content from Messages API response
+            content = response_body.get("content", [])
+            completion_text = ""
+            if content and len(content) > 0:
+                completion_text = content[0].get("text", "")
+
             return BedrockResponse(
-                completion=response_body.get("completion", ""),
+                completion=completion_text,
                 stop_reason=response_body.get("stop_reason"),
                 usage=response_body.get("usage"),
             )

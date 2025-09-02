@@ -1,7 +1,5 @@
 """Lambda authorizer for API Gateway with Cognito JWT validation."""
 
-import json
-import os
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from jose import jwt
@@ -9,18 +7,17 @@ from jose.exceptions import ExpiredSignatureError, JWTError
 import requests
 import base64
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from utils.logging import SmartLogger
-from utils.config import get_config_service, SecurityConfig
+from utils.config import get_config_service, CognitoConfig
 from utils.exceptions import (
     AuthenticationError,
     InvalidTokenError,
     TokenExpiredError,
 )
 
-logger = SmartLogger("api-authorizer")
+logger = SmartLogger()
 config_service = get_config_service()
 
 
@@ -29,10 +26,12 @@ class CognitoAuthorizer:
 
     def __init__(self) -> None:
         """Initialize the authorizer."""
-        self.user_pool_id = os.environ.get("USER_POOL_ID")
-        self.user_pool_client_id = os.environ.get("USER_POOL_CLIENT_ID")
-        self.user_pool_region = os.environ.get("USER_POOL_REGION", "us-east-1")
-        self.api_gateway_arn = os.environ.get("API_GATEWAY_ARN")
+        # Get Cognito configuration from the config service
+        cognito_config = config_service.get_config(CognitoConfig)
+        self.user_pool_id = cognito_config.user_pool_id
+        self.user_pool_client_id = cognito_config.user_pool_client_id
+        self.user_pool_region = cognito_config.user_pool_region
+        self.api_gateway_arn = cognito_config.api_gateway_arn
 
         # Cache for JWKS (JSON Web Key Set)
         self._jwks_cache: Optional[Dict[str, Any]] = None
@@ -199,7 +198,7 @@ class CognitoAuthorizer:
                 "token_expires_at": str(claims.get("exp", "")),
             }
 
-            # Generate policy
+            # Generate policy - use wildcard to allow access to all resources
             resource_arn = f"{self.api_gateway_arn}/*"
 
             logger.log_business_event(

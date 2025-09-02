@@ -21,6 +21,8 @@ from models.config import (
     SecurityModel as SecurityConfig,
     ObservabilityModel as ObservabilityConfig,
     AppleModel as AppleConfig,
+    GoogleModel as GoogleConfig,
+    CognitoModel as CognitoConfig,
 )
 
 logger = Logger()
@@ -51,6 +53,8 @@ class ConfigService:
         SecurityConfig: "security",
         ObservabilityConfig: "observability",
         AppleConfig: "apple",
+        GoogleConfig: "google",
+        CognitoConfig: "cognito",
     }
 
     # Special table config mappings
@@ -59,9 +63,9 @@ class ConfigService:
         "translations": ("translations_table", "lingible-translations-{environment}"),
     }
 
-    def __init__(self, app_name: str = "lingible", environment: Optional[str] = None):
-        self.app_name = app_name
-        self.environment = environment or os.environ.get("ENVIRONMENT", "dev")
+    def __init__(self):
+        self.app_name = "lingible"  # Fixed app name
+        self.environment = os.environ["ENVIRONMENT"]  # Required - no default
         self.parameter_prefix = f"/{self.app_name}/{self.environment}"
 
     def _get_ssm_parameter(self, parameter_name: str, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -146,8 +150,6 @@ class ConfigService:
                 config_data["enable_metrics"] = self.environment == "prod"
             if "log_retention_days" not in config_data:
                 config_data["log_retention_days"] = 30 if self.environment == "prod" else 7
-            if "service_name" not in config_data:
-                config_data["service_name"] = f"lingible-{self.environment}"
 
         return config_type(**config_data)
 

@@ -357,7 +357,7 @@ components:
         model_used:
           type: string
           description: AI model used for translation
-          example: "anthropic.claude-3-5-haiku-20241022-v1:0"
+          example: "anthropic.claude-3-haiku-20240307-v1:0"
 
     TranslationHistoryResponse:
       type: object

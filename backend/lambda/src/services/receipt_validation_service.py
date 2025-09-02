@@ -14,11 +14,11 @@ from models.subscriptions import (
     ReceiptValidationStatus,
     SubscriptionProvider,
 )
-from utils.config import get_config_service, AppleConfig
+from utils.config import get_config_service, AppleConfig, GoogleConfig
 from utils.logging import SmartLogger
 from utils.exceptions import ValidationError
 
-logger = SmartLogger("receipt-validation-service")
+logger = SmartLogger()
 
 
 class ReceiptValidationService:
@@ -26,9 +26,9 @@ class ReceiptValidationService:
 
     def __init__(self):
         """Initialize the receipt validation service."""
-        self.config = AppConfig()
-        self.apple_config = self.config.get_apple_store_config()
-        self.google_config = self.config.get_google_play_config()
+        self.config_service = get_config_service()
+        self.apple_config = self.config_service.get_config(AppleConfig)
+        self.google_config = self.config_service.get_config(GoogleConfig)
 
         # Initialize Google Play API client
         self._google_client = None
@@ -39,7 +39,7 @@ class ReceiptValidationService:
         if self._google_client is None:
             try:
                 credentials = service_account.Credentials.from_service_account_info(
-                    self.google_config.get("service_account_key"),
+                    self.google_config.service_account_key,
                     scopes=["https://www.googleapis.com/auth/androidpublisher"],
                 )
                 self._google_client = build(
@@ -111,7 +111,7 @@ class ReceiptValidationService:
     ) -> ReceiptValidationResult:
         """Validate Apple Store receipt using direct API calls."""
         try:
-            shared_secret = self.apple_config.get("shared_secret")
+            shared_secret = self.apple_config.shared_secret
 
             # Prepare request payload
             payload = {

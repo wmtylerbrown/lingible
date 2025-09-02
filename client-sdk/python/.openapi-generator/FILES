@@ -55,7 +55,4 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
-test/test_apple_webhook_request.py
-test/test_webhook_response.py
-test/test_webhooks_api.py
 tox.ini
