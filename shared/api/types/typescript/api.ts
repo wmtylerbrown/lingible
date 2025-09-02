@@ -15,35 +15,55 @@ export interface ApiError {
   details?: Record<string, any>;
 }
 
+// Error Response (matches backend ErrorResponse model)
+export interface ErrorResponse {
+  success: false;
+  message: string;
+  error_code: string;
+  status_code: number;
+  details?: Record<string, any>;
+  timestamp: string;
+}
+
 // Health Check
 export interface HealthResponse {
-  status: 'healthy' | 'unhealthy';
-  timestamp: string;
-  service: string;
-  version: string;
+  status: string;
 }
 
 // Translation Types
+export type TranslationDirection = 'english_to_genz' | 'genz_to_english';
+
 export interface TranslationRequest {
   text: string;
-  source_language: string;
-  target_language: string;
-  context?: string;
+  direction: TranslationDirection;
 }
 
 export interface TranslationResponse {
-  id: string;
+  translation_id: string;
   original_text: string;
   translated_text: string;
-  source_language: string;
-  target_language: string;
-  confidence: number;
+  direction: TranslationDirection;
+  confidence_score?: number;
   created_at: string;
+  processing_time_ms?: number;
+  model_used?: string;
+}
+
+export interface TranslationHistoryItemResponse {
+  translation_id: string;
+  user_id: string;
+  original_text: string;
+  translated_text: string;
+  direction: TranslationDirection;
+  confidence_score?: number;
+  created_at: string;
+  model_used?: string;
 }
 
 export interface TranslationHistoryResponse {
-  translations: TranslationResponse[];
-  pagination: PaginationInfo;
+  translations: TranslationHistoryItemResponse[];
+  total_count: number;
+  has_more: boolean;
 }
 
 export interface PaginationInfo {
@@ -68,15 +88,12 @@ export type UserStatus = 'active' | 'cancelled' | 'suspended';
 
 // Usage Types
 export interface UsageResponse {
-  current_period: UsagePeriod;
-  limits: UsageLimits;
-}
-
-export interface UsagePeriod {
-  translations_used: number;
-  translations_limit: number;
-  period_start: string;
-  period_end: string;
+  tier: UserTier;
+  daily_limit: number;
+  daily_used: number;
+  daily_remaining: number;
+  total_used: number;
+  reset_date: string; // ISO format
 }
 
 export interface UsageLimits {
@@ -102,15 +119,41 @@ export interface SuccessResponse {
   message: string;
 }
 
+// Apple Webhook Types
+export type AppleNotificationType =
+  | 'INITIAL_BUY'
+  | 'RENEWAL'
+  | 'CANCEL'
+  | 'FAILED_PAYMENT'
+  | 'REFUND'
+  | 'REFUND_DECLINED'
+  | 'CONSUMPTION_REQUEST';
+
+export type Environment = 'Sandbox' | 'Production';
+
+export interface AppleWebhookRequest {
+  notification_type: AppleNotificationType;
+  transaction_id: string;
+  receipt_data: string;
+  environment?: Environment;
+}
+
+export interface WebhookResponse {
+  success: boolean;
+  message: string;
+}
+
 // API Endpoints
 export const API_ENDPOINTS = {
   HEALTH: '/health',
   TRANSLATE: '/translate',
   TRANSLATIONS: '/translations',
+  TRANSLATIONS_DELETE_ALL: '/translations/delete-all',
   TRANSLATION_BY_ID: (id: string) => `/translations/${id}`,
   USER_PROFILE: '/user/profile',
   USER_USAGE: '/user/usage',
   USER_UPGRADE: '/user/upgrade',
+  WEBHOOK_APPLE: '/webhook/apple',
 } as const;
 
 // HTTP Methods
