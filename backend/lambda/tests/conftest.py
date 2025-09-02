@@ -97,7 +97,9 @@ def sample_translation_request_event():
 def mock_bedrock_client():
     """Mock AWS Bedrock client."""
     mock_client = Mock()
-    mock_response = Mock()
+    mock_response = {
+        "body": Mock()
+    }
     mock_response["body"].read.return_value = '{"completion": "Hola mundo", "stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}}'
     mock_client.invoke_model.return_value = mock_response
     return mock_client
@@ -106,7 +108,7 @@ def mock_bedrock_client():
 @pytest.fixture
 def mock_dynamodb_table():
     """Mock DynamoDB table."""
-    with mock_aws(["dynamodb"]):
+    with mock_aws():
         dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
         table = dynamodb.create_table(
             TableName='lingible-users-dev',
@@ -160,10 +162,40 @@ def mock_tracer():
 @pytest.fixture
 def mock_config():
     """Mock configuration for testing."""
-    with patch('src.utils.config.AppConfig') as mock_config_class:
+    from models.config import BedrockModel, TableConfigModel, LimitsModel, TranslationModel
+
+    with patch('src.utils.config.ConfigService') as mock_config_class:
         mock_config = Mock()
         mock_config.environment = "test"
         mock_config.app_name = "lingible-backend"
+
+        # Mock the get_config method to return actual Pydantic models
+        def mock_get_config(config_type, table_name=None):
+            if config_type == BedrockModel:
+                return BedrockModel(
+                    model="anthropic.claude-3-sonnet-20240229-v1:0",
+                    region="us-east-1",
+                    max_tokens=1000,
+                    temperature=0.7
+                )
+            elif config_type == TableConfigModel:
+                return TableConfigModel(name=f"lingible-{table_name}-test")
+            elif config_type == LimitsModel:
+                return LimitsModel(
+                    free_daily_limit=10,
+                    premium_daily_limit=1000,
+                    max_text_length=1000
+                )
+            elif config_type == TranslationModel:
+                return TranslationModel(
+                    max_text_length=1000,
+                    claude_model="anthropic.claude-3-sonnet-20240229-v1:0"
+                )
+            return Mock()
+
+        mock_config.get_config.side_effect = mock_get_config
+
+        # Keep legacy methods for backward compatibility
         mock_config.get_bedrock_config.return_value = {
             "model": "anthropic.claude-3-sonnet-20240229-v1:0",
             "max_tokens": 1000,

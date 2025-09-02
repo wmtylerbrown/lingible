@@ -10,7 +10,7 @@ from src.models.subscriptions import UserSubscription, SubscriptionStatus, Subsc
 from src.services.translation_service import TranslationService
 from src.services.user_service import UserService
 from src.services.subscription_service import SubscriptionService
-from src.utils.exceptions import BusinessLogicError, SystemError
+from src.utils.exceptions import BusinessLogicError, SystemError, UsageLimitExceededError
 
 
 class TestTranslationService:
@@ -19,10 +19,12 @@ class TestTranslationService:
     @pytest.fixture
     def translation_service(self, mock_bedrock_client, mock_config):
         """Create TranslationService with mocked dependencies."""
-        with patch('src.services.translation_service.boto3.client') as mock_boto3:
-            mock_boto3.return_value = mock_bedrock_client
-            service = TranslationService()
-            return service
+        with patch('src.services.translation_service.aws_services') as mock_aws_services:
+            with patch('src.services.translation_service.get_config_service') as mock_get_config:
+                mock_aws_services.bedrock_runtime = mock_bedrock_client
+                mock_get_config.return_value = mock_config
+                service = TranslationService()
+                return service
 
     def test_translate_english_to_genz(self, translation_service, sample_user):
         """Test translation from English to GenZ."""
@@ -108,6 +110,120 @@ class TestTranslationService:
         with patch.object(translation_service, '_save_translation_history') as mock_save:
             translation_service.translate(request, sample_user)
             mock_save.assert_not_called()
+
+    def test_daily_limit_blocks_translation_when_no_quota(self, translation_service):
+        """Test that translation is blocked when user has no remaining daily quota."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Hello world",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        # Mock usage response with no remaining quota
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=10,
+            daily_remaining=0,  # No quota left!
+            reset_date=datetime.now(timezone.utc)
+        )
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            mock_user_service.get_user_usage.return_value = usage_response
+
+            # Should raise UsageLimitExceededError
+            with pytest.raises(UsageLimitExceededError) as exc_info:
+                translation_service.translate_text(request, user_id)
+
+            # Verify the exception details
+            exception = exc_info.value
+            assert "daily" in exception.message
+            assert exception.status_code == 429  # Too Many Requests
+            assert exception.error_code == "BIZ_001"
+
+            # Should not call increment_usage
+            mock_user_service.increment_usage.assert_not_called()
+
+    def test_daily_limit_allows_translation_with_quota(self, translation_service, mock_bedrock_client):
+        """Test that translation proceeds when user has remaining quota."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Hello world",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        # Mock usage response with available quota
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=5,
+            daily_remaining=5,  # Quota available
+            reset_date=datetime.now(timezone.utc)
+        )
+
+        # Mock successful Bedrock response
+        mock_bedrock_response = {
+            "body": Mock()
+        }
+        mock_bedrock_response["body"].read.return_value = '{"content": [{"text": "Yo, wassup world!"}], "usage": {"input_tokens": 5, "output_tokens": 8}}'
+        mock_bedrock_client.invoke_model.return_value = mock_bedrock_response
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'translation_repository') as mock_repo:
+                mock_user_service.get_user_usage.return_value = usage_response
+                mock_repo.generate_translation_id.return_value = "trans_123"
+                mock_repo.create_translation.return_value = True
+
+                # Should succeed
+                result = translation_service.translate_text(request, user_id)
+
+                assert result is not None
+                assert result.translated_text == "Yo, wassup world!"
+
+                # Should call increment_usage after successful translation
+                mock_user_service.increment_usage.assert_called_once_with(user_id, UserTier.FREE)
+
+    def test_usage_not_incremented_on_bedrock_failure(self, translation_service, mock_bedrock_client):
+        """Test that usage is not incremented if Bedrock call fails."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Hello world",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        # Mock usage response with available quota
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=3,
+            daily_remaining=7,
+            reset_date=datetime.now(timezone.utc)
+        )
+
+        # Mock Bedrock failure
+        mock_bedrock_client.invoke_model.side_effect = Exception("Bedrock API error")
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            mock_user_service.get_user_usage.return_value = usage_response
+
+            # Should raise exception
+            with pytest.raises(Exception):
+                translation_service.translate_text(request, user_id)
+
+            # Usage should NOT be incremented on failure
+            mock_user_service.increment_usage.assert_not_called()
 
 
 class TestUserService:
