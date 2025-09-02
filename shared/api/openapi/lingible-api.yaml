@@ -315,7 +315,7 @@ components:
           type: string
           description: Text to translate
           maxLength: 1000
-          example: "That's cap fr fr"
+          example: "Hello, how are you doing today?"
         direction:
           type: string
           description: Translation direction
@@ -331,10 +331,10 @@ components:
           example: "trans_123456789"
         original_text:
           type: string
-          example: "That's cap fr fr"
+          example: "Hello, how are you doing today?"
         translated_text:
           type: string
-          example: "That's not true, for real for real"
+          example: "Yo, what's good fam?"
         direction:
           type: string
           description: Translation direction used
