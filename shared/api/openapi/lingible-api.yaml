@@ -293,17 +293,8 @@ components:
       properties:
         status:
           type: string
+          description: Service status
           example: "healthy"
-        timestamp:
-          type: string
-          format: date-time
-          example: "2024-12-19T10:30:00Z"
-        service:
-          type: string
-          example: "lingible-api"
-        version:
-          type: string
-          example: "1.0.0"
 
     TranslationRequest:
       type: object
@@ -359,15 +350,58 @@ components:
           description: AI model used for translation
           example: "anthropic.claude-3-haiku-20240307-v1:0"
 
+    TranslationHistoryItemResponse:
+      type: object
+      properties:
+        translation_id:
+          type: string
+          description: Unique translation ID
+          example: "trans_123456789"
+        user_id:
+          type: string
+          description: User ID
+          example: "user_123456789"
+        original_text:
+          type: string
+          example: "Hello, how are you doing today?"
+        translated_text:
+          type: string
+          example: "Yo, what's good fam?"
+        direction:
+          type: string
+          description: Translation direction used
+          enum: ["english_to_genz", "genz_to_english"]
+          example: "english_to_genz"
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-12-19T10:30:00Z"
+        model_used:
+          type: string
+          description: AI model used for translation
+          example: "anthropic.claude-3-haiku-20240307-v1:0"
+
     TranslationHistoryResponse:
       type: object
       properties:
         translations:
           type: array
           items:
-            $ref: '#/components/schemas/TranslationResponse'
-        pagination:
-          $ref: '#/components/schemas/PaginationInfo'
+            $ref: '#/components/schemas/TranslationHistoryItemResponse'
+        total_count:
+          type: integer
+          description: Total number of translations
+          example: 150
+        has_more:
+          type: boolean
+          description: Whether there are more translations to load
+          example: true
 
     PaginationInfo:
       type: object
@@ -419,30 +453,32 @@ components:
     UsageResponse:
       type: object
       properties:
-        current_period:
-          $ref: '#/components/schemas/UsagePeriod'
-        limits:
-          $ref: '#/components/schemas/UsageLimits'
-
-    UsagePeriod:
-      type: object
-      properties:
-        translations_used:
-          type: integer
-          description: Number of translations used today
-          example: 7
-        translations_limit:
+        tier:
+          type: string
+          enum: [free, premium]
+          description: User tier
+          example: "free"
+        daily_limit:
           type: integer
           description: Daily translation limit
           example: 10
-        period_start:
+        daily_used:
+          type: integer
+          description: Number of translations used today
+          example: 7
+        daily_remaining:
+          type: integer
+          description: Number of translations remaining today
+          example: 3
+        total_used:
+          type: integer
+          description: Total translations used
+          example: 147
+        reset_date:
           type: string
           format: date-time
-          example: "2024-12-19T00:00:00Z"
-        period_end:
-          type: string
-          format: date-time
-          example: "2024-12-19T23:59:59Z"
+          description: Next daily reset date
+          example: "2024-12-20T00:00:00Z"
 
     UsageLimits:
       type: object

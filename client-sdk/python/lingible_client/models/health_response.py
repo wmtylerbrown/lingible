@@ -17,8 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,11 +26,8 @@ class HealthResponse(BaseModel):
     """
     HealthResponse
     """ # noqa: E501
-    status: Optional[StrictStr] = None
-    timestamp: Optional[datetime] = None
-    service: Optional[StrictStr] = None
-    version: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["status", "timestamp", "service", "version"]
+    status: Optional[StrictStr] = Field(default=None, description="Service status")
+    __properties: ClassVar[List[str]] = ["status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -84,9 +80,6 @@ class HealthResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "status": obj.get("status"),
-            "timestamp": obj.get("timestamp"),
-            "service": obj.get("service"),
-            "version": obj.get("version")
+            "status": obj.get("status")
         })
         return _obj

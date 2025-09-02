@@ -36,13 +36,13 @@ __all__ = [
     "HealthResponse",
     "PaginationInfo",
     "SuccessResponse",
+    "TranslationHistoryItemResponse",
     "TranslationHistoryResponse",
     "TranslationRequest",
     "TranslationResponse",
     "UpgradeRequest",
     "UpgradeResponse",
     "UsageLimits",
-    "UsagePeriod",
     "UsageResponse",
     "UserProfileResponse",
     "WebhookResponse",
@@ -72,13 +72,13 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.health_response import HealthResponse as HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
     from lingible_client.models.success_response import SuccessResponse as SuccessResponse
+    from lingible_client.models.translation_history_item_response import TranslationHistoryItemResponse as TranslationHistoryItemResponse
     from lingible_client.models.translation_history_response import TranslationHistoryResponse as TranslationHistoryResponse
     from lingible_client.models.translation_request import TranslationRequest as TranslationRequest
     from lingible_client.models.translation_response import TranslationResponse as TranslationResponse
     from lingible_client.models.upgrade_request import UpgradeRequest as UpgradeRequest
     from lingible_client.models.upgrade_response import UpgradeResponse as UpgradeResponse
     from lingible_client.models.usage_limits import UsageLimits as UsageLimits
-    from lingible_client.models.usage_period import UsagePeriod as UsagePeriod
     from lingible_client.models.usage_response import UsageResponse as UsageResponse
     from lingible_client.models.user_profile_response import UserProfileResponse as UserProfileResponse
     from lingible_client.models.webhook_response import WebhookResponse as WebhookResponse
@@ -114,13 +114,13 @@ from lingible_client.models.error_response import ErrorResponse as ErrorResponse
 from lingible_client.models.health_response import HealthResponse as HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
 from lingible_client.models.success_response import SuccessResponse as SuccessResponse
+from lingible_client.models.translation_history_item_response import TranslationHistoryItemResponse as TranslationHistoryItemResponse
 from lingible_client.models.translation_history_response import TranslationHistoryResponse as TranslationHistoryResponse
 from lingible_client.models.translation_request import TranslationRequest as TranslationRequest
 from lingible_client.models.translation_response import TranslationResponse as TranslationResponse
 from lingible_client.models.upgrade_request import UpgradeRequest as UpgradeRequest
 from lingible_client.models.upgrade_response import UpgradeResponse as UpgradeResponse
 from lingible_client.models.usage_limits import UsageLimits as UsageLimits
-from lingible_client.models.usage_period import UsagePeriod as UsagePeriod
 from lingible_client.models.usage_response import UsageResponse as UsageResponse
 from lingible_client.models.user_profile_response import UserProfileResponse as UserProfileResponse
 from lingible_client.models.webhook_response import WebhookResponse as WebhookResponse

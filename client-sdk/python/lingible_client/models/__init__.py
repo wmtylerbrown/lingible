@@ -20,13 +20,13 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.health_response import HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo
     from lingible_client.models.success_response import SuccessResponse
+    from lingible_client.models.translation_history_item_response import TranslationHistoryItemResponse
     from lingible_client.models.translation_history_response import TranslationHistoryResponse
     from lingible_client.models.translation_request import TranslationRequest
     from lingible_client.models.translation_response import TranslationResponse
     from lingible_client.models.upgrade_request import UpgradeRequest
     from lingible_client.models.upgrade_response import UpgradeResponse
     from lingible_client.models.usage_limits import UsageLimits
-    from lingible_client.models.usage_period import UsagePeriod
     from lingible_client.models.usage_response import UsageResponse
     from lingible_client.models.user_profile_response import UserProfileResponse
     from lingible_client.models.webhook_response import WebhookResponse
@@ -43,13 +43,13 @@ from lingible_client.models.error_response import ErrorResponse
 from lingible_client.models.health_response import HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo
 from lingible_client.models.success_response import SuccessResponse
+from lingible_client.models.translation_history_item_response import TranslationHistoryItemResponse
 from lingible_client.models.translation_history_response import TranslationHistoryResponse
 from lingible_client.models.translation_request import TranslationRequest
 from lingible_client.models.translation_response import TranslationResponse
 from lingible_client.models.upgrade_request import UpgradeRequest
 from lingible_client.models.upgrade_response import UpgradeResponse
 from lingible_client.models.usage_limits import UsageLimits
-from lingible_client.models.usage_period import UsagePeriod
 from lingible_client.models.usage_response import UsageResponse
 from lingible_client.models.user_profile_response import UserProfileResponse
 from lingible_client.models.webhook_response import WebhookResponse

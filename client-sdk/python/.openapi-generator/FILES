@@ -10,13 +10,13 @@ docs/PaginationInfo.md
 docs/SuccessResponse.md
 docs/SystemApi.md
 docs/TranslationApi.md
+docs/TranslationHistoryItemResponse.md
 docs/TranslationHistoryResponse.md
 docs/TranslationRequest.md
 docs/TranslationResponse.md
 docs/UpgradeRequest.md
 docs/UpgradeResponse.md
 docs/UsageLimits.md
-docs/UsagePeriod.md
 docs/UsageResponse.md
 docs/UserApi.md
 docs/UserProfileResponse.md
@@ -39,13 +39,13 @@ lingible_client/models/error_response.py
 lingible_client/models/health_response.py
 lingible_client/models/pagination_info.py
 lingible_client/models/success_response.py
+lingible_client/models/translation_history_item_response.py
 lingible_client/models/translation_history_response.py
 lingible_client/models/translation_request.py
 lingible_client/models/translation_response.py
 lingible_client/models/upgrade_request.py
 lingible_client/models/upgrade_response.py
 lingible_client/models/usage_limits.py
-lingible_client/models/usage_period.py
 lingible_client/models/usage_response.py
 lingible_client/models/user_profile_response.py
 lingible_client/models/webhook_response.py
@@ -55,4 +55,5 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
+test/test_translation_history_item_response.py
 tox.ini

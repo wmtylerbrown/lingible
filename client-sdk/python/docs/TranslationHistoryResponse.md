@@ -5,8 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**translations** | [**List[TranslationResponse]**](TranslationResponse.md) |  | [optional]
-**pagination** | [**PaginationInfo**](PaginationInfo.md) |  | [optional]
+**translations** | [**List[TranslationHistoryItemResponse]**](TranslationHistoryItemResponse.md) |  | [optional]
+**total_count** | **int** | Total number of translations | [optional]
+**has_more** | **bool** | Whether there are more translations to load | [optional]
 
 ## Example
 

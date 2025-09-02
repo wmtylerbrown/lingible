@@ -5,8 +5,12 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**current_period** | [**UsagePeriod**](UsagePeriod.md) |  | [optional]
-**limits** | [**UsageLimits**](UsageLimits.md) |  | [optional]
+**tier** | **str** | User tier | [optional]
+**daily_limit** | **int** | Daily translation limit | [optional]
+**daily_used** | **int** | Number of translations used today | [optional]
+**daily_remaining** | **int** | Number of translations remaining today | [optional]
+**total_used** | **int** | Total translations used | [optional]
+**reset_date** | **datetime** | Next daily reset date | [optional]
 
 ## Example
 

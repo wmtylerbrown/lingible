@@ -5,10 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**status** | **str** |  | [optional]
-**timestamp** | **datetime** |  | [optional]
-**service** | **str** |  | [optional]
-**version** | **str** |  | [optional]
+**status** | **str** | Service status | [optional]
 
 ## Example
 

@@ -17,20 +17,36 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
-from typing import Any, ClassVar, Dict, List, Optional
-from lingible_client.models.translation_history_item_response import TranslationHistoryItemResponse
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from typing import Any, ClassVar, Dict, List, Optional, Union
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class TranslationHistoryResponse(BaseModel):
+class TranslationHistoryItemResponse(BaseModel):
     """
-    TranslationHistoryResponse
+    TranslationHistoryItemResponse
     """ # noqa: E501
-    translations: Optional[List[TranslationHistoryItemResponse]] = None
-    total_count: Optional[StrictInt] = Field(default=None, description="Total number of translations")
-    has_more: Optional[StrictBool] = Field(default=None, description="Whether there are more translations to load")
-    __properties: ClassVar[List[str]] = ["translations", "total_count", "has_more"]
+    translation_id: Optional[StrictStr] = Field(default=None, description="Unique translation ID")
+    user_id: Optional[StrictStr] = Field(default=None, description="User ID")
+    original_text: Optional[StrictStr] = None
+    translated_text: Optional[StrictStr] = None
+    direction: Optional[StrictStr] = Field(default=None, description="Translation direction used")
+    confidence_score: Optional[Union[Annotated[float, Field(le=1, strict=True, ge=0)], Annotated[int, Field(le=1, strict=True, ge=0)]]] = None
+    created_at: Optional[datetime] = None
+    model_used: Optional[StrictStr] = Field(default=None, description="AI model used for translation")
+    __properties: ClassVar[List[str]] = ["translation_id", "user_id", "original_text", "translated_text", "direction", "confidence_score", "created_at", "model_used"]
+
+    @field_validator('direction')
+    def direction_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['english_to_genz', 'genz_to_english']):
+            raise ValueError("must be one of enum values ('english_to_genz', 'genz_to_english')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +66,7 @@ class TranslationHistoryResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of TranslationHistoryResponse from a JSON string"""
+        """Create an instance of TranslationHistoryItemResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,18 +87,11 @@ class TranslationHistoryResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in translations (list)
-        _items = []
-        if self.translations:
-            for _item_translations in self.translations:
-                if _item_translations:
-                    _items.append(_item_translations.to_dict())
-            _dict['translations'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of TranslationHistoryResponse from a dict"""
+        """Create an instance of TranslationHistoryItemResponse from a dict"""
         if obj is None:
             return None
 
@@ -90,8 +99,13 @@ class TranslationHistoryResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "translations": [TranslationHistoryItemResponse.from_dict(_item) for _item in obj["translations"]] if obj.get("translations") is not None else None,
-            "total_count": obj.get("total_count"),
-            "has_more": obj.get("has_more")
+            "translation_id": obj.get("translation_id"),
+            "user_id": obj.get("user_id"),
+            "original_text": obj.get("original_text"),
+            "translated_text": obj.get("translated_text"),
+            "direction": obj.get("direction"),
+            "confidence_score": obj.get("confidence_score"),
+            "created_at": obj.get("created_at"),
+            "model_used": obj.get("model_used")
         })
         return _obj
