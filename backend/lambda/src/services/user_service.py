@@ -1,6 +1,6 @@
 """User service for user management and usage tracking."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from models.users import (
@@ -107,11 +107,13 @@ class UserService:
         """Create default usage limits for a user."""
         try:
             now = datetime.now(timezone.utc)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            tomorrow_start = today_start + timedelta(days=1)
 
             usage = UsageLimit(
                 tier=tier,
                 daily_used=0,
-                reset_daily_at=now.replace(hour=0, minute=0, second=0, microsecond=0),
+                reset_daily_at=tomorrow_start,
             )
 
             success = self.repository.update_usage_limits(user_id, usage)

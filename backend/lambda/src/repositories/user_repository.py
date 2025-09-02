@@ -1,6 +1,6 @@
 """User repository for user-related data operations."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from models.users import User, UserTier, UserStatus
@@ -191,6 +191,7 @@ class UserRepository:
         try:
             now = datetime.now(timezone.utc)
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            tomorrow_start = today_start + timedelta(days=1)
 
             # First, try to increment usage (this will work if it's the same day)
             try:
@@ -206,7 +207,7 @@ class UserRepository:
                         ":updated_at": now.isoformat(),
                         ":tier": tier.value,
                     },
-                    ConditionExpression="attribute_not_exists(reset_daily_at) OR reset_daily_at >= :today_start",
+                    ConditionExpression="attribute_not_exists(reset_daily_at) OR reset_daily_at > :today_start",
                     ReturnValues="UPDATED_NEW",
                 )
 
@@ -219,10 +220,10 @@ class UserRepository:
                         "PK": f"USER#{user_id}",
                         "SK": "USAGE#LIMITS",
                     },
-                    UpdateExpression="SET daily_used = :one, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                    UpdateExpression="SET daily_used = :one, reset_daily_at = :tomorrow_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
                     ExpressionAttributeValues={
                         ":one": 1,
-                        ":today_start": today_start.isoformat(),
+                        ":tomorrow_start": tomorrow_start.isoformat(),
                         ":updated_at": now.isoformat(),
                         ":tier": tier.value,
                     },
@@ -249,16 +250,17 @@ class UserRepository:
         try:
             now = datetime.now(timezone.utc)
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            tomorrow_start = today_start + timedelta(days=1)
 
             self.table.update_item(
                 Key={
                     "PK": f"USER#{user_id}",
                     "SK": "USAGE#LIMITS",
                 },
-                UpdateExpression="SET daily_used = :zero, reset_daily_at = :today_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
+                UpdateExpression="SET daily_used = :zero, reset_daily_at = :tomorrow_start, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
                 ExpressionAttributeValues={
                     ":zero": 0,
-                    ":today_start": today_start.isoformat(),
+                    ":tomorrow_start": tomorrow_start.isoformat(),
                     ":updated_at": now.isoformat(),
                     ":tier": tier.value,
                 },
