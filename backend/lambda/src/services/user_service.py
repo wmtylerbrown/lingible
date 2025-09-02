@@ -180,13 +180,6 @@ class UserService:
             user.tier = new_tier
             user.updated_at = datetime.now(timezone.utc)
 
-            if new_tier == UserTier.PREMIUM:
-                user.subscription_start_date = datetime.now(timezone.utc)
-                # Set subscription end date (e.g., 1 year from now)
-                user.subscription_end_date = datetime.now(timezone.utc).replace(
-                    year=datetime.now(timezone.utc).year + 1
-                )
-
             success = self.repository.update_user(user)
 
             if not success:

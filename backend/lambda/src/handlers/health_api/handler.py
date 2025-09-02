@@ -14,7 +14,7 @@ from utils.envelopes import SimpleEnvelope
 @tracer.trace_lambda
 @event_parser(model=HealthEvent, envelope=SimpleEnvelope)
 @api_handler()
-def handler(event: HealthEvent, context: LambdaContext) -> Dict[str, Any]:
+def handler(event: HealthEvent, context: LambdaContext) -> HealthResponse:
     """Handle health check requests."""
 
     # Return health status data using HealthResponse model

@@ -107,16 +107,17 @@ class SubscriptionService:
                     error_code="SUBSCRIPTION_CREATE_FAILED",
                 )
 
-            # Update user tier
-            user.tier = UserTier.PREMIUM
-            user.updated_at = datetime.now(timezone.utc)
-
-            # Save user
-            success = self.user_service.update_user(user)
+            # Update user tier - use proper upgrade method
+            success = self.user_service.upgrade_user_tier(user_id, UserTier.PREMIUM)
             if not success:
                 raise SystemError(
-                    "Failed to update user", error_code="USER_UPDATE_FAILED"
+                    "Failed to update user tier", error_code="USER_TIER_UPDATE_FAILED"
                 )
+
+            # Refresh user object after tier update
+            user = self.user_service.get_user(user_id)
+            if not user:
+                raise SystemError("User not found after tier update")
 
             # Note: Transaction deduplication is handled by the receipt validation service
             # No need to mark as used since we're not caching receipts in database

@@ -272,24 +272,74 @@ class TestUserService:
         assert result["daily_limit"] == 10
         assert result["tier"] == "free"
 
-    def test_upgrade_user_to_premium(self, user_service, sample_user):
-        """Test upgrading user to premium."""
-        user_service.user_repository.get_user.return_value = sample_user
-        user_service.user_repository.update_user_tier.return_value = True
+    def test_upgrade_user_tier_to_premium(self, user_service, sample_user):
+        """Test upgrading user tier to premium."""
+        user_service.repository.get_user.return_value = sample_user
+        user_service.repository.update_user.return_value = True
 
-        result = user_service.upgrade_user_to_premium("test_user_123")
+        result = user_service.upgrade_user_tier("test_user_123", UserTier.PREMIUM)
 
         assert result is True
-        user_service.user_repository.update_user_tier.assert_called_once_with(
-            "test_user_123", "premium"
-        )
+        # Verify the user tier was updated
+        user_service.repository.update_user.assert_called_once()
+        updated_user = user_service.repository.update_user.call_args[0][0]
+        assert updated_user.tier == UserTier.PREMIUM
 
-    def test_upgrade_nonexistent_user(self, user_service):
-        """Test upgrading user that doesn't exist."""
-        user_service.user_repository.get_user.return_value = None
+    def test_upgrade_user_tier_nonexistent_user(self, user_service):
+        """Test upgrading tier for user that doesn't exist."""
+        user_service.repository.get_user.return_value = None
 
-        with pytest.raises(BusinessLogicError):
-            user_service.upgrade_user_to_premium("nonexistent_user")
+        with pytest.raises(ValidationError):
+            user_service.upgrade_user_tier("nonexistent_user", UserTier.PREMIUM)
+
+    def test_subscription_service_upgrade_flow(self):
+        """Test that SubscriptionService properly calls UserService.upgrade_user_tier."""
+        from src.services.subscription_service import SubscriptionService
+        from src.models.users import UserTier
+        from unittest.mock import Mock, patch
+
+        # Create mocks
+        mock_user = Mock()
+        mock_user.user_id = "test_user_123"
+        mock_user.tier = UserTier.FREE
+
+        with patch('src.services.subscription_service.UserService') as MockUserService:
+            with patch('src.services.subscription_service.SubscriptionRepository') as MockSubRepo:
+                with patch('src.services.subscription_service.ReceiptValidationService') as MockReceiptService:
+
+                    # Setup mocks
+                    mock_user_service = MockUserService.return_value
+                    mock_user_service.get_user.return_value = mock_user
+                    mock_user_service.upgrade_user_tier.return_value = True
+
+                    mock_sub_repo = MockSubRepo.return_value
+                    mock_sub_repo.create_subscription.return_value = True
+
+                    mock_receipt_service = MockReceiptService.return_value
+                    mock_validation_result = Mock()
+                    mock_validation_result.is_valid = True
+                    mock_receipt_service.validate_receipt.return_value = mock_validation_result
+
+                    # Test the subscription upgrade flow
+                    subscription_service = SubscriptionService()
+
+                    result_user = subscription_service.upgrade_user(
+                        "test_user_123", "apple", "receipt_data", "transaction_123"
+                    )
+
+                    # Verify the correct UserService method was called
+                    mock_user_service.upgrade_user_tier.assert_called_once()
+
+                    # Verify the call arguments
+                    call_args = mock_user_service.upgrade_user_tier.call_args
+                    assert call_args[0][0] == "test_user_123"  # user_id
+                    assert call_args[0][1].value == "premium"  # tier value
+
+                    # Verify subscription was created
+                    mock_sub_repo.create_subscription.assert_called_once()
+
+                    # Verify user was fetched twice (initial + after tier update)
+                    assert mock_user_service.get_user.call_count == 2
 
     def test_check_usage_limits_free_user(self, user_service, sample_user):
         """Test usage limit checking for free user."""

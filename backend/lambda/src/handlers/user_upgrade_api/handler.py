@@ -7,7 +7,7 @@ from utils.envelopes import UserUpgradeEnvelope
 from models.events import UserUpgradeEvent
 from models.users import UserResponse
 from services.subscription_service import SubscriptionService
-from utils.decorators import api_handler
+from utils.decorators import api_handler, extract_user_from_parsed_data
 from utils.tracing import tracer
 
 # Initialize service at module level for Lambda container reuse
@@ -27,7 +27,7 @@ def upgrade_user(event: UserUpgradeEvent, context: LambdaContext) -> UserRespons
 
     # Upgrade user
     user = subscription_service.upgrade_user(
-        event.user_id, provider, receipt_data, transaction_id
+        event.user_id, provider.value, receipt_data, transaction_id
     )
 
     return user.to_api_response()
