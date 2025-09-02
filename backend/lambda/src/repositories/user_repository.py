@@ -202,6 +202,7 @@ class UserRepository:
                     UpdateExpression="SET daily_used = if_not_exists(daily_used, 0) + :one, updated_at = :updated_at, tier = if_not_exists(tier, :tier)",
                     ExpressionAttributeValues={
                         ":one": 1,
+                        ":today_start": today_start.isoformat(),
                         ":updated_at": now.isoformat(),
                         ":tier": tier.value,
                     },
