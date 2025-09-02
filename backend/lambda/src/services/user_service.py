@@ -94,7 +94,6 @@ class UserService:
                 daily_limit=daily_limit,
                 daily_used=usage_limits.daily_used,
                 daily_remaining=daily_remaining,
-                total_used=0,  # We'll need to get this from user data if needed
                 reset_date=usage_limits.reset_daily_at or datetime.now(timezone.utc),
             )
 

@@ -31,9 +31,8 @@ class UsageResponse(BaseModel):
     daily_limit: Optional[StrictInt] = Field(default=None, description="Daily translation limit")
     daily_used: Optional[StrictInt] = Field(default=None, description="Number of translations used today")
     daily_remaining: Optional[StrictInt] = Field(default=None, description="Number of translations remaining today")
-    total_used: Optional[StrictInt] = Field(default=None, description="Total translations used")
     reset_date: Optional[datetime] = Field(default=None, description="Next daily reset date")
-    __properties: ClassVar[List[str]] = ["tier", "daily_limit", "daily_used", "daily_remaining", "total_used", "reset_date"]
+    __properties: ClassVar[List[str]] = ["tier", "daily_limit", "daily_used", "daily_remaining", "reset_date"]
 
     @field_validator('tier')
     def tier_validate_enum(cls, value):
@@ -100,7 +99,6 @@ class UsageResponse(BaseModel):
             "daily_limit": obj.get("daily_limit"),
             "daily_used": obj.get("daily_used"),
             "daily_remaining": obj.get("daily_remaining"),
-            "total_used": obj.get("total_used"),
             "reset_date": obj.get("reset_date")
         })
         return _obj

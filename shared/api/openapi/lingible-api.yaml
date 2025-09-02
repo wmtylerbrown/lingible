@@ -470,10 +470,6 @@ components:
           type: integer
           description: Number of translations remaining today
           example: 3
-        total_used:
-          type: integer
-          description: Total translations used
-          example: 147
         reset_date:
           type: string
           format: date-time

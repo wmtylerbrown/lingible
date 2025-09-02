@@ -92,7 +92,6 @@ export interface UsageResponse {
   daily_limit: number;
   daily_used: number;
   daily_remaining: number;
-  total_used: number;
   reset_date: string; // ISO format
 }
 

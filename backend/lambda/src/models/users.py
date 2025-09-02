@@ -84,5 +84,4 @@ class UserUsageResponse(BaseModel):
     daily_limit: int = Field(..., description="Daily translation limit")
     daily_used: int = Field(..., description="Translations used today")
     daily_remaining: int = Field(..., description="Translations remaining today")
-    total_used: int = Field(..., description="Total translations used")
     reset_date: datetime = Field(..., description="Next daily reset date")

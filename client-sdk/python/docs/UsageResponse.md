@@ -9,7 +9,6 @@ Name | Type | Description | Notes
 **daily_limit** | **int** | Daily translation limit | [optional]
 **daily_used** | **int** | Number of translations used today | [optional]
 **daily_remaining** | **int** | Number of translations remaining today | [optional]
-**total_used** | **int** | Total translations used | [optional]
 **reset_date** | **datetime** | Next daily reset date | [optional]
 
 ## Example

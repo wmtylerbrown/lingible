@@ -55,5 +55,4 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
-test/test_translation_history_item_response.py
 tox.ini
