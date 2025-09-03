@@ -356,7 +356,7 @@ export class BackendStack extends Construct {
       privateKeyValue: cdk.SecretValue.secretsManager(`lingible-apple-private-key-${environment}`, {
         jsonField: 'privateKey',
       }),
-      scopes: ['email', 'name'],
+      scopes: ['openid', 'email', 'name'],
       attributeMapping: {
         email: cognito.ProviderAttribute.AMAZON_EMAIL,
       },
@@ -378,20 +378,34 @@ export class BackendStack extends Construct {
           implicitCodeGrant: true,
         },
         scopes: [
-          cognito.OAuthScope.EMAIL,
-          cognito.OAuthScope.OPENID,
-          cognito.OAuthScope.PROFILE,
+          cognito.OAuthScope.OPENID,  // Required for OAuth flows
+          cognito.OAuthScope.EMAIL,   // Required for user identification
+          cognito.OAuthScope.PROFILE, // Required for Apple Sign In
+
         ],
         callbackUrls: [
-          `https://${environment}.lingible.com/auth/callback`,
-          'http://localhost:3000/auth/callback', // For local development
+          environment === 'dev'
+            ? 'com.lingible.lingible.dev://auth/callback'
+            : 'com.lingible.lingible://auth/callback', // For iOS app
         ],
         logoutUrls: [
-          `https://${environment}.lingible.com/auth/logout`,
-          'http://localhost:3000/auth/logout', // For local development
+          environment === 'dev'
+            ? 'com.lingible.lingible.dev://auth/logout'
+            : 'com.lingible.lingible://auth/logout', // For iOS app
         ],
       },
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.APPLE,
+      ],
       preventUserExistenceErrors: true,
+    });
+
+    // Add User Pool Domain for OAuth endpoints
+    new cognito.UserPoolDomain(this, 'LingibleUserPoolDomain', {
+      userPool: this.userPool,
+      cognitoDomain: {
+        domainPrefix: `lingible-${environment}`,
+      },
     });
   }
 

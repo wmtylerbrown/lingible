@@ -244,6 +244,9 @@ Thumbs.db
 logs/
 *.log
 
+# Old iOS app (replaced with new implementation)
+old_app/
+
 # Database
 *.db
 *.sqlite
