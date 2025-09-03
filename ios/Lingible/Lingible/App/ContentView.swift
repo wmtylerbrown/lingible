@@ -6,7 +6,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             switch appCoordinator.currentState {
-            case .loading:
+            case .splash:
                 SplashView()
             case .unauthenticated:
                 AuthenticationView()

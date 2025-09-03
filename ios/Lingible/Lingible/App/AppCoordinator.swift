@@ -6,7 +6,7 @@ import Combine
 final class AppCoordinator: ObservableObject {
 
     // MARK: - Published Properties
-    @Published var currentState: AppState = .loading
+    @Published var currentState: AppState = .splash
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -59,36 +59,30 @@ final class AppCoordinator: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func authenticateUser() async {
-        isLoading = true
+        private func authenticateUser() async {
+        // Always start with splash screen
+        currentState = .splash
 
-        // Show splash screen for at least 2 seconds for good UX
-        let splashTask = Task {
-            try await Task.sleep(for: .seconds(2))
-        }
-
+        // Start auth check in background while showing splash
         let authTask = Task {
             return await authenticationService.checkAuthenticationStatus()
         }
 
-        // Wait for both tasks to complete
-        do {
-            try await splashTask.value
-            let isAuthenticated = await authTask.value
+        // Show splash for at least 3 seconds for good UX
+        try? await Task.sleep(for: .seconds(3))
 
-            currentState = isAuthenticated ? .authenticated : .unauthenticated
-        } catch {
-            currentState = .unauthenticated
-            errorMessage = "Failed to check authentication status"
-        }
+        // Get auth result (should be ready by now)
+        let isAuthenticated = await authTask.value
 
+        // Move directly to appropriate state (no intermediate loading)
+        currentState = isAuthenticated ? .authenticated : .unauthenticated
         isLoading = false
     }
 }
 
 // MARK: - App State
 enum AppState {
-    case loading
+    case splash
     case unauthenticated
     case authenticated
 }

@@ -148,6 +148,7 @@
 - **Amplify Configuration**: Dev-specific settings in configuration files
 - **OAuth Callbacks**: Development URLs in backend stack
 - **Cognito Domain**: Changed from custom to managed domain (requires iOS app updates)
+- **Cognito Branding**: Domain branding changed to managed (requires UI/branding updates)
 
 ## Recent Major Accomplishments
 

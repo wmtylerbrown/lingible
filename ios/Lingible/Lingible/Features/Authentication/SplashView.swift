@@ -12,7 +12,10 @@ struct SplashView: View {
         "lit", "fire", "vibe", "mood", "tea", "spill", "shade", "clapback", "flex", "drip",
         "sus", "simp", "stan", "ship", "otp", "bff", "bestie", "fam", "squad",
         "goals", "aesthetic", "vibes", "energy", "moment", "era", "phase", "journey", "glow up",
-        "main character", "protagonist", "queen", "king", "icon", "legend", "hero", "savior"
+        "main character", "protagonist", "queen", "king", "icon", "legend", "hero", "savior",
+        "slaps", "banger", "bop", "jam", "tune", "track", "song", "melody", "rhythm", "beat",
+        "groove", "flow", "swag", "style", "fashion", "look", "fit", "outfit", "ensemble",
+        "snatched", "serving", "giving", "delivering", "executing", "performing", "acting", "doing"
     ]
 
     var body: some View {
@@ -20,6 +23,18 @@ struct SplashView: View {
             // Background
             Color.lingibleBackground
                 .ignoresSafeArea()
+
+            // Subtle background pattern for better term visibility
+            ForEach(0..<6, id: \.self) { index in
+                Circle()
+                    .fill(Color.lingiblePrimary.opacity(0.03))
+                    .frame(width: CGFloat.random(in: 100...300))
+                    .position(
+                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
+                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
+                    )
+                    .blur(radius: 20)
+            }
 
             // Animated slang words
             ForEach(animatedTerms) { term in
@@ -85,12 +100,14 @@ struct SplashView: View {
             }
         }
 
-        // Start background term animations
+        // Start background term animations immediately
+        addNewTerm()
         addNewTerm()
         addNewTerm()
         addNewTerm()
 
-        timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
+        // Continue adding terms every 1.2 seconds
+        timer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
             addNewTerm()
         }
     }
@@ -110,22 +127,22 @@ struct SplashView: View {
             text: term,
             position: CGPoint(
                 x: CGFloat.random(in: 50...(screenWidth - 50)),
-                y: CGFloat.random(in: 100...(screenHeight - 200))
+                y: CGFloat.random(in: 150...(screenHeight - 250)) // Avoid logo area
             ),
-            fontSize: CGFloat.random(in: 14...24),
+            fontSize: CGFloat.random(in: 16...28),
             color: [.lingiblePrimary, .lingibleSecondary, .orange, .purple, .pink].randomElement() ?? .lingiblePrimary,
             opacity: 0.0,
             scale: 0.8,
-            rotation: Double.random(in: -15...15),
-            duration: Double.random(in: 2.0...4.0)
+            rotation: Double.random(in: -20...20),
+            duration: Double.random(in: 2.5...4.5)
         )
 
         animatedTerms.append(newAnimatedTerm)
 
         // Animate the term in
-        withAnimation(.easeIn(duration: 0.5)) {
+        withAnimation(.easeIn(duration: 0.6)) {
             if let index = animatedTerms.firstIndex(where: { $0.id == newAnimatedTerm.id }) {
-                animatedTerms[index].opacity = 0.7
+                animatedTerms[index].opacity = 0.9
                 animatedTerms[index].scale = 1.0
             }
         }
@@ -146,7 +163,7 @@ struct SplashView: View {
         }
 
         // Keep array size manageable
-        if animatedTerms.count > 8 {
+        if animatedTerms.count > 12 {
             animatedTerms.removeFirst()
         }
     }
