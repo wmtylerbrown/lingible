@@ -394,7 +394,7 @@ export class BackendStack extends Construct {
             : 'com.lingible.lingible://auth/logout', // For iOS app
         ],
         // Note: Cognito domain is now managed (not custom)
-        // OAuth endpoints: https://lingible-dev.auth.us-east-1.amazonaws.com
+        // OAuth endpoints: https://lingible-dev.auth.us-east-1.amazoncognito.com
       },
       supportedIdentityProviders: [
         cognito.UserPoolClientIdentityProvider.APPLE,
@@ -412,7 +412,7 @@ export class BackendStack extends Construct {
 
     // Note: Cognito domain changed from custom to managed in AWS Console
     // This affects OAuth endpoint URLs and requires iOS app configuration updates
-    // Managed domain format: https://lingible-dev.auth.us-east-1.amazonaws.com
+    // Managed domain format: https://lingible-dev.auth.us-east-1.amazoncognito.com
   }
 
   private createDependenciesLayer(environment: string): lambda.LayerVersion {
