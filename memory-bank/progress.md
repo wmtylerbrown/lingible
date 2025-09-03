@@ -147,6 +147,7 @@
 - **Bundle Identifiers**: Development patterns may not scale to production
 - **Amplify Configuration**: Dev-specific settings in configuration files
 - **OAuth Callbacks**: Development URLs in backend stack
+- **Cognito Domain**: Changed from custom to managed domain (requires iOS app updates)
 
 ## Recent Major Accomplishments
 
