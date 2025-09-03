@@ -131,15 +131,34 @@
 - **Data Models**: 5/5 complete (100%)
 - **Infrastructure**: 95% complete (TypeScript CDK)
 - **Documentation**: 85% complete (comprehensive guides)
+- **Mobile Integration**: 60% complete (iOS app with authentication working)
 
 ## Next Actions
 
-1. **Immediate**: Resolve final authorization issue with translation API (explicit deny policy)
-2. **Short-term**: Complete end-to-end translation API testing and validation
-3. **Medium-term**: Mobile app integration using shared resources
+1. **Immediate**: Fix hardcoded dev environment references in iOS app (CRITICAL)
+2. **Short-term**: Implement proper environment configuration and build variants
+3. **Medium-term**: Complete user dashboard and end-to-end testing
 4. **Long-term**: Production deployment with monitoring and optimization
 
+## Critical Issues
+
+### 🚨 **Environment Hardcoding (BLOCKING PRODUCTION)**
+- **API Endpoints**: `https://api.dev.lingible.com` hardcoded in Swift client
+- **Bundle Identifiers**: Development patterns may not scale to production
+- **Amplify Configuration**: Dev-specific settings in configuration files
+- **OAuth Callbacks**: Development URLs in backend stack
+
 ## Recent Major Accomplishments
+
+### ✅ **iOS App Integration with Centralized Authentication Architecture (2024-12-19)**
+- **Complete iOS App**: Full SwiftUI implementation with proper project structure
+- **Apple Sign-In Integration**: Working authentication flow with Cognito backend
+- **Centralized JWT Management**: AuthTokenProvider service eliminates token extraction duplication
+- **UI Preservation**: Maintained desired formatting from old app while integrating new backend
+- **Generated API Client**: Swift client automatically generated from OpenAPI specification
+- **Backend OAuth Support**: Updated CDK stack for Apple Sign-In OAuth flows
+- **Shared Assets**: Centralized branding and icon resources in shared directory
+- **Architecture Improvements**: Single responsibility, reusable, maintainable token service
 
 ### ✅ **Project Reorganization and Shared Config System (2024-12-19)**
 - **Backend Separation**: Clean separation of Lambda and infrastructure code
