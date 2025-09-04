@@ -42,6 +42,17 @@ if (deployBackend) {
       region: app.node.tryGetContext('region') || process.env.CDK_DEFAULT_REGION || 'us-east-1',
     },
   });
+
+  // Website stack
+  const { WebsiteStack } = require('./constructs/website_stack');
+  new WebsiteStack(app, `Lingible-${environment.charAt(0).toUpperCase() + environment.slice(1)}-Website`, {
+    description: `Lingible Website - ${environment.charAt(0).toUpperCase() + environment.slice(1)} Environment`,
+    environment: environment,
+    env: {
+      account: app.node.tryGetContext('account') || process.env.CDK_DEFAULT_ACCOUNT,
+      region: app.node.tryGetContext('region') || process.env.CDK_DEFAULT_REGION || 'us-east-1',
+    },
+  });
 } else {
   // Hosted zones only deployment
   const { HostedZonesStack } = require('./constructs/hosted_zones_stack');

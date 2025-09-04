@@ -7,17 +7,26 @@ A comprehensive mobile application project with AWS-powered backend infrastructu
 ```
 lingible/
 ├── backend/                 # AWS Backend API
-│   ├── src/                # Lambda function source code
-│   │   ├── handlers/       # Individual Lambda handlers
-│   │   ├── models/         # Pydantic models
-│   │   ├── services/       # Business logic
-│   │   └── utils/          # Shared utilities
-│   ├── tests/              # Unit and integration tests
+│   ├── lambda/             # Lambda function source code
+│   │   ├── src/            # Source code
+│   │   │   ├── handlers/   # Individual Lambda handlers
+│   │   │   ├── models/     # Pydantic models
+│   │   │   ├── services/   # Business logic
+│   │   │   └── utils/      # Shared utilities
+│   │   └── tests/          # Unit and integration tests
 │   └── infrastructure/     # AWS CDK infrastructure
-├── mobile/                 # Mobile applications (iOS/Android)
-│   ├── react-native/       # React Native app
-│   └── flutter/           # Flutter app
-└── docs/                  # Documentation
+├── website/                # Static website
+│   ├── src/               # Website source files
+│   ├── build/             # Generated website (auto-created)
+│   └── build.py           # Build script
+├── ios/                   # iOS mobile application
+├── client-sdk/            # Client SDKs (Python, etc.)
+├── shared/                # Shared resources
+│   ├── assets/            # Brand assets and images
+│   ├── api/               # API specifications
+│   ├── config/            # Configuration files
+│   └── legal/             # Legal documents (Terms, Privacy Policy)
+└── memory-bank/           # Project documentation and context
 ```
 
 ## Backend Architecture
@@ -31,6 +40,18 @@ The backend uses AWS serverless architecture with individual Lambda handlers:
 - **S3**: File storage
 - **CloudWatch**: Monitoring and logging
 - **AWS CDK**: Infrastructure as Code
+
+## Website
+
+The project includes a static website deployed to AWS S3 + CloudFront:
+
+- **Landing page** for the Lingible mobile app
+- **Legal documentation** (Terms of Service, Privacy Policy)
+- **Marketing content** showcasing features and pricing
+- **Single build script** (`website/build.py`) handles everything
+- **Auto-deployment** via CDK when backend is deployed
+
+See `website/README.md` for detailed website development information.
 
 ## API Endpoints Structure
 
@@ -63,7 +84,7 @@ Each API endpoint has its own Lambda handler:
 ### Prerequisites
 - Node.js 18+ and npm
 - AWS CLI configured
-- Python 3.9+ (for Lambda functions)
+- Python 3.13+ (for Lambda functions)
 - AWS CDK CLI installed
 
 ### Backend Setup
