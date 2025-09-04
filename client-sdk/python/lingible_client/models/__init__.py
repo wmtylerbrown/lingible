@@ -24,6 +24,8 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.translation_history_response import TranslationHistoryResponse
     from lingible_client.models.translation_request import TranslationRequest
     from lingible_client.models.translation_response import TranslationResponse
+    from lingible_client.models.trending_list_response import TrendingListResponse
+    from lingible_client.models.trending_term_response import TrendingTermResponse
     from lingible_client.models.upgrade_request import UpgradeRequest
     from lingible_client.models.upgrade_response import UpgradeResponse
     from lingible_client.models.usage_limits import UsageLimits
@@ -47,6 +49,8 @@ from lingible_client.models.translation_history_item_response import Translation
 from lingible_client.models.translation_history_response import TranslationHistoryResponse
 from lingible_client.models.translation_request import TranslationRequest
 from lingible_client.models.translation_response import TranslationResponse
+from lingible_client.models.trending_list_response import TrendingListResponse
+from lingible_client.models.trending_term_response import TrendingTermResponse
 from lingible_client.models.upgrade_request import UpgradeRequest
 from lingible_client.models.upgrade_response import UpgradeResponse
 from lingible_client.models.usage_limits import UsageLimits

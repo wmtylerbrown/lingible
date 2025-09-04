@@ -24,6 +24,7 @@ export class BackendStack extends Construct {
   // Database resources
   public usersTable!: dynamodb.Table;
   public translationsTable!: dynamodb.Table;
+  public trendingTable!: dynamodb.Table;
 
   // Cognito resources
   public userPool!: cognito.UserPool;
@@ -45,6 +46,8 @@ export class BackendStack extends Construct {
   public healthLambda!: lambda.Function;
   public appleWebhookLambda!: lambda.Function;
   public postConfirmationLambda!: lambda.Function;
+  public trendingLambda!: lambda.Function;
+  public trendingJobLambda!: lambda.Function;
 
   // Configuration loader
   private configLoader!: ConfigLoader;
@@ -86,7 +89,7 @@ export class BackendStack extends Construct {
     this.sharedLayer = this.createSharedLayer(environment);
 
     // Create DynamoDB tables
-    this.createDatabaseTables(environment, config.users_table, config.translations_table);
+    this.createDatabaseTables(environment, config.users_table, config.translations_table, config.trending_table);
     const lambdaConfig = {
       runtime: lambda.Runtime.PYTHON_3_13,
       timeout: Duration.seconds(30),
@@ -167,7 +170,8 @@ export class BackendStack extends Construct {
   private createDatabaseTables(
     environment: string,
     usersTableConfig: { name: string; read_capacity: number; write_capacity: number },
-    translationsTableConfig: { name: string; read_capacity: number; write_capacity: number }
+    translationsTableConfig: { name: string; read_capacity: number; write_capacity: number },
+    trendingTableConfig: { name: string; read_capacity: number; write_capacity: number }
   ): void {
     // Users table
     this.usersTable = new dynamodb.Table(this, 'UsersTable', {
@@ -201,6 +205,47 @@ export class BackendStack extends Construct {
       pointInTimeRecovery: true,
     });
 
+    // Trending table
+    this.trendingTable = new dynamodb.Table(this, 'TrendingTable', {
+      tableName: trendingTableConfig.name,
+      partitionKey: {
+        name: 'PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY, // For development
+      pointInTimeRecovery: true,
+    });
+
+    // Add GSI for trending terms by popularity
+    this.trendingTable.addGlobalSecondaryIndex({
+      indexName: 'PopularityIndex',
+      partitionKey: {
+        name: 'is_active',
+        type: dynamodb.AttributeType.BOOLEAN,
+      },
+      sortKey: {
+        name: 'popularity_score',
+        type: dynamodb.AttributeType.NUMBER,
+      },
+    });
+
+    // Add GSI for trending terms by category
+    this.trendingTable.addGlobalSecondaryIndex({
+      indexName: 'CategoryPopularityIndex',
+      partitionKey: {
+        name: 'category',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'popularity_score',
+        type: dynamodb.AttributeType.NUMBER,
+      },
+    });
 
   }
 
@@ -290,6 +335,13 @@ export class BackendStack extends Construct {
       parameterName: `${parameterPrefix}/translations_table`,
       stringValue: JSON.stringify(config.translations_table),
       description: 'Translations table configuration for Lingible',
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'TrendingTableConfigParameter', {
+      parameterName: `${parameterPrefix}/trending_table`,
+      stringValue: JSON.stringify(config.trending_table),
+      description: 'Trending table configuration for Lingible',
       tier: ssm.ParameterTier.STANDARD,
     });
 
@@ -652,6 +704,21 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.healthLambda.addToRolePolicy(statement));
 
+    this.trendingLambda = new lambda.Function(this, 'TrendingLambda', {
+      functionName: `lingible-trending-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.trending_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-trending',
+        ENVIRONMENT: environment,
+
+      },
+      layers: [this.dependenciesLayer, this.sharedLayer],
+
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.trendingLambda.addToRolePolicy(statement));
+
     // Webhook Handlers
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
       functionName: `lingible-apple-webhook-${environment}`,
@@ -701,6 +768,21 @@ export class BackendStack extends Construct {
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.userDataCleanupLambda.addToRolePolicy(statement));
+
+    this.trendingJobLambda = new lambda.Function(this, 'TrendingJobLambda', {
+      functionName: `lingible-trending-job-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.trending_job.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-trending-job',
+        ENVIRONMENT: environment,
+
+      },
+      layers: [this.dependenciesLayer, this.sharedLayer],
+
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.trendingJobLambda.addToRolePolicy(statement));
   }
 
   private setupCognitoTriggers(): void {
@@ -724,6 +806,11 @@ export class BackendStack extends Construct {
   private grantApiGatewayPermissions(): void {
     // Grant API Gateway permission to invoke Lambda functions
     this.healthLambda.addPermission('ApiGatewayHealth', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
+    this.trendingLambda.addPermission('ApiGatewayTrending', {
       principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
       sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
     });
@@ -999,6 +1086,26 @@ export class BackendStack extends Construct {
       ],
     });
 
+    // Trending terms endpoint
+    const trending = this.api.root.addResource('trending');
+    trending.addMethod('GET', new apigateway.LambdaIntegration(this.trendingLambda), {
+      authorizer: authorizer,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': successModel,
+          },
+        },
+        {
+          statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
     // Apple webhook endpoint (no auth required)
     const webhook = this.api.root.addResource('webhook');
     const apple = webhook.addResource('apple');
@@ -1034,6 +1141,7 @@ export class BackendStack extends Construct {
           this.translateLambda.metricInvocations(),
           this.userProfileLambda.metricInvocations(),
           this.translationHistoryLambda.metricInvocations(),
+          this.trendingLambda.metricInvocations(),
         ],
       }),
       new cloudwatch.GraphWidget({
@@ -1042,6 +1150,7 @@ export class BackendStack extends Construct {
           this.translateLambda.metricErrors(),
           this.userProfileLambda.metricErrors(),
           this.translationHistoryLambda.metricErrors(),
+          this.trendingLambda.metricErrors(),
         ],
       }),
       new cloudwatch.GraphWidget({
@@ -1050,6 +1159,7 @@ export class BackendStack extends Construct {
           this.translateLambda.metricDuration(),
           this.userProfileLambda.metricDuration(),
           this.translationHistoryLambda.metricDuration(),
+          this.trendingLambda.metricDuration(),
         ],
       })
     );

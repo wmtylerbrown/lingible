@@ -10,6 +10,11 @@ Name | Type | Description | Notes
 **daily_used** | **int** | Number of translations used today | [optional]
 **daily_remaining** | **int** | Number of translations remaining today | [optional]
 **reset_date** | **datetime** | Next daily reset date | [optional]
+**current_max_text_length** | **int** | Maximum text length for user&#39;s current tier | [optional]
+**free_tier_max_length** | **int** | Free tier text length limit | [optional]
+**premium_tier_max_length** | **int** | Premium tier text length limit | [optional]
+**free_daily_limit** | **int** | Free tier daily translation limit | [optional]
+**premium_daily_limit** | **int** | Premium tier daily translation limit | [optional]
 
 ## Example
 

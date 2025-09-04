@@ -129,7 +129,12 @@ class TestTranslationService:
             daily_limit=10,
             daily_used=10,
             daily_remaining=0,  # No quota left!
-            reset_date=datetime.now(timezone.utc)
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=100,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
         )
 
         with patch.object(translation_service, 'user_service') as mock_user_service:

@@ -24,6 +24,12 @@
     "write_capacity": 5
   },
 
+  "trending_table": {
+    "name": "lingible-trending-dev",
+    "read_capacity": 5,
+    "write_capacity": 5
+  },
+
   "apple": {
     "client_id": "com.lingible.lingible.signin.dev",
     "team_id": "PH33VX3MUL",

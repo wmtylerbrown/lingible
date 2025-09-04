@@ -20,33 +20,28 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from lingible_client.models.trending_term_response import TrendingTermResponse
 from typing import Optional, Set
 from typing_extensions import Self
 
-class UsageResponse(BaseModel):
+class TrendingListResponse(BaseModel):
     """
-    UsageResponse
+    TrendingListResponse
     """ # noqa: E501
-    tier: Optional[StrictStr] = Field(default=None, description="User tier")
-    daily_limit: Optional[StrictInt] = Field(default=None, description="Daily translation limit")
-    daily_used: Optional[StrictInt] = Field(default=None, description="Number of translations used today")
-    daily_remaining: Optional[StrictInt] = Field(default=None, description="Number of translations remaining today")
-    reset_date: Optional[datetime] = Field(default=None, description="Next daily reset date")
-    current_max_text_length: Optional[StrictInt] = Field(default=None, description="Maximum text length for user's current tier")
-    free_tier_max_length: Optional[StrictInt] = Field(default=None, description="Free tier text length limit")
-    premium_tier_max_length: Optional[StrictInt] = Field(default=None, description="Premium tier text length limit")
-    free_daily_limit: Optional[StrictInt] = Field(default=None, description="Free tier daily translation limit")
-    premium_daily_limit: Optional[StrictInt] = Field(default=None, description="Premium tier daily translation limit")
-    __properties: ClassVar[List[str]] = ["tier", "daily_limit", "daily_used", "daily_remaining", "reset_date", "current_max_text_length", "free_tier_max_length", "premium_tier_max_length", "free_daily_limit", "premium_daily_limit"]
+    terms: Optional[List[TrendingTermResponse]] = Field(default=None, description="List of trending terms")
+    total_count: Optional[StrictInt] = Field(default=None, description="Total number of trending terms")
+    last_updated: Optional[datetime] = Field(default=None, description="When the trending data was last updated")
+    category_filter: Optional[StrictStr] = Field(default=None, description="Applied category filter")
+    __properties: ClassVar[List[str]] = ["terms", "total_count", "last_updated", "category_filter"]
 
-    @field_validator('tier')
-    def tier_validate_enum(cls, value):
+    @field_validator('category_filter')
+    def category_filter_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
 
-        if value not in set(['free', 'premium']):
-            raise ValueError("must be one of enum values ('free', 'premium')")
+        if value not in set(['slang', 'meme', 'expression', 'hashtag', 'phrase']):
+            raise ValueError("must be one of enum values ('slang', 'meme', 'expression', 'hashtag', 'phrase')")
         return value
 
     model_config = ConfigDict(
@@ -67,7 +62,7 @@ class UsageResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of UsageResponse from a JSON string"""
+        """Create an instance of TrendingListResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -88,11 +83,18 @@ class UsageResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in terms (list)
+        _items = []
+        if self.terms:
+            for _item_terms in self.terms:
+                if _item_terms:
+                    _items.append(_item_terms.to_dict())
+            _dict['terms'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of UsageResponse from a dict"""
+        """Create an instance of TrendingListResponse from a dict"""
         if obj is None:
             return None
 
@@ -100,15 +102,9 @@ class UsageResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "tier": obj.get("tier"),
-            "daily_limit": obj.get("daily_limit"),
-            "daily_used": obj.get("daily_used"),
-            "daily_remaining": obj.get("daily_remaining"),
-            "reset_date": obj.get("reset_date"),
-            "current_max_text_length": obj.get("current_max_text_length"),
-            "free_tier_max_length": obj.get("free_tier_max_length"),
-            "premium_tier_max_length": obj.get("premium_tier_max_length"),
-            "free_daily_limit": obj.get("free_daily_limit"),
-            "premium_daily_limit": obj.get("premium_daily_limit")
+            "terms": [TrendingTermResponse.from_dict(_item) for _item in obj["terms"]] if obj.get("terms") is not None else None,
+            "total_count": obj.get("total_count"),
+            "last_updated": obj.get("last_updated"),
+            "category_filter": obj.get("category_filter")
         })
         return _obj

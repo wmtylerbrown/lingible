@@ -46,7 +46,8 @@ final class TranslationViewModel: ObservableObject {
                 id: UUID().uuidString,
                 originalText: text,
                 translatedText: result.translatedText,
-                createdAt: Date()
+                createdAt: Date(),
+                direction: direction ?? .genzToStandard
             )
 
             // Add to history (most recent first)
@@ -106,4 +107,5 @@ struct TranslationHistoryItem: Codable, Identifiable {
     let originalText: String
     let translatedText: String
     let createdAt: Date
+    let direction: TranslationDirection
 }

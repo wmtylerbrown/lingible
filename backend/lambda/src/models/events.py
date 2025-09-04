@@ -247,6 +247,28 @@ class UserDataCleanupEvent(BaseModel):
     requested_at: Optional[str] = Field(None, description="When cleanup was requested")
 
 
+class TrendingEvent(BaseModel):
+    """Typed event for trending terms handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+    # Query parameters
+    limit: Optional[int] = Field(
+        50, ge=1, le=100, description="Number of trending terms to return"
+    )
+    category: Optional[str] = Field(None, description="Filter by category")
+    active_only: Optional[bool] = Field(True, description="Show only active trending terms")
+
+
 # Custom API Gateway Event Models for Authorizer Context
 class CustomAuthorizerContext(BaseModel):
     """Custom authorizer context model for our Cognito authorizer."""

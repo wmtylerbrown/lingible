@@ -85,3 +85,12 @@ class UserUsageResponse(BaseModel):
     daily_used: int = Field(..., description="Translations used today")
     daily_remaining: int = Field(..., description="Translations remaining today")
     reset_date: datetime = Field(..., description="Next daily reset date")
+
+    # Limits data with clear names
+    current_max_text_length: int = Field(..., description="Maximum text length for user's current tier")
+    free_tier_max_length: int = Field(..., description="Free tier text length limit")
+    premium_tier_max_length: int = Field(..., description="Premium tier text length limit")
+
+    # Daily translation limits for comparison
+    free_daily_limit: int = Field(..., description="Free tier daily translation limit")
+    premium_daily_limit: int = Field(..., description="Premium tier daily translation limit")

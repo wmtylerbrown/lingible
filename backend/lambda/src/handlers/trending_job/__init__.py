@@ -1,0 +1,1 @@
+"""Trending job handler package."""

@@ -95,6 +95,11 @@ class UserService:
                 daily_used=usage_limits.daily_used,
                 daily_remaining=daily_remaining,
                 reset_date=usage_limits.reset_daily_at or datetime.now(timezone.utc),
+                current_max_text_length=self.usage_config.free_max_text_length if usage_limits.tier == UserTier.FREE else self.usage_config.premium_max_text_length,
+                free_tier_max_length=self.usage_config.free_max_text_length,
+                premium_tier_max_length=self.usage_config.premium_max_text_length,
+                free_daily_limit=self.usage_config.free_daily_translations,
+                premium_daily_limit=self.usage_config.premium_daily_translations,
             )
 
         except Exception as e:

@@ -14,6 +14,9 @@ docs/TranslationHistoryItemResponse.md
 docs/TranslationHistoryResponse.md
 docs/TranslationRequest.md
 docs/TranslationResponse.md
+docs/TrendingApi.md
+docs/TrendingListResponse.md
+docs/TrendingTermResponse.md
 docs/UpgradeRequest.md
 docs/UpgradeResponse.md
 docs/UsageLimits.md
@@ -27,6 +30,7 @@ lingible_client/__init__.py
 lingible_client/api/__init__.py
 lingible_client/api/system_api.py
 lingible_client/api/translation_api.py
+lingible_client/api/trending_api.py
 lingible_client/api/user_api.py
 lingible_client/api/webhooks_api.py
 lingible_client/api_client.py
@@ -43,6 +47,8 @@ lingible_client/models/translation_history_item_response.py
 lingible_client/models/translation_history_response.py
 lingible_client/models/translation_request.py
 lingible_client/models/translation_response.py
+lingible_client/models/trending_list_response.py
+lingible_client/models/trending_term_response.py
 lingible_client/models/upgrade_request.py
 lingible_client/models/upgrade_response.py
 lingible_client/models/usage_limits.py
@@ -55,4 +61,7 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
+test/test_trending_api.py
+test/test_trending_list_response.py
+test/test_trending_term_response.py
 tox.ini

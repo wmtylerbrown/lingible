@@ -1,9 +1,13 @@
 import SwiftUI
+import LingibleAPI
 
 struct ProfileView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
     @StateObject private var authService = AuthenticationService()
     @State private var showingSignOutAlert = false
+    @State private var showingThemePicker = false
+    @State private var showingNotificationsSettings = false
+    @State private var showingUpgradeSheet = false
 
     var body: some View {
         NavigationView {
@@ -13,22 +17,95 @@ struct ProfileView: View {
                     userInfoView
                 }
 
-                // Settings Section
-                Section("Settings") {
-                    settingsRow(icon: "bell", title: "Notifications", action: {})
-                    settingsRow(icon: "paintbrush", title: "Theme", action: {})
-                    settingsRow(icon: "star", title: "Upgrade to Premium", action: {})
+                // Usage & Limits Section
+                Section(header: Text("Usage & Limits")) {
+                    if let usage = appCoordinator.userService.userUsage {
+                        usageRow(title: "Daily Translations", value: "\(usage.dailyUsed ?? 0)/\(usage.dailyLimit ?? 0)")
+                        usageRow(title: "Text Length Limit", value: "\(usage.currentMaxTextLength ?? 50) characters")
+                        usageRow(title: "Account Tier", value: tierDisplayName(usage.tier))
+
+                        if let resetDate = usage.resetDate {
+                            usageRow(title: "Next Reset", value: resetDate)
+                        }
+                    } else {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Loading usage data...")
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
 
-                // Support Section
-                Section("Support") {
-                    settingsRow(icon: "questionmark.circle", title: "Help & FAQ", action: {})
-                    settingsRow(icon: "envelope", title: "Contact Support", action: {})
-                    settingsRow(icon: "doc.text", title: "Terms of Service", action: {})
-                    settingsRow(icon: "hand.raised", title: "Privacy Policy", action: {})
+                // Settings Section
+                Section(header: Text("Preferences")) {
+                    settingsRow(icon: "bell", title: "Notifications", action: { showingNotificationsSettings = true })
+                    settingsRow(icon: "paintbrush", title: "Theme", action: { showingThemePicker = true })
+                    settingsRow(icon: "star", title: "Upgrade to Premium", action: { showingUpgradeSheet = true })
                 }
 
                 // Account Section
+                Section(header: Text("Account")) {
+                    Button(action: {
+                        Task {
+                            await appCoordinator.userService.refreshUserData()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                                .foregroundColor(.lingiblePrimary)
+                                .frame(width: 24)
+
+                            Text("Refresh User Data")
+                                .foregroundColor(.primary)
+
+                            Spacer()
+
+                            if appCoordinator.userService.isLoading {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                    }
+
+                    if let lastProfileUpdate = appCoordinator.userService.lastProfileUpdate {
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundColor(.secondary)
+                                .frame(width: 24)
+
+                            Text("Profile updated: \(lastProfileUpdate, style: .time)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+                        }
+                    }
+
+                    if let lastUsageUpdate = appCoordinator.userService.lastUsageUpdate {
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundColor(.secondary)
+                                .frame(width: 24)
+
+                            Text("Usage updated: \(lastUsageUpdate, style: .time)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+                        }
+                    }
+                }
+
+                // Support Section
+                Section(header: Text("Support")) {
+                    settingsRow(icon: "questionmark.circle", title: "Help & FAQ", action: { openHelpFAQ() })
+                    settingsRow(icon: "envelope", title: "Contact Support", action: { contactSupport() })
+                    settingsRow(icon: "doc.text", title: "Terms of Service", action: { openTerms() })
+                    settingsRow(icon: "hand.raised", title: "Privacy Policy", action: { openPrivacy() })
+                }
+
+                // Sign Out Section
                 Section {
                     Button(action: { showingSignOutAlert = true }) {
                         HStack {
@@ -42,6 +119,25 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("Profile")
+        }
+        .sheet(isPresented: $showingThemePicker) {
+            ThemePickerView()
+        }
+        .sheet(isPresented: $showingNotificationsSettings) {
+            NotificationsSettingsView()
+        }
+        .sheet(isPresented: $showingUpgradeSheet) {
+            UpgradePromptView(
+                translationCount: nil,
+                onUpgrade: {
+                    // TODO: Implement actual upgrade flow
+                    print("Upgrade to Premium tapped")
+                },
+                onDismiss: {
+                    showingUpgradeSheet = false
+                },
+                userUsage: appCoordinator.userService.userUsage
+            )
         }
         .alert("Sign Out", isPresented: $showingSignOutAlert) {
             Button("Cancel", role: .cancel) { }
@@ -69,24 +165,48 @@ struct ProfileView: View {
 
             // User details
             VStack(alignment: .leading, spacing: 4) {
-                Text("Lingible User")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                if let profile = appCoordinator.userService.userProfile {
+                    Text(profile.email ?? "Lingible User")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                } else {
+                    Text("Lingible User")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
 
-                Text("user@example.com")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                if let profile = appCoordinator.userService.userProfile {
+                    Text(profile.email ?? "No email")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                } else {
+                    Text("Loading...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
 
                 // User tier badge
                 HStack {
-                    Text("Free User")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.lingibleSecondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.lingibleSecondary.opacity(0.1))
-                        .cornerRadius(8)
+                    if let usage = appCoordinator.userService.userUsage {
+                        Text(tierDisplayName(usage.tier))
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(usage.tier == .premium ? .yellow : .lingibleSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background((usage.tier == .premium ? Color.yellow : Color.lingibleSecondary).opacity(0.1))
+                            .cornerRadius(8)
+                    } else {
+                        Text("Loading...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                    }
 
                     Spacer()
                 }
@@ -114,6 +234,69 @@ struct ProfileView: View {
                     .foregroundColor(.secondary)
                     .font(.caption)
             }
+        }
+    }
+
+    // MARK: - Usage Row
+    private func usageRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            Spacer()
+            Text(value)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func usageRow(title: String, value: Date) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            Spacer()
+            Text(value, style: .time)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Tier Display Name
+    private func tierDisplayName(_ tier: UsageResponse.Tier?) -> String {
+        guard let tier = tier else {
+            return "Unknown Tier"
+        }
+        switch tier {
+        case .free:
+            return "Free User"
+        case .premium:
+            return "Premium User"
+        }
+    }
+
+    // MARK: - Open Links
+    private func openHelpFAQ() {
+        if let url = URL(string: "https://example.com/help") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func contactSupport() {
+        if let url = URL(string: "mailto:support@example.com") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func openTerms() {
+        if let url = URL(string: "https://example.com/terms") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func openPrivacy() {
+        if let url = URL(string: "https://example.com/privacy") {
+            UIApplication.shared.open(url)
         }
     }
 }

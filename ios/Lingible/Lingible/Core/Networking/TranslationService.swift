@@ -92,7 +92,7 @@ struct TranslationResult {
 }
 
 // MARK: - Translation Direction
-enum TranslationDirection: String, CaseIterable {
+enum TranslationDirection: String, CaseIterable, Codable {
     case genzToStandard = "genz_to_english"
     case standardToGenz = "english_to_genz"
 }

@@ -93,6 +93,11 @@ export interface UsageResponse {
   daily_used: number;
   daily_remaining: number;
   reset_date: string; // ISO format
+  current_max_text_length: number;
+  free_tier_max_length: number;
+  premium_tier_max_length: number;
+  free_daily_limit: number;
+  premium_daily_limit: number;
 }
 
 export interface UsageLimits {
@@ -110,6 +115,31 @@ export interface UpgradeResponse {
   success: boolean;
   tier: 'premium';
   expires_at: string;
+}
+
+// Trending Types
+export type TrendingCategory = 'slang' | 'meme' | 'expression' | 'hashtag' | 'phrase';
+
+export interface TrendingTermResponse {
+  term: string;
+  definition: string;
+  category: TrendingCategory;
+  popularity_score: number;
+  search_count: number; // 0 for free users, actual count for premium
+  translation_count: number; // 0 for free users, actual count for premium
+  first_seen: string;
+  last_updated: string;
+  is_active: boolean;
+  example_usage?: string; // null for free users, actual examples for premium
+  origin?: string; // null for free users, actual origin for premium
+  related_terms: string[]; // empty for free users, actual terms for premium
+}
+
+export interface TrendingListResponse {
+  terms: TrendingTermResponse[];
+  total_count: number;
+  last_updated: string;
+  category_filter?: TrendingCategory;
 }
 
 // Success Response
@@ -152,6 +182,7 @@ export const API_ENDPOINTS = {
   USER_PROFILE: '/user/profile',
   USER_USAGE: '/user/usage',
   USER_UPGRADE: '/user/upgrade',
+  TRENDING: '/trending',
   WEBHOOK_APPLE: '/webhook/apple',
 } as const;
 

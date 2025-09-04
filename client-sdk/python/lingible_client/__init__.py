@@ -20,6 +20,7 @@ __version__ = "1.0.0"
 __all__ = [
     "SystemApi",
     "TranslationApi",
+    "TrendingApi",
     "UserApi",
     "WebhooksApi",
     "ApiResponse",
@@ -40,6 +41,8 @@ __all__ = [
     "TranslationHistoryResponse",
     "TranslationRequest",
     "TranslationResponse",
+    "TrendingListResponse",
+    "TrendingTermResponse",
     "UpgradeRequest",
     "UpgradeResponse",
     "UsageLimits",
@@ -52,6 +55,7 @@ if __import__("typing").TYPE_CHECKING:
     # import apis into sdk package
     from lingible_client.api.system_api import SystemApi as SystemApi
     from lingible_client.api.translation_api import TranslationApi as TranslationApi
+    from lingible_client.api.trending_api import TrendingApi as TrendingApi
     from lingible_client.api.user_api import UserApi as UserApi
     from lingible_client.api.webhooks_api import WebhooksApi as WebhooksApi
 
@@ -76,6 +80,8 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.translation_history_response import TranslationHistoryResponse as TranslationHistoryResponse
     from lingible_client.models.translation_request import TranslationRequest as TranslationRequest
     from lingible_client.models.translation_response import TranslationResponse as TranslationResponse
+    from lingible_client.models.trending_list_response import TrendingListResponse as TrendingListResponse
+    from lingible_client.models.trending_term_response import TrendingTermResponse as TrendingTermResponse
     from lingible_client.models.upgrade_request import UpgradeRequest as UpgradeRequest
     from lingible_client.models.upgrade_response import UpgradeResponse as UpgradeResponse
     from lingible_client.models.usage_limits import UsageLimits as UsageLimits
@@ -94,6 +100,7 @@ else:
             """# import apis into sdk package
 from lingible_client.api.system_api import SystemApi as SystemApi
 from lingible_client.api.translation_api import TranslationApi as TranslationApi
+from lingible_client.api.trending_api import TrendingApi as TrendingApi
 from lingible_client.api.user_api import UserApi as UserApi
 from lingible_client.api.webhooks_api import WebhooksApi as WebhooksApi
 
@@ -118,6 +125,8 @@ from lingible_client.models.translation_history_item_response import Translation
 from lingible_client.models.translation_history_response import TranslationHistoryResponse as TranslationHistoryResponse
 from lingible_client.models.translation_request import TranslationRequest as TranslationRequest
 from lingible_client.models.translation_response import TranslationResponse as TranslationResponse
+from lingible_client.models.trending_list_response import TrendingListResponse as TrendingListResponse
+from lingible_client.models.trending_term_response import TrendingTermResponse as TrendingTermResponse
 from lingible_client.models.upgrade_request import UpgradeRequest as UpgradeRequest
 from lingible_client.models.upgrade_response import UpgradeResponse as UpgradeResponse
 from lingible_client.models.usage_limits import UsageLimits as UsageLimits

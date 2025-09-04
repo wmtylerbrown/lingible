@@ -280,6 +280,76 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /trending:
+    get:
+      summary: Get trending GenZ slang terms
+      description: |
+        Get a list of currently trending GenZ slang terms with popularity scores and metadata.
+
+        **Free Tier Features:**
+        - Access to top 10 trending slang terms
+        - Basic definitions and categories
+        - Limited to 'slang' category only
+
+        **Premium Tier Features:**
+        - Access to up to 100 trending terms
+        - All categories (slang, meme, expression, hashtag, phrase)
+        - Detailed usage examples and origins
+        - Related terms and synonyms
+        - Search and translation counts
+        - Advanced filtering options
+      tags:
+        - Trending
+      parameters:
+        - name: limit
+          in: query
+          description: |
+            Number of trending terms to return.
+            - Free tier: Maximum 10 terms
+            - Premium tier: Maximum 100 terms
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: category
+          in: query
+          description: |
+            Filter by trending category.
+            - Free tier: Only 'slang' category allowed
+            - Premium tier: All categories available
+          required: false
+          schema:
+            type: string
+            enum: [slang, meme, expression, hashtag, phrase]
+        - name: active_only
+          in: query
+          description: Show only active trending terms
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Trending terms retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendingListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -475,6 +545,26 @@ components:
           format: date-time
           description: Next daily reset date
           example: "2024-12-20T00:00:00Z"
+        current_max_text_length:
+          type: integer
+          description: Maximum text length for user's current tier
+          example: 50
+        free_tier_max_length:
+          type: integer
+          description: Free tier text length limit
+          example: 50
+        premium_tier_max_length:
+          type: integer
+          description: Premium tier text length limit
+          example: 100
+        free_daily_limit:
+          type: integer
+          description: Free tier daily translation limit
+          example: 10
+        premium_daily_limit:
+          type: integer
+          description: Premium tier daily translation limit
+          example: 100
 
     UsageLimits:
       type: object
@@ -587,3 +677,88 @@ components:
         message:
           type: string
           example: "Webhook processed successfully"
+
+    TrendingTermResponse:
+      type: object
+      properties:
+        term:
+          type: string
+          description: The slang term or phrase
+          example: "no cap"
+        definition:
+          type: string
+          description: Definition or explanation of the term
+          example: "No lie, for real, I'm telling the truth"
+        category:
+          type: string
+          enum: [slang, meme, expression, hashtag, phrase]
+          description: Category of the trending term
+          example: "slang"
+        popularity_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 100.0
+          description: Popularity score (0-100)
+          example: 85.5
+        search_count:
+          type: integer
+          minimum: 0
+          description: Number of times searched
+          example: 1250
+        translation_count:
+          type: integer
+          minimum: 0
+          description: Number of times translated
+          example: 890
+        first_seen:
+          type: string
+          format: date-time
+          description: When this term was first detected
+          example: "2024-12-01T00:00:00Z"
+        last_updated:
+          type: string
+          format: date-time
+          description: Last time metrics were updated
+          example: "2024-12-19T10:30:00Z"
+        is_active:
+          type: boolean
+          description: Whether this term is currently trending
+          example: true
+        example_usage:
+          type: string
+          description: Example of how the term is used
+          example: "That movie was fire, no cap!"
+        origin:
+          type: string
+          description: Origin or source of the term
+          example: "Hip hop culture"
+        related_terms:
+          type: array
+          items:
+            type: string
+          description: Related slang terms
+          example: ["fr", "for real", "deadass"]
+
+    TrendingListResponse:
+      type: object
+      properties:
+        terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendingTermResponse'
+          description: List of trending terms
+        total_count:
+          type: integer
+          description: Total number of trending terms
+          example: 150
+        last_updated:
+          type: string
+          format: date-time
+          description: When the trending data was last updated
+          example: "2024-12-19T10:30:00Z"
+        category_filter:
+          type: string
+          enum: [slang, meme, expression, hashtag, phrase]
+          description: Applied category filter
+          example: "slang"

@@ -3,14 +3,56 @@ import Combine
 import LingibleAPI
 import Amplify
 
+// MARK: - User Tier Enum
+// Using API-generated UsageResponse.Tier instead of hardcoded enum
+
 struct TranslationView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
+    @StateObject private var userService = UserService(authenticationService: AuthenticationService())
     @State private var inputText = ""
     @State private var showInputCard = true
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var translationHistory: [TranslationHistoryItem] = []
+    @State private var isGenZToEnglish = true // Translation direction toggle
+    @State private var showingUpgradePrompt = false
     @FocusState private var isInputFocused: Bool
+
+    // MARK: - Computed Properties
+    private var userTier: UsageResponse.Tier {
+        userService.userUsage?.tier ?? .free
+    }
+
+    private var maxTextLength: Int {
+        userService.userUsage?.currentMaxTextLength ?? 50 // Use dynamic limit with fallback
+    }
+
+    private var isTextValid: Bool {
+        !inputText.isEmpty && inputText.count <= maxTextLength
+    }
+
+    private var remainingCharacters: Int {
+        maxTextLength - inputText.count
+    }
+
+    private var characterCountColor: Color {
+        if remainingCharacters <= 0 {
+            return .red
+        } else if remainingCharacters <= 10 {
+            return .orange
+        } else {
+            return .secondary
+        }
+    }
+
+    private var tierDisplayName: String {
+        switch userTier {
+        case .free:
+            return "Free"
+        case .premium:
+            return "Premium"
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -47,6 +89,7 @@ struct TranslationView: View {
             }
             .onAppear {
                 loadCachedTranslations()
+                // User data is already loaded by AppCoordinator after authentication
                 // Auto-focus the input field when the view appears
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isInputFocused = true
@@ -60,6 +103,19 @@ struct TranslationView: View {
                 if let errorMessage = errorMessage {
                     Text(errorMessage)
                 }
+            }
+            .sheet(isPresented: $showingUpgradePrompt) {
+                UpgradePromptView(
+                    translationCount: translationHistory.count,
+                    onUpgrade: {
+                        showingUpgradePrompt = false
+                        // TODO: Navigate to upgrade flow
+                    },
+                    onDismiss: {
+                        showingUpgradePrompt = false
+                    },
+                    userUsage: appCoordinator.userService.userUsage
+                )
             }
         }
     }
@@ -102,18 +158,21 @@ struct TranslationView: View {
     // MARK: - Input Card View
     private var inputCardView: some View {
         VStack(spacing: 20) {
-            // Title
-            VStack(spacing: 8) {
-                Text("Translate Gen Z to English")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.lingiblePrimary)
-
-                Text("Enter Gen Z slang or expressions to get their meaning")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+            // Translation Direction Control
+            Picker("Direction", selection: $isGenZToEnglish) {
+                Text("GenZ → English").tag(true)
+                Text("English → GenZ").tag(false)
             }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
+            // Title
+            Text(isGenZToEnglish ? "Translate Gen Z to English" : "Translate English to Gen Z")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.lingiblePrimary)
+                .multilineTextAlignment(.center)
 
             // Input field
             TextEditor(text: $inputText)
@@ -129,14 +188,66 @@ struct TranslationView: View {
                 .onTapGesture {
                     isInputFocused = true
                 }
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Done") {
-                            isInputFocused = false
+                .overlay(
+                    Group {
+                        if inputText.isEmpty {
+                            Text(isGenZToEnglish ? "Enter Gen Z slang to translate..." : "Enter English to translate...")
+                                .foregroundColor(.secondary.opacity(0.6))
+                                .padding(.leading, 16)
+                                .padding(.top, 20)
+                                .allowsHitTesting(false)
                         }
-                        .foregroundColor(.lingiblePrimary)
                     }
+                )
+                .onSubmit {
+                    isInputFocused = false
+                }
+
+                // Character counter and tier info
+                HStack {
+                    // Character counter
+                    HStack(spacing: 4) {
+                        Text("\(inputText.count)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(characterCountColor)
+
+                        Text("/ \(maxTextLength)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    // Tier indicator
+                    HStack(spacing: 4) {
+                        Image(systemName: userTier == .premium ? "star.fill" : "person.fill")
+                            .font(.caption)
+                            .foregroundColor(userTier == .premium ? .yellow : .secondary)
+
+                        Text(tierDisplayName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
+
+                // Warning message for exceeded limits
+                if let maxLength = userService.userUsage?.currentMaxTextLength, inputText.count > maxLength {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+
+                        Text("Text exceeds \(tierDisplayName) tier limit (\(maxTextLength) characters)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
                 }
 
             // Translate button
@@ -159,14 +270,14 @@ struct TranslationView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
                 .background(
-                    inputText.isEmpty || isLoading
+                    !isTextValid || isLoading
                     ? Color.lingiblePrimary.opacity(0.5)
                     : Color.lingiblePrimary
                 )
                 .cornerRadius(25)
                 .scaleAnimation()
             }
-            .disabled(inputText.isEmpty || isLoading)
+            .disabled(!isTextValid || isLoading)
         }
         .padding(24)
         .background(Color.white)
@@ -208,6 +319,12 @@ struct TranslationView: View {
     private func translate() {
         guard !inputText.isEmpty else { return }
 
+        // Check if text exceeds free tier limit
+        if userTier == .free && inputText.count > maxTextLength {
+            showUpgradePrompt()
+            return
+        }
+
         // Dismiss keyboard
         isInputFocused = false
 
@@ -220,6 +337,14 @@ struct TranslationView: View {
                     showInputCard = false
                 }
             }
+        }
+    }
+
+    private func showUpgradePrompt() {
+        if let premiumLimit = userService.userUsage?.premiumTierMaxLength {
+            errorMessage = "Text exceeds free tier limit. Upgrade to Premium to translate longer texts (up to \(premiumLimit) characters)."
+        } else {
+            errorMessage = "Text exceeds free tier limit. Upgrade to Premium to translate longer texts."
         }
     }
 
@@ -259,7 +384,7 @@ struct TranslationView: View {
             // Create translation request using the generated API
             let request = TranslationRequest(
                 text: text,
-                direction: .genzToEnglish
+                direction: isGenZToEnglish ? .genzToEnglish : .englishToGenz
             )
 
             // Make API call
@@ -280,7 +405,8 @@ struct TranslationView: View {
                 id: UUID().uuidString,
                 originalText: text,
                 translatedText: response.translatedText ?? "",
-                createdAt: Date()
+                createdAt: Date(),
+                direction: isGenZToEnglish ? .genzToStandard : .standardToGenz
             )
 
             // Add to history (most recent first)
@@ -293,6 +419,14 @@ struct TranslationView: View {
 
             // Cache the translations
             saveCachedTranslations()
+
+            // Check if we should show upgrade prompt for free users
+            if userTier == .free && translationHistory.count > 0 && translationHistory.count % 3 == 0 {
+                // Show upgrade prompt every 3 translations
+                DispatchQueue.main.async {
+                    showingUpgradePrompt = true
+                }
+            }
 
         } catch {
             errorMessage = error.localizedDescription
@@ -338,6 +472,8 @@ struct TranslationView: View {
         }
     }
 
+
+
     private func loadCachedTranslations() {
         guard let data = UserDefaults.standard.data(forKey: "cached_translations") else {
             return
@@ -378,7 +514,7 @@ struct TranslationResultCard: View {
 
             // Original text
             VStack(alignment: .leading, spacing: 8) {
-                Text("Gen Z:")
+                Text(translation.direction == .genzToStandard ? "Gen Z:" : "English:")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
@@ -392,7 +528,7 @@ struct TranslationResultCard: View {
 
             // Translated text
             VStack(alignment: .leading, spacing: 8) {
-                Text("Translation:")
+                Text(translation.direction == .genzToStandard ? "English:" : "Gen Z:")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)

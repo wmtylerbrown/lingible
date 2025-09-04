@@ -4,6 +4,7 @@ if __import__("typing").TYPE_CHECKING:
     # import apis into api package
     from lingible_client.api.system_api import SystemApi
     from lingible_client.api.translation_api import TranslationApi
+    from lingible_client.api.trending_api import TrendingApi
     from lingible_client.api.user_api import UserApi
     from lingible_client.api.webhooks_api import WebhooksApi
 
@@ -16,6 +17,7 @@ else:
             """# import apis into api package
 from lingible_client.api.system_api import SystemApi
 from lingible_client.api.translation_api import TranslationApi
+from lingible_client.api.trending_api import TrendingApi
 from lingible_client.api.user_api import UserApi
 from lingible_client.api.webhooks_api import WebhooksApi
 

@@ -99,6 +99,7 @@ Class | Method | HTTP request | Description
 *TranslationApi* | [**translations_delete_all_delete**](docs/TranslationApi.md#translations_delete_all_delete) | **DELETE** /translations/delete-all | Clear all slang translations
 *TranslationApi* | [**translations_get**](docs/TranslationApi.md#translations_get) | **GET** /translations | Get slang translation history
 *TranslationApi* | [**translations_translation_id_delete**](docs/TranslationApi.md#translations_translation_id_delete) | **DELETE** /translations/{translationId} | Delete specific slang translation
+*TrendingApi* | [**trending_get**](docs/TrendingApi.md#trending_get) | **GET** /trending | Get trending GenZ slang terms
 *UserApi* | [**user_profile_get**](docs/UserApi.md#user_profile_get) | **GET** /user/profile | Get user profile
 *UserApi* | [**user_upgrade_post**](docs/UserApi.md#user_upgrade_post) | **POST** /user/upgrade | Upgrade user subscription
 *UserApi* | [**user_usage_get**](docs/UserApi.md#user_usage_get) | **GET** /user/usage | Get usage statistics
@@ -116,6 +117,8 @@ Class | Method | HTTP request | Description
  - [TranslationHistoryResponse](docs/TranslationHistoryResponse.md)
  - [TranslationRequest](docs/TranslationRequest.md)
  - [TranslationResponse](docs/TranslationResponse.md)
+ - [TrendingListResponse](docs/TrendingListResponse.md)
+ - [TrendingTermResponse](docs/TrendingTermResponse.md)
  - [UpgradeRequest](docs/UpgradeRequest.md)
  - [UpgradeResponse](docs/UpgradeResponse.md)
  - [UsageLimits](docs/UsageLimits.md)

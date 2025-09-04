@@ -12,18 +12,22 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - Dependencies
     let authenticationService: AuthenticationServiceProtocol
+    let userService: any UserServiceProtocol
 
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
-    init(authenticationService: AuthenticationServiceProtocol) {
+    init(authenticationService: AuthenticationServiceProtocol, userService: any UserServiceProtocol) {
         self.authenticationService = authenticationService
+        self.userService = userService
         setupBindings()
     }
 
     convenience init() {
-        self.init(authenticationService: AuthenticationService())
+        let authService = AuthenticationService()
+        let userService = UserService(authenticationService: authService)
+        self.init(authenticationService: authService, userService: userService)
     }
 
     // MARK: - Public Methods
@@ -50,13 +54,9 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - Private Methods
     private func setupBindings() {
-        // Listen to authentication state changes
-        authenticationService.isAuthenticated
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isAuthenticated in
-                self?.currentState = isAuthenticated ? .authenticated : .unauthenticated
-            }
-            .store(in: &cancellables)
+        // Note: We're not using automatic auth state binding anymore
+        // State is now manually managed in authenticateUser() method
+        // This gives us full control over the splash screen timing
     }
 
         private func authenticateUser() async {
@@ -77,6 +77,11 @@ final class AppCoordinator: ObservableObject {
         // Move directly to appropriate state (no intermediate loading)
         currentState = isAuthenticated ? .authenticated : .unauthenticated
         isLoading = false
+
+        // Load user data after successful authentication
+        if isAuthenticated {
+            await userService.loadUserData(forceRefresh: false)
+        }
     }
 }
 
