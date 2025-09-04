@@ -43,10 +43,21 @@ class TrendingService:
         """Get trending terms with optional filtering and tier-based features."""
         try:
             # Get user tier for premium features
-            user_tier = UserTier.FREE  # Default to free
+            # Default to FREE tier (most restrictive) for safety
+            user_tier = UserTier.FREE
             user = self.user_service.get_user(user_id)
             if user:
                 user_tier = user.tier
+                logger.log_business_event(
+                    "trending_user_tier_determined",
+                    {"user_id": user_id, "tier": user_tier.value}
+                )
+            else:
+                # User not found or error - default to FREE tier for security
+                logger.log_business_event(
+                    "trending_user_not_found_defaulting_to_free",
+                    {"user_id": user_id, "reason": "user_not_found_or_error"}
+                )
 
             # Apply tier-based limits
             if user_tier == UserTier.FREE:

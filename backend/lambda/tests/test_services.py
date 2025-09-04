@@ -567,6 +567,38 @@ class TestTrendingService:
         with pytest.raises(ValidationError, match="Category filtering is a premium feature"):
             trending_service.get_trending_terms(user_id="free_user_123", category=TrendingCategory.MEME)
 
+    def test_get_trending_terms_user_not_found_defaults_to_free(self, trending_service, sample_trending_term):
+        """Test that when user is not found, we default to FREE tier restrictions."""
+        # Mock repository response
+        trending_service.repository.get_trending_terms.return_value = [sample_trending_term]
+        trending_service.repository.get_trending_stats.return_value = {
+            "total_terms": 1,
+            "active_terms": 1,
+            "categories": {"slang": 1}
+        }
+
+        # Mock user service to return None (user not found)
+        trending_service.user_service.get_user.return_value = None
+
+        # Test with premium-level request
+        result = trending_service.get_trending_terms(
+            user_id="nonexistent_user_123",
+            limit=50,  # Should be limited to 10
+            category=TrendingCategory.MEME  # Should be restricted
+        )
+
+        # Should be limited to 10 terms max (FREE tier limit)
+        trending_service.repository.get_trending_terms.assert_called_with(limit=10, category=None, active_only=True)
+
+        # Should get limited data (FREE tier response)
+        assert result.total_count == 1
+        assert len(result.terms) == 1
+        assert result.terms[0].term == sample_trending_term.term
+        assert result.terms[0].search_count == 0  # FREE tier gets limited data
+        assert result.terms[0].example_usage == ""  # FREE tier gets limited data
+        assert result.terms[0].origin == ""  # FREE tier gets limited data
+        assert result.terms[0].related_terms == []  # FREE tier gets limited data
+
     def test_get_trending_terms_premium_tier_full_access(self, trending_service, sample_trending_term):
         """Test premium tier gets full access to all features."""
         trending_service.repository.get_trending_terms.return_value = [sample_trending_term]
