@@ -254,6 +254,212 @@ cd infrastructure
 python deploy-dev.py
 ```
 
+## 🐍 **Python Environment & Import Management**
+
+### **Virtual Environment Setup:**
+```bash
+# Create virtual environment at project root
+python -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # macOS/Linux
+# or
+.venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install -r backend/lambda/requirements.txt
+```
+
+### **Common Python Path Issues & Solutions:**
+
+#### **1. Import Path Problems:**
+**Issue**: `ModuleNotFoundError` when running tests or scripts locally
+```python
+# ❌ This fails in local development
+from src.models.user import User
+
+# ✅ Use relative imports in modules
+from ..models.user import User
+
+# ✅ Or set PYTHONPATH for scripts
+PYTHONPATH=src python -m pytest tests/
+```
+
+#### **2. Lambda Layer vs Local Development:**
+**Issue**: Different import structures between local and Lambda environments
+```python
+# Lambda Layer Structure (production)
+from models.user import User
+from services.user_service import UserService
+
+# Local Development Structure
+from src.models.user import User
+from src.services.user_service import UserService
+```
+
+**Solution**: Use consistent import patterns and PYTHONPATH
+```bash
+# For local development, always set PYTHONPATH
+export PYTHONPATH=backend/lambda/src:$PYTHONPATH
+
+# Or use in commands
+PYTHONPATH=backend/lambda/src python -m pytest tests/
+```
+
+#### **3. Test Execution Issues:**
+**Issue**: Tests fail with import errors when run from different directories
+```bash
+# ❌ Running from project root without PYTHONPATH
+cd /Users/tyler/mobile-app-aws-backend
+python -m pytest backend/lambda/tests/
+
+# ✅ Always set PYTHONPATH for tests
+cd /Users/tyler/mobile-app-aws-backend/backend/lambda
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/
+```
+
+#### **4. Handler Development Issues:**
+**Issue**: Handlers can't find shared modules during local development
+```python
+# ❌ This fails in local development
+from utils.logging import logger
+
+# ✅ Use relative imports in handlers
+from ..utils.logging import logger
+
+# ✅ Or ensure PYTHONPATH includes src directory
+```
+
+### **Recommended Development Setup:**
+
+#### **1. Environment Variables:**
+```bash
+# Add to your shell profile (.bashrc, .zshrc, etc.)
+export PYTHONPATH="/Users/tyler/mobile-app-aws-backend/backend/lambda/src:$PYTHONPATH"
+export ENVIRONMENT="test"
+```
+
+#### **2. IDE Configuration:**
+```json
+// VS Code settings.json
+{
+    "python.defaultInterpreterPath": "./.venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+        "./backend/lambda/src"
+    ]
+}
+```
+
+#### **3. Test Execution Scripts:**
+```bash
+# Create wrapper scripts for consistent execution
+#!/bin/bash
+# run_tests.sh
+cd backend/lambda
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/ "$@"
+```
+
+#### **4. Pre-commit Hook Configuration:**
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: bash -c 'cd backend/lambda && ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/'
+        language: system
+        pass_filenames: false
+```
+
+### **Troubleshooting Common Issues:**
+
+#### **1. "ModuleNotFoundError: No module named 'src'"**
+```bash
+# Solution: Set PYTHONPATH
+export PYTHONPATH=backend/lambda/src:$PYTHONPATH
+# or
+PYTHONPATH=backend/lambda/src python your_script.py
+```
+
+#### **2. "ImportError: attempted relative import with no known parent package"**
+```python
+# Solution: Use absolute imports with PYTHONPATH
+# Instead of: from ..models.user import User
+# Use: from models.user import User
+# And set: PYTHONPATH=backend/lambda/src
+```
+
+#### **3. "pydantic_core._pydantic_core" Import Errors**
+```bash
+# Solution: Ensure virtual environment is activated
+source .venv/bin/activate
+pip install --upgrade pydantic
+# Or rebuild virtual environment
+rm -rf .venv
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/lambda/requirements.txt
+```
+
+#### **4. Lambda Layer Import Issues in Production**
+```python
+# Issue: Lambda can't find modules in layer
+# Solution: Ensure layer structure matches import paths
+# Layer structure should be:
+# python/
+#   models/
+#   services/
+#   repositories/
+#   utils/
+```
+
+### **Best Practices:**
+
+#### **1. Consistent Import Patterns:**
+```python
+# ✅ Use absolute imports with PYTHONPATH
+from models.user import User
+from services.user_service import UserService
+from utils.logging import logger
+
+# ❌ Avoid relative imports in production code
+from ..models.user import User
+from .user_service import UserService
+```
+
+#### **2. Environment-Specific Configuration:**
+```python
+# Always set ENVIRONMENT for local development
+ENVIRONMENT=test python -m pytest tests/
+ENVIRONMENT=dev python your_script.py
+```
+
+#### **3. Virtual Environment Management:**
+```bash
+# Always use project root .venv
+# Never use backend/lambda/venv or other nested environments
+python -m venv .venv  # At project root
+source .venv/bin/activate
+```
+
+#### **4. Test Execution:**
+```bash
+# Always run tests from backend/lambda directory with PYTHONPATH
+cd backend/lambda
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/
+```
+
+### **Development Environment Checklist:**
+- [ ] Virtual environment created at project root (`.venv`)
+- [ ] Virtual environment activated (`source .venv/bin/activate`)
+- [ ] Dependencies installed (`pip install -r backend/lambda/requirements.txt`)
+- [ ] PYTHONPATH set to include `backend/lambda/src`
+- [ ] ENVIRONMENT variable set for local development
+- [ ] IDE configured with correct Python interpreter and paths
+- [ ] Tests run from `backend/lambda` directory with proper PYTHONPATH
+
 ## 🎯 **Current Technical Status**
 
 ### **✅ Completed:**

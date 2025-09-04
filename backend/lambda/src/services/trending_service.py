@@ -35,19 +35,18 @@ class TrendingService:
     @tracer.trace_method("get_trending_terms")
     def get_trending_terms(
         self,
+        user_id: str,
         limit: int = 50,
         category: Optional[TrendingCategory] = None,
         active_only: bool = True,
-        user_id: str = None,
     ) -> TrendingListResponse:
         """Get trending terms with optional filtering and tier-based features."""
         try:
             # Get user tier for premium features
             user_tier = UserTier.FREE  # Default to free
-            if user_id:
-                user = self.user_service.get_user(user_id)
-                if user:
-                    user_tier = user.tier
+            user = self.user_service.get_user(user_id)
+            if user:
+                user_tier = user.tier
 
             # Apply tier-based limits
             if user_tier == UserTier.FREE:

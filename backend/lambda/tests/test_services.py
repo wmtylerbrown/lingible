@@ -510,7 +510,7 @@ class TestTrendingService:
         )
         trending_service.user_service.get_user.return_value = mock_user
 
-        result = trending_service.get_trending_terms(limit=10, user_id="premium_user_123")
+        result = trending_service.get_trending_terms(user_id="premium_user_123", limit=10)
 
         assert result.total_count == 1
         assert len(result.terms) == 1
@@ -540,7 +540,7 @@ class TestTrendingService:
         trending_service.user_service.get_user.return_value = mock_user
 
         # Test limit enforcement
-        result = trending_service.get_trending_terms(limit=50, user_id="free_user_123")
+        result = trending_service.get_trending_terms(user_id="free_user_123", limit=50)
 
         # Should be limited to 10 terms max
         trending_service.repository.get_trending_terms.assert_called_with(limit=10, category=None, active_only=True)
@@ -565,7 +565,7 @@ class TestTrendingService:
         trending_service.user_service.get_user.return_value = mock_user
 
         with pytest.raises(ValidationError, match="Category filtering is a premium feature"):
-            trending_service.get_trending_terms(category=TrendingCategory.MEME, user_id="free_user_123")
+            trending_service.get_trending_terms(user_id="free_user_123", category=TrendingCategory.MEME)
 
     def test_get_trending_terms_premium_tier_full_access(self, trending_service, sample_trending_term):
         """Test premium tier gets full access to all features."""
@@ -589,9 +589,9 @@ class TestTrendingService:
         trending_service.user_service.get_user.return_value = mock_user
 
         result = trending_service.get_trending_terms(
+            user_id="premium_user_123",
             limit=100,
-            category=TrendingCategory.MEME,
-            user_id="premium_user_123"
+            category=TrendingCategory.MEME
         )
 
         # Premium should get full data

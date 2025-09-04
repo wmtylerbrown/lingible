@@ -40,10 +40,10 @@ def handler(event: TrendingEvent, context: LambdaContext) -> TrendingListRespons
 
     # Get trending terms from service - service will handle user lookup and tier logic
     trending_response = trending_service.get_trending_terms(
+        user_id=user_id,
         limit=limit,
         category=category,
         active_only=active_only,
-        user_id=user_id,
     )
 
     # Return the response model - decorator handles the API response creation
