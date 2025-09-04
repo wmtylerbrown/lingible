@@ -151,7 +151,7 @@ class TrendingRepository:
             if category:
                 index_name = "CategoryPopularityIndex"
                 key_condition = "category = :category"
-                expression_values: dict = {":category": category.value}
+                expression_values: dict = {":category": category}
                 # Add filter for active terms when using category index
                 if active_only:
                     filter_expression = "is_active = :is_active"
@@ -211,7 +211,7 @@ class TrendingRepository:
                 {
                     "operation": "get_trending_terms",
                     "limit": limit,
-                    "category": category.value if category else None,
+                    "category": category if category else None,
                 },
             )
             return []
@@ -294,12 +294,12 @@ class TrendingRepository:
                     KeyConditionExpression="category = :category",
                     FilterExpression="is_active = :is_active",
                     ExpressionAttributeValues={
-                        ":category": category.value,
+                        ":category": category,
                         ":is_active": "True",
                     },
                     Select="COUNT",
                 )
-                category_counts[category.value] = response.get("Count", 0)
+                category_counts[category] = response.get("Count", 0)
 
             return {
                 "total_active_terms": total_active,

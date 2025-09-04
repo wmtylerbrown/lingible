@@ -86,10 +86,13 @@
 - **Development Guide**: ✅ Local setup and development instructions
 - **Architecture Docs**: ✅ System design documentation and security guides
 
-#### Mobile Integration (60%)
-- **API Client SDK**: ✅ Generated Swift client with proper API endpoints
+#### Mobile Integration (85%)
+- **API Client SDK**: ✅ Generated Swift client with proper API endpoints and dynamic limits
 - **Authentication Flow**: ✅ Cognito integration with Apple Sign-In working
 - **UI Components**: ✅ Translation interface with proper UI formatting preserved
+- **Dynamic Limits**: ✅ Upgrade prompts now use backend API values instead of hardcoded limits
+- **API Integration**: ✅ iOS app successfully connects to dev API endpoint
+- **Build System**: ✅ iOS project builds successfully with proper package structure
 - **Usage Display**: ⏳ User dashboard (pending)
 - **JWT Token Management**: ✅ Centralized AuthTokenProvider service implemented
 
@@ -121,9 +124,9 @@
 **Components**: API docs, deployment guides, architecture docs, security documentation
 
 ### 🎯 Milestone 6: Mobile App Integration
-**Status**: In Progress (60%)
+**Status**: In Progress (85%)
 **Target**: Final phase
-**Components**: Mobile SDK, UI components, end-to-end testing
+**Components**: Mobile SDK, UI components, dynamic API integration, end-to-end testing
 
 ## Key Metrics
 
@@ -135,19 +138,19 @@
 - **Data Models**: 6/6 complete (100%)
 - **Infrastructure**: 95% complete (TypeScript CDK)
 - **Documentation**: 85% complete (comprehensive guides)
-- **Mobile Integration**: 60% complete (iOS app with authentication working)
+- **Mobile Integration**: 85% complete (iOS app with dynamic API integration working)
 
 ## Next Actions
 
-1. **Immediate**: Fix hardcoded dev environment references in iOS app (CRITICAL)
-2. **Short-term**: Implement proper environment configuration and build variants
-3. **Medium-term**: Complete user dashboard and end-to-end testing
+1. **Immediate**: Complete user dashboard and usage display components
+2. **Short-term**: Implement proper environment configuration and build variants for production
+3. **Medium-term**: End-to-end testing and production deployment preparation
 4. **Long-term**: Production deployment with monitoring and optimization
 
 ## Critical Issues
 
-### 🚨 **Environment Hardcoding (BLOCKING PRODUCTION)**
-- **API Endpoints**: `https://api.dev.lingible.com` hardcoded in Swift client
+### 🚨 **Environment Configuration (NEEDS PRODUCTION SETUP)**
+- **API Endpoints**: Currently using dev endpoint, needs production configuration system
 - **Bundle Identifiers**: Development patterns may not scale to production
 - **Amplify Configuration**: Dev-specific settings in configuration files
 - **OAuth Callbacks**: Development URLs in backend stack
@@ -183,3 +186,12 @@
 - **SSM Integration**: CDK creates parameters from shared config files
 - **API Change Management**: Rules ensure shared files stay in sync
 - **Monorepo Structure**: Ready for iOS/Android app integration
+
+### ✅ **Dynamic Daily Translation Limits & iOS API Integration (2024-12-19)**
+- **Backend API Enhancement**: Added `free_daily_limit` and `premium_daily_limit` fields to UserUsageResponse
+- **Dynamic Configuration**: iOS app now uses backend API values instead of hardcoded limits
+- **API Client Regeneration**: Updated iOS Swift client with new fields and proper package structure
+- **Build System Fixes**: Resolved Xcode package resolution and build cache problems
+- **Project Cleanup**: Consolidated iOS project structure and removed duplicate files
+- **Environment Configuration**: Fixed API endpoint to use dev environment
+- **Type Safety**: Strong typing ensures consistency across all platforms (iOS, Python, TypeScript)

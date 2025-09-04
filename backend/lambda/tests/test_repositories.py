@@ -48,10 +48,10 @@ class TestUserRepository:
                 'user_id': sample_user.user_id,
                 'email': sample_user.email,
                 'username': sample_user.username,
-                'tier': sample_user.tier.value,
-                'status': sample_user.status.value,
-                'created_at': sample_user.created_at,
-                'updated_at': sample_user.updated_at
+                'tier': sample_user.tier,
+                'status': sample_user.status,
+                'created_at': sample_user.created_at.isoformat(),
+                'updated_at': sample_user.updated_at.isoformat()
             }
         }
 
@@ -530,10 +530,10 @@ class TestTranslationRepository:
                 'user_id': sample_translation.user_id,
                 'original_text': sample_translation.original_text,
                 'translated_text': sample_translation.translated_text,
-                'direction': sample_translation.direction.value,
+                'direction': sample_translation.direction,
                 'model_used': sample_translation.model_used,
                 'confidence_score': sample_translation.confidence_score,
-                'created_at': sample_translation.created_at
+                'created_at': sample_translation.created_at.isoformat()
             }
         }
 
@@ -641,8 +641,8 @@ class TestSubscriptionRepository:
                 'SK': f'SUBSCRIPTION#{sample_subscription.transaction_id}',
                 'transaction_id': sample_subscription.transaction_id,
                 'user_id': sample_subscription.user_id,
-                'provider': sample_subscription.provider.value,
-                'status': sample_subscription.status.value,
+                'provider': sample_subscription.provider,
+                'status': sample_subscription.status,
                 'start_date': sample_subscription.start_date.isoformat(),
                 'end_date': sample_subscription.end_date.isoformat(),
                 'created_at': sample_subscription.created_at.isoformat(),
@@ -854,7 +854,7 @@ class TestTrendingRepository:
                         'translation_count': active_term.translation_count,
                         'first_seen': active_term.first_seen.isoformat(),
                         'last_updated': active_term.last_updated.isoformat(),
-                        'is_active': active_term.is_active,
+                        'is_active': str(active_term.is_active),
                         'example_usage': active_term.example_usage,
                         'origin': active_term.origin,
                         'related_terms': active_term.related_terms,
@@ -927,7 +927,7 @@ class TestTrendingRepository:
 
         assert response.term == sample_trending_term.term
         assert response.definition == sample_trending_term.definition
-        assert response.category.value == sample_trending_term.category
+        assert response.category == sample_trending_term.category
         assert response.popularity_score == sample_trending_term.popularity_score
         assert response.search_count == 0  # Hidden for free users
         assert response.translation_count == 0  # Hidden for free users
@@ -941,7 +941,7 @@ class TestTrendingRepository:
 
         assert response.term == sample_trending_term.term
         assert response.definition == sample_trending_term.definition
-        assert response.category.value == sample_trending_term.category
+        assert response.category == sample_trending_term.category
         assert response.popularity_score == sample_trending_term.popularity_score
         assert response.search_count == sample_trending_term.search_count  # Full data for premium
         assert response.translation_count == sample_trending_term.translation_count  # Full data for premium

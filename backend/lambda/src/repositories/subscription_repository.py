@@ -32,9 +32,9 @@ class SubscriptionRepository:
                 "PK": f"USER#{subscription.user_id}",
                 "SK": "SUBSCRIPTION#ACTIVE",
                 "user_id": subscription.user_id,
-                "provider": subscription.provider.value,
+                "provider": subscription.provider,
                 "transaction_id": subscription.transaction_id,
-                "status": subscription.status.value,
+                "status": subscription.status,
                 "start_date": subscription.start_date.isoformat(),
                 "end_date": (
                     subscription.end_date.isoformat() if subscription.end_date else None
@@ -118,9 +118,9 @@ class SubscriptionRepository:
                 "PK": f"USER#{subscription.user_id}",
                 "SK": "SUBSCRIPTION#ACTIVE",
                 "user_id": subscription.user_id,
-                "provider": subscription.provider.value,
+                "provider": subscription.provider,
                 "transaction_id": subscription.transaction_id,
-                "status": subscription.status.value,
+                "status": subscription.status,
                 "start_date": subscription.start_date.isoformat(),
                 "end_date": (
                     subscription.end_date.isoformat() if subscription.end_date else None

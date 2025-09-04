@@ -36,7 +36,7 @@ def handler(event: TrendingEvent, context: LambdaContext) -> TrendingListRespons
         try:
             category = TrendingCategory(event.category.lower())
         except ValueError:
-            raise ValidationError(f"Invalid category: {event.category}. Valid categories are: {[c.value for c in TrendingCategory]}")
+            raise ValidationError(f"Invalid category: {event.category}. Valid categories are: {[c for c in TrendingCategory]}")
 
     # Get trending terms from service - service will handle user lookup and tier logic
     trending_response = trending_service.get_trending_terms(

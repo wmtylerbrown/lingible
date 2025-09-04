@@ -62,7 +62,12 @@ struct TranslationView: View {
 
                 VStack(spacing: 0) {
                     // Header
-                    headerView
+                    CommonHeader.withNewButton {
+                        inputText = ""
+                        withAnimation(.spring()) {
+                            showInputCard = true
+                        }
+                    }
 
                     // Content
                     if showInputCard {
@@ -118,41 +123,6 @@ struct TranslationView: View {
                 )
             }
         }
-    }
-
-    // MARK: - Header View
-    private var headerView: some View {
-        HStack {
-            // Logo + Wordmark
-            HStack(spacing: 8) {
-                Image("LingibleLogo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 40, height: 40)
-
-                Image("WordmarkMedium")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 30)
-            }
-
-            Spacer()
-
-            // New translation button
-            Button(action: {
-                inputText = ""
-                withAnimation(.spring()) {
-                    showInputCard = true
-                }
-            }) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.lingiblePrimary)
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 16)
     }
 
     // MARK: - Input Card View

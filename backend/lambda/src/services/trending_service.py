@@ -50,7 +50,7 @@ class TrendingService:
                 user_tier = user.tier
                 logger.log_business_event(
                     "trending_user_tier_determined",
-                    {"user_id": user_id, "tier": user_tier.value}
+                    {"user_id": user_id, "tier": user_tier}
                 )
             else:
                 # User not found or error - default to FREE tier for security
@@ -80,7 +80,7 @@ class TrendingService:
             )
 
             # Convert to API response models with tier-based filtering
-            term_responses = [term.to_api_response(user_tier.value) for term in terms]
+            term_responses = [term.to_api_response(user_tier) for term in terms]
 
             # Get total count for stats
             stats = self.repository.get_trending_stats()
@@ -99,7 +99,7 @@ class TrendingService:
                 {
                     "operation": "get_trending_terms",
                     "limit": limit,
-                    "category": category.value if category else None,
+                    "category": category if category else None,
                 },
             )
             raise
@@ -174,7 +174,7 @@ class TrendingService:
                 "trending_term_created",
                 {
                     "term": trending_term.term,
-                    "category": category.value,
+                    "category": category,
                     "popularity_score": popularity_score,
                 },
             )
@@ -250,7 +250,7 @@ class TrendingService:
                 "trending_term_updated",
                 {
                     "term": existing_term.term,
-                    "category": existing_term.category.value,
+                    "category": existing_term.category,
                 },
             )
 

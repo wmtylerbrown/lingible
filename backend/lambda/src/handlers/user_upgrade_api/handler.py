@@ -27,7 +27,7 @@ def upgrade_user(event: UserUpgradeEvent, context: LambdaContext) -> UserRespons
 
     # Upgrade user
     user = subscription_service.upgrade_user(
-        event.user_id, provider.value, receipt_data, transaction_id
+        event.user_id, provider, receipt_data, transaction_id
     )
 
     return user.to_api_response()

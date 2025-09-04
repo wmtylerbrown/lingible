@@ -125,7 +125,7 @@ class UserRepository:
             item = {
                 "PK": f"USER#{user_id}",
                 "SK": "USAGE#LIMITS",
-                "tier": usage.tier.value,
+                "tier": usage.tier,
                 "daily_used": usage.daily_used,
                 "reset_daily_at": (
                     usage.reset_daily_at.isoformat() if usage.reset_daily_at else None
@@ -207,7 +207,7 @@ class UserRepository:
                         ":today_start": today_start.isoformat(),
                         ":tomorrow_start": tomorrow_start.isoformat(),
                         ":updated_at": now.isoformat(),
-                        ":tier": tier.value,
+                        ":tier": tier,
                     },
                     ConditionExpression="attribute_not_exists(reset_daily_at) OR reset_daily_at > :today_start",
                     ReturnValues="UPDATED_NEW",
@@ -227,7 +227,7 @@ class UserRepository:
                         ":one": 1,
                         ":tomorrow_start": tomorrow_start.isoformat(),
                         ":updated_at": now.isoformat(),
-                        ":tier": tier.value,
+                        ":tier": tier,
                     },
                     ReturnValues="UPDATED_NEW",
                 )
@@ -264,7 +264,7 @@ class UserRepository:
                     ":zero": 0,
                     ":tomorrow_start": tomorrow_start.isoformat(),
                     ":updated_at": now.isoformat(),
-                    ":tier": tier.value,
+                    ":tier": tier,
                 },
             )
 

@@ -5,16 +5,21 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
-
 # Domain Models
-class SubscriptionProvider(Enum):
+class StoreEnvironment(str, Enum):
+    """Store environment options."""
+    SANDBOX = "sandbox"
+    PRODUCTION = "production"
+
+
+class SubscriptionProvider(str, Enum):
     """Subscription providers."""
 
     APPLE = "apple"
     GOOGLE = "google"
 
 
-class SubscriptionStatus(Enum):
+class SubscriptionStatus(str, Enum):
     """Subscription status."""
 
     ACTIVE = "active"
@@ -22,7 +27,7 @@ class SubscriptionStatus(Enum):
     CANCELLED = "cancelled"
 
 
-class ReceiptValidationStatus(Enum):
+class ReceiptValidationStatus(str, Enum):
     """Receipt validation status."""
 
     VALID = "valid"
@@ -175,7 +180,7 @@ class ReceiptValidationResponse(BaseModel):
     retry_after: Optional[int] = Field(None, description="Seconds to wait before retry")
 
 
-class AppleNotificationType(Enum):
+class AppleNotificationType(str, Enum):
     """Apple notification types."""
 
     INITIAL_BUY = "INITIAL_BUY"
@@ -187,11 +192,6 @@ class AppleNotificationType(Enum):
     CONSUMPTION_REQUEST = "CONSUMPTION_REQUEST"
 
 
-class Environment(Enum):
-    """Environment types."""
-
-    SANDBOX = "Sandbox"
-    PRODUCTION = "Production"
 
 
 class AppleWebhookRequest(BaseModel):
@@ -204,7 +204,7 @@ class AppleWebhookRequest(BaseModel):
     receipt_data: str = Field(
         ..., min_length=1, description="Base64 encoded receipt data"
     )
-    environment: Environment = Field(Environment.PRODUCTION, description="Environment")
+    environment: StoreEnvironment = Field(StoreEnvironment.PRODUCTION, description="Environment")
 
 
 class WebhookResponse(BaseModel):

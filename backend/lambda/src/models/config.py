@@ -8,15 +8,10 @@ loaded from SSM Parameter Store.
 from typing import List
 from pydantic import BaseModel, Field, validator
 from enum import Enum
+from .subscriptions import StoreEnvironment
 
 
 # Enums for validation
-class StoreEnvironment(str, Enum):
-    """Store environment options."""
-    SANDBOX = "sandbox"
-    PRODUCTION = "production"
-
-
 class LogLevel(str, Enum):
     """Logging level options."""
     DEBUG = "DEBUG"

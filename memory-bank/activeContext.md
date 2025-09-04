@@ -1,6 +1,6 @@
 # Active Context - Lingible
 
-## Current Focus: Trending System Complete - Production Ready
+## Current Focus: iOS App Integration Complete - Dynamic API Integration Working
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 - **Mandatory TDD Workflow**: Red-Green-Refactor process for all backend development
@@ -91,6 +91,17 @@
 - **Code Organization**: Modular handler structure with independent deployment
 - **Documentation**: Comprehensive inline documentation and README files
 
+### ✅ **COMPLETED: Dynamic Daily Translation Limits & iOS API Integration (2024-12-19)**
+- **Backend API Enhancement**: Added `free_daily_limit` and `premium_daily_limit` fields to UserUsageResponse model
+- **Dynamic Configuration**: iOS app now uses backend API values instead of hardcoded limits
+- **API Client Regeneration**: Updated iOS Swift client with new fields and proper package structure
+- **Build System Fixes**: Resolved Xcode package resolution and build cache problems
+- **Project Cleanup**: Consolidated iOS project structure and removed duplicate files
+- **Environment Configuration**: Fixed API endpoint to use dev environment (`api.dev.lingible.com`)
+- **Type Safety**: Strong typing ensures consistency across all platforms (iOS, Python, TypeScript)
+- **OpenAPI Spec Updates**: Updated shared API specification and TypeScript types
+- **View Consolidation**: Removed duplicate upgrade views and consolidated into single component
+
 ### ✅ **COMPLETED: Translation API & Full System Integration (2024-09-04)**
 - **Authentication System**: ✅ Working perfectly with fresh JWT tokens from Cognito
 - **Enum Serialization Issues**: ✅ Completely resolved across all repositories
@@ -103,43 +114,38 @@
 
 ### 🎯 **CURRENT PRIORITIES:**
 
-#### **1. Production Deployment & Monitoring**
-- **Current Status**: 100% complete - all systems operational
+#### **1. iOS App Development & User Experience**
+- **Current Status**: 85% complete - dynamic API integration working
 - **Authentication**: ✅ Working perfectly with fresh JWT tokens from Cognito
 - **Translation API**: ✅ Fully operational with Bedrock AI integration
-- **Trending System**: ✅ AI-powered term generation working perfectly
-- **Infrastructure**: ✅ All AWS resources deployed and configured
-- **API Documentation**: ✅ Complete OpenAPI specification
-- **Testing**: ✅ Comprehensive test coverage with TDD workflow
+- **Dynamic Limits**: ✅ iOS app now uses backend API values for daily limits
+- **API Integration**: ✅ iOS app successfully connects to dev API endpoint
+- **Build System**: ✅ iOS project builds successfully with proper package structure
+- **User Dashboard**: ⏳ Pending - complete user dashboard and usage display components
 
-#### **2. System Monitoring & Optimization**
+#### **2. Environment Configuration & Production Setup**
+- **Environment Configuration**: Implement proper environment configuration system for production
+- **Build Variants**: Create separate build configurations for dev/staging/production
+- **API Endpoint Management**: Dynamic API endpoint configuration based on environment
+- **Bundle Identifier Management**: Proper bundle ID management for different environments
+
+#### **3. System Monitoring & Optimization**
 - **CloudWatch Dashboards**: Monitor API performance and error rates
 - **Cost Optimization**: Monitor and optimize AWS resource usage
 - **Performance Tuning**: Optimize Lambda cold starts and DynamoDB queries
 - **Security Monitoring**: Monitor for security events and anomalies
 
-#### **2. Security Enhancements**
-- **Apple Identity Provider Private Key**: Secure storage in AWS Secrets Manager
-- **API Gateway Security**: Proper CORS configuration and rate limiting
-- **Monitoring & Alerting**: Security event monitoring and alerting
-
-#### **3. Production Readiness**
+#### **4. Production Readiness**
 - **Performance Optimization**: Lambda function optimization and cold start reduction
 - **Monitoring & Observability**: CloudWatch dashboards and alerting
 - **Cost Optimization**: Translation storage optimization and usage tracking
 - **Disaster Recovery**: Backup strategies and recovery procedures
 
-#### **4. Testing & Quality Assurance**
+#### **5. Testing & Quality Assurance**
 - **TDD Enforcement**: Mandatory test-driven development for all changes
 - **Test Coverage**: Maintain 90%+ coverage for all new code
 - **Integration Testing**: End-to-end testing for critical user flows
 - **Performance Testing**: Load testing for API endpoints
-
-#### **5. Development Environment & Import Resolution**
-- **Lambda Layer Success**: Dependencies now working correctly in production
-- **Import Structure Issue**: Relative imports in handlers need resolution for local development
-- **PYTHONPATH Strategy**: Planning to use package.json scripts with PYTHONPATH for local development
-- **Code Consistency**: Maintain same import structure between local and production environments
 
 #### **6. Documentation & Onboarding**
 - **API Documentation**: OpenAPI/Swagger documentation
@@ -187,10 +193,10 @@
 ## Next Steps & Roadmap
 
 ### **Immediate (Next 1-2 weeks):**
-1. **Infrastructure Deployment**: Deploy to dev environment
-2. **Integration Testing**: End-to-end testing of all APIs
-3. **Security Review**: Comprehensive security assessment
-4. **Performance Testing**: Load testing and optimization
+1. **User Dashboard**: Complete user dashboard and usage display components
+2. **Environment Configuration**: Implement proper environment configuration system
+3. **Integration Testing**: End-to-end testing of iOS app with backend APIs
+4. **Build Variants**: Create separate build configurations for different environments
 
 ### **Short Term (Next 1-2 months):**
 1. **Production Deployment**: Deploy to production environment
@@ -206,4 +212,4 @@
 
 ---
 
-**Current Status**: ✅ **PRODUCTION READY** - All systems fully operational with comprehensive test coverage, TDD workflow, and AI-powered trending system. Ready for production deployment and monitoring.
+**Current Status**: ✅ **iOS INTEGRATION COMPLETE** - Backend fully operational with comprehensive test coverage, TDD workflow, and AI-powered trending system. iOS app successfully integrated with dynamic API limits and proper build system. Ready for user dashboard completion and production deployment.

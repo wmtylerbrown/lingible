@@ -277,8 +277,8 @@ struct AuthenticatedUser {
 
     var accessToken: String? {
         // Extract the access token from the auth session
-        // For now, we'll need to get this from the session when making API calls
-        // Amplify handles token management internally
+        // We'll get this asynchronously when needed for API calls
+        // For now, return nil and handle token extraction in the service layer
         return nil
     }
 }

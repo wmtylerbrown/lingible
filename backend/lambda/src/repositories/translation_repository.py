@@ -48,7 +48,7 @@ class TranslationRepository:
                 "user_id": translation.user_id,
                 "original_text": translation.original_text,
                 "translated_text": translation.translated_text,
-                "direction": translation.direction.value,
+                "direction": translation.direction,
                 "confidence_score": translation.confidence_score,
                 "created_at": translation.created_at.isoformat(),
                 "model_used": translation.model_used,

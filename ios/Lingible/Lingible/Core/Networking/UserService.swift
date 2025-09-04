@@ -3,6 +3,7 @@ import Combine
 import LingibleAPI
 
 // MARK: - User Service Protocol
+@preconcurrency
 protocol UserServiceProtocol: ObservableObject {
     var userProfile: UserProfileResponse? { get }
     var userUsage: UsageResponse? { get }
@@ -17,6 +18,7 @@ protocol UserServiceProtocol: ObservableObject {
 
 // MARK: - User Service Implementation
 @MainActor
+@preconcurrency
 final class UserService: UserServiceProtocol {
 
     // MARK: - Published Properties

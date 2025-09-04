@@ -21,7 +21,7 @@ from src.utils.envelopes import (
     SimpleAuthenticatedEnvelope,
     PathParameterEnvelope
 )
-from src.utils.config import AppConfig
+from src.utils.config import ConfigService
 from src.utils.logging import SmartLogger
 
 
@@ -267,7 +267,7 @@ class TestConfig:
     })
     def test_config_initialization(self):
         """Test AppConfig initialization with environment variables."""
-        config = AppConfig()
+        config = ConfigService()
 
         assert config.environment == "test"
         assert config.app_name == "lingible-test"
@@ -276,14 +276,14 @@ class TestConfig:
     @patch.dict('os.environ', {}, clear=True)
     def test_config_defaults(self):
         """Test AppConfig initialization with defaults."""
-        config = AppConfig()
+        config = ConfigService()
 
         assert config.environment == "development"
         assert config.app_name == "lingible-backend"
 
     def test_config_bedrock_config(self):
         """Test Bedrock configuration."""
-        config = AppConfig()
+        config = ConfigService()
 
         assert "model_id" in config.bedrock_config
         assert "max_tokens" in config.bedrock_config
@@ -291,7 +291,7 @@ class TestConfig:
 
     def test_config_apple_store_config(self):
         """Test Apple Store configuration."""
-        config = AppConfig()
+        config = ConfigService()
 
         assert config.apple_store["bundle_id"] == "com.lingible.lingible"
         assert "sandbox_url" in config.apple_store
@@ -299,7 +299,7 @@ class TestConfig:
 
     def test_config_google_play_config(self):
         """Test Google Play configuration."""
-        config = AppConfig()
+        config = ConfigService()
 
         assert config.google_play["package_name"] == "com.lingible.lingible"
         assert "api_timeout" in config.google_play

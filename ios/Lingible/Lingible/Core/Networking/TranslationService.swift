@@ -23,11 +23,13 @@ final class TranslationService: TranslationServiceProtocol {
 
     // MARK: - Public Methods
     func translate(text: String, direction: TranslationDirection? = nil) async throws -> TranslationResult {
-        // Get current user's access token
-        guard let user = try await getCurrentUser(),
-              let accessToken = user.accessToken else {
+        // Check if user is authenticated
+        guard let user = try await getCurrentUser() else {
             throw TranslationError.unauthorized
         }
+
+        // Get access token using AuthenticationService
+        let accessToken = try await authenticationService.getAuthToken()
 
         // Configure API client with auth token
         configureAPIClient(with: accessToken)

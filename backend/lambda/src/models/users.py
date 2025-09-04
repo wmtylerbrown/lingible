@@ -6,14 +6,14 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 # Domain Models
-class UserTier(Enum):
+class UserTier(str, Enum):
     """User subscription tiers."""
 
     FREE = "free"
     PREMIUM = "premium"
 
 
-class UserStatus(Enum):
+class UserStatus(str, Enum):
     """User account status."""
 
     ACTIVE = "active"

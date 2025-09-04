@@ -10,6 +10,7 @@ from models.subscriptions import (
     SubscriptionStatus,
     ReceiptValidationRequest,
     ReceiptValidationStatus,
+    AppleNotificationType,
 )
 from services.user_service import UserService
 from services.receipt_validation_service import ReceiptValidationService
@@ -34,7 +35,7 @@ class SubscriptionService:
 
     @tracer.trace_method("upgrade_user")
     def upgrade_user(
-        self, user_id: str, provider: str, receipt_data: str, transaction_id: str
+        self, user_id: str, provider: SubscriptionProvider, receipt_data: str, transaction_id: str
     ) -> User:
         """Upgrade user subscription after validating purchase."""
         logger.log_business_event(
@@ -143,7 +144,7 @@ class SubscriptionService:
 
     @tracer.trace_method("handle_apple_webhook")
     def handle_apple_webhook(
-        self, notification_type: str, transaction_id: str, receipt_data: str
+        self, notification_type: AppleNotificationType, transaction_id: str, receipt_data: str
     ) -> bool:
         """Handle Apple subscription webhook."""
         logger.log_business_event(
@@ -193,7 +194,7 @@ class SubscriptionService:
             return False
 
     def _calculate_end_date(
-        self, provider: str, receipt_data: str
+        self, provider: SubscriptionProvider, receipt_data: str
     ) -> Optional[datetime]:
         """Calculate subscription end date from receipt data."""
         # TODO: Parse actual end date from receipt data
@@ -250,7 +251,7 @@ class SubscriptionService:
             return False
 
         # Update subscription
-        subscription.end_date = self._calculate_end_date("apple", receipt_data)
+        subscription.end_date = self._calculate_end_date(SubscriptionProvider.APPLE, receipt_data)
         subscription.transaction_id = transaction_id
         subscription.status = SubscriptionStatus.ACTIVE
         subscription.updated_at = datetime.now(timezone.utc)

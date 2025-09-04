@@ -776,6 +776,113 @@ Discussed Apple Identity Provider setup for Sign in with Apple integration with 
 
 ---
 
+## ✅ COMPLETED: Dynamic Daily Translation Limits & iOS API Integration (2024-12-19)
+
+### **🎯 Major Accomplishment:**
+Successfully implemented dynamic daily translation limits in the backend API and updated the iOS app to use these dynamic values instead of hardcoded limits, while fixing critical iOS API integration issues.
+
+### **🔧 Key Improvements:**
+
+#### **1. Backend API Enhancement:**
+- ✅ **New API Fields**: Added `free_daily_limit` and `premium_daily_limit` to `UserUsageResponse` model
+- ✅ **Service Updates**: Updated `UserService` to populate the new daily limit fields from configuration
+- ✅ **OpenAPI Spec**: Updated OpenAPI specification to include the new fields with proper descriptions
+- ✅ **TypeScript Types**: Updated shared TypeScript types to include the new fields
+- ✅ **Test Updates**: Updated test files to include the new required fields
+
+#### **2. iOS API Client Regeneration:**
+- ✅ **API Client Update**: Regenerated iOS Swift API client with new fields using OpenAPI Generator
+- ✅ **Package Structure Fix**: Fixed Package.swift to point to correct directory structure (`LingibleAPI/Classes/OpenAPIs`)
+- ✅ **Duplicate Cleanup**: Removed duplicate API client files and consolidated structure
+- ✅ **Build Issues Resolved**: Fixed Xcode package resolution and build cache problems
+
+#### **3. iOS App Updates:**
+- ✅ **Dynamic Limits**: Updated `UpgradePromptView` to use dynamic API values instead of hardcoded "100 daily translations"
+- ✅ **API Integration**: App now pulls daily limits from `userUsage.freeDailyLimit` and `userUsage.premiumDailyLimit`
+- ✅ **Environment Fix**: Updated API client to use dev environment endpoint (`api.dev.lingible.com`)
+- ✅ **View Consolidation**: Removed duplicate `UpgradeView` and consolidated into single `UpgradePromptView`
+
+#### **4. Project Cleanup:**
+- ✅ **Directory Consolidation**: Removed old `LingibleApp` directory and consolidated into single `Lingible` project
+- ✅ **Build System**: Fixed iOS build issues and package resolution problems
+- ✅ **Cache Management**: Cleared Xcode caches and resolved package dependency conflicts
+
+### **📊 Technical Implementation:**
+
+#### **Backend Changes:**
+```python
+# backend/lambda/src/models/users.py
+class UserUsageResponse(BaseModel):
+    # ... existing fields ...
+    free_daily_limit: int = Field(..., description="Free tier daily translation limit")
+    premium_daily_limit: int = Field(..., description="Premium tier daily translation limit")
+
+# backend/lambda/src/services/user_service.py
+return UserUsageResponse(
+    # ... existing fields ...
+    free_daily_limit=self.usage_config.free_daily_translations,
+    premium_daily_limit=self.usage_config.premium_daily_translations,
+)
+```
+
+#### **iOS Changes:**
+```swift
+// ios/Lingible/Lingible/Features/Profile/UpgradePromptView.swift
+private var premiumDailyLimit: Int {
+    userUsage?.premiumDailyLimit ?? 100
+}
+
+private var freeDailyLimit: Int {
+    10 // Free tier always has 10 daily translations
+}
+
+// Dynamic text display
+Text("Upgrade to Premium and unlock \(premiumDailyLimit) daily translations...")
+benefitRow(icon: "100.circle", title: "\(premiumDailyLimit) Daily Translations",
+           description: "\(premiumMultiplier)x more translations than free plan")
+```
+
+#### **API Client Configuration:**
+```swift
+// ios/generated/LingibleAPI/LingibleAPI/Classes/OpenAPIs/APIs.swift
+open class LingibleAPIAPI {
+    public static var basePath = "https://api.dev.lingible.com"  // Fixed endpoint
+    // ... rest of configuration
+}
+```
+
+### **📁 Files Modified/Created:**
+- **Backend Models**: `backend/lambda/src/models/users.py` - Added new daily limit fields
+- **Backend Service**: `backend/lambda/src/services/user_service.py` - Populate new fields
+- **OpenAPI Spec**: `shared/api/openapi/lingible-api.yaml` - Added new fields
+- **TypeScript Types**: `shared/api/types/typescript/api.ts` - Added new fields
+- **iOS Views**: `ios/Lingible/Lingible/Features/Profile/UpgradePromptView.swift` - Dynamic limits
+- **iOS API Client**: Regenerated with new structure and dev endpoint
+- **Project Cleanup**: Removed old `LingibleApp` directory
+
+### **🎯 Benefits Achieved:**
+- **Dynamic Configuration**: Daily limits now come from backend configuration, not hardcoded
+- **Consistent API**: All platforms (iOS, Python, TypeScript) use the same API contract
+- **Maintainable**: Changes to limits only need to be made in backend configuration
+- **Type Safe**: Strong typing ensures consistency across all platforms
+- **Build Stability**: iOS project builds successfully with proper package structure
+
+### **🚀 Production Readiness:**
+- **API Integration**: iOS app successfully connects to dev API endpoint
+- **Dynamic Limits**: Upgrade prompts show correct limits from backend
+- **Build System**: iOS project builds without errors
+- **Package Management**: Swift Package Manager properly resolves dependencies
+- **Code Quality**: All pre-commit hooks pass, code properly formatted
+
+### **🔍 Issues Resolved:**
+- **API Endpoint**: Fixed "server not found" error by updating to dev endpoint
+- **Package Structure**: Resolved duplicate files and incorrect Package.swift paths
+- **Build Cache**: Cleared Xcode caches and resolved package resolution conflicts
+- **Hardcoded Values**: Replaced hardcoded limits with dynamic API values
+- **View Duplication**: Consolidated multiple upgrade views into single component
+
+---
+
 ## 📋 DEVELOPMENT RULES
 
 ### **🔄 API Change Management Rule**

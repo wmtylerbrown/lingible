@@ -2,11 +2,16 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict
 
+if TYPE_CHECKING:
+    from .users import UserTier
+else:
+    from .users import UserTier
 
-class TrendingCategory(Enum):
+
+class TrendingCategory(str, Enum):
     """Categories for trending slang terms."""
 
     SLANG = "slang"
@@ -47,10 +52,10 @@ class TrendingTerm(BaseModel):
     origin: Optional[str] = Field(None, description="Origin or source of the term")
     related_terms: List[str] = Field(default_factory=list, description="Related slang terms")
 
-    def to_api_response(self, user_tier: str = "free") -> "TrendingTermResponse":
+    def to_api_response(self, user_tier: "UserTier" = UserTier.FREE) -> "TrendingTermResponse":
         """Convert to API response model with tier-based data filtering."""
         # Free tier gets basic data
-        if user_tier == "free":
+        if user_tier == UserTier.FREE:
             return TrendingTermResponse(
                 term=self.term,
                 definition=self.definition,

@@ -27,7 +27,7 @@ def handle_apple_webhook(
 
     # Process webhook
     success = subscription_service.handle_apple_webhook(
-        notification_type.value, transaction_id, receipt_data
+        notification_type, transaction_id, receipt_data
     )
 
     return WebhookResponse(
