@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import LingibleAPI
 import Amplify
 
@@ -8,9 +7,9 @@ import Amplify
 
 struct TranslationView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
-    @StateObject private var userService = UserService(authenticationService: AuthenticationService())
     @State private var inputText = ""
     @State private var showInputCard = true
+    @State private var currentTranslationResult: TranslationHistoryItem?
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var translationHistory: [TranslationHistoryItem] = []
@@ -20,11 +19,11 @@ struct TranslationView: View {
 
     // MARK: - Computed Properties
     private var userTier: UsageResponse.Tier {
-        userService.userUsage?.tier ?? .free
+        appCoordinator.userUsage?.tier ?? .free
     }
 
     private var maxTextLength: Int {
-        userService.userUsage?.currentMaxTextLength ?? 50 // Use dynamic limit with fallback
+        appCoordinator.userUsage?.currentMaxTextLength ?? 50 // Use dynamic limit with fallback
     }
 
     private var isTextValid: Bool {
@@ -62,16 +61,16 @@ struct TranslationView: View {
 
                 VStack(spacing: 0) {
                     // Header
-                    CommonHeader.withNewButton {
-                        inputText = ""
-                        withAnimation(.spring()) {
-                            showInputCard = true
-                        }
-                    }
+                    CommonHeader.logoOnly()
 
                     // Content
                     if showInputCard {
                         inputCardView
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
+                            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showInputCard)
+                    } else if let currentResult = currentTranslationResult {
+                        currentResultCardView(translation: currentResult)
                             .padding(.horizontal, 20)
                             .padding(.top, 20)
                             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showInputCard)
@@ -80,6 +79,7 @@ struct TranslationView: View {
                     // Results
                     if !translationHistory.isEmpty {
                         translationHistoryView
+                            .padding(.top, 30)
                     }
 
                     Spacer()
@@ -119,7 +119,7 @@ struct TranslationView: View {
                     onDismiss: {
                         showingUpgradePrompt = false
                     },
-                    userUsage: appCoordinator.userService.userUsage
+                    userUsage: appCoordinator.userUsage
                 )
             }
         }
@@ -146,7 +146,7 @@ struct TranslationView: View {
 
             // Input field
             TextEditor(text: $inputText)
-                .frame(minHeight: 80)
+                .frame(height: 120)
                 .padding(12)
                 .background(Color.white)
                 .cornerRadius(12)
@@ -204,7 +204,7 @@ struct TranslationView: View {
                 .padding(.top, 4)
 
                 // Warning message for exceeded limits
-                if let maxLength = userService.userUsage?.currentMaxTextLength, inputText.count > maxLength {
+                if let maxLength = appCoordinator.userUsage?.currentMaxTextLength, inputText.count > maxLength {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
@@ -255,6 +255,79 @@ struct TranslationView: View {
         .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
     }
 
+    // MARK: - Current Result Card View
+    private func currentResultCardView(translation: TranslationHistoryItem) -> some View {
+        VStack(spacing: 20) {
+            // Header with success indicator
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.green)
+
+                Text("Translation Complete")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.lingiblePrimary)
+
+                Spacer()
+
+                Text(translation.createdAt, style: .time)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            // Original text
+            VStack(alignment: .leading, spacing: 8) {
+                Text(translation.direction == .genzToStandard ? "Gen Z:" : "English:")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+
+                Text(translation.originalText)
+                    .font(.body)
+                    .padding(12)
+                    .background(Color.lingibleSecondary.opacity(0.1))
+                    .cornerRadius(8)
+            }
+
+            // Translated text
+            VStack(alignment: .leading, spacing: 8) {
+                Text(translation.direction == .genzToStandard ? "English:" : "Gen Z:")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+
+                Text(translation.translatedText)
+                    .font(.body)
+                    .padding(12)
+                    .background(Color.lingiblePrimary.opacity(0.1))
+                    .cornerRadius(8)
+            }
+
+            // New translation button
+            Button(action: handleNewButtonTap) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.headline)
+
+                    Text("New Translation")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(Color.lingiblePrimary)
+                .cornerRadius(25)
+                .scaleAnimation()
+            }
+        }
+        .padding(24)
+        .background(Color.white)
+        .cornerRadius(20)
+        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+    }
+
     // MARK: - Translation History View
     private var translationHistoryView: some View {
         VStack(spacing: 16) {
@@ -286,6 +359,28 @@ struct TranslationView: View {
     }
 
     // MARK: - Actions
+    private func handleNewButtonTap() {
+        // If we have a current result, move it to history
+        if let currentResult = currentTranslationResult {
+            translationHistory.insert(currentResult, at: 0)
+
+            // Keep only last 20 translations for performance
+            if translationHistory.count > 20 {
+                translationHistory = Array(translationHistory.prefix(20))
+            }
+
+            // Cache the translations
+            saveCachedTranslations()
+        }
+
+        // Clear current result and show input card
+        currentTranslationResult = nil
+        inputText = ""
+        withAnimation(.spring()) {
+            showInputCard = true
+        }
+    }
+
     private func translate() {
         guard !inputText.isEmpty else { return }
 
@@ -300,18 +395,11 @@ struct TranslationView: View {
 
         Task {
             await performTranslation(text: inputText)
-
-            // Hide input card after successful translation
-            if !translationHistory.isEmpty {
-                withAnimation(.spring()) {
-                    showInputCard = false
-                }
-            }
         }
     }
 
     private func showUpgradePrompt() {
-        if let premiumLimit = userService.userUsage?.premiumTierMaxLength {
+        if let premiumLimit = appCoordinator.userUsage?.premiumTierMaxLength {
             errorMessage = "Text exceeds free tier limit. Upgrade to Premium to translate longer texts (up to \(premiumLimit) characters)."
         } else {
             errorMessage = "Text exceeds free tier limit. Upgrade to Premium to translate longer texts."
@@ -379,16 +467,11 @@ struct TranslationView: View {
                 direction: isGenZToEnglish ? .genzToStandard : .standardToGenz
             )
 
-            // Add to history (most recent first)
-            translationHistory.insert(historyItem, at: 0)
-
-            // Keep only last 20 translations for performance
-            if translationHistory.count > 20 {
-                translationHistory = Array(translationHistory.prefix(20))
+            // Set as current result and hide input card
+            currentTranslationResult = historyItem
+            withAnimation(.spring()) {
+                showInputCard = false
             }
-
-            // Cache the translations
-            saveCachedTranslations()
 
             // Check if we should show upgrade prompt for free users
             if userTier == .free && translationHistory.count > 0 && translationHistory.count % 3 == 0 {
@@ -399,8 +482,109 @@ struct TranslationView: View {
             }
 
         } catch {
-            errorMessage = error.localizedDescription
+            // TEMPORARY: Log full error details to understand the 429 response structure
             print("❌ Translation failed: \(error)")
+            print("❌ Error type: \(type(of: error))")
+            print("❌ Error localized description: \(error.localizedDescription)")
+
+            // Try to extract more details from the error
+            if let nsError = error as NSError? {
+                print("❌ NSError domain: \(nsError.domain)")
+                print("❌ NSError code: \(nsError.code)")
+                print("❌ NSError userInfo: \(nsError.userInfo)")
+
+                // Check if there's response data in userInfo
+                if let responseData = nsError.userInfo["responseData"] as? Data {
+                    print("❌ Response data: \(String(data: responseData, encoding: .utf8) ?? "Could not decode as UTF-8")")
+                }
+
+                // Check for HTTP response details
+                if let httpResponse = nsError.userInfo["response"] as? HTTPURLResponse {
+                    print("❌ HTTP status code: \(httpResponse.statusCode)")
+                    print("❌ HTTP headers: \(httpResponse.allHeaderFields)")
+                }
+            }
+
+            // Check if it's a DecodableRequestBuilderError
+            if let decodableError = error as? DecodableRequestBuilderError {
+                print("❌ DecodableRequestBuilderError case: \(decodableError)")
+            }
+
+            // Check if it's an ErrorResponse from the generated API client
+            if case let ErrorResponse.error(statusCode, data, response, underlyingError) = error {
+                print("❌ ErrorResponse.error - Status Code: \(statusCode)")
+                print("❌ ErrorResponse.error - Underlying Error: \(underlyingError)")
+
+                if let data = data {
+                    print("❌ ErrorResponse.error - Response Data: \(String(data: data, encoding: .utf8) ?? "Could not decode as UTF-8")")
+
+                    // Try to parse as ModelErrorResponse to get structured error info
+                    do {
+                        let errorResponse = try JSONDecoder().decode(ModelErrorResponse.self, from: data)
+                        print("❌ ErrorResponse.error - Parsed ModelErrorResponse: \(errorResponse)")
+
+                        // Use the structured error response to show user-friendly message
+                        if let errorCode = errorResponse.errorCode {
+                            switch errorCode {
+                            case "usagelimitexceedederror":
+                                if let details = errorResponse.details?.value as? [String: Any],
+                                   let limitType = details["limit_type"] as? String,
+                                   let currentUsage = details["current_usage"] as? Int,
+                                   let limit = details["limit"] as? Int {
+
+                                    if limitType == "daily_translations" {
+                                        errorMessage = "You've reached your daily limit of \(limit) translations. Upgrade to Premium for unlimited translations!"
+                                    } else {
+                                        errorMessage = "You've reached your \(limitType) limit of \(limit). Current usage: \(currentUsage)."
+                                    }
+                                } else {
+                                    errorMessage = "You've reached your daily translation limit. Upgrade to Premium for unlimited translations!"
+                                }
+
+                            case "insufficientcreditserror":
+                                errorMessage = "You don't have enough credits to complete this translation. Please upgrade to Premium."
+
+                            case "invalidtokenerror", "tokenexpirederror":
+                                errorMessage = "Your session has expired. Please sign in again."
+
+                            case "invalidinputerror":
+                                errorMessage = "The text you entered is invalid. Please check and try again."
+
+                            case "servicenotavailableerror":
+                                errorMessage = "Translation service is temporarily unavailable. Please try again later."
+
+                            default:
+                                errorMessage = errorResponse.message ?? error.localizedDescription
+                            }
+                        } else {
+                            errorMessage = errorResponse.message ?? error.localizedDescription
+                        }
+
+                        // Don't set errorMessage again below since we set it above
+                        return
+
+                    } catch {
+                        print("❌ ErrorResponse.error - Could not parse as ModelErrorResponse: \(error)")
+
+                        // Fallback: try to parse as generic JSON
+                        do {
+                            if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                                print("❌ ErrorResponse.error - Parsed JSON: \(jsonObject)")
+                            }
+                        } catch {
+                            print("❌ ErrorResponse.error - Could not parse JSON: \(error)")
+                        }
+                    }
+                } else {
+                    print("❌ ErrorResponse.error - No response data")
+                }
+
+                if let response = response {
+                    print("❌ ErrorResponse.error - URL Response: \(response)")
+                }
+            }
+
+            errorMessage = error.localizedDescription
         }
 
         isLoading = false

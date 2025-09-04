@@ -7,10 +7,11 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **user_id** | **str** |  | [optional]
 **email** | **str** |  | [optional]
+**username** | **str** | Cognito username | [optional]
 **tier** | **str** |  | [optional]
 **status** | **str** |  | [optional]
-**created_at** | **datetime** |  | [optional]
-**updated_at** | **datetime** |  | [optional]
+**created_at** | **datetime** | Account creation date | [optional]
+**updated_at** | **datetime** | Last update date | [optional]
 
 ## Example
 

@@ -5,9 +5,13 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**error** | **str** | Error code | [optional]
+**success** | **bool** | Always false for error responses | [optional]
 **message** | **str** | Human-readable error message | [optional]
+**error_code** | **str** | Application-specific error code | [optional]
+**status_code** | **int** | HTTP status code | [optional]
 **details** | **object** | Additional error details | [optional]
+**timestamp** | **datetime** | Error timestamp | [optional]
+**request_id** | **str** | Request ID for tracing | [optional]
 
 ## Example
 

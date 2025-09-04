@@ -26,6 +26,7 @@ public struct TranslationHistoryItemResponse: Codable, JSONEncodable, Hashable {
     /** Translation direction used */
     public var direction: Direction?
     public var confidenceScore: Float?
+    /** Translation timestamp */
     public var createdAt: Date?
     /** AI model used for translation */
     public var modelUsed: String?

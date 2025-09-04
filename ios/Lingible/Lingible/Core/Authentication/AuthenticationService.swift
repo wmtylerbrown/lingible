@@ -216,7 +216,7 @@ final class AuthenticationService: NSObject, ObservableObject, AuthenticationSer
         keychainStorage.clearAll()
     }
 
-    func getCurrentUserValue() -> AuthenticatedUser? {
+    nonisolated func getCurrentUserValue() -> AuthenticatedUser? {
         return _currentUser
     }
 
@@ -232,6 +232,7 @@ final class AuthenticationService: NSObject, ObservableObject, AuthenticationSer
     private func extractEmail(from attributes: [AuthUserAttribute]) -> String? {
         return attributes.first { $0.key == .email }?.value
     }
+
 
     private func fetchCurrentUser() async throws -> AuthenticatedUser {
         // Get user information

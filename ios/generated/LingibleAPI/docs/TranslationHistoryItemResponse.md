@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **translatedText** | **String** |  | [optional]
 **direction** | **String** | Translation direction used | [optional]
 **confidenceScore** | **Float** |  | [optional]
-**createdAt** | **Date** |  | [optional]
+**createdAt** | **Date** | Translation timestamp | [optional]
 **modelUsed** | **String** | AI model used for translation | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

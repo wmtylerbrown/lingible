@@ -27,7 +27,7 @@ let package = Package(
         .target(
             name: "LingibleAPI",
             dependencies: ["AnyCodable", ],
-            path: "LingibleAPI/Classes/OpenAPIs"
+            path: "LingibleAPI/Classes"
         ),
     ]
 )

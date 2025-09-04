@@ -410,6 +410,7 @@ components:
         created_at:
           type: string
           format: date-time
+          description: "Translation timestamp"
           example: "2024-12-19T10:30:00Z"
         processing_time_ms:
           type: integer
@@ -451,6 +452,7 @@ components:
         created_at:
           type: string
           format: date-time
+          description: "Translation timestamp"
           example: "2024-12-19T10:30:00Z"
         model_used:
           type: string
@@ -503,6 +505,10 @@ components:
           type: string
           format: email
           example: "user@example.com"
+        username:
+          type: string
+          description: "Cognito username"
+          example: "user123"
         tier:
           type: string
           enum: [free, premium]
@@ -514,10 +520,12 @@ components:
         created_at:
           type: string
           format: date-time
+          description: "Account creation date"
           example: "2024-12-01T00:00:00Z"
         updated_at:
           type: string
           format: date-time
+          description: "Last update date"
           example: "2024-12-19T10:30:00Z"
 
     UsageResponse:
@@ -543,7 +551,7 @@ components:
         reset_date:
           type: string
           format: date-time
-          description: Next daily reset date
+          description: "Next daily reset date"
           example: "2024-12-20T00:00:00Z"
         current_max_text_length:
           type: integer
@@ -607,7 +615,7 @@ components:
         expires_at:
           type: string
           format: date-time
-          description: Subscription expiration date
+          description: "Subscription expiration date"
           example: "2025-01-19T10:30:00Z"
 
     SuccessResponse:
@@ -623,21 +631,38 @@ components:
     ErrorResponse:
       type: object
       properties:
-        error:
-          type: string
-          description: Error code
-          example: "VALIDATION_ERROR"
+        success:
+          type: boolean
+          description: Always false for error responses
+          example: false
         message:
           type: string
           description: Human-readable error message
-          example: "Invalid request parameters"
+          example: "Usage limit exceeded for daily_translations. Current: 10, Limit: 10"
+        error_code:
+          type: string
+          description: Application-specific error code
+          example: "usagelimitexceedederror"
+        status_code:
+          type: integer
+          description: HTTP status code
+          example: 429
         details:
           type: object
           description: Additional error details
           example:
-            field: "text"
-            constraint: "maxLength"
-            value: 1001
+            limit_type: "daily_translations"
+            current_usage: 10
+            limit: 10
+        timestamp:
+          type: string
+          format: date-time
+          description: "Error timestamp"
+          example: "2025-01-04T22:21:01.123456Z"
+        request_id:
+          type: string
+          description: Request ID for tracing
+          example: "020e424d-1d1c-4ba7-965c-5ddc8e5acb20"
 
     AppleWebhookRequest:
       type: object
@@ -658,6 +683,9 @@ components:
             - DID_CHANGE_RENEWAL_STATUS
             - PRICE_INCREASE_CONSENT
             - REFUND
+            - FAILED_PAYMENT
+            - REFUND_DECLINED
+            - CONSUMPTION_REQUEST
           example: "INITIAL_BUY"
         transaction_id:
           type: string
@@ -667,6 +695,12 @@ components:
           type: string
           description: Base64 encoded receipt data from Apple
           example: "ewoJInNpZ25hdHVyZSIgPSAiQWh..."
+        environment:
+          type: string
+          description: Store environment
+          enum: [sandbox, production]
+          default: production
+          example: "production"
 
     WebhookResponse:
       type: object
@@ -677,6 +711,83 @@ components:
         message:
           type: string
           example: "Webhook processed successfully"
+
+    UserSubscriptionResponse:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [apple, google]
+          description: Subscription provider
+          example: "apple"
+        transaction_id:
+          type: string
+          description: Provider transaction ID
+          example: "1000000123456789"
+        status:
+          type: string
+          enum: [active, expired, cancelled]
+          description: Subscription status
+          example: "active"
+        start_date:
+          type: string
+          format: date-time
+          description: "Subscription start date"
+          example: "2024-12-01T00:00:00Z"
+        end_date:
+          type: string
+          format: date-time
+          description: "Subscription end date"
+          example: "2025-12-01T00:00:00Z"
+        created_at:
+          type: string
+          format: date-time
+          description: "Record creation date"
+          example: "2024-12-01T00:00:00Z"
+
+    ReceiptValidationResponse:
+      type: object
+      properties:
+        is_valid:
+          type: boolean
+          description: Whether receipt is valid
+          example: true
+        status:
+          type: string
+          enum: [valid, invalid, expired, already_used, environment_mismatch, retryable_error]
+          description: Validation status
+          example: "valid"
+        transaction_id:
+          type: string
+          description: Transaction ID
+          example: "1000000123456789"
+        product_id:
+          type: string
+          description: Product ID from receipt
+          example: "com.lingible.premium.monthly"
+        purchase_date:
+          type: string
+          format: date-time
+          description: "Purchase date"
+          example: "2024-12-01T00:00:00Z"
+        expiration_date:
+          type: string
+          format: date-time
+          description: "Expiration date"
+          example: "2025-01-01T00:00:00Z"
+        environment:
+          type: string
+          enum: [sandbox, production]
+          description: Environment
+          example: "production"
+        error_message:
+          type: string
+          description: Error message if validation failed
+          example: "Receipt validation failed"
+        retry_after:
+          type: integer
+          description: Seconds to wait before retry
+          example: 60
 
     TrendingTermResponse:
       type: object
@@ -714,12 +825,12 @@ components:
         first_seen:
           type: string
           format: date-time
-          description: When this term was first detected
+          description: "When this term was first detected"
           example: "2024-12-01T00:00:00Z"
         last_updated:
           type: string
           format: date-time
-          description: Last time metrics were updated
+          description: "Last time metrics were updated"
           example: "2024-12-19T10:30:00Z"
         is_active:
           type: boolean
@@ -755,7 +866,7 @@ components:
         last_updated:
           type: string
           format: date-time
-          description: When the trending data was last updated
+          description: "When the trending data was last updated"
           example: "2024-12-19T10:30:00Z"
         category_filter:
           type: string

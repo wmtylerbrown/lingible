@@ -61,7 +61,7 @@ struct AuthenticationView: View {
                             .foregroundColor(.lingibleSecondary)
 
                         HStack(spacing: 8) {
-                            Link("Terms of Service", destination: URL(string: "https://lingible.com/terms")!)
+                            Link("Terms of Service", destination: URL(string: AppConfiguration.termsOfServiceURL)!)
                                 .font(.caption)
                                 .foregroundColor(.lingiblePrimary)
 
@@ -69,7 +69,7 @@ struct AuthenticationView: View {
                                 .font(.caption)
                                 .foregroundColor(.lingibleSecondary)
 
-                            Link("Privacy Policy", destination: URL(string: "https://lingible.com/privacy")!)
+                            Link("Privacy Policy", destination: URL(string: AppConfiguration.privacyPolicyURL)!)
                                 .font(.caption)
                                 .foregroundColor(.lingiblePrimary)
                         }
@@ -113,7 +113,7 @@ struct AuthenticationView: View {
     // MARK: - Apple Sign In Handler
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
         switch result {
-        case .success(_):
+        case .success:
             Task {
                 await performAppleSignIn()
             }

@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **notification_type** | **str** | Type of Apple subscription notification |
 **transaction_id** | **str** | Apple transaction ID |
 **receipt_data** | **str** | Base64 encoded receipt data from Apple |
+**environment** | **str** | Store environment | [optional] [default to 'production']
 
 ## Example
 

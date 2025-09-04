@@ -17,36 +17,42 @@ import pprint
 import re  # noqa: F401
 import json
 
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class AppleWebhookRequest(BaseModel):
+class UserSubscriptionResponse(BaseModel):
     """
-    AppleWebhookRequest
+    UserSubscriptionResponse
     """ # noqa: E501
-    notification_type: StrictStr = Field(description="Type of Apple subscription notification")
-    transaction_id: StrictStr = Field(description="Apple transaction ID")
-    receipt_data: StrictStr = Field(description="Base64 encoded receipt data from Apple")
-    environment: Optional[StrictStr] = Field(default='production', description="Store environment")
-    __properties: ClassVar[List[str]] = ["notification_type", "transaction_id", "receipt_data", "environment"]
+    provider: Optional[StrictStr] = Field(default=None, description="Subscription provider")
+    transaction_id: Optional[StrictStr] = Field(default=None, description="Provider transaction ID")
+    status: Optional[StrictStr] = Field(default=None, description="Subscription status")
+    start_date: Optional[datetime] = Field(default=None, description="Subscription start date")
+    end_date: Optional[datetime] = Field(default=None, description="Subscription end date")
+    created_at: Optional[datetime] = Field(default=None, description="Record creation date")
+    __properties: ClassVar[List[str]] = ["provider", "transaction_id", "status", "start_date", "end_date", "created_at"]
 
-    @field_validator('notification_type')
-    def notification_type_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['INITIAL_BUY', 'CANCEL', 'RENEWAL', 'INTERACTIVE_RENEWAL', 'DID_CHANGE_RENEWAL_PREF', 'DID_CHANGE_RENEWAL_STATUS', 'PRICE_INCREASE_CONSENT', 'REFUND', 'FAILED_PAYMENT', 'REFUND_DECLINED', 'CONSUMPTION_REQUEST']):
-            raise ValueError("must be one of enum values ('INITIAL_BUY', 'CANCEL', 'RENEWAL', 'INTERACTIVE_RENEWAL', 'DID_CHANGE_RENEWAL_PREF', 'DID_CHANGE_RENEWAL_STATUS', 'PRICE_INCREASE_CONSENT', 'REFUND', 'FAILED_PAYMENT', 'REFUND_DECLINED', 'CONSUMPTION_REQUEST')")
-        return value
-
-    @field_validator('environment')
-    def environment_validate_enum(cls, value):
+    @field_validator('provider')
+    def provider_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
 
-        if value not in set(['sandbox', 'production']):
-            raise ValueError("must be one of enum values ('sandbox', 'production')")
+        if value not in set(['apple', 'google']):
+            raise ValueError("must be one of enum values ('apple', 'google')")
+        return value
+
+    @field_validator('status')
+    def status_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['active', 'expired', 'cancelled']):
+            raise ValueError("must be one of enum values ('active', 'expired', 'cancelled')")
         return value
 
     model_config = ConfigDict(
@@ -67,7 +73,7 @@ class AppleWebhookRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of AppleWebhookRequest from a JSON string"""
+        """Create an instance of UserSubscriptionResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -92,7 +98,7 @@ class AppleWebhookRequest(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of AppleWebhookRequest from a dict"""
+        """Create an instance of UserSubscriptionResponse from a dict"""
         if obj is None:
             return None
 
@@ -100,9 +106,11 @@ class AppleWebhookRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "notification_type": obj.get("notification_type"),
+            "provider": obj.get("provider"),
             "transaction_id": obj.get("transaction_id"),
-            "receipt_data": obj.get("receipt_data"),
-            "environment": obj.get("environment") if obj.get("environment") is not None else 'production'
+            "status": obj.get("status"),
+            "start_date": obj.get("start_date"),
+            "end_date": obj.get("end_date"),
+            "created_at": obj.get("created_at")
         })
         return _obj

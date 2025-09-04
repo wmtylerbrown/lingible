@@ -3,7 +3,6 @@ import LingibleAPI
 
 struct ProfileView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
-    @StateObject private var authService = AuthenticationService()
     @State private var showingSignOutAlert = false
     @State private var showingThemePicker = false
     @State private var showingNotificationsSettings = false
@@ -19,7 +18,7 @@ struct ProfileView: View {
 
                 // Usage & Limits Section
                 Section(header: Text("Usage & Limits")) {
-                    if let usage = appCoordinator.userService.userUsage {
+                    if let usage = appCoordinator.userUsage {
                         usageRow(title: "Daily Translations", value: "\(usage.dailyUsed ?? 0)/\(usage.dailyLimit ?? 0)")
                         usageRow(title: "Text Length Limit", value: "\(usage.currentMaxTextLength ?? 50) characters")
                         usageRow(title: "Account Tier", value: tierDisplayName(usage.tier))
@@ -61,14 +60,14 @@ struct ProfileView: View {
 
                             Spacer()
 
-                            if appCoordinator.userService.isLoading {
+                            if appCoordinator.userServiceIsLoading {
                                 ProgressView()
                                     .scaleEffect(0.8)
                             }
                         }
                     }
 
-                    if let lastProfileUpdate = appCoordinator.userService.lastProfileUpdate {
+                    if let lastProfileUpdate = appCoordinator.lastProfileUpdate {
                         HStack {
                             Image(systemName: "clock")
                                 .foregroundColor(.secondary)
@@ -82,7 +81,7 @@ struct ProfileView: View {
                         }
                     }
 
-                    if let lastUsageUpdate = appCoordinator.userService.lastUsageUpdate {
+                    if let lastUsageUpdate = appCoordinator.lastUsageUpdate {
                         HStack {
                             Image(systemName: "clock")
                                 .foregroundColor(.secondary)
@@ -136,7 +135,7 @@ struct ProfileView: View {
                 onDismiss: {
                     showingUpgradeSheet = false
                 },
-                userUsage: appCoordinator.userService.userUsage
+                userUsage: appCoordinator.userUsage
             )
         }
         .alert("Sign Out", isPresented: $showingSignOutAlert) {
@@ -146,6 +145,14 @@ struct ProfileView: View {
             }
         } message: {
             Text("Are you sure you want to sign out?")
+        }
+        .onAppear {
+            print("🔥 ProfileView onAppear called!")
+            Task {
+                print("🔥 About to call loadUserData")
+                await appCoordinator.userService.loadUserData(forceRefresh: false)
+                print("🔥 loadUserData completed")
+            }
         }
     }
 
@@ -165,7 +172,7 @@ struct ProfileView: View {
 
             // User details
             VStack(alignment: .leading, spacing: 4) {
-                if let profile = appCoordinator.userService.userProfile {
+                if let profile = appCoordinator.userProfile {
                     Text(profile.email ?? "Lingible User")
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -176,7 +183,7 @@ struct ProfileView: View {
                         .fontWeight(.semibold)
                 }
 
-                if let profile = appCoordinator.userService.userProfile {
+                if let profile = appCoordinator.userProfile {
                     Text(profile.email ?? "No email")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -189,7 +196,7 @@ struct ProfileView: View {
 
                 // User tier badge
                 HStack {
-                    if let usage = appCoordinator.userService.userUsage {
+                    if let usage = appCoordinator.userUsage {
                         Text(tierDisplayName(usage.tier))
                             .font(.caption)
                             .fontWeight(.medium)
@@ -277,25 +284,25 @@ struct ProfileView: View {
 
     // MARK: - Open Links
     private func openHelpFAQ() {
-        if let url = URL(string: "https://example.com/help") {
+        if let url = URL(string: AppConfiguration.helpFAQURL) {
             UIApplication.shared.open(url)
         }
     }
 
     private func contactSupport() {
-        if let url = URL(string: "mailto:support@example.com") {
+        if let url = URL(string: "mailto:\(AppConfiguration.supportEmail)") {
             UIApplication.shared.open(url)
         }
     }
 
     private func openTerms() {
-        if let url = URL(string: "https://example.com/terms") {
+        if let url = URL(string: AppConfiguration.termsOfServiceURL) {
             UIApplication.shared.open(url)
         }
     }
 
     private func openPrivacy() {
-        if let url = URL(string: "https://example.com/privacy") {
+        if let url = URL(string: AppConfiguration.privacyPolicyURL) {
             UIApplication.shared.open(url)
         }
     }

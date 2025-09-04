@@ -1,5 +1,6 @@
 """Base API response models."""
 
+from datetime import datetime
 from enum import Enum
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
@@ -64,7 +65,7 @@ class BaseResponse(BaseModel):
 
     success: bool = Field(..., description="Whether the request was successful")
     data: Optional[Dict[str, Any]] = Field(None, description="Response data")
-    timestamp: str = Field(..., description="ISO timestamp of response")
+    timestamp: datetime = Field(..., description="Response timestamp")
 
 
 class ErrorResponse(BaseModel):
@@ -77,7 +78,7 @@ class ErrorResponse(BaseModel):
     details: Optional[Dict[str, Any]] = Field(
         None, description="Additional error details"
     )
-    timestamp: str = Field(..., description="ISO timestamp of error")
+    timestamp: datetime = Field(..., description="Error timestamp")
     request_id: Optional[str] = Field(None, description="Request ID for tracing")
 
 
@@ -98,7 +99,7 @@ class PaginatedResponse(BaseModel):
     success: bool = Field(True, description="Whether the request was successful")
     data: List[Dict[str, Any]] = Field(..., description="List of items")
     pagination: Dict[str, Any] = Field(..., description="Pagination information")
-    timestamp: str = Field(..., description="ISO timestamp of response")
+    timestamp: datetime = Field(..., description="Response timestamp")
 
 
 class HealthResponse(BaseModel):

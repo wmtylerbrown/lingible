@@ -21,6 +21,13 @@ public struct AppleWebhookRequest: Codable, JSONEncodable, Hashable {
         case didChangeRenewalStatus = "DID_CHANGE_RENEWAL_STATUS"
         case priceIncreaseConsent = "PRICE_INCREASE_CONSENT"
         case refund = "REFUND"
+        case failedPayment = "FAILED_PAYMENT"
+        case refundDeclined = "REFUND_DECLINED"
+        case consumptionRequest = "CONSUMPTION_REQUEST"
+    }
+    public enum Environment: String, Codable, CaseIterable {
+        case sandbox = "sandbox"
+        case production = "production"
     }
     /** Type of Apple subscription notification */
     public var notificationType: NotificationType
@@ -28,17 +35,21 @@ public struct AppleWebhookRequest: Codable, JSONEncodable, Hashable {
     public var transactionId: String
     /** Base64 encoded receipt data from Apple */
     public var receiptData: String
+    /** Store environment */
+    public var environment: Environment? = .production
 
-    public init(notificationType: NotificationType, transactionId: String, receiptData: String) {
+    public init(notificationType: NotificationType, transactionId: String, receiptData: String, environment: Environment? = .production) {
         self.notificationType = notificationType
         self.transactionId = transactionId
         self.receiptData = receiptData
+        self.environment = environment
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case notificationType = "notification_type"
         case transactionId = "transaction_id"
         case receiptData = "receipt_data"
+        case environment
     }
 
     // Encodable protocol methods
@@ -48,5 +59,6 @@ public struct AppleWebhookRequest: Codable, JSONEncodable, Hashable {
         try container.encode(notificationType, forKey: .notificationType)
         try container.encode(transactionId, forKey: .transactionId)
         try container.encode(receiptData, forKey: .receiptData)
+        try container.encodeIfPresent(environment, forKey: .environment)
     }
 }

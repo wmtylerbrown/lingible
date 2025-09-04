@@ -17,26 +17,35 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class AppleWebhookRequest(BaseModel):
+class ReceiptValidationResponse(BaseModel):
     """
-    AppleWebhookRequest
+    ReceiptValidationResponse
     """ # noqa: E501
-    notification_type: StrictStr = Field(description="Type of Apple subscription notification")
-    transaction_id: StrictStr = Field(description="Apple transaction ID")
-    receipt_data: StrictStr = Field(description="Base64 encoded receipt data from Apple")
-    environment: Optional[StrictStr] = Field(default='production', description="Store environment")
-    __properties: ClassVar[List[str]] = ["notification_type", "transaction_id", "receipt_data", "environment"]
+    is_valid: Optional[StrictBool] = Field(default=None, description="Whether receipt is valid")
+    status: Optional[StrictStr] = Field(default=None, description="Validation status")
+    transaction_id: Optional[StrictStr] = Field(default=None, description="Transaction ID")
+    product_id: Optional[StrictStr] = Field(default=None, description="Product ID from receipt")
+    purchase_date: Optional[datetime] = Field(default=None, description="Purchase date")
+    expiration_date: Optional[datetime] = Field(default=None, description="Expiration date")
+    environment: Optional[StrictStr] = Field(default=None, description="Environment")
+    error_message: Optional[StrictStr] = Field(default=None, description="Error message if validation failed")
+    retry_after: Optional[StrictInt] = Field(default=None, description="Seconds to wait before retry")
+    __properties: ClassVar[List[str]] = ["is_valid", "status", "transaction_id", "product_id", "purchase_date", "expiration_date", "environment", "error_message", "retry_after"]
 
-    @field_validator('notification_type')
-    def notification_type_validate_enum(cls, value):
+    @field_validator('status')
+    def status_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['INITIAL_BUY', 'CANCEL', 'RENEWAL', 'INTERACTIVE_RENEWAL', 'DID_CHANGE_RENEWAL_PREF', 'DID_CHANGE_RENEWAL_STATUS', 'PRICE_INCREASE_CONSENT', 'REFUND', 'FAILED_PAYMENT', 'REFUND_DECLINED', 'CONSUMPTION_REQUEST']):
-            raise ValueError("must be one of enum values ('INITIAL_BUY', 'CANCEL', 'RENEWAL', 'INTERACTIVE_RENEWAL', 'DID_CHANGE_RENEWAL_PREF', 'DID_CHANGE_RENEWAL_STATUS', 'PRICE_INCREASE_CONSENT', 'REFUND', 'FAILED_PAYMENT', 'REFUND_DECLINED', 'CONSUMPTION_REQUEST')")
+        if value is None:
+            return value
+
+        if value not in set(['valid', 'invalid', 'expired', 'already_used', 'environment_mismatch', 'retryable_error']):
+            raise ValueError("must be one of enum values ('valid', 'invalid', 'expired', 'already_used', 'environment_mismatch', 'retryable_error')")
         return value
 
     @field_validator('environment')
@@ -67,7 +76,7 @@ class AppleWebhookRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of AppleWebhookRequest from a JSON string"""
+        """Create an instance of ReceiptValidationResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -92,7 +101,7 @@ class AppleWebhookRequest(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of AppleWebhookRequest from a dict"""
+        """Create an instance of ReceiptValidationResponse from a dict"""
         if obj is None:
             return None
 
@@ -100,9 +109,14 @@ class AppleWebhookRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "notification_type": obj.get("notification_type"),
+            "is_valid": obj.get("is_valid"),
+            "status": obj.get("status"),
             "transaction_id": obj.get("transaction_id"),
-            "receipt_data": obj.get("receipt_data"),
-            "environment": obj.get("environment") if obj.get("environment") is not None else 'production'
+            "product_id": obj.get("product_id"),
+            "purchase_date": obj.get("purchase_date"),
+            "expiration_date": obj.get("expiration_date"),
+            "environment": obj.get("environment"),
+            "error_message": obj.get("error_message"),
+            "retry_after": obj.get("retry_after")
         })
         return _obj

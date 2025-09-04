@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -29,11 +29,12 @@ class UserProfileResponse(BaseModel):
     """ # noqa: E501
     user_id: Optional[StrictStr] = None
     email: Optional[StrictStr] = None
+    username: Optional[StrictStr] = Field(default=None, description="Cognito username")
     tier: Optional[StrictStr] = None
     status: Optional[StrictStr] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    __properties: ClassVar[List[str]] = ["user_id", "email", "tier", "status", "created_at", "updated_at"]
+    created_at: Optional[datetime] = Field(default=None, description="Account creation date")
+    updated_at: Optional[datetime] = Field(default=None, description="Last update date")
+    __properties: ClassVar[List[str]] = ["user_id", "email", "username", "tier", "status", "created_at", "updated_at"]
 
     @field_validator('tier')
     def tier_validate_enum(cls, value):
@@ -108,6 +109,7 @@ class UserProfileResponse(BaseModel):
         _obj = cls.model_validate({
             "user_id": obj.get("user_id"),
             "email": obj.get("email"),
+            "username": obj.get("username"),
             "tier": obj.get("tier"),
             "status": obj.get("status"),
             "created_at": obj.get("created_at"),

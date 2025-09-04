@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import LingibleAPI
 
 /// App state coordinator following clean architecture principles
 @MainActor
@@ -13,6 +14,13 @@ final class AppCoordinator: ObservableObject {
     // MARK: - Dependencies
     let authenticationService: AuthenticationServiceProtocol
     let userService: any UserServiceProtocol
+
+    // MARK: - Published User Service Properties (for UI observation)
+    var userProfile: UserProfileResponse? { userService.userProfile }
+    var userUsage: UsageResponse? { userService.userUsage }
+    var userServiceIsLoading: Bool { userService.isLoading }
+    var lastProfileUpdate: Date? { userService.lastProfileUpdate }
+    var lastUsageUpdate: Date? { userService.lastUsageUpdate }
 
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
@@ -49,7 +57,15 @@ final class AppCoordinator: ObservableObject {
     }
 
     func authenticateUserWithApple() async throws -> AuthenticatedUser {
-        return try await authenticationService.signInWithApple()
+        let user = try await authenticationService.signInWithApple()
+
+        // Update app state to authenticated after successful sign in
+        currentState = .authenticated
+
+        // Load user data after successful authentication
+        await userService.loadUserData(forceRefresh: false)
+
+        return user
     }
 
     // MARK: - Private Methods
@@ -57,6 +73,30 @@ final class AppCoordinator: ObservableObject {
         // Note: We're not using automatic auth state binding anymore
         // State is now manually managed in authenticateUser() method
         // This gives us full control over the splash screen timing
+
+        // Forward UserService changes to AppCoordinator for UI observation
+        if let userService = userService as? UserService {
+            userService.$userProfile
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.objectWillChange.send()
+                }
+                .store(in: &cancellables)
+
+            userService.$userUsage
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.objectWillChange.send()
+                }
+                .store(in: &cancellables)
+
+            userService.$isLoading
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.objectWillChange.send()
+                }
+                .store(in: &cancellables)
+        }
     }
 
         private func authenticateUser() async {

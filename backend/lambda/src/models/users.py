@@ -58,7 +58,7 @@ class User(BaseModel):
             username=self.username,
             tier=self.tier,
             status=self.status,
-            created_at=self.created_at.isoformat(),
+            created_at=self.created_at,
         )
 
 
@@ -72,7 +72,7 @@ class UserResponse(BaseModel):
     tier: UserTier = Field(..., description="User tier")
     status: UserStatus = Field(..., description="Account status")
 
-    created_at: str = Field(..., description="Account creation date (ISO format)")
+    created_at: datetime = Field(..., description="Account creation date")
 
 
 class UserUsageResponse(BaseModel):

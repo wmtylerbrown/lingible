@@ -13,11 +13,11 @@ struct CommonHeader: View {
     var body: some View {
         HStack {
             // Logo + Wordmark
-            HStack(spacing: 8) {
+            HStack(spacing: 2) {
                 Image("LingibleLogo")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 60, height: 60)
 
                 Image("WordmarkMedium")
                     .resizable()

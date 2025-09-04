@@ -17,7 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -26,10 +27,14 @@ class ErrorResponse(BaseModel):
     """
     ErrorResponse
     """ # noqa: E501
-    error: Optional[StrictStr] = Field(default=None, description="Error code")
+    success: Optional[StrictBool] = Field(default=None, description="Always false for error responses")
     message: Optional[StrictStr] = Field(default=None, description="Human-readable error message")
+    error_code: Optional[StrictStr] = Field(default=None, description="Application-specific error code")
+    status_code: Optional[StrictInt] = Field(default=None, description="HTTP status code")
     details: Optional[Dict[str, Any]] = Field(default=None, description="Additional error details")
-    __properties: ClassVar[List[str]] = ["error", "message", "details"]
+    timestamp: Optional[datetime] = Field(default=None, description="Error timestamp")
+    request_id: Optional[StrictStr] = Field(default=None, description="Request ID for tracing")
+    __properties: ClassVar[List[str]] = ["success", "message", "error_code", "status_code", "details", "timestamp", "request_id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,8 +87,12 @@ class ErrorResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "error": obj.get("error"),
+            "success": obj.get("success"),
             "message": obj.get("message"),
-            "details": obj.get("details")
+            "error_code": obj.get("error_code"),
+            "status_code": obj.get("status_code"),
+            "details": obj.get("details"),
+            "timestamp": obj.get("timestamp"),
+            "request_id": obj.get("request_id")
         })
         return _obj

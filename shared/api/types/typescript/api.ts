@@ -22,7 +22,7 @@ export interface ErrorResponse {
   error_code: string;
   status_code: number;
   details?: Record<string, any>;
-  timestamp: string;
+  timestamp: Date;
 }
 
 // Health Check
@@ -44,7 +44,7 @@ export interface TranslationResponse {
   translated_text: string;
   direction: TranslationDirection;
   confidence_score?: number;
-  created_at: string;
+  created_at: Date;
   processing_time_ms?: number;
   model_used?: string;
 }
@@ -56,7 +56,7 @@ export interface TranslationHistoryItemResponse {
   translated_text: string;
   direction: TranslationDirection;
   confidence_score?: number;
-  created_at: string;
+  created_at: Date;
   model_used?: string;
 }
 
@@ -77,10 +77,11 @@ export interface PaginationInfo {
 export interface UserProfileResponse {
   user_id: string;
   email: string;
+  username: string;
   tier: UserTier;
   status: UserStatus;
-  created_at: string;
-  updated_at: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export type UserTier = 'free' | 'premium';
@@ -127,8 +128,8 @@ export interface TrendingTermResponse {
   popularity_score: number;
   search_count: number; // 0 for free users, actual count for premium
   translation_count: number; // 0 for free users, actual count for premium
-  first_seen: string;
-  last_updated: string;
+  first_seen: Date;
+  last_updated: Date;
   is_active: boolean;
   example_usage?: string; // null for free users, actual examples for premium
   origin?: string; // null for free users, actual origin for premium
@@ -138,7 +139,7 @@ export interface TrendingTermResponse {
 export interface TrendingListResponse {
   terms: TrendingTermResponse[];
   total_count: number;
-  last_updated: string;
+  last_updated: Date;
   category_filter?: TrendingCategory;
 }
 
@@ -153,12 +154,16 @@ export type AppleNotificationType =
   | 'INITIAL_BUY'
   | 'RENEWAL'
   | 'CANCEL'
-  | 'FAILED_PAYMENT'
+  | 'INTERACTIVE_RENEWAL'
+  | 'DID_CHANGE_RENEWAL_PREF'
+  | 'DID_CHANGE_RENEWAL_STATUS'
+  | 'PRICE_INCREASE_CONSENT'
   | 'REFUND'
+  | 'FAILED_PAYMENT'
   | 'REFUND_DECLINED'
   | 'CONSUMPTION_REQUEST';
 
-export type Environment = 'Sandbox' | 'Production';
+export type Environment = 'sandbox' | 'production';
 
 export interface AppleWebhookRequest {
   notification_type: AppleNotificationType;
@@ -170,6 +175,32 @@ export interface AppleWebhookRequest {
 export interface WebhookResponse {
   success: boolean;
   message: string;
+}
+
+// Subscription Types
+export type SubscriptionProvider = 'apple' | 'google';
+export type SubscriptionStatus = 'active' | 'expired' | 'cancelled';
+export type ReceiptValidationStatus = 'valid' | 'invalid' | 'expired' | 'already_used' | 'environment_mismatch' | 'retryable_error';
+
+export interface UserSubscriptionResponse {
+  provider: SubscriptionProvider;
+  transaction_id: string;
+  status: SubscriptionStatus;
+  start_date: Date;
+  end_date?: Date;
+  created_at: Date;
+}
+
+export interface ReceiptValidationResponse {
+  is_valid: boolean;
+  status: ReceiptValidationStatus;
+  transaction_id: string;
+  product_id?: string;
+  purchase_date?: Date;
+  expiration_date?: Date;
+  environment?: Environment;
+  error_message?: string;
+  retry_after?: number;
 }
 
 // API Endpoints

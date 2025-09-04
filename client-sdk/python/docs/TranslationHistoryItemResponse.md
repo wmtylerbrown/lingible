@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 **translated_text** | **str** |  | [optional]
 **direction** | **str** | Translation direction used | [optional]
 **confidence_score** | **float** |  | [optional]
-**created_at** | **datetime** |  | [optional]
+**created_at** | **datetime** | Translation timestamp | [optional]
 **model_used** | **str** | AI model used for translation | [optional]
 
 ## Example

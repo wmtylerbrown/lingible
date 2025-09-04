@@ -63,8 +63,8 @@ class TrendingTerm(BaseModel):
                 popularity_score=self.popularity_score,
                 search_count=0,  # Hide exact counts for free users
                 translation_count=0,  # Hide exact counts for free users
-                first_seen=self.first_seen.isoformat(),
-                last_updated=self.last_updated.isoformat(),
+                first_seen=self.first_seen,
+                last_updated=self.last_updated,
                 is_active=self.is_active,
                 example_usage=None,  # Premium feature
                 origin=None,  # Premium feature
@@ -78,8 +78,8 @@ class TrendingTerm(BaseModel):
                 popularity_score=self.popularity_score,
                 search_count=self.search_count,
                 translation_count=self.translation_count,
-                first_seen=self.first_seen.isoformat(),
-                last_updated=self.last_updated.isoformat(),
+                first_seen=self.first_seen,
+                last_updated=self.last_updated,
                 is_active=self.is_active,
                 example_usage=self.example_usage,
                 origin=self.origin,
@@ -92,7 +92,7 @@ class TrendingListResponse(BaseModel):
 
     terms: List["TrendingTermResponse"] = Field(..., description="List of trending terms")
     total_count: int = Field(..., description="Total number of trending terms")
-    last_updated: str = Field(..., description="When the trending data was last updated")
+    last_updated: datetime = Field(..., description="When the trending data was last updated")
     category_filter: Optional[TrendingCategory] = Field(None, description="Applied category filter")
 
 
@@ -105,8 +105,8 @@ class TrendingTermResponse(BaseModel):
     popularity_score: float = Field(..., description="Popularity score (0-100)")
     search_count: int = Field(..., description="Number of times searched")
     translation_count: int = Field(..., description="Number of times translated")
-    first_seen: str = Field(..., description="When this term was first detected (ISO format)")
-    last_updated: str = Field(..., description="Last time metrics were updated (ISO format)")
+    first_seen: datetime = Field(..., description="When this term was first detected")
+    last_updated: datetime = Field(..., description="Last time metrics were updated")
     is_active: bool = Field(..., description="Whether this term is currently trending")
     example_usage: Optional[str] = Field(None, description="Example of how the term is used")
     origin: Optional[str] = Field(None, description="Origin or source of the term")
@@ -131,6 +131,6 @@ class TrendingJobResponse(BaseModel):
     terms_added: int = Field(..., description="Number of new terms added")
     terms_updated: int = Field(..., description="Number of existing terms updated")
     execution_time_seconds: float = Field(..., description="Job execution time in seconds")
-    started_at: str = Field(..., description="Job start time (ISO format)")
-    completed_at: Optional[str] = Field(None, description="Job completion time (ISO format)")
+    started_at: datetime = Field(..., description="Job start time")
+    completed_at: Optional[datetime] = Field(None, description="Job completion time")
     error_message: Optional[str] = Field(None, description="Error message if job failed")

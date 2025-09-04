@@ -117,14 +117,3 @@ def extract_user_from_parsed_data(parsed_data: Dict[str, Any]) -> str:
         return "unknown"
     except Exception:
         return "unknown"
-
-
-def extract_user_from_event(event: Any) -> str:
-    """Extract user ID from API Gateway event."""
-    try:
-        if hasattr(event, "request_context") and event.request_context:
-            authorizer = event.request_context.get("authorizer", {})
-            return authorizer.get("user_id", "unknown")
-        return "unknown"
-    except Exception:
-        return "unknown"

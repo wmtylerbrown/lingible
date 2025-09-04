@@ -70,9 +70,9 @@ class UserSubscription(BaseModel):
             provider=self.provider,
             transaction_id=self.transaction_id,
             status=self.status,
-            start_date=self.start_date.isoformat(),
-            end_date=self.end_date.isoformat() if self.end_date else None,
-            created_at=self.created_at.isoformat(),
+            start_date=self.start_date,
+            end_date=self.end_date,
+            created_at=self.created_at,
         )
 
 
@@ -83,11 +83,11 @@ class UserSubscriptionResponse(BaseModel):
     provider: SubscriptionProvider = Field(..., description="Subscription provider")
     transaction_id: str = Field(..., description="Provider transaction ID")
     status: SubscriptionStatus = Field(..., description="Subscription status")
-    start_date: str = Field(..., description="Subscription start date (ISO format)")
-    end_date: Optional[str] = Field(
-        None, description="Subscription end date (ISO format)"
+    start_date: datetime = Field(..., description="Subscription start date")
+    end_date: Optional[datetime] = Field(
+        None, description="Subscription end date"
     )
-    created_at: str = Field(..., description="Record creation date (ISO format)")
+    created_at: datetime = Field(..., description="Record creation date")
 
 
 # Request Models
@@ -148,12 +148,8 @@ class ReceiptValidationResult(BaseModel):
             status=self.status,
             transaction_id=self.transaction_id,
             product_id=self.product_id,
-            purchase_date=(
-                self.purchase_date.isoformat() if self.purchase_date else None
-            ),
-            expiration_date=(
-                self.expiration_date.isoformat() if self.expiration_date else None
-            ),
+            purchase_date=self.purchase_date,
+            expiration_date=self.expiration_date,
             environment=self.environment,
             error_message=self.error_message,
             retry_after=self.retry_after,
@@ -167,9 +163,9 @@ class ReceiptValidationResponse(BaseModel):
     status: ReceiptValidationStatus = Field(..., description="Validation status")
     transaction_id: str = Field(..., description="Transaction ID")
     product_id: Optional[str] = Field(None, description="Product ID from receipt")
-    purchase_date: Optional[str] = Field(None, description="Purchase date (ISO format)")
-    expiration_date: Optional[str] = Field(
-        None, description="Expiration date (ISO format)"
+    purchase_date: Optional[datetime] = Field(None, description="Purchase date")
+    expiration_date: Optional[datetime] = Field(
+        None, description="Expiration date"
     )
     environment: Optional[str] = Field(
         None, description="Environment (sandbox/production)"
@@ -190,8 +186,6 @@ class AppleNotificationType(str, Enum):
     REFUND = "REFUND"
     REFUND_DECLINED = "REFUND_DECLINED"
     CONSUMPTION_REQUEST = "CONSUMPTION_REQUEST"
-
-
 
 
 class AppleWebhookRequest(BaseModel):

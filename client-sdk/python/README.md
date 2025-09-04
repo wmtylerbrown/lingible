@@ -11,7 +11,7 @@ For more information, please visit [https://lingible.com](https://lingible.com)
 
 ## Requirements.
 
-Python 3.9+
+Python 3.13+
 
 ## Installation & Usage
 ### pip install
@@ -112,6 +112,7 @@ Class | Method | HTTP request | Description
  - [ErrorResponse](docs/ErrorResponse.md)
  - [HealthResponse](docs/HealthResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
+ - [ReceiptValidationResponse](docs/ReceiptValidationResponse.md)
  - [SuccessResponse](docs/SuccessResponse.md)
  - [TranslationHistoryItemResponse](docs/TranslationHistoryItemResponse.md)
  - [TranslationHistoryResponse](docs/TranslationHistoryResponse.md)
@@ -124,6 +125,7 @@ Class | Method | HTTP request | Description
  - [UsageLimits](docs/UsageLimits.md)
  - [UsageResponse](docs/UsageResponse.md)
  - [UserProfileResponse](docs/UserProfileResponse.md)
+ - [UserSubscriptionResponse](docs/UserSubscriptionResponse.md)
  - [WebhookResponse](docs/WebhookResponse.md)
 
 

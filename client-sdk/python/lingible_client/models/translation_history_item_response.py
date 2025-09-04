@@ -34,7 +34,7 @@ class TranslationHistoryItemResponse(BaseModel):
     translated_text: Optional[StrictStr] = None
     direction: Optional[StrictStr] = Field(default=None, description="Translation direction used")
     confidence_score: Optional[Union[Annotated[float, Field(le=1, strict=True, ge=0)], Annotated[int, Field(le=1, strict=True, ge=0)]]] = None
-    created_at: Optional[datetime] = None
+    created_at: Optional[datetime] = Field(default=None, description="Translation timestamp")
     model_used: Optional[StrictStr] = Field(default=None, description="AI model used for translation")
     __properties: ClassVar[List[str]] = ["translation_id", "user_id", "original_text", "translated_text", "direction", "confidence_score", "created_at", "model_used"]
 

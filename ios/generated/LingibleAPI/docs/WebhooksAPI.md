@@ -21,7 +21,7 @@ Webhook endpoint for Apple App Store subscription notifications
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import LingibleAPI
 
-let appleWebhookRequest = AppleWebhookRequest(notificationType: "notificationType_example", transactionId: "transactionId_example", receiptData: "receiptData_example") // AppleWebhookRequest |
+let appleWebhookRequest = AppleWebhookRequest(notificationType: "notificationType_example", transactionId: "transactionId_example", receiptData: "receiptData_example", environment: "environment_example") // AppleWebhookRequest |
 
 // Apple webhook for subscription notifications
 WebhooksAPI.webhookApplePost(appleWebhookRequest: appleWebhookRequest) { (response, error) in

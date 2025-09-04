@@ -25,7 +25,7 @@ class AppException(Exception):
         self.status_code = status_code
         self.details = details or {}
         self.request_id = request_id
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.utcnow()
         self.log_level = log_level
 
         # Log the exception

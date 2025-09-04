@@ -79,7 +79,7 @@ class Translation(BaseModel):
             translated_text=self.translated_text,
             direction=self.direction,
             confidence_score=self.confidence_score,
-            created_at=self.created_at.isoformat(),
+            created_at=self.created_at,
             processing_time_ms=self.processing_time_ms,
             model_used=self.model_used,
         )
@@ -95,7 +95,7 @@ class TranslationResponse(BaseModel):
     confidence_score: Optional[float] = Field(
         None, ge=0.0, le=1.0, description="Translation confidence score"
     )
-    created_at: str = Field(..., description="Translation timestamp (ISO format)")
+    created_at: datetime = Field(..., description="Translation timestamp")
     processing_time_ms: Optional[int] = Field(
         None, ge=0, description="Processing time in milliseconds"
     )
@@ -127,7 +127,7 @@ class TranslationHistory(BaseModel):
             translated_text=self.translated_text,
             direction=self.direction,
             confidence_score=self.confidence_score,
-            created_at=self.created_at.isoformat(),
+            created_at=self.created_at,
             model_used=self.model_used,
         )
 
@@ -143,7 +143,7 @@ class TranslationHistoryItemResponse(BaseModel):
     confidence_score: Optional[float] = Field(
         None, description="Translation confidence score"
     )
-    created_at: str = Field(..., description="Translation timestamp (ISO format)")
+    created_at: datetime = Field(..., description="Translation timestamp")
     model_used: Optional[str] = Field(None, description="AI model used")
 
 
@@ -168,8 +168,8 @@ class UsageLimit(BaseModel):
 
     tier: UserTier = Field(..., description="User tier (free/premium)")
     daily_used: int = Field(0, ge=0, description="Current daily usage")
-    reset_daily_at: Optional[datetime] = Field(
-        None, description="When daily limit resets"
+    reset_daily_at: datetime = Field(
+        ..., description="When daily limit resets"
     )
 
 

@@ -23,14 +23,19 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
     }
     public var userId: String?
     public var email: String?
+    /** Cognito username */
+    public var username: String?
     public var tier: Tier?
     public var status: Status?
+    /** Account creation date */
     public var createdAt: Date?
+    /** Last update date */
     public var updatedAt: Date?
 
-    public init(userId: String? = nil, email: String? = nil, tier: Tier? = nil, status: Status? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+    public init(userId: String? = nil, email: String? = nil, username: String? = nil, tier: Tier? = nil, status: Status? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
         self.userId = userId
         self.email = email
+        self.username = username
         self.tier = tier
         self.status = status
         self.createdAt = createdAt
@@ -40,6 +45,7 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case userId = "user_id"
         case email
+        case username
         case tier
         case status
         case createdAt = "created_at"
@@ -52,6 +58,7 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(userId, forKey: .userId)
         try container.encodeIfPresent(email, forKey: .email)
+        try container.encodeIfPresent(username, forKey: .username)
         try container.encodeIfPresent(tier, forKey: .tier)
         try container.encodeIfPresent(status, forKey: .status)
         try container.encodeIfPresent(createdAt, forKey: .createdAt)

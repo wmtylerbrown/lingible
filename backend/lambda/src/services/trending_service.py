@@ -89,7 +89,7 @@ class TrendingService:
             return TrendingListResponse(
                 terms=term_responses,
                 total_count=total_count,
-                last_updated=datetime.now(timezone.utc).isoformat(),
+                last_updated=datetime.now(timezone.utc),
                 category_filter=category,
             )
 
@@ -383,8 +383,8 @@ class TrendingService:
                 terms_added=terms_added,
                 terms_updated=terms_updated,
                 execution_time_seconds=execution_time,
-                started_at=start_time.isoformat(),
-                completed_at=end_time.isoformat(),
+                started_at=start_time,
+                completed_at=end_time,
                 error_message=None,
             )
 
@@ -404,7 +404,7 @@ class TrendingService:
                 terms_added=terms_added if 'terms_added' in locals() else 0,
                 terms_updated=terms_updated if 'terms_updated' in locals() else 0,
                 execution_time_seconds=execution_time if 'execution_time' in locals() else 0.0,
-                started_at=start_time.isoformat() if 'start_time' in locals() else datetime.now(timezone.utc).isoformat(),
+                started_at=start_time if 'start_time' in locals() else datetime.now(timezone.utc),
                 completed_at=None,
                 error_message=str(e),
             )

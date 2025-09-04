@@ -86,6 +86,17 @@ class UserService:
             else:  # PREMIUM
                 daily_limit = self.usage_config.premium_daily_translations
 
+            # Check if reset date has passed and reset usage if needed
+            now = datetime.now(timezone.utc)
+            if usage_limits.reset_daily_at <= now:
+                # Reset date has passed, reset the usage
+                usage_limits.daily_used = 0
+                # Update the reset date to tomorrow
+                tomorrow_start = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+                usage_limits.reset_daily_at = tomorrow_start
+                # Save the reset usage limits
+                self.repository.reset_daily_usage(user_id, usage_limits.tier)
+
             # Calculate daily remaining
             daily_remaining = max(0, daily_limit - usage_limits.daily_used)
 
@@ -94,7 +105,7 @@ class UserService:
                 daily_limit=daily_limit,
                 daily_used=usage_limits.daily_used,
                 daily_remaining=daily_remaining,
-                reset_date=usage_limits.reset_daily_at or datetime.now(timezone.utc),
+                reset_date=usage_limits.reset_daily_at,
                 current_max_text_length=self.usage_config.free_max_text_length if usage_limits.tier == UserTier.FREE else self.usage_config.premium_max_text_length,
                 free_tier_max_length=self.usage_config.free_max_text_length,
                 premium_tier_max_length=self.usage_config.premium_max_text_length,

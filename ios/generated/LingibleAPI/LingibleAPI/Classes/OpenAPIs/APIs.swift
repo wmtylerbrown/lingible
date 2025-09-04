@@ -9,7 +9,7 @@ import Foundation
 import FoundationNetworking
 #endif
 open class LingibleAPIAPI {
-    public static var basePath = "https://api.dev.lingible.com"
+    public static var basePath = "https://api.lingible.com"
     public static var customHeaders: [String: String] = [:]
     public static var credential: URLCredential?
     public static var requestBuilderFactory: RequestBuilderFactory = URLSessionRequestBuilderFactory()

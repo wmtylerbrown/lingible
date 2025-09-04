@@ -1,29 +1,10 @@
 """Enhanced response utilities with proper error handling."""
 
-import json
 from datetime import datetime
 from typing import Optional, Dict, Any
 from models.base import ErrorResponse, HTTPStatus, ErrorCode
 from models.aws import APIGatewayResponse
 from .exceptions import AppException
-
-
-def create_success_response(
-    data: Optional[Dict[str, Any]] = None,
-    status_code: int = HTTPStatus.OK.value,
-) -> Dict[str, Any]:
-    """Create a successful API Gateway response."""
-    return APIGatewayResponse(
-        statusCode=status_code,
-        headers={
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        },
-        body=json.dumps(data) if data else "{}",
-        isBase64Encoded=False,
-    ).model_dump()
 
 
 def create_model_response(
@@ -83,39 +64,12 @@ def create_validation_error_response(
         error_code=ErrorCode.INVALID_INPUT.value,
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY.value,
         details=details,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.utcnow(),
         request_id=request_id,
     )
 
     return APIGatewayResponse(
         statusCode=HTTPStatus.UNPROCESSABLE_ENTITY.value,
-        headers={
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        },
-        body=error_data.model_dump_json(),
-        isBase64Encoded=False,
-    ).model_dump()
-
-
-def create_not_found_response(
-    resource_type: str, resource_id: str, request_id: Optional[str] = None
-) -> Dict[str, Any]:
-    """Create a not found error response."""
-    error_data = ErrorResponse(
-        success=False,
-        message=f"{resource_type} with id '{resource_id}' not found",
-        error_code=ErrorCode.RESOURCE_NOT_FOUND.value,
-        status_code=HTTPStatus.NOT_FOUND.value,
-        details={"resource_type": resource_type, "resource_id": resource_id},
-        timestamp=datetime.utcnow().isoformat(),
-        request_id=request_id,
-    )
-
-    return APIGatewayResponse(
-        statusCode=HTTPStatus.NOT_FOUND.value,
         headers={
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
@@ -137,39 +91,12 @@ def create_unauthorized_response(
         error_code=ErrorCode.INVALID_TOKEN.value,
         status_code=HTTPStatus.UNAUTHORIZED.value,
         details={"reason": "authentication_required"},
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.utcnow(),
         request_id=request_id,
     )
 
     return APIGatewayResponse(
         statusCode=HTTPStatus.UNAUTHORIZED.value,
-        headers={
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        },
-        body=error_data.model_dump_json(),
-        isBase64Encoded=False,
-    ).model_dump()
-
-
-def create_forbidden_response(
-    message: str = "Insufficient permissions", request_id: Optional[str] = None
-) -> Dict[str, Any]:
-    """Create a forbidden error response."""
-    error_data = ErrorResponse(
-        success=False,
-        message=message,
-        error_code=ErrorCode.INSUFFICIENT_PERMISSIONS.value,
-        status_code=HTTPStatus.FORBIDDEN.value,
-        details={"reason": "insufficient_permissions"},
-        timestamp=datetime.utcnow().isoformat(),
-        request_id=request_id,
-    )
-
-    return APIGatewayResponse(
-        statusCode=HTTPStatus.FORBIDDEN.value,
         headers={
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
@@ -191,7 +118,7 @@ def create_rate_limit_response(
         error_code=ErrorCode.RATE_LIMIT_EXCEEDED.value,
         status_code=HTTPStatus.TOO_MANY_REQUESTS.value,
         details={"limit": limit, "window_seconds": window_seconds},
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.utcnow(),
         request_id=request_id,
     )
 
@@ -206,39 +133,3 @@ def create_rate_limit_response(
         body=error_data.model_dump_json(),
         isBase64Encoded=False,
     ).model_dump()
-
-
-def create_internal_error_response(
-    message: str = "Internal server error", request_id: Optional[str] = None
-) -> Dict[str, Any]:
-    """Create an internal server error response."""
-    error_data = ErrorResponse(
-        success=False,
-        message=message,
-        error_code=ErrorCode.INTERNAL_ERROR.value,
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        details={"reason": "internal_error"},
-        timestamp=datetime.utcnow().isoformat(),
-        request_id=request_id,
-    )
-
-    return APIGatewayResponse(
-        statusCode=HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        headers={
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        },
-        body=error_data.model_dump_json(),
-        isBase64Encoded=False,
-    ).model_dump()
-
-
-def response_to_dict(response: APIGatewayResponse) -> Dict[str, Any]:
-    """Convert APIGatewayResponse to dictionary for Lambda compatibility."""
-    return {
-        "statusCode": response.statusCode,
-        "headers": response.headers,
-        "body": response.body,
-    }

@@ -7,6 +7,7 @@ docs/AppleWebhookRequest.md
 docs/ErrorResponse.md
 docs/HealthResponse.md
 docs/PaginationInfo.md
+docs/ReceiptValidationResponse.md
 docs/SuccessResponse.md
 docs/SystemApi.md
 docs/TranslationApi.md
@@ -23,6 +24,7 @@ docs/UsageLimits.md
 docs/UsageResponse.md
 docs/UserApi.md
 docs/UserProfileResponse.md
+docs/UserSubscriptionResponse.md
 docs/WebhookResponse.md
 docs/WebhooksApi.md
 git_push.sh
@@ -42,6 +44,7 @@ lingible_client/models/apple_webhook_request.py
 lingible_client/models/error_response.py
 lingible_client/models/health_response.py
 lingible_client/models/pagination_info.py
+lingible_client/models/receipt_validation_response.py
 lingible_client/models/success_response.py
 lingible_client/models/translation_history_item_response.py
 lingible_client/models/translation_history_response.py
@@ -54,6 +57,7 @@ lingible_client/models/upgrade_response.py
 lingible_client/models/usage_limits.py
 lingible_client/models/usage_response.py
 lingible_client/models/user_profile_response.py
+lingible_client/models/user_subscription_response.py
 lingible_client/models/webhook_response.py
 lingible_client/py.typed
 lingible_client/rest.py
@@ -61,7 +65,6 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
-test/test_trending_api.py
-test/test_trending_list_response.py
-test/test_trending_term_response.py
+test/test_receipt_validation_response.py
+test/test_user_subscription_response.py
 tox.ini

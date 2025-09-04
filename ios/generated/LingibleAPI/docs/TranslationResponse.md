@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **translatedText** | **String** |  | [optional]
 **direction** | **String** | Translation direction used | [optional]
 **confidenceScore** | **Float** |  | [optional]
-**createdAt** | **Date** |  | [optional]
+**createdAt** | **Date** | Translation timestamp | [optional]
 **processingTimeMs** | **Int** | Processing time in milliseconds | [optional]
 **modelUsed** | **String** | AI model used for translation | [optional]
 

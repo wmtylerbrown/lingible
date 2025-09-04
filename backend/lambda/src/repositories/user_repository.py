@@ -127,9 +127,7 @@ class UserRepository:
                 "SK": "USAGE#LIMITS",
                 "tier": usage.tier,
                 "daily_used": usage.daily_used,
-                "reset_daily_at": (
-                    usage.reset_daily_at.isoformat() if usage.reset_daily_at else None
-                ),
+                "reset_daily_at": usage.reset_daily_at.isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -165,14 +163,18 @@ class UserRepository:
                 return None
 
             item = response["Item"]
+            # Ensure reset_daily_at exists, create default if missing
+            reset_daily_at = item.get("reset_daily_at")
+            if not reset_daily_at:
+                # Create default reset date (tomorrow at midnight)
+                now = datetime.now(timezone.utc)
+                tomorrow_start = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+                reset_daily_at = tomorrow_start.isoformat()
+
             return UsageLimit(
                 tier=UserTier(item["tier"]),
                 daily_used=item.get("daily_used", 0),
-                reset_daily_at=(
-                    datetime.fromisoformat(item["reset_daily_at"])
-                    if item.get("reset_daily_at")
-                    else None
-                ),
+                reset_daily_at=datetime.fromisoformat(reset_daily_at),
             )
 
         except Exception as e:

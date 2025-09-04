@@ -45,6 +45,7 @@ Class | Method | HTTP request | Description
  - [HealthResponse](docs/HealthResponse.md)
  - [ModelErrorResponse](docs/ModelErrorResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
+ - [ReceiptValidationResponse](docs/ReceiptValidationResponse.md)
  - [SuccessResponse](docs/SuccessResponse.md)
  - [TranslationHistoryItemResponse](docs/TranslationHistoryItemResponse.md)
  - [TranslationHistoryResponse](docs/TranslationHistoryResponse.md)
@@ -57,6 +58,7 @@ Class | Method | HTTP request | Description
  - [UsageLimits](docs/UsageLimits.md)
  - [UsageResponse](docs/UsageResponse.md)
  - [UserProfileResponse](docs/UserProfileResponse.md)
+ - [UserSubscriptionResponse](docs/UserSubscriptionResponse.md)
  - [WebhookResponse](docs/WebhookResponse.md)
 
 
