@@ -1,4 +1,5 @@
 import Foundation
+import LingibleAPI
 
 /// App configuration that determines environment-specific settings
 struct AppConfiguration {
@@ -26,6 +27,16 @@ struct AppConfiguration {
             return .development
         } else {
             return .production
+        }
+    }
+
+    /// Base URL for the API based on environment
+    static var apiBaseURL: String {
+        switch currentEnvironment {
+        case .development:
+            return "https://api.dev.lingible.com"
+        case .production:
+            return "https://api.lingible.com"
         }
     }
 
@@ -67,5 +78,11 @@ struct AppConfiguration {
         case .production:
             return "\(websiteBaseURL)/help"
         }
+    }
+
+    /// Configure the API client with the correct base URL for the current environment
+    static func configureAPI() {
+        LingibleAPIAPI.basePath = apiBaseURL
+        print("🔧 AppConfiguration: Configured API base path to \(apiBaseURL) for \(currentEnvironment.displayName) environment")
     }
 }

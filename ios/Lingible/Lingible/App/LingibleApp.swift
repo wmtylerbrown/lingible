@@ -8,6 +8,7 @@ struct LingibleApp: App {
 
     init() {
         configureAmplify()
+        configureAPI()
     }
 
     var body: some Scene {
@@ -42,5 +43,9 @@ struct LingibleApp: App {
                 print("  - User info: \(nsError.userInfo)")
             }
         }
+    }
+
+    private func configureAPI() {
+        AppConfiguration.configureAPI()
     }
 }
