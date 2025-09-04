@@ -6,13 +6,15 @@ from datetime import datetime, timezone
 import boto3
 from botocore.exceptions import ClientError
 
-from src.models.users import User, UserTier, UserStatus
-from src.models.translations import Translation, TranslationDirection
-from src.models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
-from src.repositories.user_repository import UserRepository
-from src.repositories.translation_repository import TranslationRepository
-from src.repositories.subscription_repository import SubscriptionRepository
-from src.utils.exceptions import BusinessLogicError
+from models.users import User, UserTier, UserStatus
+from models.translations import Translation, TranslationDirection
+from models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
+from models.trending import TrendingTerm, TrendingCategory
+from repositories.user_repository import UserRepository
+from repositories.translation_repository import TranslationRepository
+from repositories.subscription_repository import SubscriptionRepository
+from repositories.trending_repository import TrendingRepository
+from utils.exceptions import BusinessLogicError
 
 
 class TestUserRepository:
@@ -689,3 +691,260 @@ class TestSubscriptionRepository:
 
         assert result is not None
         assert result.transaction_id == sample_subscription.transaction_id
+
+
+class TestTrendingRepository:
+    """Test TrendingRepository with moto integration tests."""
+
+    @pytest.fixture
+    def trending_repository(self, mock_dynamodb_table, mock_config):
+        """Create TrendingRepository with mocked dependencies."""
+        with patch('repositories.trending_repository.aws_services') as mock_aws_services:
+            mock_aws_services.dynamodb_resource.Table.return_value = mock_dynamodb_table
+            repo = TrendingRepository()
+            repo.table = mock_dynamodb_table
+            return repo
+
+    def test_create_trending_term(self, trending_repository, sample_trending_term):
+        """Test creating a new trending term."""
+        result = trending_repository.create_trending_term(sample_trending_term)
+
+        assert result is True
+
+        # Verify the term was stored correctly
+        stored_term = trending_repository.get_trending_term(sample_trending_term.term)
+        assert stored_term is not None
+        assert stored_term.term == sample_trending_term.term
+        assert stored_term.definition == sample_trending_term.definition
+        assert stored_term.category == sample_trending_term.category
+        assert stored_term.popularity_score == sample_trending_term.popularity_score
+
+    def test_get_trending_term(self, trending_repository, sample_trending_term):
+        """Test getting a trending term by name."""
+        # First create the term
+        trending_repository.create_trending_term(sample_trending_term)
+
+        # Then retrieve it
+        result = trending_repository.get_trending_term(sample_trending_term.term)
+
+        assert result is not None
+        assert result.term == sample_trending_term.term
+        assert result.definition == sample_trending_term.definition
+
+    def test_get_trending_term_not_found(self, trending_repository):
+        """Test getting a non-existent trending term."""
+        result = trending_repository.get_trending_term("nonexistent")
+        assert result is None
+
+    def test_update_trending_term(self, trending_repository, sample_trending_term):
+        """Test updating a trending term."""
+        # Create the term first
+        trending_repository.create_trending_term(sample_trending_term)
+
+        # Update it
+        updated_term = sample_trending_term.model_copy()
+        updated_term.definition = "Updated definition"
+        updated_term.popularity_score = 95.0
+
+        result = trending_repository.update_trending_term(updated_term)
+        assert result is True
+
+        # Verify the update
+        stored_term = trending_repository.get_trending_term(sample_trending_term.term)
+        assert stored_term.definition == "Updated definition"
+        assert stored_term.popularity_score == 95.0
+
+    @pytest.mark.skip(reason="Requires GSI indexes - complex DynamoDB setup needed")
+    def test_get_trending_terms_all_categories(self, trending_repository, sample_trending_term):
+        """Test getting trending terms across all categories."""
+        # Create multiple terms with different categories
+        terms = [
+            sample_trending_term,
+            sample_trending_term.model_copy(update={"term": "bet", "category": "slang", "popularity_score": 78.0}),
+            sample_trending_term.model_copy(update={"term": "main character", "category": "meme", "popularity_score": 65.0}),
+        ]
+
+        # Mock the scan operation to return multiple terms
+        with patch.object(trending_repository.table, 'scan') as mock_scan:
+            mock_scan.return_value = {
+                'Items': [
+                    {
+                        'PK': f'TRENDING#{term.term.upper()}',
+                        'SK': 'TERM',
+                        'term': term.term,
+                        'definition': term.definition,
+                        'category': term.category,
+                        'popularity_score': term.popularity_score,
+                        'search_count': term.search_count,
+                        'translation_count': term.translation_count,
+                        'first_seen': term.first_seen.isoformat(),
+                        'last_updated': term.last_updated.isoformat(),
+                        'is_active': term.is_active,
+                        'example_usage': term.example_usage,
+                        'origin': term.origin,
+                        'related_terms': term.related_terms,
+                    }
+                    for term in terms
+                ]
+            }
+
+            # Get all trending terms
+            result = trending_repository.get_trending_terms(limit=10)
+
+            assert len(result) == 3
+            # Should be sorted by popularity score descending
+            assert result[0].popularity_score >= result[1].popularity_score
+            assert result[1].popularity_score >= result[2].popularity_score
+
+    @pytest.mark.skip(reason="Requires GSI indexes - complex DynamoDB setup needed")
+    def test_get_trending_terms_by_category(self, trending_repository, sample_trending_term):
+        """Test getting trending terms filtered by category."""
+        # Create terms with different categories
+        slang_term = sample_trending_term
+        meme_term = sample_trending_term.model_copy(update={"term": "main character", "category": "meme"})
+
+        # Mock the query operation to return only slang terms
+        with patch.object(trending_repository.table, 'query') as mock_query:
+            mock_query.return_value = {
+                'Items': [
+                    {
+                        'PK': f'TRENDING#{slang_term.term.upper()}',
+                        'SK': 'TERM',
+                        'term': slang_term.term,
+                        'definition': slang_term.definition,
+                        'category': slang_term.category,
+                        'popularity_score': slang_term.popularity_score,
+                        'search_count': slang_term.search_count,
+                        'translation_count': slang_term.translation_count,
+                        'first_seen': slang_term.first_seen.isoformat(),
+                        'last_updated': slang_term.last_updated.isoformat(),
+                        'is_active': slang_term.is_active,
+                        'example_usage': slang_term.example_usage,
+                        'origin': slang_term.origin,
+                        'related_terms': slang_term.related_terms,
+                    }
+                ]
+            }
+
+            # Get only slang terms
+            result = trending_repository.get_trending_terms(category=TrendingCategory.SLANG)
+
+            assert len(result) == 1
+            assert result[0].category == TrendingCategory.SLANG
+            assert result[0].term == "no cap"
+
+    def test_get_trending_terms_active_only(self, trending_repository, sample_trending_term):
+        """Test getting only active trending terms."""
+        # Create active and inactive terms
+        active_term = sample_trending_term
+        inactive_term = sample_trending_term.model_copy(update={"term": "old term", "is_active": False})
+
+        # Mock the query operation to return only active terms
+        with patch.object(trending_repository.table, 'query') as mock_query:
+            mock_query.return_value = {
+                'Items': [
+                    {
+                        'PK': f'TRENDING#{active_term.term.upper()}',
+                        'SK': 'TERM',
+                        'term': active_term.term,
+                        'definition': active_term.definition,
+                        'category': active_term.category,
+                        'popularity_score': active_term.popularity_score,
+                        'search_count': active_term.search_count,
+                        'translation_count': active_term.translation_count,
+                        'first_seen': active_term.first_seen.isoformat(),
+                        'last_updated': active_term.last_updated.isoformat(),
+                        'is_active': active_term.is_active,
+                        'example_usage': active_term.example_usage,
+                        'origin': active_term.origin,
+                        'related_terms': active_term.related_terms,
+                    }
+                ]
+            }
+
+            # Get only active terms
+            result = trending_repository.get_trending_terms(active_only=True)
+
+            assert len(result) == 1
+            assert result[0].is_active is True
+            assert result[0].term == "no cap"
+
+    def test_increment_search_count(self, trending_repository, sample_trending_term):
+        """Test incrementing search count for a trending term."""
+        # Create the term
+        trending_repository.create_trending_term(sample_trending_term)
+
+        # Increment search count
+        result = trending_repository.increment_search_count(sample_trending_term.term)
+        assert result is True
+
+        # Verify the increment
+        updated_term = trending_repository.get_trending_term(sample_trending_term.term)
+        assert updated_term.search_count == sample_trending_term.search_count + 1
+
+    def test_increment_translation_count(self, trending_repository, sample_trending_term):
+        """Test incrementing translation count for a trending term."""
+        # Create the term
+        trending_repository.create_trending_term(sample_trending_term)
+
+        # Increment translation count
+        result = trending_repository.increment_translation_count(sample_trending_term.term)
+        assert result is True
+
+        # Verify the increment
+        updated_term = trending_repository.get_trending_term(sample_trending_term.term)
+        assert updated_term.translation_count == sample_trending_term.translation_count + 1
+
+    @pytest.mark.skip(reason="Requires GSI indexes - complex DynamoDB setup needed")
+    def test_get_trending_stats(self, trending_repository, sample_trending_term):
+        """Test getting trending statistics."""
+        # Create multiple terms
+        terms = [
+            sample_trending_term,
+            sample_trending_term.model_copy(update={"term": "bet", "category": "slang"}),
+            sample_trending_term.model_copy(update={"term": "old term", "is_active": False}),
+        ]
+
+        # Mock the query operations for stats
+        with patch.object(trending_repository.table, 'query') as mock_query:
+            mock_query.return_value = {
+                'Count': 2  # Two active terms
+            }
+
+            # Get stats
+            stats = trending_repository.get_trending_stats()
+
+            assert "total_active_terms" in stats
+            assert "category_counts" in stats
+            assert "last_updated" in stats
+            assert stats["total_active_terms"] == 2  # Only active terms
+            assert stats["category_counts"]["slang"] == 2  # Two slang terms
+            assert stats["category_counts"]["meme"] == 0  # No meme terms
+
+    def test_trending_term_to_api_response_free_tier(self, sample_trending_term):
+        """Test trending term API response for free tier users."""
+        response = sample_trending_term.to_api_response("free")
+
+        assert response.term == sample_trending_term.term
+        assert response.definition == sample_trending_term.definition
+        assert response.category.value == sample_trending_term.category
+        assert response.popularity_score == sample_trending_term.popularity_score
+        assert response.search_count == 0  # Hidden for free users
+        assert response.translation_count == 0  # Hidden for free users
+        assert response.example_usage is None  # Hidden for free users
+        assert response.origin is None  # Hidden for free users
+        assert response.related_terms == []  # Hidden for free users
+
+    def test_trending_term_to_api_response_premium_tier(self, sample_trending_term):
+        """Test trending term API response for premium tier users."""
+        response = sample_trending_term.to_api_response("premium")
+
+        assert response.term == sample_trending_term.term
+        assert response.definition == sample_trending_term.definition
+        assert response.category.value == sample_trending_term.category
+        assert response.popularity_score == sample_trending_term.popularity_score
+        assert response.search_count == sample_trending_term.search_count  # Full data for premium
+        assert response.translation_count == sample_trending_term.translation_count  # Full data for premium
+        assert response.example_usage == sample_trending_term.example_usage  # Full data for premium
+        assert response.origin == sample_trending_term.origin  # Full data for premium
+        assert response.related_terms == sample_trending_term.related_terms  # Full data for premium

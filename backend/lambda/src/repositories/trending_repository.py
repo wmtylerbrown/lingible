@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from typing import List, Optional
+from decimal import Decimal
 
 from models.trending import TrendingTerm, TrendingCategory
 from utils.logging import logger
@@ -29,13 +30,13 @@ class TrendingRepository:
                 "SK": "TERM",
                 "term": term.term,
                 "definition": term.definition,
-                "category": term.category.value,
-                "popularity_score": term.popularity_score,
+                "category": term.category,
+                "popularity_score": Decimal(str(term.popularity_score)),
                 "search_count": term.search_count,
                 "translation_count": term.translation_count,
                 "first_seen": term.first_seen.isoformat(),
                 "last_updated": term.last_updated.isoformat(),
-                "is_active": term.is_active,
+                "is_active": str(term.is_active),
                 "example_usage": term.example_usage,
                 "origin": term.origin,
                 "related_terms": term.related_terms,
@@ -84,7 +85,7 @@ class TrendingRepository:
                 translation_count=item["translation_count"],
                 first_seen=datetime.fromisoformat(item["first_seen"]),
                 last_updated=datetime.fromisoformat(item["last_updated"]),
-                is_active=item["is_active"],
+                is_active=item["is_active"] == "True",
                 example_usage=item.get("example_usage"),
                 origin=item.get("origin"),
                 related_terms=item.get("related_terms", []),
@@ -109,13 +110,13 @@ class TrendingRepository:
                 "SK": "TERM",
                 "term": term.term,
                 "definition": term.definition,
-                "category": term.category.value,
-                "popularity_score": term.popularity_score,
+                "category": term.category,
+                "popularity_score": Decimal(str(term.popularity_score)),
                 "search_count": term.search_count,
                 "translation_count": term.translation_count,
                 "first_seen": term.first_seen.isoformat(),
                 "last_updated": term.last_updated.isoformat(),
-                "is_active": term.is_active,
+                "is_active": str(term.is_active),
                 "example_usage": term.example_usage,
                 "origin": term.origin,
                 "related_terms": term.related_terms,
@@ -154,11 +155,11 @@ class TrendingRepository:
                 # Add filter for active terms when using category index
                 if active_only:
                     filter_expression = "is_active = :is_active"
-                    expression_values[":is_active"] = active_only
+                    expression_values[":is_active"] = str(active_only)
             else:
                 index_name = "PopularityIndex"
                 key_condition = "is_active = :is_active"
-                expression_values = {":is_active": active_only}
+                expression_values = {":is_active": str(active_only)}
                 filter_expression = None
 
             query_params = {
@@ -186,7 +187,7 @@ class TrendingRepository:
                         translation_count=item["translation_count"],
                         first_seen=datetime.fromisoformat(item["first_seen"]),
                         last_updated=datetime.fromisoformat(item["last_updated"]),
-                        is_active=item["is_active"],
+                        is_active=item["is_active"] == "True",
                         example_usage=item.get("example_usage"),
                         origin=item.get("origin"),
                         related_terms=item.get("related_terms", []),
@@ -279,7 +280,7 @@ class TrendingRepository:
             response = self.table.query(
                 IndexName="PopularityIndex",
                 KeyConditionExpression="is_active = :is_active",
-                ExpressionAttributeValues={":is_active": True},
+                ExpressionAttributeValues={":is_active": "True"},
                 Select="COUNT",
             )
 
@@ -291,11 +292,10 @@ class TrendingRepository:
                 response = self.table.query(
                     IndexName="CategoryPopularityIndex",
                     KeyConditionExpression="category = :category",
-                    ExpressionAttributeValues={":category": category.value},
                     FilterExpression="is_active = :is_active",
                     ExpressionAttributeValues={
                         ":category": category.value,
-                        ":is_active": True,
+                        ":is_active": "True",
                     },
                     Select="COUNT",
                 )

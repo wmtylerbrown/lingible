@@ -1,15 +1,56 @@
 """Pytest configuration and fixtures for Lingible tests."""
 
 import pytest
+import os
 from unittest.mock import Mock, patch
 from datetime import datetime, timezone
 import boto3
 from moto import mock_aws
 
-from src.models.users import User, UserTier, UserStatus
-from src.models.translations import Translation, TranslationDirection, TranslationRequest
-from src.models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
-from src.models.events import TranslationEvent, SimpleAuthenticatedEvent, PathParameterEvent
+from models.users import User, UserTier, UserStatus
+from models.translations import Translation, TranslationDirection, TranslationRequest
+from models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
+from models.events import TranslationEvent, SimpleAuthenticatedEvent, PathParameterEvent
+from models.trending import TrendingTerm, TrendingCategory, TrendingJobRequest
+
+
+@pytest.fixture(autouse=True)
+def fake_aws_credentials():
+    """Set fake AWS credentials for all tests to prevent accidental real AWS usage."""
+    # Store original values
+    original_access_key = os.environ.get('AWS_ACCESS_KEY_ID')
+    original_secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    original_session_token = os.environ.get('AWS_SESSION_TOKEN')
+    original_region = os.environ.get('AWS_DEFAULT_REGION')
+
+    # Set fake credentials
+    os.environ['AWS_ACCESS_KEY_ID'] = 'fake_access_key'
+    os.environ['AWS_SECRET_ACCESS_KEY'] = 'fake_secret_key'
+    os.environ['AWS_SESSION_TOKEN'] = 'fake_session_token'
+    os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
+
+    yield
+
+    # Restore original values
+    if original_access_key is not None:
+        os.environ['AWS_ACCESS_KEY_ID'] = original_access_key
+    else:
+        os.environ.pop('AWS_ACCESS_KEY_ID', None)
+
+    if original_secret_key is not None:
+        os.environ['AWS_SECRET_ACCESS_KEY'] = original_secret_key
+    else:
+        os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
+
+    if original_session_token is not None:
+        os.environ['AWS_SESSION_TOKEN'] = original_session_token
+    else:
+        os.environ.pop('AWS_SESSION_TOKEN', None)
+
+    if original_region is not None:
+        os.environ['AWS_DEFAULT_REGION'] = original_region
+    else:
+        os.environ.pop('AWS_DEFAULT_REGION', None)
 
 
 @pytest.fixture
@@ -215,8 +256,42 @@ def mock_config():
         mock_config.get_database_config.return_value = {
             "tables": {
                 "users": "lingible-users-test",
-                "translations": "lingible-translations-test"
+                "translations": "lingible-translations-test",
+                "trending": "lingible-trending-test"
             }
         }
         mock_config_class.return_value = mock_config
         yield mock_config
+
+
+@pytest.fixture
+def sample_trending_term():
+    """Sample trending term for testing."""
+    return TrendingTerm(
+        term="no cap",
+        definition="No lie, for real, I'm telling the truth",
+        category=TrendingCategory.SLANG,
+        popularity_score=85.5,
+        search_count=150,
+        translation_count=45,
+        first_seen=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        last_updated=datetime(2024, 1, 15, tzinfo=timezone.utc),
+        is_active=True,
+        example_usage="That movie was fire, no cap!",
+        origin="Hip hop culture",
+        related_terms=["fr", "for real", "deadass"]
+    )
+
+
+@pytest.fixture
+def sample_trending_job_request():
+    """Sample trending job request for testing."""
+    return TrendingJobRequest(
+        job_type="gen_z_slang_analysis",
+        source="bedrock_ai",
+        parameters={
+            "model": "anthropic.claude-3-haiku-20240307-v1:0",
+            "max_terms": 20,
+            "categories": ["slang", "meme", "expression"]
+        }
+    )

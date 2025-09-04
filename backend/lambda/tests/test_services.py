@@ -4,13 +4,15 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
 
-from src.models.translations import Translation, TranslationDirection, TranslationRequest
-from src.models.users import User, UserTier, UserStatus
-from src.models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
-from src.services.translation_service import TranslationService
-from src.services.user_service import UserService
-from src.services.subscription_service import SubscriptionService
-from src.utils.exceptions import BusinessLogicError, SystemError, UsageLimitExceededError
+from models.translations import Translation, TranslationDirection, TranslationRequest
+from models.users import User, UserTier, UserStatus
+from models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
+from models.trending import TrendingTerm, TrendingCategory, TrendingJobRequest
+from services.translation_service import TranslationService
+from services.user_service import UserService
+from services.subscription_service import SubscriptionService
+from services.trending_service import TrendingService
+from utils.exceptions import BusinessLogicError, SystemError, UsageLimitExceededError, ValidationError
 
 
 class TestTranslationService:
@@ -445,5 +447,356 @@ class TestSubscriptionService:
         subscription_service.subscription_repository.get_active_subscription.return_value = expired_subscription
 
         result = subscription_service.is_user_premium("expired_user_789")
+
+        assert result is False
+
+
+class TestTrendingService:
+    """Test TrendingService with comprehensive unit tests."""
+
+    @pytest.fixture
+    def trending_service(self, mock_bedrock_client, mock_config):
+        """Create TrendingService with mocked dependencies."""
+        with patch('src.services.trending_service.aws_services') as mock_aws_services:
+            with patch('src.services.trending_service.get_config_service') as mock_get_config:
+                with patch('src.services.trending_service.UserService') as mock_user_service_class:
+                    mock_aws_services.bedrock_client = mock_bedrock_client
+
+                    # Mock the BedrockConfig specifically
+                    from models.config import BedrockModel
+                    mock_bedrock_config = BedrockModel(
+                        model="anthropic.claude-3-sonnet-20240229-v1:0",
+                        region="us-east-1",
+                        max_tokens=1000,
+                        temperature=0.7
+                    )
+
+                    # Set up the mock config to return the BedrockConfig when called
+                    def mock_get_config_method(config_type, table_name=None):
+                        if config_type == BedrockModel:
+                            return mock_bedrock_config
+                        return mock_config.get_config(config_type, table_name)
+
+                    mock_config.get_config.side_effect = mock_get_config_method
+                    mock_get_config.return_value = mock_config
+
+                    # Mock UserService
+                    mock_user_service = Mock()
+                    mock_user_service_class.return_value = mock_user_service
+
+                    service = TrendingService()
+                    service.user_service = mock_user_service
+                    return service
+
+    def test_get_trending_terms_success(self, trending_service, sample_trending_term):
+        """Test getting trending terms successfully."""
+        # Mock repository response
+        trending_service.repository.get_trending_terms.return_value = [sample_trending_term]
+        trending_service.repository.get_trending_stats.return_value = {
+            "total_active_terms": 1,
+            "last_updated": "2024-01-15T10:00:00Z"
+        }
+
+        # Mock user service to return premium user
+        from models.users import User, UserTier
+        mock_user = User(
+            user_id="premium_user_123",
+            email="premium@example.com",
+            username="premium_user",
+            tier=UserTier.PREMIUM,
+            status="active",
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        trending_service.user_service.get_user.return_value = mock_user
+
+        result = trending_service.get_trending_terms(limit=10, user_id="premium_user_123")
+
+        assert result.total_count == 1
+        assert len(result.terms) == 1
+        assert result.terms[0].term == sample_trending_term.term
+        assert result.terms[0].search_count == sample_trending_term.search_count  # Premium gets full data
+
+    def test_get_trending_terms_free_tier_limits(self, trending_service, sample_trending_term):
+        """Test free tier limitations on trending terms."""
+        # Mock repository response
+        trending_service.repository.get_trending_terms.return_value = [sample_trending_term]
+        trending_service.repository.get_trending_stats.return_value = {
+            "total_active_terms": 1,
+            "last_updated": "2024-01-15T10:00:00Z"
+        }
+
+        # Mock user service to return free user
+        from models.users import User, UserTier
+        mock_user = User(
+            user_id="free_user_123",
+            email="free@example.com",
+            username="free_user",
+            tier=UserTier.FREE,
+            status="active",
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        trending_service.user_service.get_user.return_value = mock_user
+
+        # Test limit enforcement
+        result = trending_service.get_trending_terms(limit=50, user_id="free_user_123")
+
+        # Should be limited to 10 terms max
+        trending_service.repository.get_trending_terms.assert_called_with(limit=10, category=None, active_only=True)
+
+        # Free tier should get limited data
+        assert result.terms[0].search_count == 0  # Hidden for free users
+        assert result.terms[0].example_usage is None  # Hidden for free users
+
+    def test_get_trending_terms_free_tier_category_restriction(self, trending_service):
+        """Test free tier category restrictions."""
+        # Mock user service to return free user
+        from models.users import User, UserTier
+        mock_user = User(
+            user_id="free_user_123",
+            email="free@example.com",
+            username="free_user",
+            tier=UserTier.FREE,
+            status="active",
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        trending_service.user_service.get_user.return_value = mock_user
+
+        with pytest.raises(ValidationError, match="Category filtering is a premium feature"):
+            trending_service.get_trending_terms(category=TrendingCategory.MEME, user_id="free_user_123")
+
+    def test_get_trending_terms_premium_tier_full_access(self, trending_service, sample_trending_term):
+        """Test premium tier gets full access to all features."""
+        trending_service.repository.get_trending_terms.return_value = [sample_trending_term]
+        trending_service.repository.get_trending_stats.return_value = {
+            "total_active_terms": 1,
+            "last_updated": "2024-01-15T10:00:00Z"
+        }
+
+        # Mock user service to return premium user
+        from models.users import User, UserTier
+        mock_user = User(
+            user_id="premium_user_123",
+            email="premium@example.com",
+            username="premium_user",
+            tier=UserTier.PREMIUM,
+            status="active",
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        trending_service.user_service.get_user.return_value = mock_user
+
+        result = trending_service.get_trending_terms(
+            limit=100,
+            category=TrendingCategory.MEME,
+            user_id="premium_user_123"
+        )
+
+        # Premium should get full data
+        assert result.terms[0].search_count == sample_trending_term.search_count
+        assert result.terms[0].example_usage == sample_trending_term.example_usage
+        assert result.terms[0].origin == sample_trending_term.origin
+        assert result.terms[0].related_terms == sample_trending_term.related_terms
+
+    def test_get_trending_term_success(self, trending_service, sample_trending_term):
+        """Test getting a single trending term."""
+        trending_service.repository.get_trending_term.return_value = sample_trending_term
+
+        result = trending_service.get_trending_term("no cap")
+
+        assert result is not None
+        assert result.term == sample_trending_term.term
+        trending_service.repository.get_trending_term.assert_called_once_with("no cap")
+
+    def test_get_trending_term_not_found(self, trending_service):
+        """Test getting a non-existent trending term."""
+        trending_service.repository.get_trending_term.return_value = None
+
+        result = trending_service.get_trending_term("nonexistent")
+
+        assert result is None
+
+    def test_create_trending_term_success(self, trending_service, sample_trending_term):
+        """Test creating a new trending term."""
+        trending_service.repository.get_trending_term.return_value = None  # Term doesn't exist
+        trending_service.repository.create_trending_term.return_value = True
+
+        result = trending_service.create_trending_term(sample_trending_term)
+
+        assert result is True
+        trending_service.repository.create_trending_term.assert_called_once_with(sample_trending_term)
+
+    def test_create_trending_term_already_exists(self, trending_service, sample_trending_term):
+        """Test creating a trending term that already exists."""
+        trending_service.repository.get_trending_term.return_value = sample_trending_term
+
+        with pytest.raises(ValidationError, match="Trending term 'no cap' already exists"):
+            trending_service.create_trending_term(sample_trending_term)
+
+    def test_create_trending_term_invalid_score(self, trending_service):
+        """Test creating a trending term with invalid popularity score."""
+        invalid_term = TrendingTerm(
+            term="test",
+            definition="test definition",
+            category=TrendingCategory.SLANG,
+            popularity_score=150.0,  # Invalid: > 100
+            search_count=0,
+            translation_count=0,
+            first_seen=datetime.now(timezone.utc),
+            last_updated=datetime.now(timezone.utc),
+            is_active=True
+        )
+
+        with pytest.raises(ValidationError, match="Popularity score must be between 0 and 100"):
+            trending_service.create_trending_term(invalid_term)
+
+    def test_update_trending_term_success(self, trending_service, sample_trending_term):
+        """Test updating a trending term."""
+        trending_service.repository.get_trending_term.return_value = sample_trending_term
+        trending_service.repository.update_trending_term.return_value = True
+
+        updated_term = sample_trending_term.model_copy()
+        updated_term.definition = "Updated definition"
+
+        result = trending_service.update_trending_term(updated_term)
+
+        assert result is True
+        trending_service.repository.update_trending_term.assert_called_once_with(updated_term)
+
+    def test_update_trending_term_not_found(self, trending_service, sample_trending_term):
+        """Test updating a non-existent trending term."""
+        trending_service.repository.get_trending_term.return_value = None
+
+        with pytest.raises(ValidationError, match="Trending term 'no cap' not found"):
+            trending_service.update_trending_term(sample_trending_term)
+
+    def test_increment_search_count(self, trending_service):
+        """Test incrementing search count for a trending term."""
+        trending_service.repository.increment_search_count.return_value = True
+
+        result = trending_service.increment_search_count("no cap")
+
+        assert result is True
+        trending_service.repository.increment_search_count.assert_called_once_with("no cap")
+
+    def test_increment_translation_count(self, trending_service):
+        """Test incrementing translation count for a trending term."""
+        trending_service.repository.increment_translation_count.return_value = True
+
+        result = trending_service.increment_translation_count("no cap")
+
+        assert result is True
+        trending_service.repository.increment_translation_count.assert_called_once_with("no cap")
+
+    def test_run_trending_job_success(self, trending_service, sample_trending_job_request):
+        """Test running trending job successfully."""
+        # Mock Bedrock response
+        mock_bedrock_response = {
+            "body": Mock()
+        }
+        mock_bedrock_response["body"].read.return_value = b'{"content": [{"text": "[{\\"term\\": \\"test\\", \\"definition\\": \\"test def\\", \\"category\\": \\"slang\\", \\"popularity_score\\": 85.0}]"}]}'
+
+        trending_service.bedrock_client.invoke_model.return_value = mock_bedrock_response
+
+        # Mock repository methods
+        trending_service.repository.get_trending_term.return_value = None  # New term
+        trending_service.repository.create_trending_term.return_value = True
+        trending_service.repository.get_trending_stats.return_value = {
+            "total_active_terms": 1,
+            "last_updated": "2024-01-15T10:00:00Z"
+        }
+
+        result = trending_service.run_trending_job(sample_trending_job_request)
+
+        assert result.status == "completed"
+        assert result.terms_processed > 0
+        assert result.terms_added > 0
+        assert result.error_message is None
+        assert result.completed_at is not None
+
+    def test_run_trending_job_bedrock_failure(self, trending_service, sample_trending_job_request):
+        """Test trending job when Bedrock fails."""
+        # Mock Bedrock failure
+        trending_service.bedrock_client.invoke_model.side_effect = Exception("Bedrock error")
+
+        result = trending_service.run_trending_job(sample_trending_job_request)
+
+        assert result.status == "failed"
+        assert result.error_message == "Bedrock error"
+        assert result.completed_at is None
+
+    def test_generate_trending_terms_with_bedrock_success(self, trending_service):
+        """Test Bedrock trending terms generation success."""
+        # Mock Bedrock response
+        mock_bedrock_response = {
+            "body": Mock()
+        }
+        mock_bedrock_response["body"].read.return_value = b'{"content": [{"text": "[{\\"term\\": \\"test\\", \\"definition\\": \\"test def\\", \\"category\\": \\"slang\\", \\"popularity_score\\": 85.0, \\"example_usage\\": \\"test example\\", \\"origin\\": \\"test origin\\", \\"related_terms\\": [\\"related\\"]}]"}]}'
+
+        trending_service.bedrock_client.invoke_model.return_value = mock_bedrock_response
+
+        result = trending_service._generate_trending_terms_with_bedrock()
+
+        assert len(result) == 1
+        assert result[0]["term"] == "test"
+        assert result[0]["definition"] == "test def"
+        assert result[0]["category"] == TrendingCategory.SLANG
+        assert result[0]["popularity_score"] == 85.0
+
+    def test_generate_trending_terms_with_bedrock_fallback(self, trending_service):
+        """Test Bedrock trending terms generation fallback to sample terms."""
+        # Mock Bedrock failure
+        trending_service.bedrock_client.invoke_model.side_effect = Exception("Bedrock error")
+
+        result = trending_service._generate_trending_terms_with_bedrock()
+
+        # Should return fallback terms
+        assert len(result) > 0
+        assert result[0]["term"] == "no cap"  # First fallback term
+
+    def test_parse_bedrock_trending_response_success(self, trending_service):
+        """Test parsing Bedrock response successfully."""
+        response_text = '[{"term": "test", "definition": "test def", "category": "slang", "popularity_score": 85.0}]'
+
+        result = trending_service._parse_bedrock_trending_response(response_text)
+
+        assert len(result) == 1
+        assert result[0]["term"] == "test"
+        assert result[0]["category"] == TrendingCategory.SLANG
+
+    def test_parse_bedrock_trending_response_invalid_json(self, trending_service):
+        """Test parsing invalid Bedrock response falls back to sample terms."""
+        invalid_response = "This is not valid JSON"
+
+        result = trending_service._parse_bedrock_trending_response(invalid_response)
+
+        # Should return fallback terms
+        assert len(result) > 0
+        assert result[0]["term"] == "no cap"
+
+    def test_validate_trending_term_data_success(self, trending_service):
+        """Test validating trending term data with all required fields."""
+        term_data = {
+            "term": "test",
+            "definition": "test definition",
+            "category": "slang",
+            "popularity_score": 85.0
+        }
+
+        result = trending_service._validate_trending_term_data(term_data)
+
+        assert result is True
+
+    def test_validate_trending_term_data_missing_fields(self, trending_service):
+        """Test validating trending term data with missing required fields."""
+        term_data = {
+            "term": "test",
+            "definition": "test definition"
+            # Missing category and popularity_score
+        }
+
+        result = trending_service._validate_trending_term_data(term_data)
 
         assert result is False

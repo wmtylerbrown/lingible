@@ -61,6 +61,7 @@ class ConfigService:
     TABLE_CONFIG_MAPPING = {
         "users": ("users_table", "lingible-users-{environment}"),
         "translations": ("translations_table", "lingible-translations-{environment}"),
+        "trending": ("trending_table", "lingible-trending-{environment}"),
     }
 
     def __init__(self):

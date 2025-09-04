@@ -8,11 +8,13 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
-import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as eventTargets from 'aws-cdk-lib/aws-events-targets';
 
 import { Duration, RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
@@ -89,7 +91,7 @@ export class BackendStack extends Construct {
     this.sharedLayer = this.createSharedLayer(environment);
 
     // Create DynamoDB tables
-    this.createDatabaseTables(environment, config.users_table, config.translations_table, config.trending_table);
+    this.createDatabaseTables(environment, config.users_table, config.translations_table, (config as any).trending_table);
     const lambdaConfig = {
       runtime: lambda.Runtime.PYTHON_3_13,
       timeout: Duration.seconds(30),
@@ -116,8 +118,10 @@ export class BackendStack extends Construct {
         resources: [
           this.usersTable.tableArn,
           this.translationsTable.tableArn,
+          this.trendingTable.tableArn,
           `${this.usersTable.tableArn}/index/*`,
           `${this.translationsTable.tableArn}/index/*`,
+          `${this.trendingTable.tableArn}/index/*`,
         ],
       }),
       new iam.PolicyStatement({
@@ -140,6 +144,16 @@ export class BackendStack extends Construct {
           `arn:aws:ssm:*:*:parameter/lingible/${environment}/*`,
         ],
       }),
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'bedrock:InvokeModel',
+        ],
+        resources: [
+          'arn:aws:bedrock:*:*:foundation-model/anthropic.claude-3-haiku-20240307-v1:0',
+          'arn:aws:bedrock:*:*:foundation-model/anthropic.claude-3-sonnet-20240229-v1:0',
+        ],
+      }),
     ];
 
     // Create Cognito User Pool
@@ -153,6 +167,9 @@ export class BackendStack extends Construct {
 
     // Create API Gateway
     this.createApiGateway(environment, hostedZone);
+
+    // Create scheduled jobs
+    this.createScheduledJobs(environment);
 
     // Create monitoring
     this.createMonitoring(environment);
@@ -226,7 +243,7 @@ export class BackendStack extends Construct {
       indexName: 'PopularityIndex',
       partitionKey: {
         name: 'is_active',
-        type: dynamodb.AttributeType.BOOLEAN,
+        type: dynamodb.AttributeType.STRING,
       },
       sortKey: {
         name: 'popularity_score',
@@ -923,7 +940,7 @@ export class BackendStack extends Construct {
       zone: hostedZone,
       recordName: `api`,
       target: route53.RecordTarget.fromAlias(
-        new targets.ApiGateway(this.api)
+        new route53Targets.ApiGateway(this.api)
       ),
     });
   }
@@ -1197,6 +1214,69 @@ export class BackendStack extends Construct {
       evaluationPeriods: 2,
       alarmDescription: 'High Lambda error rate',
     }).addAlarmAction(new actions.SnsAction(this.alertTopic));
+  }
+
+  private createScheduledJobs(environment: string): void {
+    // Create EventBridge rule for trending job (daily at 6 AM UTC)
+    const trendingJobRule = new events.Rule(this, 'TrendingJobSchedule', {
+      ruleName: `lingible-trending-job-schedule-${environment}`,
+      description: 'Daily schedule for trending terms generation',
+      schedule: events.Schedule.cron({
+        minute: '0',
+        hour: '6',
+        day: '*',
+        month: '*',
+        year: '*',
+      }),
+    });
+
+    // Add the trending job Lambda as a target
+    trendingJobRule.addTarget(new eventTargets.LambdaFunction(this.trendingJobLambda, {
+      event: events.RuleTargetInput.fromObject({
+        job_type: 'gen_z_slang_analysis',
+        source: 'bedrock_ai',
+        parameters: {
+          model: this.configLoader.getBedrockConfig(this.environment).model,
+          max_terms: 20,
+          categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
+        },
+        scheduled_at: new Date().toISOString(),
+      }),
+    }));
+
+    // Grant EventBridge permission to invoke the Lambda
+    this.trendingJobLambda.addPermission('EventBridgeTrendingJob', {
+      principal: new iam.ServicePrincipal('events.amazonaws.com'),
+      sourceArn: trendingJobRule.ruleArn,
+    });
+
+    // Create a manual trigger rule for testing (can be removed in production)
+    const manualTrendingJobRule = new events.Rule(this, 'ManualTrendingJobTrigger', {
+      ruleName: `lingible-manual-trending-job-${environment}`,
+      description: 'Manual trigger for trending terms generation (for testing)',
+      eventPattern: {
+        source: ['lingible.manual'],
+        detailType: ['Trending Job Request'],
+      },
+    });
+
+    manualTrendingJobRule.addTarget(new eventTargets.LambdaFunction(this.trendingJobLambda, {
+      event: events.RuleTargetInput.fromObject({
+        job_type: 'gen_z_slang_analysis',
+        source: 'bedrock_ai',
+        parameters: {
+          model: this.configLoader.getBedrockConfig(this.environment).model,
+          max_terms: 20,
+          categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
+        },
+        scheduled_at: new Date().toISOString(),
+      }),
+    }));
+
+    this.trendingJobLambda.addPermission('EventBridgeManualTrendingJob', {
+      principal: new iam.ServicePrincipal('events.amazonaws.com'),
+      sourceArn: manualTrendingJobRule.ruleArn,
+    });
   }
 
   private createOutputs(environment: string): void {
