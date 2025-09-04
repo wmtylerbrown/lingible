@@ -15,19 +15,11 @@ open class UserAPI {
     /**
      Get user profile
 
-     - parameter apiResponseQueue: The queue on which api response is dispatched.
-     - parameter completion: completion handler to receive the data and the error objects
+     - returns: UserProfileResponse
      */
-    @discardableResult
-    open class func userProfileGet(apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: UserProfileResponse?, _ error: Error?) -> Void)) -> RequestTask {
-        return userProfileGetWithRequestBuilder().execute(apiResponseQueue) { result in
-            switch result {
-            case let .success(response):
-                completion(response.body, nil)
-            case let .failure(error):
-                completion(nil, error)
-            }
-        }
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func userProfileGet() async throws -> UserProfileResponse {
+        return try await userProfileGetWithRequestBuilder().execute().body
     }
 
     /**
@@ -61,19 +53,11 @@ open class UserAPI {
      Upgrade user subscription
 
      - parameter upgradeRequest: (body)
-     - parameter apiResponseQueue: The queue on which api response is dispatched.
-     - parameter completion: completion handler to receive the data and the error objects
+     - returns: UpgradeResponse
      */
-    @discardableResult
-    open class func userUpgradePost(upgradeRequest: UpgradeRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: UpgradeResponse?, _ error: Error?) -> Void)) -> RequestTask {
-        return userUpgradePostWithRequestBuilder(upgradeRequest: upgradeRequest).execute(apiResponseQueue) { result in
-            switch result {
-            case let .success(response):
-                completion(response.body, nil)
-            case let .failure(error):
-                completion(nil, error)
-            }
-        }
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func userUpgradePost(upgradeRequest: UpgradeRequest) async throws -> UpgradeResponse {
+        return try await userUpgradePostWithRequestBuilder(upgradeRequest: upgradeRequest).execute().body
     }
 
     /**
@@ -107,19 +91,11 @@ open class UserAPI {
     /**
      Get usage statistics
 
-     - parameter apiResponseQueue: The queue on which api response is dispatched.
-     - parameter completion: completion handler to receive the data and the error objects
+     - returns: UsageResponse
      */
-    @discardableResult
-    open class func userUsageGet(apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: UsageResponse?, _ error: Error?) -> Void)) -> RequestTask {
-        return userUsageGetWithRequestBuilder().execute(apiResponseQueue) { result in
-            switch result {
-            case let .success(response):
-                completion(response.body, nil)
-            case let .failure(error):
-                completion(nil, error)
-            }
-        }
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func userUsageGet() async throws -> UsageResponse {
+        return try await userUsageGetWithRequestBuilder().execute().body
     }
 
     /**

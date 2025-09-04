@@ -135,20 +135,8 @@ final class UserService: UserServiceProtocol {
         }
 
         print("🌐 UserService: Fetching profile from API")
-        let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UserProfileResponse, Error>) in
-            UserAPI.userProfileGet { response, error in
-                if let error = error {
-                    print("❌ UserService: Profile API error: \(error)")
-                    continuation.resume(throwing: error)
-                } else if let response = response {
-                    print("✅ UserService: Profile loaded successfully")
-                    continuation.resume(returning: response)
-                } else {
-                    print("❌ UserService: Profile API returned nil response")
-                    continuation.resume(throwing: UserServiceError.invalidResponse)
-                }
-            }
-        }
+        let response = try await UserAPI.userProfileGet()
+        print("✅ UserService: Profile loaded successfully")
 
         lastProfileUpdate = Date()
         return response
@@ -164,20 +152,8 @@ final class UserService: UserServiceProtocol {
         }
 
         print("🌐 UserService: Fetching usage from API")
-        let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UsageResponse, Error>) in
-            UserAPI.userUsageGet { response, error in
-                if let error = error {
-                    print("❌ UserService: Usage API error: \(error)")
-                    continuation.resume(throwing: error)
-                } else if let response = response {
-                    print("✅ UserService: Usage loaded successfully")
-                    continuation.resume(returning: response)
-                } else {
-                    print("❌ UserService: Usage API returned nil response")
-                    continuation.resume(throwing: UserServiceError.invalidResponse)
-                }
-            }
-        }
+        let response = try await UserAPI.userUsageGet()
+        print("✅ UserService: Usage loaded successfully")
 
         lastUsageUpdate = Date()
         return response

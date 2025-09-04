@@ -29,19 +29,11 @@ open class TrendingAPI {
      - parameter limit: (query) Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms  (optional, default to 50)
      - parameter category: (query) Filter by trending category. - Free tier: Only &#39;slang&#39; category allowed - Premium tier: All categories available  (optional)
      - parameter activeOnly: (query) Show only active trending terms (optional, default to true)
-     - parameter apiResponseQueue: The queue on which api response is dispatched.
-     - parameter completion: completion handler to receive the data and the error objects
+     - returns: TrendingListResponse
      */
-    @discardableResult
-    open class func trendingGet(limit: Int? = nil, category: Category_trendingGet? = nil, activeOnly: Bool? = nil, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: TrendingListResponse?, _ error: Error?) -> Void)) -> RequestTask {
-        return trendingGetWithRequestBuilder(limit: limit, category: category, activeOnly: activeOnly).execute(apiResponseQueue) { result in
-            switch result {
-            case let .success(response):
-                completion(response.body, nil)
-            case let .failure(error):
-                completion(nil, error)
-            }
-        }
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func trendingGet(limit: Int? = nil, category: Category_trendingGet? = nil, activeOnly: Bool? = nil) async throws -> TrendingListResponse {
+        return try await trendingGetWithRequestBuilder(limit: limit, category: category, activeOnly: activeOnly).execute().body
     }
 
     /**

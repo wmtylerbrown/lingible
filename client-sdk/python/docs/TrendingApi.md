@@ -1,6 +1,6 @@
 # lingible_client.TrendingApi
 
-All URIs are relative to *https://api.lingible.com*
+All URIs are relative to *https://api.dev.lingible.com*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -38,10 +38,10 @@ from lingible_client.models.trending_list_response import TrendingListResponse
 from lingible_client.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to https://api.lingible.com
+# Defining the host is optional and defaults to https://api.dev.lingible.com
 # See configuration.py for a list of all supported configuration parameters.
 configuration = lingible_client.Configuration(
-    host = "https://api.lingible.com"
+    host = "https://api.dev.lingible.com"
 )
 
 # The client must configure the authentication and authorization parameters

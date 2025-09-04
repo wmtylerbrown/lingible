@@ -11,10 +11,10 @@ info:
     url: https://lingible.com/license
 
 servers:
+  - url: https://api.dev.lingible.com
+    description: Development server
   - url: https://api.lingible.com
     description: Production server
-  - url: https://api-dev.lingible.com
-    description: Development server
 
 security:
   - BearerAuth: []

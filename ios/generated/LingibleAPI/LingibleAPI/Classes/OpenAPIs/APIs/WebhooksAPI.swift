@@ -16,19 +16,11 @@ open class WebhooksAPI {
      Apple webhook for subscription notifications
 
      - parameter appleWebhookRequest: (body)
-     - parameter apiResponseQueue: The queue on which api response is dispatched.
-     - parameter completion: completion handler to receive the data and the error objects
+     - returns: WebhookResponse
      */
-    @discardableResult
-    open class func webhookApplePost(appleWebhookRequest: AppleWebhookRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: WebhookResponse?, _ error: Error?) -> Void)) -> RequestTask {
-        return webhookApplePostWithRequestBuilder(appleWebhookRequest: appleWebhookRequest).execute(apiResponseQueue) { result in
-            switch result {
-            case let .success(response):
-                completion(response.body, nil)
-            case let .failure(error):
-                completion(nil, error)
-            }
-        }
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    open class func webhookApplePost(appleWebhookRequest: AppleWebhookRequest) async throws -> WebhookResponse {
+        return try await webhookApplePostWithRequestBuilder(appleWebhookRequest: appleWebhookRequest).execute().body
     }
 
     /**

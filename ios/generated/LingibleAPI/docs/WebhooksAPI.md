@@ -1,6 +1,6 @@
 # WebhooksAPI
 
-All URIs are relative to *https://api.lingible.com*
+All URIs are relative to *https://api.dev.lingible.com*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------

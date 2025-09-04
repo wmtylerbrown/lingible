@@ -9,7 +9,7 @@ import Foundation
 import FoundationNetworking
 #endif
 open class LingibleAPIAPI {
-    public static var basePath = "https://api.lingible.com"
+    public static var basePath = "https://api.dev.lingible.com"
     public static var customHeaders: [String: String] = [:]
     public static var credential: URLCredential?
     public static var requestBuilderFactory: RequestBuilderFactory = URLSessionRequestBuilderFactory()
@@ -48,6 +48,31 @@ open class RequestBuilder<T> {
     @discardableResult
     open func execute(_ apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, _ completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void) -> RequestTask {
         return requestTask
+    }
+
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    @discardableResult
+    open func execute() async throws -> Response<T> {
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
+                guard !Task.isCancelled else {
+                  continuation.resume(throwing: CancellationError())
+                  return
+                }
+
+                self.execute { result in
+                    switch result {
+                    case let .success(response):
+                        continuation.resume(returning: response)
+                    case let .failure(error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } onCancel: {
+            self.requestTask.cancel()
+        }
     }
 
     public func addHeader(name: String, value: String) -> Self {

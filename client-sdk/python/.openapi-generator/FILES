@@ -65,6 +65,4 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
-test/test_receipt_validation_response.py
-test/test_user_subscription_response.py
 tox.ini

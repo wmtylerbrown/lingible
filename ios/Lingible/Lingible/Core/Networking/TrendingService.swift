@@ -37,17 +37,7 @@ final class TrendingService: TrendingServiceProtocol {
 
         do {
             // Make API call using the generated API
-            return try await withCheckedThrowingContinuation { continuation in
-                TrendingAPI.trendingGet(limit: limit, category: apiCategory, activeOnly: activeOnly) { response, error in
-                    if let error = error {
-                        continuation.resume(throwing: error)
-                    } else if let response = response {
-                        continuation.resume(returning: response)
-                    } else {
-                        continuation.resume(throwing: TrendingError.invalidResponse)
-                    }
-                }
-            }
+            return try await TrendingAPI.trendingGet(limit: limit, category: apiCategory, activeOnly: activeOnly)
 
         } catch {
             // Check if it's an authentication/authorization error

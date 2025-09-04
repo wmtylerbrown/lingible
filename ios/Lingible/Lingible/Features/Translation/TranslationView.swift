@@ -446,17 +446,7 @@ struct TranslationView: View {
             )
 
             // Make API call
-            let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<TranslationResponse, Error>) in
-                TranslationAPI.translatePost(translationRequest: request) { response, error in
-                    if let error = error {
-                        continuation.resume(throwing: error)
-                    } else if let response = response {
-                        continuation.resume(returning: response)
-                    } else {
-                        continuation.resume(throwing: TranslationError.invalidResponse)
-                    }
-                }
-            }
+            let response = try await TranslationAPI.translatePost(translationRequest: request)
 
             // Create history item
             let historyItem = TranslationHistoryItem(

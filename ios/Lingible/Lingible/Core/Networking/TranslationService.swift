@@ -42,23 +42,14 @@ final class TranslationService: TranslationServiceProtocol {
 
         do {
             // Make API call using the generated API
-            return try await withCheckedThrowingContinuation { continuation in
-                TranslationAPI.translatePost(translationRequest: request) { response, error in
-                    if let error = error {
-                        continuation.resume(throwing: error)
-                    } else if let response = response {
-                        // Convert to our domain model
-                        let result = TranslationResult(
-                            originalText: response.originalText ?? text,
-                            translatedText: response.translatedText ?? "",
-                            direction: response.direction?.toAppDirection() ?? .genzToStandard
-                        )
-                        continuation.resume(returning: result)
-                    } else {
-                        continuation.resume(throwing: TranslationError.invalidResponse)
-                    }
-                }
-            }
+            let response = try await TranslationAPI.translatePost(translationRequest: request)
+
+            // Convert to our domain model
+            return TranslationResult(
+                originalText: response.originalText ?? text,
+                translatedText: response.translatedText ?? "",
+                direction: response.direction?.toAppDirection() ?? .genzToStandard
+            )
 
         } catch {
             print("❌ Translation API error: \(error)")
