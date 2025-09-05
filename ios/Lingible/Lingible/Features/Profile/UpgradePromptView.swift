@@ -109,9 +109,9 @@ struct UpgradePromptView: View {
                     } else {
                         Button(action: {
                             Task {
-                                // In development mode, use mock purchase
-                                // In production mode, this should show real products
-                                await purchaseMockSubscription()
+                                // No products available - show error message
+                                purchaseAlertMessage = "❌ No subscription products available. Please check your internet connection and try again."
+                                showingPurchaseAlert = true
                             }
                         }) {
                             HStack {
@@ -222,31 +222,6 @@ struct UpgradePromptView: View {
         }
     }
 
-    private func purchaseMockSubscription() async {
-        // In development mode, simulate a real purchase by calling the backend API
-        // with mock receipt data to test the full flow
-
-        let mockReceiptData = "mock_receipt_data_for_development_testing"
-        let mockTransactionId = "mock_transaction_\(UUID().uuidString)"
-
-        let upgradeRequest = UserUpgradeRequest(
-            provider: .apple,
-            receiptData: mockReceiptData,
-            transactionId: mockTransactionId
-        )
-
-        // Call the backend upgrade API
-        let success = await subscriptionManager.upgradeUserWithBackend(upgradeRequest)
-
-        if success {
-            purchaseAlertMessage = "🎉 Welcome to Premium! (Development Mode)\n\nYour subscription has been activated with the backend."
-            showingPurchaseAlert = true
-            onUpgrade()
-        } else {
-            purchaseAlertMessage = "❌ Failed to activate subscription. Please try again."
-            showingPurchaseAlert = true
-        }
-    }
 
     // MARK: - Computed Properties
     private var premiumDailyLimit: Int {

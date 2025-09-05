@@ -16,18 +16,21 @@ class SubscriptionManager: ObservableObject {
 
     // MARK: - Private Properties
     private let productIds: [String] = {
-        // Use the same product ID for both dev and production
-        // Apple allows the same product ID to work in both sandbox and production
-        return ["com.lingible.lingible.premium.monthly"]
+        // Use different product IDs for development vs production
+        let bundleId = Bundle.main.bundleIdentifier ?? ""
+        if bundleId.contains(".dev") {
+            // Development product ID
+            return ["com.lingible.lingible.dev.premium.monthly"]
+        } else {
+            // Production product ID
+            return ["com.lingible.lingible.premium.monthly"]
+        }
     }()
     private var updateListenerTask: Task<Void, Error>? = nil
 
     // Development mode - set to false to use real StoreKit products
-    // This will be true for development bundle (.dev) and false for production
-    private let isDevelopmentMode: Bool = {
-        let bundleId = Bundle.main.bundleIdentifier ?? ""
-        return bundleId.contains(".dev")
-    }()
+    // For testing, we'll use real StoreKit even in dev mode
+    private let isDevelopmentMode: Bool = false
 
     // MARK: - Subscription Status
     enum SubscriptionStatus {
@@ -63,6 +66,10 @@ class SubscriptionManager: ObservableObject {
                 // In development mode, create mock products for testing
                 await createMockProducts()
             } else {
+                print("🛒 Attempting to load products from App Store...")
+                print("🛒 Product IDs: \(productIds)")
+                print("🛒 Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
+
                 let storeProducts = try await Product.products(for: productIds)
 
                 // Sort products by price (cheapest first)
@@ -71,6 +78,14 @@ class SubscriptionManager: ObservableObject {
                 print("🛒 Loaded \(products.count) subscription products")
                 for product in products {
                     print("  - \(product.displayName): \(product.displayPrice)")
+                }
+
+                if products.isEmpty {
+                    print("❌ No products found - this could mean:")
+                    print("  1. Product doesn't exist in App Store Connect")
+                    print("  2. Product exists but isn't approved/available")
+                    print("  3. Bundle ID mismatch")
+                    print("  4. App not properly configured for In-App Purchases")
                 }
             }
 
@@ -275,10 +290,33 @@ class SubscriptionManager: ObservableObject {
     }
 
     private func getReceiptData() async -> String {
-        // For StoreKit 2, we need to get the app receipt
-        // This is a simplified version - in production you might want to use
-        // a more robust receipt validation approach
-        return "storekit2_receipt_data"
+        // For StoreKit 2, we need to get the app receipt from the bundle
+        do {
+            // Get the receipt data from the app's bundle
+            guard let receiptURL = Bundle.main.appStoreReceiptURL else {
+                print("❌ No receipt URL found")
+                return "no_receipt_url"
+            }
+
+            let receiptData = try Data(contentsOf: receiptURL)
+            return receiptData.base64EncodedString()
+        } catch {
+            print("❌ Error getting receipt data: \(error)")
+            // Fallback: create a receipt-like structure for testing
+            let receiptInfo = [
+                "bundle_id": Bundle.main.bundleIdentifier ?? "",
+                "application_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
+                "receipt_type": "ProductionSandbox",
+                "in_app": []
+            ] as [String: Any]
+
+            if let jsonData = try? JSONSerialization.data(withJSONObject: receiptInfo),
+               let jsonString = String(data: jsonData, encoding: .utf8) {
+                return jsonString.data(using: .utf8)?.base64EncodedString() ?? "fallback_receipt_data"
+            }
+
+            return "fallback_receipt_data"
+        }
     }
 
     // MARK: - Transaction Listener
