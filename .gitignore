@@ -251,3 +251,38 @@ old_app/
 *.db
 *.sqlite
 *.sqlite3
+
+# iOS specific
+# Xcode user-specific files
+*.xcuserstate
+*.xcuserdatad/
+*.xcworkspace/xcuserdata/
+
+# Xcode build artifacts
+*.xcarchive/
+DerivedData/
+build/
+*.ipa
+
+# iOS Simulator
+*.app
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# CocoaPods
+Pods/
+*.podspec.lock
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Code Injection
+iOSInjectionProject/
