@@ -43,6 +43,7 @@ struct ProfileView: View {
                     settingsRow(icon: "paintbrush", title: "Theme", action: { showingThemePicker = true })
                     settingsRow(icon: "trash", title: "Clear Cache", action: { showingClearCacheAlert = true })
                     settingsRow(icon: "star", title: "Upgrade to Premium", action: { showingUpgradeSheet = true })
+                    settingsRow(icon: "arrow.clockwise.circle", title: "Restore Purchases", action: { restorePurchases() })
                 }
 
                 // Account Section
@@ -131,8 +132,10 @@ struct ProfileView: View {
             UpgradePromptView(
                 translationCount: nil,
                 onUpgrade: {
-                    // TODO: Implement actual upgrade flow
-                    print("Upgrade to Premium tapped")
+                    // Refresh user data after successful upgrade
+                    Task {
+                        await appCoordinator.userService.refreshUserData()
+                    }
                 },
                 onDismiss: {
                     showingUpgradeSheet = false
@@ -314,6 +317,18 @@ struct ProfileView: View {
     private func openPrivacy() {
         if let url = URL(string: AppConfiguration.privacyPolicyURL) {
             UIApplication.shared.open(url)
+        }
+    }
+
+    private func restorePurchases() {
+        Task {
+            let subscriptionManager = SubscriptionManager()
+            let success = await subscriptionManager.restorePurchases()
+
+            if success {
+                // Refresh user data to get updated subscription status
+                await appCoordinator.userService.refreshUserData()
+            }
         }
     }
 

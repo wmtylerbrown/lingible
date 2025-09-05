@@ -346,6 +346,11 @@ class MockUserService: UserServiceProtocol {
     func incrementTranslationCount() {
         // Mock implementation
     }
+
+    func upgradeUser(_ request: UserUpgradeRequest) async -> Bool {
+        // Mock implementation - always return true for testing
+        return true
+    }
 }
 
 // Mock AuthSession for previews

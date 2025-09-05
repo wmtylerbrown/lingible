@@ -1,5 +1,6 @@
 import SwiftUI
 import LingibleAPI
+import StoreKit
 
 struct UpgradePromptView: View {
     let translationCount: Int?
@@ -8,6 +9,9 @@ struct UpgradePromptView: View {
     let userUsage: UsageResponse?
 
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var subscriptionManager = SubscriptionManager()
+    @State private var showingPurchaseAlert = false
+    @State private var purchaseAlertMessage = ""
 
     var body: some View {
         NavigationView {
@@ -50,17 +54,96 @@ struct UpgradePromptView: View {
 
                 // Action buttons
                 VStack(spacing: 16) {
-                    Button(action: onUpgrade) {
+                    // Subscription products
+                    if subscriptionManager.isLoading {
                         HStack {
-                            Image(systemName: "star.fill")
-                            Text("Upgrade to Premium")
-                                .fontWeight(.semibold)
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Loading subscription options...")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
-                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Color.lingiblePrimary)
-                        .cornerRadius(12)
+                    } else if let product = subscriptionManager.products.first {
+                        Button(action: {
+                            Task {
+                                await purchaseSubscription(product)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "star.fill")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Upgrade to Premium")
+                                        .fontWeight(.semibold)
+                                    Text(product.displayPrice + "/month")
+                                        .font(.caption)
+                                        .opacity(0.9)
+                                }
+                                Spacer()
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 20)
+                            .background(Color.lingiblePrimary)
+                            .cornerRadius(12)
+                        }
+                        .disabled(subscriptionManager.isLoading)
+                    } else if subscriptionManager.isLoading {
+                        Button(action: {}) {
+                            HStack {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                                Text("Loading...")
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.lingiblePrimary.opacity(0.6))
+                            .cornerRadius(12)
+                        }
+                        .disabled(true)
+                    } else {
+                        Button(action: {
+                            Task {
+                                // In development mode, use mock purchase
+                                // In production mode, this should show real products
+                                await purchaseMockSubscription()
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "star.fill")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Upgrade to Premium")
+                                        .fontWeight(.semibold)
+                                    Text("$2.99/month")
+                                        .font(.caption)
+                                        .opacity(0.9)
+                                }
+                                Spacer()
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 20)
+                            .background(Color.lingiblePrimary)
+                            .cornerRadius(12)
+                        }
+                        .disabled(subscriptionManager.isLoading)
+                    }
+
+                    Button(action: {
+                        Task {
+                            await restorePurchases()
+                        }
+                    }) {
+                        Text("Restore Purchases")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.lingiblePrimary)
                     }
 
                     Button(action: onDismiss) {
@@ -91,6 +174,77 @@ struct UpgradePromptView: View {
                         }
                     }
             )
+        }
+        .alert("Purchase Result", isPresented: $showingPurchaseAlert) {
+            Button("OK") {
+                // Close the upgrade window after successful purchase
+                if purchaseAlertMessage.contains("Welcome to Premium") || purchaseAlertMessage.contains("restored successfully") {
+                    onDismiss()
+                }
+            }
+        } message: {
+            Text(purchaseAlertMessage)
+        }
+    }
+
+    // MARK: - Purchase Methods
+    private func purchaseSubscription(_ product: Product) async {
+        let success = await subscriptionManager.purchase(product)
+
+        if success {
+            purchaseAlertMessage = "Welcome to Premium! Your subscription is now active."
+            showingPurchaseAlert = true
+            onUpgrade()
+        } else {
+            if let error = subscriptionManager.errorMessage {
+                purchaseAlertMessage = error
+            } else {
+                purchaseAlertMessage = "Purchase failed. Please try again."
+            }
+            showingPurchaseAlert = true
+        }
+    }
+
+    private func restorePurchases() async {
+        let success = await subscriptionManager.restorePurchases()
+
+        if success {
+            purchaseAlertMessage = "Purchases restored successfully!"
+            showingPurchaseAlert = true
+            onUpgrade()
+        } else {
+            if let error = subscriptionManager.errorMessage {
+                purchaseAlertMessage = error
+            } else {
+                purchaseAlertMessage = "No purchases found to restore."
+            }
+            showingPurchaseAlert = true
+        }
+    }
+
+    private func purchaseMockSubscription() async {
+        // In development mode, simulate a real purchase by calling the backend API
+        // with mock receipt data to test the full flow
+
+        let mockReceiptData = "mock_receipt_data_for_development_testing"
+        let mockTransactionId = "mock_transaction_\(UUID().uuidString)"
+
+        let upgradeRequest = UserUpgradeRequest(
+            provider: .apple,
+            receiptData: mockReceiptData,
+            transactionId: mockTransactionId
+        )
+
+        // Call the backend upgrade API
+        let success = await subscriptionManager.upgradeUserWithBackend(upgradeRequest)
+
+        if success {
+            purchaseAlertMessage = "🎉 Welcome to Premium! (Development Mode)\n\nYour subscription has been activated with the backend."
+            showingPurchaseAlert = true
+            onUpgrade()
+        } else {
+            purchaseAlertMessage = "❌ Failed to activate subscription. Please try again."
+            showingPurchaseAlert = true
         }
     }
 

@@ -8,8 +8,8 @@ cryptography>=45.0.0
 aws-lambda-powertools[all]>=3.19.0
 
 # Google Play receipt validation - temporarily removed to reduce layer size
-# google-api-python-client>=2.0.0
-# google-auth>=2.0.0
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
 
 # Development dependencies (not included in Lambda layer)
 # pytest>=8.4.1

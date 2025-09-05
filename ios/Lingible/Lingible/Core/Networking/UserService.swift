@@ -15,6 +15,7 @@ protocol UserServiceProtocol: ObservableObject {
     func refreshUserData() async
     func clearCache()
     func incrementTranslationCount()
+    func upgradeUser(_ request: UserUpgradeRequest) async -> Bool
 }
 
 // MARK: - User Service Implementation
@@ -130,6 +131,39 @@ final class UserService: UserServiceProtocol {
         print("🔄 UserService: Force reloading all data")
         clearCache()
         await loadUserData(forceRefresh: true)
+    }
+
+    // MARK: - Subscription Upgrade
+    func upgradeUser(_ request: UserUpgradeRequest) async -> Bool {
+        print("🔄 UserService: upgradeUser called")
+
+        do {
+            // Get auth token
+            _ = try await authenticationService.getAuthToken()
+
+            // Create upgrade request body
+            let upgradeRequest = UpgradeRequest(
+                platform: request.provider == .apple ? .apple : .google,
+                receiptData: request.receiptData
+            )
+
+            // Call the upgrade API
+            _ = try await UserAPI.userUpgradePost(upgradeRequest: upgradeRequest)
+
+            print("✅ UserService: Upgrade successful")
+
+            // Clear cache to force refresh of user data
+            clearCache()
+
+            // Refresh user data to get updated tier
+            await loadUserData(forceRefresh: true)
+
+            return true
+
+        } catch {
+            print("❌ UserService: Upgrade failed: \(error)")
+            return false
+        }
     }
 
     // MARK: - Private Methods

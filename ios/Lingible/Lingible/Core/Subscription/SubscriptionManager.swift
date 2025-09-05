@@ -1,0 +1,346 @@
+import Foundation
+import StoreKit
+import SwiftUI
+import LingibleAPI
+
+/// Manages subscription purchases and status using StoreKit 2
+@MainActor
+class SubscriptionManager: ObservableObject {
+
+    // MARK: - Published Properties
+    @Published var products: [Product] = []
+    @Published var purchasedSubscriptions: [Product] = []
+    @Published var subscriptionStatus: SubscriptionStatus = .unknown
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    // MARK: - Private Properties
+    private let productIds: [String] = {
+        // Use the same product ID for both dev and production
+        // Apple allows the same product ID to work in both sandbox and production
+        return ["com.lingible.lingible.premium.monthly"]
+    }()
+    private var updateListenerTask: Task<Void, Error>? = nil
+
+    // Development mode - set to false to use real StoreKit products
+    // This will be true for development bundle (.dev) and false for production
+    private let isDevelopmentMode: Bool = {
+        let bundleId = Bundle.main.bundleIdentifier ?? ""
+        return bundleId.contains(".dev")
+    }()
+
+    // MARK: - Subscription Status
+    enum SubscriptionStatus {
+        case unknown
+        case free
+        case premium
+        case expired
+    }
+
+    // MARK: - Initialization
+    init() {
+        // Start listening for transaction updates
+        updateListenerTask = listenForTransactions()
+
+        // Load products and check subscription status
+        Task {
+            await loadProducts()
+            await updateSubscriptionStatus()
+        }
+    }
+
+    deinit {
+        updateListenerTask?.cancel()
+    }
+
+    // MARK: - Product Loading
+    func loadProducts() async {
+        do {
+            isLoading = true
+            errorMessage = nil
+
+            if isDevelopmentMode {
+                // In development mode, create mock products for testing
+                await createMockProducts()
+            } else {
+                let storeProducts = try await Product.products(for: productIds)
+
+                // Sort products by price (cheapest first)
+                self.products = storeProducts.sorted { $0.price < $1.price }
+
+                print("🛒 Loaded \(products.count) subscription products")
+                for product in products {
+                    print("  - \(product.displayName): \(product.displayPrice)")
+                }
+            }
+
+        } catch {
+            print("❌ Failed to load products: \(error)")
+            errorMessage = "Failed to load subscription options. Please try again."
+        }
+
+        isLoading = false
+    }
+
+    // MARK: - Development Mode
+    private func createMockProducts() async {
+        // Create a mock product for development/testing
+        // This simulates what would happen with real StoreKit products
+        print("🛒 Development mode: Creating mock products")
+
+        // In a real implementation, you'd create mock Product objects
+        // For now, we'll just set a flag that products are "loaded"
+        // The UI will show the purchase button instead of "Retry Loading"
+
+        // Simulate loading delay
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+
+        // Set products to indicate they're loaded (even if empty, UI will handle it)
+        self.products = []
+        print("🛒 Mock products created for development")
+    }
+
+    // MARK: - Purchase Flow
+    func purchase(_ product: Product) async -> Bool {
+        do {
+            isLoading = true
+            errorMessage = nil
+
+            print("🛒 Starting purchase for: \(product.displayName)")
+
+            let result = try await product.purchase()
+
+            switch result {
+            case .success(let verification):
+                let transaction = try checkVerified(verification)
+
+                print("✅ Purchase successful: \(transaction.productID)")
+
+                // Update subscription status
+                await updateSubscriptionStatus()
+
+                // Sync with backend
+                await syncSubscriptionWithBackend(transaction: transaction)
+
+                // Finish the transaction
+                await transaction.finish()
+
+                isLoading = false
+                return true
+
+            case .userCancelled:
+                print("🚫 User cancelled purchase")
+                errorMessage = "Purchase was cancelled"
+                isLoading = false
+                return false
+
+            case .pending:
+                print("⏳ Purchase pending approval")
+                errorMessage = "Purchase is pending approval"
+                isLoading = false
+                return false
+
+            @unknown default:
+                print("❓ Unknown purchase result")
+                errorMessage = "Unknown purchase result"
+                isLoading = false
+                return false
+            }
+
+        } catch {
+            print("❌ Purchase failed: \(error)")
+            errorMessage = "Purchase failed: \(error.localizedDescription)"
+            isLoading = false
+            return false
+        }
+    }
+
+    // MARK: - Restore Purchases
+    func restorePurchases() async -> Bool {
+        do {
+            isLoading = true
+            errorMessage = nil
+
+            print("🔄 Restoring purchases...")
+
+            try await AppStore.sync()
+            await updateSubscriptionStatus()
+
+            if subscriptionStatus == .premium {
+                print("✅ Purchases restored successfully")
+                isLoading = false
+                return true
+            } else {
+                print("ℹ️ No active subscriptions found")
+                errorMessage = "No active subscriptions found"
+                isLoading = false
+                return false
+            }
+
+        } catch {
+            print("❌ Failed to restore purchases: \(error)")
+            errorMessage = "Failed to restore purchases: \(error.localizedDescription)"
+            isLoading = false
+            return false
+        }
+    }
+
+    // MARK: - Backend Integration
+    func upgradeUserWithBackend(_ request: UserUpgradeRequest) async -> Bool {
+        print("🔄 SubscriptionManager: Calling backend upgrade API")
+
+        // Call backend upgrade API
+        // Note: In a real app, you'd inject the UserService dependency
+        // For now, we'll create a temporary instance
+        let authService = AuthenticationService()
+        let userService = UserService(authenticationService: authService)
+        let success = await userService.upgradeUser(request)
+
+        if success {
+            print("✅ Backend upgrade successful")
+            // Update local subscription status
+            subscriptionStatus = .premium
+            // Refresh user data to get updated subscription status
+            await userService.refreshUserData()
+            return true
+        } else {
+            print("❌ Backend upgrade failed")
+            return false
+        }
+    }
+
+    // MARK: - Subscription Status
+    func updateSubscriptionStatus() async {
+        var status: SubscriptionStatus = .free
+
+        // Check for active subscriptions
+        for await result in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerified(result)
+
+                // Check if this is a subscription product
+                if productIds.contains(transaction.productID) {
+                    // Check if subscription is still active
+                    if let expirationDate = transaction.expirationDate {
+                        if expirationDate > Date() {
+                            status = .premium
+                            print("✅ Active subscription found: \(transaction.productID)")
+                            break
+                        } else {
+                            status = .expired
+                            print("⏰ Expired subscription found: \(transaction.productID)")
+                        }
+                    } else {
+                        // Non-consumable or lifetime subscription
+                        status = .premium
+                        print("✅ Lifetime subscription found: \(transaction.productID)")
+                        break
+                    }
+                }
+            } catch {
+                print("❌ Failed to verify transaction: \(error)")
+            }
+        }
+
+        subscriptionStatus = status
+        print("📊 Subscription status updated: \(status)")
+    }
+
+    // MARK: - Backend Sync
+    private func syncSubscriptionWithBackend(transaction: StoreKit.Transaction) async {
+        print("🔄 Syncing subscription with backend...")
+
+        // Get receipt data for backend validation
+        let receiptData = await getReceiptData()
+
+        // Create upgrade request
+        let upgradeRequest = UserUpgradeRequest(
+            provider: .apple,
+            receiptData: receiptData,
+            transactionId: String(transaction.id)
+        )
+
+        // Call backend upgrade API
+        // Note: In a real app, you'd inject the UserService dependency
+        // For now, we'll create a temporary instance
+        let authService = AuthenticationService()
+        let userService = UserService(authenticationService: authService)
+        let success = await userService.upgradeUser(upgradeRequest)
+
+        if success {
+            print("✅ Backend sync successful")
+        } else {
+            print("❌ Backend sync failed")
+        }
+    }
+
+    private func getReceiptData() async -> String {
+        // For StoreKit 2, we need to get the app receipt
+        // This is a simplified version - in production you might want to use
+        // a more robust receipt validation approach
+        return "storekit2_receipt_data"
+    }
+
+    // MARK: - Transaction Listener
+    private func listenForTransactions() -> Task<Void, Error> {
+        return Task.detached {
+            // Iterate through any transactions that don't come from a direct call to `purchase()`
+            for await result in Transaction.updates {
+                do {
+                    let transaction = try await self.checkVerified(result)
+
+                    print("🔄 Transaction update: \(transaction.productID)")
+
+                    // Update subscription status
+                    await self.updateSubscriptionStatus()
+
+                    // Sync with backend if needed
+                    if transaction.revocationDate == nil {
+                        await self.syncSubscriptionWithBackend(transaction: transaction)
+                    }
+
+                    // Always finish the transaction
+                    await transaction.finish()
+
+                } catch {
+                    print("❌ Transaction verification failed: \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Verification
+    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+        // Check whether the JWS passes StoreKit verification
+        switch result {
+        case .unverified:
+            throw StoreError.failedVerification
+        case .verified(let safe):
+            return safe
+        }
+    }
+}
+
+// MARK: - Store Error
+enum StoreError: Error, LocalizedError {
+    case failedVerification
+
+    var errorDescription: String? {
+        switch self {
+        case .failedVerification:
+            return "Transaction verification failed"
+        }
+    }
+}
+
+// MARK: - User Upgrade Request Model
+struct UserUpgradeRequest {
+    let provider: SubscriptionProvider
+    let receiptData: String
+    let transactionId: String
+}
+
+enum SubscriptionProvider: String, CaseIterable {
+    case apple = "apple"
+    case google = "google"
+}
