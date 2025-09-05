@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var showingThemePicker = false
     @State private var showingNotificationsSettings = false
     @State private var showingUpgradeSheet = false
+    @State private var showingClearCacheAlert = false
 
     var body: some View {
         NavigationView {
@@ -40,6 +41,7 @@ struct ProfileView: View {
                 Section(header: Text("Preferences")) {
                     settingsRow(icon: "bell", title: "Notifications", action: { showingNotificationsSettings = true })
                     settingsRow(icon: "paintbrush", title: "Theme", action: { showingThemePicker = true })
+                    settingsRow(icon: "trash", title: "Clear Cache", action: { showingClearCacheAlert = true })
                     settingsRow(icon: "star", title: "Upgrade to Premium", action: { showingUpgradeSheet = true })
                 }
 
@@ -145,6 +147,14 @@ struct ProfileView: View {
             }
         } message: {
             Text("Are you sure you want to sign out?")
+        }
+        .alert("Clear Cache", isPresented: $showingClearCacheAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clear All Cache", role: .destructive) {
+                clearAllCache()
+            }
+        } message: {
+            Text("This will clear all cached data including translation history and trending data. This action cannot be undone.")
         }
         .onAppear {
             print("🔥 ProfileView onAppear called!")
@@ -305,6 +315,21 @@ struct ProfileView: View {
         if let url = URL(string: AppConfiguration.privacyPolicyURL) {
             UIApplication.shared.open(url)
         }
+    }
+
+    private func clearAllCache() {
+        // Clear translation history cache
+        UserDefaults.standard.removeObject(forKey: "cached_translations")
+
+        // Clear trending data cache
+        UserDefaults.standard.removeObject(forKey: "trending_cache_data")
+        UserDefaults.standard.removeObject(forKey: "trending_cache_timestamp")
+
+        // Clear any other cached data
+        // UserDefaults.standard.removeObject(forKey: "user_profile_cache")
+        // UserDefaults.standard.removeObject(forKey: "user_usage_cache")
+
+        print("🗑️ All cache cleared successfully")
     }
 }
 

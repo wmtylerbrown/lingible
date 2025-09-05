@@ -24,7 +24,7 @@ final class TranslationService: TranslationServiceProtocol {
     // MARK: - Public Methods
     func translate(text: String, direction: TranslationDirection? = nil) async throws -> TranslationResult {
         // Check if user is authenticated
-        guard let user = try await getCurrentUser() else {
+        guard try await getCurrentUser() != nil else {
             throw TranslationError.unauthorized
         }
 
@@ -58,6 +58,7 @@ final class TranslationService: TranslationServiceProtocol {
     }
 
     // MARK: - Private Methods
+    @MainActor
     private func getCurrentUser() async throws -> AuthenticatedUser? {
         return try await withCheckedThrowingContinuation { continuation in
             let cancellable = authenticationService.currentUser

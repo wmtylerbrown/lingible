@@ -5,15 +5,16 @@ import LingibleAPI
 // MARK: - User Service Protocol
 @preconcurrency
 protocol UserServiceProtocol: ObservableObject {
-    var userProfile: UserProfileResponse? { get }
-    var userUsage: UsageResponse? { get }
-    var isLoading: Bool { get }
-    var lastProfileUpdate: Date? { get }
-    var lastUsageUpdate: Date? { get }
+    @MainActor var userProfile: UserProfileResponse? { get }
+    @MainActor var userUsage: UsageResponse? { get }
+    @MainActor var isLoading: Bool { get }
+    @MainActor var lastProfileUpdate: Date? { get }
+    @MainActor var lastUsageUpdate: Date? { get }
 
     func loadUserData(forceRefresh: Bool) async
     func refreshUserData() async
     func clearCache()
+    func incrementTranslationCount()
 }
 
 // MARK: - User Service Implementation
@@ -98,6 +99,30 @@ final class UserService: UserServiceProtocol {
             lastProfileUpdate = nil
             lastUsageUpdate = nil
             print("🗑️ UserService: Cache cleared")
+        }
+    }
+
+    /// Increment the local usage count after a successful translation
+    nonisolated func incrementTranslationCount() {
+        Task { @MainActor in
+            guard var currentUsage = userUsage else {
+                print("⚠️ UserService: Cannot increment usage - no current usage data")
+                return
+            }
+
+            // Increment the daily_used count (handle optional)
+            let currentDailyUsed = currentUsage.dailyUsed ?? 0
+            currentUsage.dailyUsed = currentDailyUsed + 1
+
+            // Update daily remaining (handle optional)
+            let currentDailyRemaining = currentUsage.dailyRemaining ?? 0
+            currentUsage.dailyRemaining = max(0, currentDailyRemaining - 1)
+
+            // Update the local state
+            userUsage = currentUsage
+            lastUsageUpdate = Date()
+
+            print("✅ UserService: Incremented translation count to \(currentUsage.dailyUsed ?? 0)")
         }
     }
 

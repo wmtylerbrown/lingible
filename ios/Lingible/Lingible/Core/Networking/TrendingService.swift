@@ -22,7 +22,7 @@ final class TrendingService: TrendingServiceProtocol {
     // MARK: - Public Methods
     func getTrendingTerms(limit: Int? = nil, category: TrendingTermResponse.Category? = nil, activeOnly: Bool? = nil) async throws -> TrendingListResponse {
         // Check if user is authenticated
-        guard let user = try await getCurrentUser() else {
+        guard try await getCurrentUser() != nil else {
             throw TrendingError.unauthorized
         }
 
@@ -41,16 +41,16 @@ final class TrendingService: TrendingServiceProtocol {
 
         } catch {
             // Check if it's an authentication/authorization error
-            if let error = error as? NSError {
-                if error.domain.contains("Auth") || error.localizedDescription.contains("Access Token") || error.localizedDescription.contains("scopes") {
-                    throw TrendingError.unauthorized
-                }
+            let nsError = error as NSError
+            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
+                throw TrendingError.unauthorized
             }
             throw TrendingError.networkError(error)
         }
     }
 
     // MARK: - Private Methods
+    @MainActor
     private func getCurrentUser() async throws -> AuthenticatedUser? {
         return try await withCheckedThrowingContinuation { continuation in
             let cancellable = authenticationService.currentUser

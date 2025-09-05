@@ -15,6 +15,7 @@ struct TranslationView: View {
     @State private var translationHistory: [TranslationHistoryItem] = []
     @State private var isGenZToEnglish = true // Translation direction toggle
     @State private var showingUpgradePrompt = false
+    @State private var upgradePromptCount = 0
     @FocusState private var isInputFocused: Bool
 
     // MARK: - Computed Properties
@@ -111,7 +112,7 @@ struct TranslationView: View {
             }
             .sheet(isPresented: $showingUpgradePrompt) {
                 UpgradePromptView(
-                    translationCount: translationHistory.count,
+                    translationCount: upgradePromptCount,
                     onUpgrade: {
                         showingUpgradePrompt = false
                         // TODO: Navigate to upgrade flow
@@ -463,9 +464,15 @@ struct TranslationView: View {
                 showInputCard = false
             }
 
+            // Update the local usage count immediately
+            appCoordinator.userService.incrementTranslationCount()
+
             // Check if we should show upgrade prompt for free users
-            if userTier == .free && translationHistory.count > 0 && translationHistory.count % 3 == 0 {
+            // Calculate the expected count after increment (since increment is async)
+            let currentUsage = (appCoordinator.userUsage?.dailyUsed ?? 0) + 1
+            if userTier == .free && currentUsage > 0 && currentUsage % 3 == 0 {
                 // Show upgrade prompt every 3 translations
+                upgradePromptCount = currentUsage
                 DispatchQueue.main.async {
                     showingUpgradePrompt = true
                 }

@@ -25,6 +25,9 @@ final class TrendingViewModel: ObservableObject {
     private var cachedTrendingData: [TrendingTermResponse.Category?: TrendingListResponse] = [:]
     private var lastCacheUpdate: Date?
     private let cacheExpirationTime: TimeInterval = 86400 // 24 hours
+    private let userDefaults = UserDefaults.standard
+    private let cacheKey = "trending_cache_data"
+    private let cacheTimestampKey = "trending_cache_timestamp"
 
     // MARK: - Computed Properties
     var availableCategories: [TrendingTermResponse.Category] {
@@ -60,6 +63,7 @@ final class TrendingViewModel: ObservableObject {
         self.authenticationService = authenticationService
 
         setupUserTierObserver()
+        loadCacheFromUserDefaults()
     }
 
     // MARK: - Public Methods
@@ -68,16 +72,11 @@ final class TrendingViewModel: ObservableObject {
     }
 
     func loadTrendingTerms(category: TrendingTermResponse.Category?) async {
-        // Update user tier from user profile (handle gracefully if profile fetch fails)
-        do {
-            if let userProfile = userService.userProfile {
-                userTier = userProfile.tier?.toAppTier() ?? .free
-            } else {
-                // If no user profile available, assume free tier
-                userTier = .free
-            }
-        } catch {
-            // If user profile fetch fails, assume free tier and continue
+        // Update user tier from user profile
+        if let userProfile = userService.userProfile {
+            userTier = userProfile.tier?.toAppTier() ?? .free
+        } else {
+            // If no user profile available, assume free tier
             userTier = .free
         }
 
@@ -144,6 +143,8 @@ final class TrendingViewModel: ObservableObject {
     func clearCache() {
         cachedTrendingData.removeAll()
         lastCacheUpdate = nil
+        userDefaults.removeObject(forKey: cacheKey)
+        userDefaults.removeObject(forKey: cacheTimestampKey)
         print("🗑️ TrendingViewModel: Cache cleared")
     }
 
@@ -161,6 +162,7 @@ final class TrendingViewModel: ObservableObject {
     private func setCachedData(_ data: TrendingListResponse, for category: TrendingTermResponse.Category?) {
         cachedTrendingData[category] = data
         lastCacheUpdate = Date()
+        saveCacheToUserDefaults()
     }
 
     private func setupUserTierObserver() {
@@ -190,6 +192,50 @@ final class TrendingViewModel: ObservableObject {
             }
         } else {
             errorMessage = "Failed to load trending terms: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - UserDefaults Persistence
+    private func saveCacheToUserDefaults() {
+        do {
+            // Convert cache data to JSON
+            let cacheData = try JSONEncoder().encode(cachedTrendingData)
+            userDefaults.set(cacheData, forKey: cacheKey)
+            userDefaults.set(lastCacheUpdate, forKey: cacheTimestampKey)
+            print("💾 TrendingViewModel: Cache saved to UserDefaults")
+        } catch {
+            print("❌ TrendingViewModel: Failed to save cache to UserDefaults: \(error)")
+        }
+    }
+
+    private func loadCacheFromUserDefaults() {
+        // Load timestamp first
+        if let timestamp = userDefaults.object(forKey: cacheTimestampKey) as? Date {
+            lastCacheUpdate = timestamp
+        }
+
+        // Check if cache is still valid
+        guard isCacheValid else {
+            print("⏰ TrendingViewModel: Cache expired, not loading from UserDefaults")
+            return
+        }
+
+        // Load cache data
+        guard let cacheData = userDefaults.data(forKey: cacheKey) else {
+            print("📭 TrendingViewModel: No cache data found in UserDefaults")
+            return
+        }
+
+        do {
+            // Decode cache data from JSON
+            let decodedCache = try JSONDecoder().decode([TrendingTermResponse.Category?: TrendingListResponse].self, from: cacheData)
+            cachedTrendingData = decodedCache
+            print("📥 TrendingViewModel: Cache loaded from UserDefaults")
+        } catch {
+            print("❌ TrendingViewModel: Failed to load cache from UserDefaults: \(error)")
+            // Clear invalid cache
+            userDefaults.removeObject(forKey: cacheKey)
+            userDefaults.removeObject(forKey: cacheTimestampKey)
         }
     }
 }

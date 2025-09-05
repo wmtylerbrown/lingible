@@ -342,6 +342,10 @@ class MockUserService: UserServiceProtocol {
     func clearCache() {
         // Mock implementation
     }
+
+    func incrementTranslationCount() {
+        // Mock implementation
+    }
 }
 
 // Mock AuthSession for previews

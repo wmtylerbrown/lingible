@@ -7,13 +7,13 @@ import AuthenticationServices
 // MARK: - Authentication Service Protocol
 @preconcurrency
 protocol AuthenticationServiceProtocol {
-    var isAuthenticated: AnyPublisher<Bool, Never> { get }
-    var currentUser: AnyPublisher<AuthenticatedUser?, Never> { get }
+    @MainActor var isAuthenticated: AnyPublisher<Bool, Never> { get }
+    @MainActor var currentUser: AnyPublisher<AuthenticatedUser?, Never> { get }
 
     func checkAuthenticationStatus() async -> Bool
     func signInWithApple() async throws -> AuthenticatedUser
     func signOut() async throws
-    func getCurrentUserValue() -> AuthenticatedUser?
+    @MainActor func getCurrentUserValue() -> AuthenticatedUser?
 
     /// Get the current JWT access token for API calls
     func getAuthToken() async throws -> String
@@ -197,7 +197,7 @@ final class AuthenticationService: NSObject, ObservableObject, AuthenticationSer
             if let amplifyError = error as? AuthError {
                 print("🔍 Amplify AuthError details:")
                 print("  - Error type: \(amplifyError)")
-                print("  - Recovery suggestion: \(amplifyError.recoverySuggestion ?? "None")")
+                print("  - Recovery suggestion: \(amplifyError.recoverySuggestion)")
             }
 
             throw AuthenticationError.signInFailed(error.localizedDescription)
@@ -216,7 +216,7 @@ final class AuthenticationService: NSObject, ObservableObject, AuthenticationSer
         keychainStorage.clearAll()
     }
 
-    nonisolated func getCurrentUserValue() -> AuthenticatedUser? {
+    func getCurrentUserValue() -> AuthenticatedUser? {
         return _currentUser
     }
 
