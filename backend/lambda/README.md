@@ -13,7 +13,9 @@ lambda/
 │   ├── services/          # Business logic layer
 │   └── utils/             # Utility functions
 ├── tests/                 # Test suite
-├── requirements.txt       # Python dependencies
+├── pyproject.toml         # Poetry configuration (dependencies)
+├── poetry.lock           # Poetry lock file (generated)
+├── setup-poetry.sh       # Poetry setup script
 ├── pytest.ini           # Pytest configuration
 ├── mypy.ini             # MyPy type checking configuration
 ├── run_tests.py         # Test execution script
@@ -28,34 +30,55 @@ lambda/
 # From project root
 cd backend/lambda
 
-# Install dependencies
-pip install -r requirements.txt
+# Setup Poetry (first time only)
+./setup-poetry.sh
+
+# Activate Poetry environment
+poetry shell
 
 # Run tests
-python run_tests.py
+poetry run python run_tests.py
 
 # Run with coverage
-python run_tests.py --coverage
+poetry run python run_tests.py --coverage
 
 # Clean up Python artifacts (optional)
 ./cleanup.sh
 
 # Type checking
-mypy src/
+poetry run mypy src/
+```
+
+### Dependency Management
+```bash
+# Add runtime dependency
+poetry add boto3
+
+# Add development dependency
+poetry add --group dev pytest
+
+# Remove dependency
+poetry remove package-name
+
+# Show installed packages
+poetry show
+
+# Export requirements (for Lambda layer)
+poetry export --without dev --format=requirements.txt
 ```
 
 ### Test Categories
 ```bash
 # Run all tests
-python run_tests.py
+poetry run python run_tests.py
 
 # Run specific test types
-python run_tests.py --type unit
-python run_tests.py --type integration
-python run_tests.py --type handler
+poetry run python run_tests.py --type unit
+poetry run python run_tests.py --type integration
+poetry run python run_tests.py --type handler
 
 # Run fast tests only
-python run_tests.py --fast
+poetry run python run_tests.py --fast
 ```
 
 ## 🏗️ Architecture
