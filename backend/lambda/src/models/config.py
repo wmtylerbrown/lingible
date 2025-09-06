@@ -89,7 +89,7 @@ class AppleModel(BaseModel):
     key_id: str = ""
     bundle_id: str = ""
     environment: StoreEnvironment = StoreEnvironment.SANDBOX
-    shared_secret: str = ""
+    shared_secret: str = ""  # Will be loaded from Secrets Manager
 
 
 class GoogleModel(BaseModel):

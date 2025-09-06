@@ -10,7 +10,7 @@ import os
 from typing import Dict, Any, Optional, TypeVar, Type
 
 from aws_lambda_powertools import Logger
-from aws_lambda_powertools.utilities.parameters import get_parameter
+from aws_lambda_powertools.utilities.parameters import get_parameter, get_secret
 
 # Import the Pydantic models we defined
 from models.config import (
@@ -88,7 +88,7 @@ class ConfigService:
         try:
             # Get from SSM Parameter Store using Powertools built-in caching (5 minutes default)
             # No additional caching needed - Powertools handles this efficiently
-            value = get_parameter(full_parameter_name)
+            value = get_parameter(full_parameter_name, decrypt=True)
             return json.loads(value)
         except Exception as e:
             if default is not None:
@@ -97,6 +97,54 @@ class ConfigService:
 
             logger.error(f"Failed to load configuration parameter {full_parameter_name}: {str(e)}")
             raise ConfigurationError(f"Configuration parameter '{parameter_name}' not found: {str(e)}")
+
+    def _get_secrets_manager_secret(self, secret_name: str, key: str) -> str:
+        """
+        Get a secret value from AWS Secrets Manager using Powertools.
+
+        This method provides a generic way to load secrets from AWS Secrets Manager
+        with built-in caching (5 minutes) and proper error handling.
+
+        Args:
+            secret_name: The name of the secret in Secrets Manager
+            key: The key within the secret JSON to retrieve
+
+        Returns:
+            Secret value string
+
+        Raises:
+            ConfigurationError: If secret cannot be loaded
+
+        Example:
+            # Load Apple shared secret
+            shared_secret = self._get_secrets_manager_secret(
+                "lingible-apple-shared-secret-dev", 
+                "sharedSecret"
+            )
+            
+            # Load Google service account key
+            service_key = self._get_secrets_manager_secret(
+                "lingible-google-service-account-dev",
+                "private_key"
+            )
+        """
+        try:
+            # Use Powertools get_secret with built-in caching (5 minutes default)
+            secret_data = get_secret(secret_name)
+            if isinstance(secret_data, str):
+                # If it's a string, try to parse as JSON
+                secret_data = json.loads(secret_data)
+            
+            if not isinstance(secret_data, dict):
+                raise ConfigurationError(f"Secret '{secret_name}' is not a valid JSON object")
+            
+            if key not in secret_data:
+                raise ConfigurationError(f"Key '{key}' not found in secret '{secret_name}'")
+            
+            return str(secret_data[key])
+        except Exception as e:
+            logger.error(f"Failed to load secret '{secret_name}' key '{key}': {str(e)}")
+            raise ConfigurationError(f"Secret '{secret_name}' key '{key}' not found: {str(e)}")
 
     def get_config(self, config_type: Type[T], table_name: Optional[str] = None) -> T:
         """
@@ -151,6 +199,15 @@ class ConfigService:
                 config_data["enable_metrics"] = self.environment == "prod"
             if "log_retention_days" not in config_data:
                 config_data["log_retention_days"] = 30 if self.environment == "prod" else 7
+        elif config_type == AppleConfig:
+            # Load shared secret from Secrets Manager
+            try:
+                secret_name = f"lingible-apple-shared-secret-{self.environment}"
+                config_data["shared_secret"] = self._get_secrets_manager_secret(secret_name, "sharedSecret")
+            except ConfigurationError:
+                # Fallback to empty string if secret not found (for backward compatibility)
+                logger.warning("Apple shared secret not found in Secrets Manager, using empty string")
+                config_data["shared_secret"] = ""
 
         return config_type(**config_data)
 

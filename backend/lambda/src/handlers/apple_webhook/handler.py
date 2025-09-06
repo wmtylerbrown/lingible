@@ -16,7 +16,7 @@ subscription_service = SubscriptionService()
 @event_parser(model=WebhookEvent)
 @api_handler()
 @tracer.trace_method("apple_webhook_handler")
-def handle_apple_webhook(
+def handler(
     event: WebhookEvent, context: LambdaContext
 ) -> WebhookResponse:
     """Handle Apple subscription webhook."""

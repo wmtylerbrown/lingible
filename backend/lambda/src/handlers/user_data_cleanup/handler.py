@@ -20,7 +20,7 @@ translation_service = TranslationService()
 
 @tracer.trace_lambda
 @event_parser(model=UserDataCleanupEvent)
-def cleanup_user_data_handler(
+def handler(
     event: UserDataCleanupEvent, context: LambdaContext
 ) -> dict:
     """Comprehensive cleanup of user data from all tables."""

@@ -142,6 +142,14 @@ class ReceiptValidationService:
 
             # Check if receipt is from sandbox environment
             if status_code == 21007:
+                logger.log_business_event(
+                    "sandbox_receipt_detected",
+                    {
+                        "transaction_id": request.transaction_id,
+                        "status_code": status_code,
+                        "message": "Receipt is from sandbox environment, retrying with sandbox URL",
+                    },
+                )
                 # Retry with sandbox environment
                 sandbox_url = "https://sandbox.itunes.apple.com/verifyReceipt"
                 response = requests.post(sandbox_url, json=payload, timeout=30)

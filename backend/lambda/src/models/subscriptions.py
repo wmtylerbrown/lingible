@@ -1,4 +1,11 @@
-"""Subscription models for GenZ slang translation app."""
+"""Subscription models for GenZ slang translation app.
+
+🚨 CRITICAL: When modifying these models, ALWAYS update:
+1. OpenAPI spec: shared/api/openapi/lingible-api.yaml
+2. TypeScript types: shared/api/types/typescript/api.ts
+3. Regenerate client SDKs (Python, iOS)
+See: API_SPEC_RULE.md at project root
+"""
 
 from typing import Optional
 from datetime import datetime

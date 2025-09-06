@@ -18,7 +18,7 @@ subscription_service = SubscriptionService()
 @tracer.trace_lambda
 @event_parser(model=UserUpgradeEvent, envelope=UserUpgradeEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
-def upgrade_user(event: UserUpgradeEvent, context: LambdaContext) -> UserResponse:
+def handler(event: UserUpgradeEvent, context: LambdaContext) -> UserResponse:
     """Upgrade user subscription after validating purchase."""
     # Extract upgrade data from validated request body
     provider = event.request_body.provider
