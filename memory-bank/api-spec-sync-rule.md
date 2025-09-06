@@ -4,6 +4,8 @@
 
 **The OpenAPI specification MUST ALWAYS be kept in sync with the actual backend API implementation.**
 
+> **SEE ALSO**: `CRITICAL_API_RULE.md` in this same directory for a concise version of this rule.
+
 ## 📋 What Must Be Updated
 
 Whenever ANY of the following changes are made to the backend API, the OpenAPI spec MUST be updated immediately:

@@ -213,7 +213,7 @@ The receipt validation service is now production-ready with official Apple and G
 
 # Tasks - Lingible
 
-## 🎯 Current Focus: Infrastructure & API Development
+## 🎯 Current Focus: App Store Submission with Google AdMob Integration
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 
@@ -880,6 +880,50 @@ open class LingibleAPIAPI {
 - **Build Cache**: Cleared Xcode caches and resolved package resolution conflicts
 - **Hardcoded Values**: Replaced hardcoded limits with dynamic API values
 - **View Duplication**: Consolidated multiple upgrade views into single component
+
+---
+
+## ✅ **COMPLETED: App Store Submission Preparation (September 2025)**
+
+**🎯 Objective:** Prepare Lingible iOS app for App Store submission with complete legal compliance
+
+**✅ Completed Tasks:**
+1. **Production Archive Creation:**
+   - ✅ Built production archive with correct bundle ID (com.lingible.lingible)
+   - ✅ Configured production Amplify settings (us-east-1_ENGYDDFRb user pool)
+   - ✅ Resolved bundle ID conflicts between dev and prod configurations
+   - ✅ Fixed Xcode Organizer archive visibility issues
+
+2. **App Store Connect Setup:**
+   - ✅ Created app listing with proper description and keywords
+   - ✅ Generated screenshots for all iPhone device sizes
+   - ✅ Added 1024x1024 app icon for App Store
+   - ✅ Configured subscription products ($2.99/month premium)
+   - ✅ Set up TestFlight distribution pipeline
+
+3. **Legal Document Updates:**
+   - ✅ Updated Privacy Policy to match Apple privacy questionnaire answers
+   - ✅ Updated Terms of Service with current date and policies
+   - ✅ Added explicit no-tracking statements for current implementation
+   - ✅ Aligned legal documents with Apple privacy requirements
+
+4. **Apple Privacy Questionnaire Progress:**
+   - ✅ Completed Email Address section (App Functionality, Analytics, No tracking)
+   - ✅ Completed User ID section (App Functionality, Analytics, No tracking)
+   - ✅ Confirmed data linking to user identity for both data types
+   - 🔄 In progress - planning Google AdMob integration changes
+
+**📊 Current Status:**
+- **Production Archive**: ✅ Ready for App Store submission
+- **Legal Compliance**: ✅ Documents match current privacy practices
+- **App Store Connect**: ✅ Complete setup with all required assets
+- **Privacy Questionnaire**: 🔄 In progress, needs AdMob integration updates
+
+**🚀 Next Steps:**
+1. **Google AdMob Integration**: Add simple banner ads for free tier users
+2. **Legal Document Updates**: Update privacy policy for AdMob tracking
+3. **Privacy Questionnaire**: Update Apple answers for AdMob integration
+4. **Final Submission**: Complete App Store submission with AdMob
 
 ---
 

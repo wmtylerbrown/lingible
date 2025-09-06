@@ -97,8 +97,11 @@
 - **User Settings**: ✅ Clear cache functionality in profile settings
 - **Code Quality**: ✅ All Swift warnings resolved, Swift 6 compatibility
 - **StoreKit Integration**: ✅ Complete StoreKit 2 subscription system with $2.99/month pricing
-- **TestFlight Ready**: ✅ App archived and ready for TestFlight distribution
-- **JWT Token Management**: ✅ Centralized AuthTokenProvider service implemented
+- **Production Archive**: ✅ Built with correct bundle ID (com.lingible.lingible) and Amplify configuration
+- **App Store Connect**: ✅ Setup complete with screenshots, description, keywords, and 1024x1024 icon
+- **Legal Documents**: ✅ Updated Privacy Policy and Terms of Service to match Apple privacy questionnaire
+- **Apple Privacy Questionnaire**: 🔄 In progress - completed Email Address and User ID sections
+- **Google AdMob Planning**: 🔄 Planning integration for free tier users only
 
 ## Milestones
 
@@ -132,6 +135,11 @@
 **Date**: 2024-12-19
 **Components**: Mobile SDK, UI components, dynamic API integration, caching, Swift 6 compatibility, StoreKit 2 integration, TestFlight ready
 
+### 🎯 Milestone 7: App Store Submission Preparation 🔄
+**Status**: In Progress
+**Date**: September 2025
+**Components**: Production archive, App Store Connect setup, legal documents, Apple privacy questionnaire, Google AdMob integration planning
+
 ## Key Metrics
 
 - **Code Coverage**: 90%+ (comprehensive test suite implemented)
@@ -146,10 +154,10 @@
 
 ## Next Actions
 
-1. **Immediate**: Deploy backend to production environment and update iOS app configuration
-2. **Short-term**: Test complete subscription flow with production APIs and TestFlight
-3. **Medium-term**: Create App Store screenshots, descriptions, and marketing materials
-4. **Long-term**: Submit app for App Store review and launch
+1. **Immediate**: Update legal documents for Google AdMob integration
+2. **Short-term**: Add Google AdMob to iOS app with simple banner ads for free tier users
+3. **Medium-term**: Update Apple privacy questionnaire answers for AdMob integration
+4. **Long-term**: Complete App Store submission with AdMob integration
 
 ## Critical Issues
 

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated: December 19, 2024**
+**Last Updated: September 5, 2025**
 
 ## 1. Introduction
 
@@ -13,12 +13,14 @@ Lingible ("we," "us," or "our") is committed to protecting your privacy. This Pr
 - **Profile Data**: User preferences and settings
 - **Translation History**: Text you translate (stored locally and on our servers for premium users)
 - **Usage Data**: How you interact with the app
+- **User Content**: Translation requests and text input
 
 ### 2.2 Information We Collect Automatically
 - **Device Information**: Device type, operating system, app version
 - **Usage Analytics**: Features used, time spent in app, error logs
 - **Performance Data**: App crashes, loading times, and technical metrics
 - **Authentication Data**: Login sessions and security tokens
+- **User Identifiers**: Unique user IDs for account management and backend services
 
 ### 2.3 Information from Third Parties
 - **App Store Data**: Subscription status and purchase history
@@ -37,6 +39,7 @@ Lingible ("we," "us," or "our") is committed to protecting your privacy. This Pr
 - Monitor app performance and fix bugs
 - Develop new features and content
 - Conduct research and analytics
+- Evaluate user behavior and feature effectiveness
 
 ### 3.3 Communication
 - Send important service updates
@@ -45,8 +48,8 @@ Lingible ("we," "us," or "our") is committed to protecting your privacy. This Pr
 
 ## 4. Information Sharing and Disclosure
 
-### 4.1 We Do Not Sell Your Data
-We do not sell, rent, or trade your personal information to third parties.
+### 4.1 We Do Not Sell or Track Your Data
+We do not sell, rent, or trade your personal information to third parties. We do not use your data for tracking purposes as defined by Apple's App Store guidelines.
 
 ### 4.2 Limited Sharing
 We may share your information only in these circumstances:
@@ -109,9 +112,10 @@ We ensure appropriate safeguards are in place for international transfers.
 
 ### 9.1 Integrated Services
 Our Service may integrate with:
-- **Apple App Store**: For subscription management
-- **Google Play Store**: For subscription management
-- **AWS**: For cloud infrastructure
+- **Apple App Store**: For subscription management and in-app purchases
+- **Apple Sign-In**: For user authentication
+- **AWS Cognito**: For user authentication and account management
+- **AWS Lambda/API Gateway**: For backend services and translation processing
 - **Analytics Services**: For app performance monitoring
 
 ### 9.2 Third-Party Privacy Policies
@@ -122,8 +126,12 @@ These services have their own privacy policies that govern their use of your inf
 ### 10.1 App Analytics
 We use analytics tools to understand app usage and performance.
 
-### 10.2 Advertising
-We do not display third-party advertisements in our app.
+### 10.2 Advertising and Tracking
+We do not display third-party advertisements in our app. We do not use your data for tracking purposes, including:
+- We do not share your data with data brokers
+- We do not use your data for targeted advertising
+- We do not link your data with third-party data for advertising purposes
+- We do not use third-party SDKs for advertising or tracking
 
 ## 11. Data Breach Notification
 
@@ -176,7 +184,7 @@ For privacy-related concerns, you can contact our Data Protection Officer at dpo
 
 ## 15. Effective Date
 
-This Privacy Policy is effective as of December 19, 2024, and applies to all information collected by our Service.
+This Privacy Policy is effective as of September 5, 2025, and applies to all information collected by our Service.
 
 ---
 

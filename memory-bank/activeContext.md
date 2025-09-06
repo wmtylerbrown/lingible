@@ -1,6 +1,6 @@
 # Active Context - Lingible
 
-## Current Focus: StoreKit 2 Integration Complete - TestFlight Ready
+## Current Focus: App Store Submission with Google AdMob Integration
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 - **Mandatory TDD Workflow**: Red-Green-Refactor process for all backend development
@@ -114,6 +114,37 @@
 - **Git Repository Cleanup**: Updated .gitignore to exclude iOS build artifacts and user-specific files
 - **App Store Connect Setup**: Configured subscription products and TestFlight distribution pipeline
 
+### ✅ **COMPLETED: Translation Quality Improvement (2024-12-19)**
+- **Enhanced Prompting**: Improved Bedrock prompts with specific examples and clear rules
+- **Natural Language Focus**: Emphasized direct, conversational translations over explanatory responses
+- **GenZ Authenticity**: Added authentic examples like "no cap" → "for real" and "it's giving main character energy"
+- **Response Parsing**: Enhanced response cleanup to remove formal prefixes and unnecessary punctuation
+- **Quality Examples**: Provided specific translation examples for common phrases in both directions
+- **Tone Consistency**: Clear rules about maintaining energy level and casual conversational style
+
+### ✅ **COMPLETED: Translation Confidence Improvement (2024-12-19)**
+- **Same-Text Prevention**: Added explicit instructions to prevent model from returning identical text
+- **Validation Logic**: Implemented `_is_same_text` method to detect when model returns original text
+- **Business Event Logging**: Added logging for instances where model returns same text for monitoring
+- **Prompt Enhancement**: Added "NEVER return the same text" and "make your best guess" instructions
+- **Quality Assurance**: Ensures translations always provide actual value rather than echoing input
+
+### ✅ **COMPLETED: Premium User Status Fix (2024-12-19)**
+- **Data Consistency Issue**: Fixed inconsistency where user tier was stored in two separate DynamoDB records
+- **Dual Record Update**: Modified `upgrade_user_tier` to update both profile record (SK: "PROFILE") and usage limits record (SK: "USAGE#LIMITS")
+- **UI Display Fix**: Resolved issue where "refresh user data" button wasn't updating premium status correctly
+- **Repository Pattern**: Ensured both user profile and usage data are consistently updated during tier upgrades
+- **User Experience**: Premium users now see correct status immediately after upgrade without manual refresh
+
+### ✅ **COMPLETED: Production Website Deployment (2024-12-19)**
+- **Domain Configuration**: Successfully deployed production website to support `lingible.com` and `www.lingible.com`
+- **Squarespace DNS Integration**: Configured to work with existing Squarespace domain management (no hosted zone conflicts)
+- **SSL Certificate**: Set up email validation for SSL certificates covering both apex and www domains
+- **CloudFront Distribution**: Deployed with distribution ID `E1VFIPFKX3U8TB` and domain `didoe7799b8j5.cloudfront.net`
+- **S3 Hosting**: Website files deployed to `lingible-website-prod-480421270075-us-east-1` bucket
+- **DNS Instructions**: Provided clear Squarespace DNS configuration instructions for A and CNAME records
+- **Infrastructure Updates**: Modified website stack to handle production domain without creating conflicting hosted zones
+
 ### ✅ **COMPLETED: Translation API & Full System Integration (2024-09-04)**
 - **Authentication System**: ✅ Working perfectly with fresh JWT tokens from Cognito
 - **Enum Serialization Issues**: ✅ Completely resolved across all repositories
@@ -126,16 +157,15 @@
 
 ### 🎯 **CURRENT PRIORITIES:**
 
-#### **1. Production Deployment & TestFlight Testing**
-- **Current Status**: 100% complete - StoreKit 2 integration and TestFlight ready
-- **Authentication**: ✅ Working perfectly with fresh JWT tokens from Cognito
-- **Translation API**: ✅ Fully operational with Bedrock AI integration
-- **Dynamic Limits**: ✅ iOS app now uses backend API values for daily limits
-- **API Integration**: ✅ iOS app successfully connects to dev API endpoint
-- **Build System**: ✅ iOS project builds successfully with proper package structure
-- **StoreKit Integration**: ✅ Complete StoreKit 2 subscription system with $2.99/month pricing
-- **TestFlight Ready**: ✅ App archived and ready for TestFlight distribution
-- **Next Step**: Deploy backend to production and test complete subscription flow
+#### **1. App Store Submission with Google AdMob Integration**
+- **Current Status**: Production archive built, legal docs updated, Apple privacy questionnaire in progress
+- **Production Archive**: ✅ Built with correct bundle ID (com.lingible.lingible) and Amplify configuration
+- **App Store Connect**: ✅ Setup complete with screenshots, description, keywords, and 1024x1024 icon
+- **Legal Documents**: ✅ Updated Privacy Policy and Terms of Service to match Apple privacy questionnaire
+- **Apple Privacy Questionnaire**: 🔄 Currently in progress - completed Email Address and User ID sections
+- **Google AdMob Decision**: ✅ Decided to integrate AdMob for free tier users only (premium users get ad-free)
+- **Production Website**: ✅ Deployed to lingible.com with CloudFront distribution ready for DNS configuration
+- **Next Step**: Update legal documents and privacy questionnaire for AdMob integration
 
 #### **2. Environment Configuration & Production Setup**
 - **Environment Configuration**: Implement proper environment configuration system for production
@@ -226,4 +256,4 @@
 
 ---
 
-**Current Status**: ✅ **STOREKIT INTEGRATION COMPLETE** - Backend fully operational with comprehensive test coverage, TDD workflow, and AI-powered trending system. iOS app successfully integrated with dynamic API limits, StoreKit 2 subscription system, and TestFlight ready. Ready for production deployment and App Store submission.
+**Current Status**: ✅ **APP STORE SUBMISSION IN PROGRESS** - Production archive built with correct bundle ID and Amplify configuration. Legal documents updated to match Apple privacy questionnaire answers. Production website deployed to lingible.com with CloudFront distribution ready for DNS configuration. Currently working through Apple App Privacy questionnaire and planning Google AdMob integration for free tier users. Ready for final App Store submission once AdMob integration is complete.
