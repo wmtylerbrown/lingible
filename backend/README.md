@@ -161,6 +161,17 @@ bedrock_client = aws_services.bedrock_client
 
 See [AWS Services Efficiency Guide](docs/aws_services_efficiency.md) for detailed documentation.
 
+### Lambda Configuration
+
+Our Lambda functions are configured with:
+
+- **Memory Allocation**: 512 MB for all functions (standard configuration)
+- **Runtime**: Python 3.13
+- **Timeout**: 30 seconds
+- **Cold Start Behavior**: Standard AWS Lambda cold start behavior
+
+See [Lambda Optimization Guide](docs/lambda-optimization.md) for detailed documentation and optimization history.
+
 ## Testing
 
 ### Lambda Functions

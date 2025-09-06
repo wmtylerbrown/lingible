@@ -2,6 +2,12 @@
 
 A comprehensive mobile application project with AWS-powered backend infrastructure using API Gateway and individual Lambda handlers.
 
+## 🚨 CRITICAL RULE
+
+**⚠️ BEFORE MAKING ANY API CHANGES, READ: [`API_SPEC_RULE.md`](./API_SPEC_RULE.md)**
+
+This rule is MANDATORY and prevents API/client mismatches like the `transaction_id` issue we just fixed.
+
 ## Project Structure
 
 ```
