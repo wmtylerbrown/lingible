@@ -28,6 +28,7 @@ flake8 = "^7.3.0"
 mypy = "^1.17.1"
 types-python-jose = "^3.5.0"
 types-pyasn1 = "^0.6.0"
+pre-commit = "^4.0.1"
 
 [build-system]
 requires = ["poetry-core"]
