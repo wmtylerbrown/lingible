@@ -52,7 +52,8 @@ export class WebsiteStack extends cdk.Stack {
     const { environment, domainName } = props;
 
     // Determine domain name based on environment if not provided
-    const finalDomainName = domainName || `${environment}.lingible.com`;
+    // For production, use the main domain; for other environments, use subdomain
+    const finalDomainName = domainName || (environment === 'prod' ? 'lingible.com' : `${environment}.lingible.com`);
 
     // S3 bucket for website hosting (private)
     this.bucket = new s3.Bucket(this, 'WebsiteBucket', {
@@ -63,15 +64,30 @@ export class WebsiteStack extends cdk.Stack {
       autoDeleteObjects: false,
     });
 
-    // Get hosted zone for DNS records
-    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: `${environment}.lingible.com`,
-    });
+    // For production, we can't create a hosted zone since lingible.com is in Squarespace
+    // We'll need to manually configure DNS in Squarespace
+    let hostedZone: route53.IHostedZone | undefined;
+    
+    if (environment !== 'prod') {
+      // Only create hosted zone for non-production environments
+      hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+        domainName: `${environment}.lingible.com`,
+      });
+    }
 
-    // Create SSL certificate for the domain
+    // Create SSL certificate for the domain (include both apex and www for production)
+    const certificateDomains = environment === 'prod' 
+      ? [finalDomainName, `www.${finalDomainName}`] 
+      : [finalDomainName];
+    
+    // For production, we need to use email validation since we can't use DNS validation
+    // For other environments, we can use DNS validation
     const certificate = new acm.Certificate(this, 'WebsiteCertificate', {
       domainName: finalDomainName,
-      validation: acm.CertificateValidation.fromDns(hostedZone),
+      subjectAlternativeNames: environment === 'prod' ? [`www.${finalDomainName}`] : undefined,
+      validation: environment === 'prod' 
+        ? acm.CertificateValidation.fromEmail() // Email validation for production
+        : acm.CertificateValidation.fromDns(hostedZone!), // DNS validation for other environments
     });
 
     // CloudFront distribution
@@ -94,17 +110,20 @@ export class WebsiteStack extends cdk.Stack {
           responsePagePath: '/index.html',
         },
       ],
-      domainNames: [finalDomainName],
+      domainNames: certificateDomains,
       certificate: certificate,
     });
 
 
-    // Create Route53 A record pointing to CloudFront
-    new route53.ARecord(this, 'WebsiteAliasRecord', {
-      zone: hostedZone,
-      recordName: finalDomainName,
-      target: route53.RecordTarget.fromAlias(new route53Targets.CloudFrontTarget(this.distribution)),
-    });
+    // Only create Route53 records for non-production environments
+    // For production, DNS records will be managed in Squarespace
+    if (environment !== 'prod' && hostedZone) {
+      new route53.ARecord(this, 'WebsiteAliasRecord', {
+        zone: hostedZone,
+        recordName: finalDomainName,
+        target: route53.RecordTarget.fromAlias(new route53Targets.CloudFrontTarget(this.distribution)),
+      });
+    }
 
     // Deploy website files to S3 with conditional CloudFront cache invalidation
     new s3deploy.BucketDeployment(this, 'WebsiteDeployment', {
@@ -145,5 +164,16 @@ export class WebsiteStack extends cdk.Stack {
       value: finalDomainName,
       description: 'Website Domain Name',
     });
+
+    // For production, provide DNS configuration instructions
+    if (environment === 'prod') {
+      new cdk.CfnOutput(this, 'SquarespaceDNSInstructions', {
+        value: `Configure these DNS records in Squarespace:
+        - A record: lingible.com → ${this.distribution.distributionDomainName}
+        - CNAME record: www.lingible.com → ${this.distribution.distributionDomainName}
+        - SSL Certificate will be validated via email`,
+        description: 'DNS Configuration for Squarespace',
+      });
+    }
   }
 }

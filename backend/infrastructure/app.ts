@@ -11,7 +11,8 @@ const app = new cdk.App();
 const environment = app.node.tryGetContext('environment') || 'dev';
 
 // Check if we should deploy the full stack or just hosted zones
-const deployBackend = app.node.tryGetContext('deploy-backend') !== false; // Default to true
+const deployBackendContext = app.node.tryGetContext('deploy-backend');
+const deployBackend = deployBackendContext !== 'false' && deployBackendContext !== false; // Default to true
 
 // Load application configuration from shared config (only for full stack deployment)
 let appleCredentials: { clientId: string; teamId: string; keyId: string } | undefined;

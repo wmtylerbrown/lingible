@@ -31,6 +31,7 @@ export class BackendStack extends Construct {
   // Cognito resources
   public userPool!: cognito.UserPool;
   public userPoolClient!: cognito.UserPoolClient;
+  public appleProvider!: cognito.UserPoolIdentityProviderApple;
 
   // Lambda layers
   public sharedLayer!: lambda.LayerVersion;
@@ -152,6 +153,16 @@ export class BackendStack extends Construct {
         resources: [
           'arn:aws:bedrock:*:*:foundation-model/anthropic.claude-3-haiku-20240307-v1:0',
           'arn:aws:bedrock:*:*:foundation-model/anthropic.claude-3-sonnet-20240229-v1:0',
+        ],
+      }),
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'secretsmanager:GetSecretValue',
+        ],
+        resources: [
+          `arn:aws:secretsmanager:*:*:secret:lingible-apple-shared-secret-${environment}*`,
+          `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
         ],
       }),
     ];
@@ -417,7 +428,7 @@ export class BackendStack extends Construct {
     });
 
     // Add Apple Identity Provider with secret lookup
-    new cognito.UserPoolIdentityProviderApple(this, 'AppleProvider', {
+    this.appleProvider = new cognito.UserPoolIdentityProviderApple(this, 'AppleProvider', {
       userPool: this.userPool,
       clientId: appleClientId || 'TO_BE_SET',
       teamId: appleTeamId || 'TO_BE_SET',
@@ -470,6 +481,9 @@ export class BackendStack extends Construct {
       ],
       preventUserExistenceErrors: true,
     });
+
+    // Ensure Apple provider is created before User Pool Client
+    this.userPoolClient.node.addDependency(this.appleProvider);
 
     // Add User Pool Domain for OAuth endpoints
     new cognito.UserPoolDomain(this, 'LingibleUserPoolDomain', {
@@ -1240,7 +1254,6 @@ export class BackendStack extends Construct {
           max_terms: 20,
           categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
         },
-        scheduled_at: new Date().toISOString(),
       }),
     }));
 
@@ -1269,7 +1282,6 @@ export class BackendStack extends Construct {
           max_terms: 20,
           categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
         },
-        scheduled_at: new Date().toISOString(),
       }),
     }));
 

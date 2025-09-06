@@ -15,6 +15,7 @@ export class HostedZonesConstruct extends Construct {
     // Note: This stack should be deployed first, before main application stacks
 
     // Environment-specific hosted zone
+    // Note: Production (lingible.com) is managed by Squarespace, so we only create hosted zones for other environments
     const zoneName = `${environment}.lingible.com`;
     this.hostedZone = new route53.HostedZone(this, `${environment.charAt(0).toUpperCase() + environment.slice(1)}HostedZone`, {
       zoneName: zoneName,
