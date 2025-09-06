@@ -159,7 +159,24 @@ Lambda functions are deployed via AWS CDK from the `../infrastructure/` director
 - **Linting**: flake8 for style and complexity
 - **Type Checking**: mypy for type safety
 - **Formatting**: Black for consistent formatting
-- **Pre-commit**: Automated quality checks
+- **Pre-commit**: Automated quality checks (installed via Poetry)
+
+#### Pre-commit Setup
+Pre-commit hooks are automatically installed when you run `poetry install`. The hooks include:
+- **Black**: Code formatting
+- **Flake8**: Linting and style checks
+- **MyPy**: Type checking
+- **Trailing whitespace**: Remove trailing spaces
+- **End-of-file**: Ensure files end with newline
+- **YAML validation**: Check YAML syntax
+- **Large files**: Prevent large files from being committed
+- **Merge conflicts**: Detect merge conflict markers
+
+To manually install pre-commit hooks:
+```bash
+# From project root
+pre-commit install
+```
 
 ### Workspace Cleanup
 ```bash
