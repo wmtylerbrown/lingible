@@ -177,7 +177,7 @@ struct TrendingTermCard: View {
         .padding(16)
         .background(Color(.systemBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .shadow(color: Color(.label).opacity(0.05), radius: 2, x: 0, y: 1)
     }
 }
 

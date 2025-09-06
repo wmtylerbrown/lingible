@@ -71,7 +71,7 @@ struct SplashView: View {
                     .animation(.spring(response: 0.8, dampingFraction: 0.8).delay(0.3), value: showWordmark)
 
                 // Tagline
-                Text("Bridge the gap between generations")
+                Text("Translate Gen Z. No Cap.")
                     .font(.subheadline)
                     .foregroundColor(.lingibleSecondary)
                     .multilineTextAlignment(.center)

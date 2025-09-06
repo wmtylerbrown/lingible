@@ -5,7 +5,6 @@ struct ProfileView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
     @State private var showingSignOutAlert = false
     @State private var showingThemePicker = false
-    @State private var showingNotificationsSettings = false
     @State private var showingUpgradeSheet = false
     @State private var showingClearCacheAlert = false
 
@@ -39,7 +38,6 @@ struct ProfileView: View {
 
                 // Settings Section
                 Section(header: Text("Preferences")) {
-                    settingsRow(icon: "bell", title: "Notifications", action: { showingNotificationsSettings = true })
                     settingsRow(icon: "paintbrush", title: "Theme", action: { showingThemePicker = true })
                     settingsRow(icon: "trash", title: "Clear Cache", action: { showingClearCacheAlert = true })
                     settingsRow(icon: "star", title: "Upgrade to Premium", action: { showingUpgradeSheet = true })
@@ -101,7 +99,6 @@ struct ProfileView: View {
 
                 // Support Section
                 Section(header: Text("Support")) {
-                    settingsRow(icon: "questionmark.circle", title: "Help & FAQ", action: { openHelpFAQ() })
                     settingsRow(icon: "envelope", title: "Contact Support", action: { contactSupport() })
                     settingsRow(icon: "doc.text", title: "Terms of Service", action: { openTerms() })
                     settingsRow(icon: "hand.raised", title: "Privacy Policy", action: { openPrivacy() })
@@ -125,12 +122,9 @@ struct ProfileView: View {
         .sheet(isPresented: $showingThemePicker) {
             ThemePickerView()
         }
-        .sheet(isPresented: $showingNotificationsSettings) {
-            NotificationsSettingsView()
-        }
         .sheet(isPresented: $showingUpgradeSheet) {
             UpgradePromptView(
-                translationCount: nil,
+                translationCount: appCoordinator.userUsage?.dailyUsed ?? 0,
                 onUpgrade: {
                     // Refresh user data after successful upgrade
                     Task {
@@ -296,15 +290,23 @@ struct ProfileView: View {
     }
 
     // MARK: - Open Links
-    private func openHelpFAQ() {
-        if let url = URL(string: AppConfiguration.helpFAQURL) {
-            UIApplication.shared.open(url)
-        }
-    }
-
     private func contactSupport() {
-        if let url = URL(string: "mailto:\(AppConfiguration.supportEmail)") {
-            UIApplication.shared.open(url)
+        let email = AppConfiguration.supportEmail
+        print("📧 ProfileView: Attempting to open email to: \(email)")
+        
+        if let url = URL(string: "mailto:\(email)") {
+            print("📧 ProfileView: Created mailto URL: \(url)")
+            if UIApplication.shared.canOpenURL(url) {
+                print("📧 ProfileView: Can open URL, opening...")
+                UIApplication.shared.open(url)
+            } else {
+                print("❌ ProfileView: Cannot open mailto URL - no email app configured")
+                // Fallback: Copy email to clipboard
+                UIPasteboard.general.string = email
+                // You could show an alert here saying "Email copied to clipboard"
+            }
+        } else {
+            print("❌ ProfileView: Failed to create mailto URL for: \(email)")
         }
     }
 

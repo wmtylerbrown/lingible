@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import LingibleAPI
+import Combine
 
 // MARK: - Ad Manager Service
 @MainActor
@@ -13,11 +14,12 @@ final class AdManager: ObservableObject {
     @Published var interstitialAdManager: InterstitialAdManager?
     
     // MARK: - Private Properties
-    private let userService: UserServiceProtocol
+    private let userService: any UserServiceProtocol
     private var translationCount = 0
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
-    init(userService: UserServiceProtocol) {
+    init(userService: any UserServiceProtocol) {
         self.userService = userService
         self.interstitialAdManager = InterstitialAdManager(userService: userService)
         
@@ -37,13 +39,13 @@ final class AdManager: ObservableObject {
     }
     
     /// Increment translation count and check for interstitial ad
-    func incrementTranslationCount() {
+    func incrementTranslationCount(onAdDismissed: (() -> Void)? = nil) {
         translationCount += 1
         updateAdVisibility()
         
         // Check if we should show interstitial ad
         if let interstitialManager = interstitialAdManager {
-            let adShown = interstitialManager.showAdIfNeeded(translationCount: translationCount)
+            let adShown = interstitialManager.showAdIfNeeded(translationCount: translationCount, onDismissed: onAdDismissed)
             if adShown {
                 print("📺 AdManager: Interstitial ad shown after \(translationCount) translations")
             }
@@ -71,14 +73,8 @@ final class AdManager: ObservableObject {
     // MARK: - Private Methods
     
     private func setupUserTierObservation() {
-        // Observe user tier changes
-        userService.$userUsage
-            .map { $0?.tier }
-            .removeDuplicates()
-            .sink { [weak self] tier in
-                self?.updateAdVisibility()
-            }
-            .store(in: &cancellables)
+        // Since userService is a protocol, we'll update ad visibility when translation count changes
+        // The user tier will be checked in updateAdVisibility()
     }
     
     private func updateAdVisibility() {
@@ -87,10 +83,8 @@ final class AdManager: ObservableObject {
         // Only show ads for free users
         shouldShowBanner = currentTier == .free
         
-        print("📊 AdManager: Updated ad visibility - Tier: \(currentTier), Show Banner: \(shouldShowBanner)")
+        print("📊 AdManager: Updated ad visibility - Tier: \(currentTier), Show Banner: \(shouldShowBanner), Should Show Ads: \(shouldShowAds)")
     }
-    
-    private var cancellables = Set<AnyCancellable>()
 }
 
 // MARK: - AdMob Integration Extensions
@@ -129,8 +123,8 @@ extension AdManager {
     /// Create banner ad view
     func createBannerAdView() -> some View {
         SwiftUIBannerAd(adUnitID: bannerAdUnitID)
-            .opacity(shouldShowBanner ? 1.0 : 0.0)
-            .animation(.easeInOut(duration: 0.3), value: shouldShowBanner)
+            .opacity(shouldShowAds ? 1.0 : 0.0)
+            .animation(.easeInOut(duration: 0.3), value: shouldShowAds)
     }
     
     /// Create enhanced header with upgrade button

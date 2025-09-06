@@ -97,7 +97,7 @@ struct EnhancedHeader: View {
                     .stroke(
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                Color.white.opacity(0.3),
+                                Color(.systemBackground).opacity(0.3),
                                 Color.clear
                             ]),
                             startPoint: .topLeading,

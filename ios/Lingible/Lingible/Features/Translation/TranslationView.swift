@@ -124,7 +124,7 @@ struct TranslationView: View {
             }
             .sheet(isPresented: $showingUpgradePrompt) {
                 UpgradePromptView(
-                    translationCount: upgradePromptCount,
+                    translationCount: upgradePromptCount > 0 ? upgradePromptCount : (appCoordinator.userUsage?.dailyUsed ?? 0),
                     onUpgrade: {
                         showingUpgradePrompt = false
                         // TODO: Navigate to upgrade flow
@@ -161,7 +161,7 @@ struct TranslationView: View {
             TextEditor(text: $inputText)
                 .frame(height: 120)
                 .padding(12)
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
@@ -263,9 +263,9 @@ struct TranslationView: View {
             .disabled(!isTextValid || isLoading)
         }
         .padding(24)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(20)
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .shadow(color: Color(.label).opacity(0.1), radius: 10, x: 0, y: 5)
     }
 
     // MARK: - Current Result Card View
@@ -336,9 +336,9 @@ struct TranslationView: View {
             }
         }
         .padding(24)
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(20)
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .shadow(color: Color(.label).opacity(0.1), radius: 10, x: 0, y: 5)
     }
 
     // MARK: - Translation History View
@@ -400,6 +400,16 @@ struct TranslationView: View {
         // Check if text exceeds free tier limit
         if userTier == .free && inputText.count > maxTextLength {
             showUpgradePrompt()
+            return
+        }
+
+        // Check if user has exceeded daily limit
+        let currentUsage = appCoordinator.userUsage?.dailyUsed ?? 0
+        let dailyLimit = appCoordinator.userUsage?.dailyLimit ?? 10
+        if userTier == .free && currentUsage >= dailyLimit {
+            // Show upgrade prompt when daily limit reached
+            upgradePromptCount = currentUsage
+            showingUpgradePrompt = true
             return
         }
 
@@ -489,20 +499,32 @@ struct TranslationView: View {
             // Update the local usage count immediately
             appCoordinator.userService.incrementTranslationCount()
             
-            // Update AdManager with new translation count
-            appCoordinator.adManager.incrementTranslationCount()
-
-            // Check if we should show upgrade prompt for free users
-            // Only show when daily limit is reached (use dynamic limit from user profile)
-            let currentUsage = (appCoordinator.userUsage?.dailyUsed ?? 0) + 1
-            let dailyLimit = appCoordinator.userUsage?.dailyLimit ?? 10 // Fallback to 10 if not available
-            if userTier == .free && currentUsage >= dailyLimit {
-                // Show upgrade prompt when daily limit reached
-                upgradePromptCount = currentUsage
+            // Update AdManager with new translation count and handle ad dismissal
+            appCoordinator.adManager.incrementTranslationCount {
+                // This callback is called when the interstitial ad is dismissed
+                // Ensure we stay on the translation view and don't lose the results
+                print("📺 TranslationView: Interstitial ad dismissed, staying on translation view")
+                
+                // Ensure the translation result is still visible and app state is preserved
                 DispatchQueue.main.async {
-                    showingUpgradePrompt = true
+                    // Make sure we're still in the authenticated state
+                    if appCoordinator.currentState != .authenticated {
+                        print("⚠️ TranslationView: App state changed to \(appCoordinator.currentState), restoring authenticated state")
+                        appCoordinator.restoreAuthenticatedState()
+                    }
+                    
+                    // Ensure the translation result is still visible
+                    if currentTranslationResult == nil {
+                        print("⚠️ TranslationView: Translation result was lost, restoring...")
+                        // The result should still be there, but let's make sure the UI is in the right state
+                        showInputCard = false
+                    } else {
+                        print("✅ TranslationView: Translation result preserved: \(currentTranslationResult?.translatedText ?? "nil")")
+                    }
                 }
             }
+
+            // Daily limit check is now handled in translate() function before API call
 
         } catch {
             // TEMPORARY: Log full error details to understand the 429 response structure

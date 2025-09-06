@@ -6,20 +6,30 @@ struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
     @Binding var isLoaded: Bool
     
-    func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = GADBannerView(adSize: GADAdSizeBanner)
+    func makeUIView(context: Context) -> BannerView {
+        let bannerView = BannerView(adSize: AdSizeBanner)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
-        bannerView.rootViewController = UIApplication.shared.windows.first?.rootViewController
+        
+        // Get the root view controller properly with better error handling
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootViewController = window.rootViewController {
+            bannerView.rootViewController = rootViewController
+            print("✅ BannerAdView: Set root view controller successfully")
+        } else {
+            print("❌ BannerAdView: Failed to get root view controller")
+        }
         
         // Load the ad
-        let request = GADRequest()
+        let request = Request()
         bannerView.load(request)
+        print("🔄 BannerAdView: Loading ad with unit ID: \(adUnitID)")
         
         return bannerView
     }
     
-    func updateUIView(_ uiView: GADBannerView, context: Context) {
+    func updateUIView(_ uiView: BannerView, context: Context) {
         // Update if needed
     }
     
@@ -27,40 +37,40 @@ struct BannerAdView: UIViewRepresentable {
         Coordinator(self)
     }
     
-    class Coordinator: NSObject, GADBannerViewDelegate {
+    class Coordinator: NSObject, BannerViewDelegate {
         let parent: BannerAdView
         
         init(_ parent: BannerAdView) {
             self.parent = parent
         }
         
-        func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+        func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             print("✅ BannerAdView: Ad loaded successfully")
             DispatchQueue.main.async {
                 self.parent.isLoaded = true
             }
         }
         
-        func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             print("❌ BannerAdView: Failed to load ad: \(error.localizedDescription)")
             DispatchQueue.main.async {
                 self.parent.isLoaded = false
             }
         }
         
-        func bannerViewDidRecordImpression(_ bannerView: GADBannerView) {
+        func bannerViewDidRecordImpression(_ bannerView: BannerView) {
             print("📊 BannerAdView: Ad impression recorded")
         }
         
-        func bannerViewWillPresentScreen(_ bannerView: GADBannerView) {
+        func bannerViewWillPresentScreen(_ bannerView: BannerView) {
             print("👆 BannerAdView: Ad will present screen")
         }
         
-        func bannerViewWillDismissScreen(_ bannerView: GADBannerView) {
+        func bannerViewWillDismissScreen(_ bannerView: BannerView) {
             print("👆 BannerAdView: Ad will dismiss screen")
         }
         
-        func bannerViewDidDismissScreen(_ bannerView: GADBannerView) {
+        func bannerViewDidDismissScreen(_ bannerView: BannerView) {
             print("👆 BannerAdView: Ad did dismiss screen")
         }
     }
@@ -71,6 +81,7 @@ struct SwiftUIBannerAd: View {
     let adUnitID: String
     @State private var isLoaded = false
     @State private var showAd = true
+    @State private var hasAppeared = false
     
     var body: some View {
         if showAd {
@@ -96,9 +107,13 @@ struct SwiftUIBannerAd: View {
                 }
             }
             .onAppear {
-                // Small delay to ensure smooth loading
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    showAd = true
+                if !hasAppeared {
+                    hasAppeared = true
+                    print("🔄 SwiftUIBannerAd: Banner ad view appeared")
+                    // Small delay to ensure the view controller is ready
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showAd = true
+                    }
                 }
             }
         }

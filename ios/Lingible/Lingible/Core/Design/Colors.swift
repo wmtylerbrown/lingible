@@ -4,11 +4,11 @@ import SwiftUI
 extension Color {
 
     // MARK: - Background Colors (using auto-generated asset symbols)
-    static let lingibleLightBackground = Color.white
+    static let lingibleLightBackground = Color(.systemBackground)
 
     // MARK: - Text Colors
-    static let lingibleDark = Color.black
-    static let lingibleLight = Color.white
+    static let lingibleDark = Color(.label)
+    static let lingibleLight = Color(.systemBackground)
 
     // MARK: - Status Colors
     static let lingibleSuccess = Color.green

@@ -58,6 +58,12 @@ final class AppCoordinator: ObservableObject {
             }
         }
     }
+    
+    /// Restore authenticated state (used when ad dismissal causes state issues)
+    func restoreAuthenticatedState() {
+        currentState = .authenticated
+        print("🔄 AppCoordinator: Restored authenticated state")
+    }
 
     func authenticateUserWithApple() async throws -> AuthenticatedUser {
         let user = try await authenticationService.signInWithApple()

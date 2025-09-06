@@ -16,7 +16,11 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: appCoordinator.currentState)
         .onAppear {
-            appCoordinator.checkAuthenticationStatus()
+            // Only check authentication status if we're not already authenticated
+            // This prevents the splash screen from appearing when dismissing ads
+            if appCoordinator.currentState == .splash {
+                appCoordinator.checkAuthenticationStatus()
+            }
         }
     }
 }

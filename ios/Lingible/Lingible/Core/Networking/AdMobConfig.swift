@@ -34,15 +34,12 @@ struct AdMobConfig {
     static func initialize() {
         print("🔧 AdMobConfig: Initializing AdMob SDK...")
         
-        GADMobileAds.sharedInstance().start { status in
+        MobileAds.shared.start { status in
             print("✅ AdMobConfig: AdMob SDK initialized successfully")
             print("📊 AdMobConfig: Adapter statuses: \(status.adapterStatusesByClassName)")
             
             // Configure test devices for development
             #if DEBUG
-            let request = GADRequest()
-            // Add your test device ID here when you get it
-            // request.testDevices = ["YOUR_TEST_DEVICE_ID"]
             print("🧪 AdMobConfig: Using test ad units for development")
             #endif
         }
@@ -52,12 +49,12 @@ struct AdMobConfig {
     static func configureTestDevices() {
         #if DEBUG
         // Get the current device ID for testing
-        let deviceID = GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers
-        print("🧪 AdMobConfig: Current test device IDs: \(deviceID)")
+        let deviceID = MobileAds.shared.requestConfiguration.testDeviceIdentifiers
+        print("🧪 AdMobConfig: Current test device IDs: \(deviceID ?? [])")
         
         // Add your device ID to the test devices list
         // You can find your device ID in the console logs when running the app
-        GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = [
+        MobileAds.shared.requestConfiguration.testDeviceIdentifiers = [
             // Add your device ID here
             // "YOUR_DEVICE_ID_HERE"
         ]

@@ -30,7 +30,7 @@ struct AuthenticationView: View {
                         .frame(height: 40)
                         .fadeInAnimation(delay: 0.4)
 
-                    Text("Bridge the gap between generations")
+                    Text("Translate Gen Z. No Cap.")
                         .font(.subheadline)
                         .foregroundColor(.lingibleSecondary)
                         .multilineTextAlignment(.center)

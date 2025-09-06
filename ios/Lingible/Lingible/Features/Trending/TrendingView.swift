@@ -7,6 +7,7 @@ import Amplify
 struct TrendingView: View {
     @StateObject private var viewModel: TrendingViewModel
     @State private var showingUpgradePrompt = false
+    @EnvironmentObject var appCoordinator: AppCoordinator
 
     init(
         trendingService: TrendingServiceProtocol,
@@ -32,6 +33,13 @@ struct TrendingView: View {
                         Task {
                             await viewModel.refreshTrendingTerms()
                         }
+                    }
+
+                    // Banner Ad (for free users only)
+                    if appCoordinator.adManager.shouldShowAds {
+                        appCoordinator.adManager.createBannerAdView()
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 10)
                     }
 
                     // Category filter for premium users
@@ -62,10 +70,10 @@ struct TrendingView: View {
             }
             .sheet(isPresented: $showingUpgradePrompt) {
                 UpgradePromptView(
-                    translationCount: nil,
+                    translationCount: appCoordinator.userUsage?.dailyUsed ?? 0,
                     onUpgrade: { showingUpgradePrompt = false },
                     onDismiss: { showingUpgradePrompt = false },
-                    userUsage: nil
+                    userUsage: appCoordinator.userUsage
                 )
             }
         }
@@ -164,7 +172,7 @@ struct TrendingView: View {
         .padding(16)
         .background(Color(.systemBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .shadow(color: Color(.label).opacity(0.05), radius: 2, x: 0, y: 1)
     }
 
     // MARK: - Loading View
