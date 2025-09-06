@@ -1,6 +1,7 @@
 """Translation service with AWS Bedrock integration."""
 
 import json
+import re
 import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
@@ -64,7 +65,7 @@ class TranslationService:
                     usage_response.daily_limit,
                 )
 
-            # Atomically increment usage (no need to pass UsageLimit object)
+            # Atomically increment usage (pass tier for consistency)
             self.user_service.increment_usage(user_id, usage_response.tier)
 
             # Generate Bedrock prompt
@@ -77,6 +78,19 @@ class TranslationService:
             translated_text = self._parse_bedrock_response(
                 bedrock_response, request.direction
             )
+            
+            # Validate that we got an actual translation, not the same text
+            if self._is_same_text(translated_text, request.text):
+                logger.log_business_event(
+                    "model_returned_same_text",
+                    {
+                        "original_text": request.text,
+                        "translated_text": translated_text,
+                        "direction": request.direction.value,
+                    }
+                )
+                # For now, we'll still return it but log the issue
+                # In production, you might want to retry or use a fallback
 
             # Calculate processing time
             processing_time_ms = int((time.time() - start_time) * 1000)
@@ -129,17 +143,49 @@ class TranslationService:
         text = request.text
 
         if direction == TranslationDirection.GENZ_TO_ENGLISH:
-            prompt = f"""You are a Lingible translator. Translate the following GenZ slang or internet language to clear, standard English.
+            prompt = f"""You are a GenZ translator. Translate this GenZ/internet slang to natural, everyday English.
 
-Text to translate: "{text}"
+Text: "{text}"
 
-Provide only the translated text in standard English. Do not include explanations or additional text."""
+Rules:
+- Give ONE direct, natural translation that sounds like how someone would actually say it
+- Don't explain what the slang means, just translate it naturally
+- Keep the same tone and energy level
+- Use casual, conversational English
+- Provide only the translated text, nothing else
+- NEVER return the same text - always provide an actual translation
+- If you're unsure, make your best guess rather than returning the original
+
+Examples:
+- "no cap" → "for real"
+- "it's giving main character energy" → "that person has an exceptionally confident and self-assured presence"
+- "that's fire" → "that's amazing"
+- "bet" → "okay"
+- "periodt" → "exactly"
+
+Translate:"""
         else:
-            prompt = f"""You are a Lingible translator. Translate the following standard English to GenZ slang or internet language.
+            prompt = f"""You are a GenZ translator. Translate this standard English to natural GenZ/internet slang.
 
-Text to translate: "{text}"
+Text: "{text}"
 
-Provide only the translated text in GenZ slang. Do not include explanations or additional text."""
+Rules:
+- Use authentic GenZ slang that people actually say
+- Keep the same meaning and energy level
+- Make it sound natural and current
+- Don't over-explain or be too formal
+- Provide only the translated text, nothing else
+- NEVER return the same text - always provide an actual translation
+- If you're unsure, make your best guess rather than returning the original
+
+Examples:
+- "that's really good" → "that's fire"
+- "that person has an exceptionally confident and self-assured presence" → "it's giving main character energy"
+- "for real" → "no cap"
+- "okay" → "bet"
+- "exactly" → "periodt"
+
+Translate:"""
 
         return prompt
 
@@ -197,15 +243,52 @@ Provide only the translated text in GenZ slang. Do not include explanations or a
         if completion.startswith('"') and completion.endswith('"'):
             completion = completion[1:-1]
 
-        if completion.startswith("Translation:") or completion.startswith(
-            "translation:"
-        ):
-            completion = completion.split(":", 1)[1].strip()
+        # Remove common prefixes that might be added
+        prefixes_to_remove = [
+            "Translation:",
+            "translation:",
+            "Translated:",
+            "translated:",
+            "Answer:",
+            "answer:",
+            "Result:",
+            "result:",
+        ]
+        
+        for prefix in prefixes_to_remove:
+            if completion.lower().startswith(prefix.lower()):
+                completion = completion[len(prefix):].strip()
+                break
+
+        # Remove any trailing punctuation that might be added by the model
+        if completion.endswith('.') and not completion.endswith('...'):
+            # Only remove single periods, not ellipses
+            completion = completion[:-1]
 
         if not completion:
             raise BusinessLogicError("Invalid response format from Bedrock")
 
         return completion
+
+    def _is_same_text(self, translated_text: str, original_text: str) -> bool:
+        """Check if the translated text is essentially the same as the original."""
+        # Normalize both texts for comparison
+        normalized_translated = translated_text.lower().strip()
+        normalized_original = original_text.lower().strip()
+        
+        # Check for exact match
+        if normalized_translated == normalized_original:
+            return True
+            
+        # Check for very similar text (e.g., just punctuation differences)
+        # Remove common punctuation and compare
+        clean_translated = re.sub(r'[^\w\s]', '', normalized_translated)
+        clean_original = re.sub(r'[^\w\s]', '', normalized_original)
+        
+        if clean_translated == clean_original:
+            return True
+            
+        return False
 
     def _calculate_confidence_score(self, response: BedrockResponse) -> Optional[float]:
         """Calculate confidence score based on response quality."""

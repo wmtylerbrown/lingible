@@ -166,7 +166,7 @@ class UsageLimit(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    tier: UserTier = Field(..., description="User tier (free/premium)")
+    tier: UserTier = Field(..., description="User tier (free/premium) - source of truth for performance")
     daily_used: int = Field(0, ge=0, description="Current daily usage")
     reset_daily_at: datetime = Field(
         ..., description="When daily limit resets"

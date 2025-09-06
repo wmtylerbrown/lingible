@@ -1,6 +1,6 @@
 """User service for user management and usage tracking."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 from models.users import (
@@ -14,6 +14,7 @@ from utils.logging import logger
 from utils.tracing import tracer
 from utils.config import get_config_service, UsageLimitsConfig
 from utils.exceptions import ValidationError
+from utils.timezone_utils import get_central_midnight_tomorrow, is_new_day_central_time
 from repositories.user_repository import UserRepository
 
 
@@ -74,26 +75,28 @@ class UserService:
     def get_user_usage(self, user_id: str) -> UserUsageResponse:
         """Get user usage statistics for API response (dynamic data)."""
         try:
-            # Get usage limits only (tier is now included)
+            # Get usage limits (single DB call, tier is stored here for performance)
             usage_limits = self.repository.get_usage_limits(user_id)
             if not usage_limits:
                 # Create default usage limits for new user
-                usage_limits = self._create_default_usage_limits(user_id)
+                # Get tier from user profile for new users
+                user = self.repository.get_user(user_id)
+                if not user:
+                    raise ValidationError(f"User not found: {user_id}")
+                usage_limits = self._create_default_usage_limits(user_id, user.tier)
 
-            # Get limits from config based on tier
+            # Get limits from config based on tier (from usage limits for performance)
             if usage_limits.tier == UserTier.FREE:
                 daily_limit = self.usage_config.free_daily_translations
             else:  # PREMIUM
                 daily_limit = self.usage_config.premium_daily_translations
 
-            # Check if reset date has passed and reset usage if needed
-            now = datetime.now(timezone.utc)
-            if usage_limits.reset_daily_at <= now:
+            # Check if reset date has passed and reset usage if needed (Central Time)
+            if is_new_day_central_time(usage_limits.reset_daily_at):
                 # Reset date has passed, reset the usage
                 usage_limits.daily_used = 0
-                # Update the reset date to tomorrow
-                tomorrow_start = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-                usage_limits.reset_daily_at = tomorrow_start
+                # Update the reset date to tomorrow (Central Time midnight)
+                usage_limits.reset_daily_at = get_central_midnight_tomorrow()
                 # Save the reset usage limits
                 self.repository.reset_daily_usage(user_id, usage_limits.tier)
 
@@ -101,7 +104,7 @@ class UserService:
             daily_remaining = max(0, daily_limit - usage_limits.daily_used)
 
             return UserUsageResponse(
-                tier=usage_limits.tier,
+                tier=usage_limits.tier,  # Use tier from usage limits (optimized for frequent calls)
                 daily_limit=daily_limit,
                 daily_used=usage_limits.daily_used,
                 daily_remaining=daily_remaining,
@@ -118,13 +121,12 @@ class UserService:
             raise
 
     def _create_default_usage_limits(
-        self, user_id: str, tier: UserTier = UserTier.FREE
+        self, user_id: str, tier: UserTier
     ) -> UsageLimit:
         """Create default usage limits for a user."""
         try:
-            now = datetime.now(timezone.utc)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow_start = today_start + timedelta(days=1)
+            # Use Central Time midnight for reset
+            tomorrow_start = get_central_midnight_tomorrow()
 
             usage = UsageLimit(
                 tier=tier,
@@ -196,10 +198,22 @@ class UserService:
             user.tier = new_tier
             user.updated_at = datetime.now(timezone.utc)
 
+            # Update user profile
             success = self.repository.update_user(user)
-
             if not success:
                 raise SystemError(f"Failed to update user {user_id}")
+
+            # CRITICAL: Also update the usage limits tier to keep them in sync
+            # Usage limits are the source of truth for performance (frequent get_user_usage calls)
+            usage_limits = self.repository.get_usage_limits(user_id)
+            if usage_limits:
+                usage_limits.tier = new_tier
+                success = self.repository.update_usage_limits(user_id, usage_limits)
+                if not success:
+                    raise SystemError(f"Failed to update usage limits tier for user {user_id}")
+            else:
+                # Create default usage limits with new tier
+                self._create_default_usage_limits(user_id, new_tier)
 
             logger.log_business_event(
                 "user_tier_upgraded",

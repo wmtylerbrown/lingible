@@ -9,6 +9,7 @@ from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
 from utils.config import get_config_service, TableConfig
+from utils.timezone_utils import get_central_midnight_tomorrow, get_central_midnight_today, is_new_day_central_time
 
 
 class UserRepository:
@@ -166,9 +167,8 @@ class UserRepository:
             # Ensure reset_daily_at exists, create default if missing
             reset_daily_at = item.get("reset_daily_at")
             if not reset_daily_at:
-                # Create default reset date (tomorrow at midnight)
-                now = datetime.now(timezone.utc)
-                tomorrow_start = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+                # Create default reset date (tomorrow at midnight Central Time)
+                tomorrow_start = get_central_midnight_tomorrow()
                 reset_daily_at = tomorrow_start.isoformat()
 
             return UsageLimit(
@@ -192,8 +192,8 @@ class UserRepository:
         """Atomically increment usage counter and reset if needed."""
         try:
             now = datetime.now(timezone.utc)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow_start = today_start + timedelta(days=1)
+            today_start = get_central_midnight_today()
+            tomorrow_start = get_central_midnight_tomorrow()
 
             # First, try to increment usage (this will work if it's the same day)
             try:
@@ -253,8 +253,7 @@ class UserRepository:
         """Reset daily usage counter to 0."""
         try:
             now = datetime.now(timezone.utc)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow_start = today_start + timedelta(days=1)
+            tomorrow_start = get_central_midnight_tomorrow()
 
             self.table.update_item(
                 Key={
