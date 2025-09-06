@@ -20,28 +20,28 @@ tests/
 
 ### Run All Tests
 ```bash
-cd backend
-python run_tests.py
+cd backend/lambda
+PYTHONPATH=src poetry run pytest
 ```
 
 ### Run Unit Tests Only
 ```bash
-python run_tests.py --type unit
+PYTHONPATH=src poetry run pytest -m unit
 ```
 
 ### Run with Coverage
 ```bash
-python run_tests.py --coverage
+PYTHONPATH=src poetry run pytest --cov=src --cov-report=html --cov-report=term-missing
 ```
 
 ### Run Verbose Tests
 ```bash
-python run_tests.py --verbose
+PYTHONPATH=src poetry run pytest -v
 ```
 
 ### Run Fast Tests (Skip Slow Markers)
 ```bash
-python run_tests.py --fast
+PYTHONPATH=src poetry run pytest -m "not slow"
 ```
 
 ## 📋 Test Categories
@@ -188,7 +188,7 @@ pytest -m aws
 
 ### Generate Coverage Report
 ```bash
-python run_tests.py --coverage
+PYTHONPATH=src poetry run pytest --cov=src --cov-report=html --cov-report=term-missing
 ```
 
 ### Coverage Output
@@ -257,7 +257,7 @@ def new_feature_fixture():
 
 ### 3. **Run Tests**
 ```bash
-python run_tests.py --type unit
+PYTHONPATH=src poetry run pytest -m unit
 ```
 
 ### 4. **Update Documentation**

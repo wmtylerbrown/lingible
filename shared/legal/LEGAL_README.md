@@ -63,3 +63,16 @@ For legal questions or document updates:
 - **Legal Email**: legal@lingible.com
 - **Privacy Email**: privacy@lingible.com
 - **General Contact**: support@lingible.com
+- **Data Protection Officer**: dpo@lingible.com
+
+## Recent Updates (September 6, 2025)
+
+### AdMob Integration Updates
+- **Privacy Policy**: Updated to reflect Google AdMob integration and data collection practices
+- **Terms of Service**: Added comprehensive advertising terms and conditions
+- **Key Changes**:
+  - Free users: Ad-supported experience with banner and interstitial ads
+  - Premium users: Completely ad-free experience with no advertising data collection
+  - Clear disclosure of data sharing with Google AdMob for free users only
+  - Prohibition of ad blocking and manipulation
+  - Updated contact information and legal disclaimers

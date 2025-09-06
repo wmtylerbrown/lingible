@@ -6,9 +6,6 @@
   "scripts": {
     "build": "tsc && node scripts/build-lambda-packages.js && ../../.venv/bin/python ../../website/build.py",
     "watch": "tsc -w",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "cdk": "cdk",

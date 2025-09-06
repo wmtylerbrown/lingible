@@ -5,7 +5,7 @@ A serverless backend for translating GenZ slang to English and vice versa using 
 ## 🏗️ Architecture
 
 - **AWS Lambda** - Python 3.13 serverless functions
-- **API Gateway** - REST API endpoints  
+- **API Gateway** - REST API endpoints
 - **DynamoDB** - Single-table design for data storage
 - **AWS Cognito** - User authentication and management
 - **AWS Bedrock** - AI translation service
@@ -26,11 +26,13 @@ backend/
 │   ├── tests/              # Test suite
 │   ├── pyproject.toml      # Poetry dependencies
 │   ├── poetry.lock         # Locked dependencies
-│   └── setup-poetry.sh     # Poetry setup script
+│   └── cleanup.sh          # Lambda cleanup script
 ├── infrastructure/         # AWS CDK infrastructure
 │   ├── constructs/         # CDK constructs
 │   ├── scripts/           # Build scripts
 │   └── lambda-layer/      # Shared code layer
+├── scripts/               # Backend utility scripts
+│   └── setup-poetry.sh    # Poetry setup script
 └── docs/                  # Backend documentation
 ```
 
@@ -49,8 +51,8 @@ python3.13 -m venv .venv
 source .venv/bin/activate
 
 # Setup Poetry and dependencies
-cd backend/lambda
-./setup-poetry.sh          # Install Poetry and dependencies
+cd backend
+./scripts/setup-poetry.sh   # Install Poetry and dependencies
 poetry shell               # Activate Poetry environment
 ```
 
@@ -87,7 +89,7 @@ npm run build              # Build TypeScript and Lambda packages
 # Deploy to development
 npm run deploy:dev
 
-# Deploy to production  
+# Deploy to production
 npm run deploy:prod
 ```
 

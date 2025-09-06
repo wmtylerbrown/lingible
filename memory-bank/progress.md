@@ -240,3 +240,19 @@
 - **Ad Loading Logic**: Fixed banner ad loading issues with proper root view controller detection
 - **Brand Messaging**: Updated app tagline from "Bridge the gap between generations" to "Translate Gen Z. No Cap."
 - **Build System**: iOS app builds successfully with AdMob integration and new messaging
+
+### ✅ **Complete Project Cleanup & Legal Document Updates (2024-09-06)**
+- **Legal Document Updates**: Updated Terms of Service and Privacy Policy with AdMob integration details
+- **Date Corrections**: Corrected all legal document dates to September 6, 2025
+- **Generic Language**: Made usage limits and ad frequency language more generic for future flexibility
+- **Translation Storage Clarification**: Clarified that free users don't get translation history storage
+- **Support Tier Simplification**: Removed standard vs priority support tier distinctions
+- **Build Script Optimization**: Removed redundant pip install step, optimized dependency layer build process
+- **Script Reorganization**: Moved setup-poetry.sh to backend/scripts/, kept cleanup.sh in lambda/
+- **Documentation Updates**: Updated all READMEs with direct pytest commands and correct script locations
+- **Test Cleanup**: Removed old, slow CDK tests and run_tests.py script
+- **Apple Secret Management**: Updated manage-apple-secret.js to handle both private key and shared secret
+- **Infrastructure Cleanup**: Restored missing get-dns-info.js script and updated infrastructure README
+- **Complete Deployment**: Successfully deployed both dev and prod environments including separate website stacks
+- **Website Updates**: Verified website deployment includes updated legal documents with AdMob content
+- **Lambda Layers**: Confirmed proper Docker bundling during CDK deployment for platform-specific packages

@@ -23,6 +23,7 @@ fi
 
 # Install dependencies and generate lock file
 echo "📦 Installing dependencies and generating lock file..."
+cd lambda
 poetry install
 
 echo "✅ Poetry setup complete!"

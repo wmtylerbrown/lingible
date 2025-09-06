@@ -66,8 +66,9 @@ python3.13 -m venv .venv
 source .venv/bin/activate
 
 # Setup Poetry and dependencies
-cd backend/lambda
-./setup-poetry.sh          # Setup Poetry (first time)
+cd backend
+./scripts/setup-poetry.sh   # Setup Poetry (first time)
+cd lambda
 poetry shell               # Activate Poetry environment
 poetry run pytest          # Run tests
 ```

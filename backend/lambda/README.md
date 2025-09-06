@@ -15,12 +15,9 @@ lambda/
 ├── tests/                 # Test suite
 ├── pyproject.toml         # Poetry configuration (dependencies)
 ├── poetry.lock           # Poetry lock file (generated)
-├── setup-poetry.sh       # Poetry setup script
 ├── pytest.ini           # Pytest configuration
 ├── mypy.ini             # MyPy type checking configuration
-├── run_tests.py         # Test execution script
-├── cleanup.sh           # Python cleanup script
-└── test_receipt_validation.py  # Receipt validation test
+└── cleanup.sh           # Python cleanup script
 ```
 
 ## 🚀 Development
@@ -31,16 +28,16 @@ lambda/
 cd backend/lambda
 
 # Setup Poetry (first time only)
-./setup-poetry.sh
+../scripts/setup-poetry.sh
 
 # Activate Poetry environment
 poetry shell
 
 # Run tests
-poetry run python run_tests.py
+PYTHONPATH=src poetry run pytest
 
 # Run with coverage
-poetry run python run_tests.py --coverage
+PYTHONPATH=src poetry run pytest --cov=src --cov-report=html --cov-report=term-missing
 
 # Clean up Python artifacts (optional)
 ./cleanup.sh
@@ -70,15 +67,20 @@ poetry export --without dev --format=requirements.txt
 ### Test Categories
 ```bash
 # Run all tests
-poetry run python run_tests.py
+PYTHONPATH=src poetry run pytest
 
 # Run specific test types
-poetry run python run_tests.py --type unit
-poetry run python run_tests.py --type integration
-poetry run python run_tests.py --type handler
+PYTHONPATH=src poetry run pytest -m unit
+PYTHONPATH=src poetry run pytest -m integration
 
-# Run fast tests only
-poetry run python run_tests.py --fast
+# Run fast tests only (skip slow markers)
+PYTHONPATH=src poetry run pytest -m "not slow"
+
+# Run with verbose output
+PYTHONPATH=src poetry run pytest -v
+
+# Run specific test file
+PYTHONPATH=src poetry run pytest tests/test_models.py
 ```
 
 ## 🏗️ Architecture
@@ -110,8 +112,18 @@ poetry run python run_tests.py --fast
 - `GET /user/usage` - Get usage statistics
 - `POST /user/upgrade` - Upgrade user subscription
 
+### Trending APIs
+- `GET /trending` - Get trending terms and analytics
+
 ### System APIs
 - `GET /health` - Health check endpoint
+
+### Webhook APIs
+- `POST /apple-webhook` - Apple App Store webhook for subscription events
+
+### Background Jobs
+- `trending_job` - Scheduled job to update trending terms
+- `user_data_cleanup` - Scheduled job to clean up user data
 
 ## 🔐 Security
 

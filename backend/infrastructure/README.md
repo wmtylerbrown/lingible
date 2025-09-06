@@ -5,13 +5,14 @@ AWS CDK infrastructure for the Lingible mobile application backend.
 ## 📋 Overview
 
 This project contains the complete infrastructure for Lingible, including:
-- **DynamoDB Tables**: Users and translations data
+- **DynamoDB Tables**: Users, translations, and trending data
 - **Cognito User Pool**: Authentication with Apple Sign-In
 - **Lambda Functions**: API handlers and background processing
 - **API Gateway**: REST API with custom domain
 - **Route 53**: DNS management with hosted zones
 - **CloudWatch**: Monitoring and alerting
 - **SNS**: Notifications
+- **S3 + CloudFront**: Static website hosting
 
 ## 🏗️ Architecture
 
@@ -45,8 +46,9 @@ npm install
 # 2. Configure Apple credentials
 # Edit shared/config/environments/dev.json and prod.json with your Apple credentials
 
-# 3. Store Apple private key securely
-npm run apple-secret create dev
+# 3. Store Apple secrets securely
+npm run apple-secret create private-key dev
+npm run apple-secret create shared-secret dev
 
 # 4. Deploy hosted zones (DNS)
 npm run deploy:hosted-zones:dev
@@ -80,20 +82,27 @@ The infrastructure uses Apple Sign-In for authentication. Credentials are split 
 - Key ID
 
 **Sensitive credentials** (stored in AWS Secrets Manager):
-- Private Key
+- Private Key (for Cognito Apple Sign-In)
+- Shared Secret (for App Store receipt validation)
 
 ### Managing Credentials
 
 ```bash
-# Store/update private key
-npm run apple-secret create dev
-npm run apple-secret update dev
+# Store/update private key (for Cognito Apple Sign-In)
+npm run apple-secret create private-key dev
+npm run apple-secret update private-key dev
+
+# Store/update shared secret (for App Store receipt validation)
+npm run apple-secret create shared-secret dev
+npm run apple-secret update shared-secret dev
 
 # Check secret status
-npm run apple-secret info dev
+npm run apple-secret info private-key dev
+npm run apple-secret info shared-secret dev
 
-# Delete secret (if needed)
-npm run apple-secret delete dev
+# Delete secrets (if needed)
+npm run apple-secret delete private-key dev
+npm run apple-secret delete shared-secret dev
 ```
 
 **Note**: Apple credentials in `shared/config/environments/dev.json` and `prod.json` should be updated with your actual values before deployment.
@@ -106,23 +115,23 @@ infrastructure/
 ├── utils/
 │   └── config-loader.ts      # Shared config loader
 ├── scripts/
-│   ├── manage-apple-secret.ts # Apple secret management
+│   ├── manage-apple-secret.js # Apple secret management
 │   ├── get-dns-info.js       # DNS information utility
 │   └── build-lambda-packages.js # Lambda packaging
 ├── constructs/
 │   ├── backend_stack.ts      # Main infrastructure stack
-│   └── hosted_zones_stack.ts # DNS infrastructure
+│   ├── hosted_zones_stack.ts # DNS infrastructure
+│   └── website_stack.ts      # Website infrastructure
 ├── stacks/
 │   └── lingible_stack.ts     # Stack composition
-└── test/                     # Unit tests
 ```
 
 ## 🛠️ Available Commands
 
 ### Infrastructure Deployment
 ```bash
-npm run deploy:dev                    # Deploy full development environment
-npm run deploy:prod                   # Deploy full production environment
+npm run deploy:dev                    # Deploy full development environment (backend + website)
+npm run deploy:prod                   # Deploy full production environment (backend + website)
 npm run deploy:hosted-zones:dev       # Deploy DNS only for development
 npm run deploy:hosted-zones:prod      # Deploy DNS only for production
 ```
@@ -130,22 +139,30 @@ npm run deploy:hosted-zones:prod      # Deploy DNS only for production
 ### Deployment Modes
 The same `app.ts` file handles both deployment modes:
 - **DNS Only**: `--context deploy-backend=false` - Deploys only hosted zones for DNS setup
-- **Full Stack**: `--context deploy-backend=true` (default) - Deploys backend (references existing hosted zones)
+- **Full Stack**: `--context deploy-backend=true` (default) - Deploys backend + website (references existing hosted zones)
 
 **Important**: Hosted zones must be deployed first before the full stack can be deployed.
 
+### Stack Architecture
+- **Lingible-Dev**: Main backend stack (API, Lambda, DynamoDB, Cognito)
+- **Lingible-Dev-Website**: Website stack (S3, CloudFront, Route53)
+- **Lingible-Dev-HostedZones**: DNS stack (Route53 hosted zones)
+
 ### Secret Management
 ```bash
-npm run apple-secret create <env>     # Create Apple secret
-npm run apple-secret update <env>     # Update Apple secret
-npm run apple-secret info <env>       # Check secret status
-npm run apple-secret delete <env>     # Delete secret
+npm run apple-secret create private-key <env>     # Create Apple private key
+npm run apple-secret create shared-secret <env>   # Create Apple shared secret
+npm run apple-secret update private-key <env>     # Update Apple private key
+npm run apple-secret update shared-secret <env>   # Update Apple shared secret
+npm run apple-secret info private-key <env>       # Check private key status
+npm run apple-secret info shared-secret <env>     # Check shared secret status
+npm run apple-secret delete private-key <env>     # Delete Apple private key
+npm run apple-secret delete shared-secret <env>   # Delete Apple shared secret
 ```
 
 ### Development
 ```bash
-npm run build                         # Build TypeScript
-npm test                             # Run tests
+npm run build                         # Build TypeScript and Lambda packages
 npm run cdk:synth                    # Synthesize CloudFormation
 npm run cdk:diff                     # Show deployment changes
 npm run lint                         # Run linter
@@ -156,6 +173,9 @@ npm run lint                         # Run linter
 npm run get-dns-info                 # Get DNS information
 npm run build-lambda-packages        # Build Lambda packages
 npm run clean                        # Clean build artifacts
+npm run python:test                  # Run Python tests
+npm run python:lint                  # Run Python linter
+npm run python:type-check            # Run Python type checking
 ```
 
 ## 🔧 Configuration
@@ -194,8 +214,10 @@ Update `shared/config/environments/dev.json` and `prod.json` with your credentia
 
 **"Secret not found" error**
 ```bash
-npm run apple-secret info dev  # Check if secret exists
-npm run apple-secret create dev  # Create if missing
+npm run apple-secret info private-key dev  # Check if private key exists
+npm run apple-secret info shared-secret dev  # Check if shared secret exists
+npm run apple-secret create private-key dev  # Create private key if missing
+npm run apple-secret create shared-secret dev  # Create shared secret if missing
 ```
 
 **"TO_BE_SET" in Cognito configuration**
@@ -228,13 +250,6 @@ The infrastructure includes:
 - DynamoDB table metrics
 - SNS notifications for alerts
 
-## 🧪 Testing
-
-```bash
-npm test                    # Run all tests
-npm run test:watch         # Watch mode
-npm run test:coverage      # Coverage report
-```
 
 ## 📝 Development
 
@@ -242,15 +257,16 @@ npm run test:coverage      # Coverage report
 
 1. Create new construct in `constructs/`
 2. Add to `LingibleStack` in `stacks/lingible_stack.ts`
-3. Update tests in `test/`
-4. Update documentation
+3. Update documentation
 
 ### Lambda Functions
 
 Lambda functions are automatically packaged with:
 - Individual handler code
-- Shared layer for common dependencies
+- Dependencies layer (Python packages from poetry)
+- Shared code layer (common Python modules)
 - Smart change detection for fast deployments
+- Optimized build process (no unnecessary local package installation)
 
 ## 📄 License
 

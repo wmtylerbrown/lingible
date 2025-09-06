@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated: September 5, 2025**
+**Last Updated: September 6, 2025**
 
 ## 1. Introduction
 
@@ -11,7 +11,7 @@ Lingible ("we," "us," or "our") is committed to protecting your privacy. This Pr
 ### 2.1 Information You Provide
 - **Account Information**: Email address, username, and password
 - **Profile Data**: User preferences and settings
-- **Translation History**: Text you translate (stored locally and on our servers for premium users)
+- **Translation Data**: Text you translate (stored temporarily for service operation and usage tracking only; translation history is not stored for free users)
 - **Usage Data**: How you interact with the app
 - **User Content**: Translation requests and text input
 
@@ -21,10 +21,13 @@ Lingible ("we," "us," or "our") is committed to protecting your privacy. This Pr
 - **Performance Data**: App crashes, loading times, and technical metrics
 - **Authentication Data**: Login sessions and security tokens
 - **User Identifiers**: Unique user IDs for account management and backend services
+- **Advertising Data**: Ad interactions, impressions, clicks, and advertising identifiers (for free users only)
+- **AdMob SDK Data**: Device information, app usage patterns, and advertising-related metrics collected by Google AdMob
 
 ### 2.3 Information from Third Parties
 - **App Store Data**: Subscription status and purchase history
 - **Authentication Providers**: Information from Apple Sign-In or Google Sign-In (if used)
+- **Google AdMob**: Advertising data, device information, and user behavior patterns for ad personalization and delivery
 
 ## 3. How We Use Your Information
 
@@ -40,6 +43,8 @@ Lingible ("we," "us," or "our") is committed to protecting your privacy. This Pr
 - Develop new features and content
 - Conduct research and analytics
 - Evaluate user behavior and feature effectiveness
+- Optimize ad delivery and frequency for free users
+- Analyze ad performance and user engagement
 
 ### 3.3 Communication
 - Send important service updates
@@ -48,8 +53,13 @@ Lingible ("we," "us," or "our") is committed to protecting your privacy. This Pr
 
 ## 4. Information Sharing and Disclosure
 
-### 4.1 We Do Not Sell or Track Your Data
-We do not sell, rent, or trade your personal information to third parties. We do not use your data for tracking purposes as defined by Apple's App Store guidelines.
+### 4.1 Data Sharing for Advertising (Free Users Only)
+For free users, we share limited information with Google AdMob to display relevant advertisements. This includes:
+- Device information and advertising identifiers
+- App usage patterns and ad interaction data
+- General location data (if available) for ad targeting
+
+**Premium users are completely ad-free** and their data is not shared with advertising partners.
 
 ### 4.2 Limited Sharing
 We may share your information only in these circumstances:
@@ -57,6 +67,7 @@ We may share your information only in these circumstances:
 - **Legal Requirements**: When required by law or to protect our rights
 - **Business Transfers**: In connection with a merger, acquisition, or sale of assets
 - **Consent**: When you explicitly consent to sharing
+- **Advertising Partners**: With Google AdMob for ad delivery and analytics (free users only)
 
 ### 4.3 Aggregated Data
 We may share anonymized, aggregated data that cannot identify you individually.
@@ -65,8 +76,8 @@ We may share anonymized, aggregated data that cannot identify you individually.
 
 ### 5.1 Data Storage
 - **Local Storage**: Some data is stored on your device
-- **Cloud Storage**: Account data and translation history stored securely on AWS
-- **Retention**: We retain data as long as your account is active or as required by law
+- **Cloud Storage**: Account data and translation data stored securely on AWS
+- **Retention**: We retain translation data temporarily for service operation and usage tracking only. Free users do not have access to translation history. Premium users have translation history storage and access. We retain data as long as your account is active or as required by law
 
 ### 5.2 Security Measures
 - **Encryption**: Data is encrypted in transit and at rest
@@ -117,6 +128,7 @@ Our Service may integrate with:
 - **AWS Cognito**: For user authentication and account management
 - **AWS Lambda/API Gateway**: For backend services and translation processing
 - **Analytics Services**: For app performance monitoring
+- **Google AdMob**: For advertising services and ad delivery (free users only)
 
 ### 9.2 Third-Party Privacy Policies
 These services have their own privacy policies that govern their use of your information.
@@ -127,11 +139,20 @@ These services have their own privacy policies that govern their use of your inf
 We use analytics tools to understand app usage and performance.
 
 ### 10.2 Advertising and Tracking
-We do not display third-party advertisements in our app. We do not use your data for tracking purposes, including:
-- We do not share your data with data brokers
-- We do not use your data for targeted advertising
-- We do not link your data with third-party data for advertising purposes
-- We do not use third-party SDKs for advertising or tracking
+**Free Users**: Our app displays third-party advertisements through Google AdMob. This includes:
+- Banner advertisements on all screens
+- Interstitial advertisements at regular intervals during app usage
+- Ad interaction tracking for analytics and optimization
+- Device information sharing with Google AdMob for ad targeting
+
+**Premium Users**: No advertisements are displayed and no advertising data is collected.
+
+**Data Sharing**: We share limited information with Google AdMob for free users only, including:
+- Device information and advertising identifiers
+- App usage patterns and ad interaction data
+- General location data (if available) for ad targeting
+
+**Your Control**: You can upgrade to premium to remove all advertisements and advertising data collection.
 
 ## 11. Data Breach Notification
 
@@ -184,7 +205,7 @@ For privacy-related concerns, you can contact our Data Protection Officer at dpo
 
 ## 15. Effective Date
 
-This Privacy Policy is effective as of September 5, 2025, and applies to all information collected by our Service.
+This Privacy Policy is effective as of September 6, 2025, and applies to all information collected by our Service.
 
 ---
 

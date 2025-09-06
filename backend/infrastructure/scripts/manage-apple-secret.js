@@ -2,6 +2,8 @@
 
 const readline = require('readline');
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 async function getApplePrivateKey() {
   const rl = readline.createInterface({
@@ -17,27 +19,63 @@ async function getApplePrivateKey() {
 
   console.log('🔐 Apple Private Key Manager');
   console.log('============================\n');
-  console.log('Note: Only the private key is stored in AWS Secrets Manager.');
-  console.log('Client ID, Team ID, and Key ID should be configured separately.\n');
+  console.log('How would you like to provide your Apple Private Key?');
+  console.log('1. Paste the key content directly');
+  console.log('2. Read from a .p8 file');
 
-  console.log('📝 Please paste your Apple Private Key (press Enter twice when done):');
-  const privateKeyLines = [];
-  let lineCount = 0;
+  const choice = await question('Enter choice (1 or 2): ');
 
-  while (lineCount < 100) { // Prevent infinite loop
-    const line = await question(lineCount === 0 ? 'Private Key: ' : '');
-    if (line === '' && lineCount > 0) {
-      break;
+  if (choice === '2') {
+    const keyFilePath = await question('Enter path to your .p8 file: ');
+    rl.close();
+
+    try {
+      const privateKey = readAppleKeyFile(keyFilePath.trim());
+      console.log(`✅ Successfully read key file: ${keyFilePath}`);
+      return privateKey;
+    } catch (error) {
+      console.error(`❌ Error reading key file: ${error.message}`);
+      process.exit(1);
     }
-    privateKeyLines.push(line);
-    lineCount++;
+  } else {
+    console.log('\n📝 Please paste your Apple Private Key (press Enter twice when done):');
+    const privateKeyLines = [];
+    let lineCount = 0;
+
+    while (lineCount < 100) { // Prevent infinite loop
+      const line = await question(lineCount === 0 ? 'Private Key: ' : '');
+      if (line === '' && lineCount > 0) {
+        break;
+      }
+      privateKeyLines.push(line);
+      lineCount++;
+    }
+
+    const privateKey = privateKeyLines.join('\n');
+    rl.close();
+    return privateKey;
   }
+}
 
-  const privateKey = privateKeyLines.join('\n');
 
-  rl.close();
+function readAppleKeyFile(keyFilePath) {
+  try {
+    const fullPath = path.resolve(keyFilePath);
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`Key file not found: ${fullPath}`);
+    }
 
-  return privateKey;
+    const keyContent = fs.readFileSync(fullPath, 'utf8');
+
+    // Validate that it looks like a private key
+    if (!keyContent.includes('BEGIN PRIVATE KEY') || !keyContent.includes('END PRIVATE KEY')) {
+      throw new Error('File does not appear to be a valid Apple private key file');
+    }
+
+    return keyContent;
+  } catch (error) {
+    throw new Error(`Error reading key file: ${error.message}`);
+  }
 }
 
 async function createOrUpdateSecret(secretName, privateKey, region) {
@@ -95,12 +133,36 @@ async function showSecretInfo(secretName, region) {
   }
 }
 
+async function getAppleSharedSecret() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const question = (query) => {
+    return new Promise((resolve) => {
+      rl.question(query, resolve);
+    });
+  };
+
+  console.log('🔐 Apple Shared Secret Manager');
+  console.log('===============================\n');
+  console.log('Note: This is the App Store shared secret for receipt validation.');
+  console.log('You can find this in your App Store Connect account.\n');
+
+  const sharedSecret = await question('Enter your Apple Shared Secret: ');
+  rl.close();
+
+  return sharedSecret.trim();
+}
+
 async function main() {
   const command = process.argv[2];
-  const environment = process.argv[3];
+  const secretType = process.argv[3];
+  const environment = process.argv[4];
 
   if (!command || !['create', 'update', 'delete', 'info'].includes(command)) {
-    console.log('Usage: npm run apple-secret <command> <environment>');
+    console.log('Usage: npm run apple-secret <command> <secret-type> <environment>');
     console.log('');
     console.log('Commands:');
     console.log('  create  - Create a new Apple secret');
@@ -108,12 +170,22 @@ async function main() {
     console.log('  delete  - Delete an Apple secret');
     console.log('  info    - Show information about an Apple secret');
     console.log('');
+    console.log('Secret Types:');
+    console.log('  private-key  - Apple private key (for Cognito Apple Sign-In)');
+    console.log('  shared-secret - Apple shared secret (for App Store receipt validation)');
+    console.log('');
     console.log('Environment: dev or prod');
     console.log('');
     console.log('Examples:');
-    console.log('  npm run apple-secret create dev');
-    console.log('  npm run apple-secret update prod');
-    console.log('  npm run apple-secret info dev');
+    console.log('  npm run apple-secret create private-key dev');
+    console.log('  npm run apple-secret create shared-secret dev');
+    console.log('  npm run apple-secret update private-key prod');
+    console.log('  npm run apple-secret info private-key dev');
+    process.exit(1);
+  }
+
+  if (!secretType || !['private-key', 'shared-secret'].includes(secretType)) {
+    console.error('❌ Secret type must be "private-key" or "shared-secret"');
     process.exit(1);
   }
 
@@ -123,17 +195,37 @@ async function main() {
   }
 
   const region = process.env.CDK_DEFAULT_REGION || 'us-east-1';
-  const secretName = `lingible-apple-private-key-${environment}`;
+  const secretName = secretType === 'private-key'
+    ? `lingible-apple-private-key-${environment}`
+    : `lingible-apple-shared-secret-${environment}`;
 
   try {
+    console.log('🔐 Apple Secret Manager');
+    console.log('========================\n');
+    console.log(`Secret Type: ${secretType === 'private-key' ? 'Private Key (Cognito)' : 'Shared Secret (App Store)'}`);
+    console.log(`Environment: ${environment}`);
+    console.log(`Secret Name: ${secretName}\n`);
+
     switch (command) {
       case 'create':
       case 'update': {
-        const privateKey = await getApplePrivateKey();
-        await createOrUpdateSecret(secretName, privateKey, region);
-        console.log('\n🎉 Private key stored successfully!');
+        let secretValue;
+
+        if (secretType === 'private-key') {
+          secretValue = await getApplePrivateKey();
+        } else {
+          secretValue = await getAppleSharedSecret();
+        }
+
+        await createOrUpdateSecret(secretName, secretValue, region);
+        console.log('\n🎉 Secret stored successfully!');
         console.log(`📝 You can now deploy your infrastructure with: npm run deploy:${environment}`);
-        console.log('💡 Remember to configure Client ID, Team ID, and Key ID separately.');
+
+        if (secretType === 'private-key') {
+          console.log('💡 Remember to configure Client ID, Team ID, and Key ID separately.');
+        } else {
+          console.log('💡 The shared secret is now stored securely in AWS Secrets Manager.');
+        }
         break;
       }
 
@@ -147,7 +239,7 @@ async function main() {
     }
 
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error:', error.message);
     process.exit(1);
   }
 }

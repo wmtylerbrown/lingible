@@ -143,10 +143,31 @@ function buildDependenciesLayer() {
   const layerDir = LAMBDA_DEPENDENCIES_LAYER_DIR;
   const layerHashKey = 'dependencies-layer';
 
-  // Calculate hash for requirements.txt
-  const requirementsPath = path.join(__dirname, '..', 'lambda-layer-requirements.txt');
+  // Calculate hash for requirements.txt (check if it exists in layer or generate temp copy)
   let requirementsHash = '';
-  if (fs.existsSync(requirementsPath)) {
+  const requirementsPath = path.join(layerDir, 'requirements.txt');
+
+  // If requirements.txt doesn't exist in layer, generate a temp copy for hash calculation
+  let tempRequirementsPath = null;
+  if (!fs.existsSync(requirementsPath)) {
+    console.log('📦 Generating temporary requirements.txt for hash calculation...');
+    try {
+      const lambdaDir = path.join(__dirname, '..', '..', 'lambda');
+      const venvPath = path.join(__dirname, '..', '..', '..', '.venv', 'bin', 'activate');
+      tempRequirementsPath = path.join(__dirname, 'temp-requirements.txt');
+
+      execSync(`cd "${lambdaDir}" && source "${venvPath}" && poetry export --format=requirements.txt --output="${tempRequirementsPath}" --without-hashes --without dev`, {
+        stdio: 'inherit',
+        shell: true
+      });
+
+      const content = fs.readFileSync(tempRequirementsPath);
+      requirementsHash = crypto.createHash('sha256').update(content).digest('hex');
+    } catch (error) {
+      console.error('❌ Failed to generate requirements.txt from poetry:', error.message);
+      return;
+    }
+  } else {
     const content = fs.readFileSync(requirementsPath);
     requirementsHash = crypto.createHash('sha256').update(content).digest('hex');
   }
@@ -155,6 +176,10 @@ function buildDependenciesLayer() {
 
   if (hashes[layerHashKey] === requirementsHash) {
     console.log('✅ Dependencies layer unchanged, skipping rebuild');
+    // Clean up temp file if it exists
+    if (tempRequirementsPath && fs.existsSync(tempRequirementsPath)) {
+      fs.unlinkSync(tempRequirementsPath);
+    }
     return;
   }
 
@@ -165,26 +190,29 @@ function buildDependenciesLayer() {
 
   fs.mkdirSync(layerDir, { recursive: true });
 
-  // Create python directory for dependencies
-  const pythonDir = path.join(layerDir, 'python');
-  fs.mkdirSync(pythonDir, { recursive: true });
+  // Generate requirements.txt in the layer directory
+  console.log('📦 Generating requirements.txt from poetry...');
+  try {
+    const lambdaDir = path.join(__dirname, '..', '..', 'lambda');
+    const venvPath = path.join(__dirname, '..', '..', '..', '.venv', 'bin', 'activate');
 
-  // Copy requirements.txt and install dependencies
-  if (fs.existsSync(requirementsPath)) {
-    fs.copyFileSync(requirementsPath, path.join(layerDir, 'requirements.txt'));
-
-    console.log('📦 Installing Python dependencies...');
-    try {
-      execSync(`pip3 install -r requirements.txt -t python`, {
-        stdio: 'inherit',
-        cwd: layerDir
-      });
-      console.log('✅ Dependencies installed successfully');
-    } catch (error) {
-      console.log('❌ Error: Failed to install dependencies');
-      throw error;
-    }
+    execSync(`cd "${lambdaDir}" && source "${venvPath}" && poetry export --format=requirements.txt --output="${path.resolve(requirementsPath)}" --without-hashes --without dev`, {
+      stdio: 'inherit',
+      shell: true
+    });
+    console.log('✅ Generated requirements.txt from poetry');
+  } catch (error) {
+    console.error('❌ Failed to generate requirements.txt from poetry:', error.message);
+    return;
   }
+
+  // Clean up temp file if it exists
+  if (tempRequirementsPath && fs.existsSync(tempRequirementsPath)) {
+    fs.unlinkSync(tempRequirementsPath);
+  }
+
+  // Note: Python packages will be installed by CDK Docker bundling
+  // This ensures platform-compatible packages for AWS Lambda
 
   hashes[layerHashKey] = requirementsHash;
   saveHashes(hashes);
