@@ -1,158 +1,134 @@
 # Lingible
 
-A comprehensive mobile application project with AWS-powered backend infrastructure using API Gateway and individual Lambda handlers.
+A comprehensive mobile application for translating GenZ slang to English and vice versa, powered by AWS Bedrock AI.
 
 ## 🚨 CRITICAL RULE
 
 **⚠️ BEFORE MAKING ANY API CHANGES, READ: [`API_SPEC_RULE.md`](./API_SPEC_RULE.md)**
 
-This rule is MANDATORY and prevents API/client mismatches like the `transaction_id` issue we just fixed.
+This rule is MANDATORY and prevents API/client mismatches.
 
-## Project Structure
+## 🏗️ Architecture
+
+### Backend (AWS Serverless)
+- **AWS Lambda** - Python 3.13 serverless functions
+- **API Gateway** - REST API endpoints
+- **DynamoDB** - Single-table design for data storage
+- **AWS Cognito** - User authentication and management
+- **AWS Bedrock** - AI translation service
+- **AWS CDK** - Infrastructure as Code
+- **Poetry** - Modern Python dependency management
+
+### iOS App (Swift/SwiftUI)
+- **SwiftUI** - Modern iOS interface
+- **Google AdMob** - Monetization for free users
+- **StoreKit** - In-app purchases for premium upgrades
+- **Amplify** - AWS integration
+
+## 📁 Project Structure
 
 ```
 lingible/
 ├── backend/                 # AWS Backend API
-│   ├── lambda/             # Lambda function source code
+│   ├── lambda/             # Python Lambda functions
 │   │   ├── src/            # Source code
 │   │   │   ├── handlers/   # Individual Lambda handlers
 │   │   │   ├── models/     # Pydantic models
 │   │   │   ├── services/   # Business logic
-│   │   │   └── utils/      # Shared utilities
-│   │   └── tests/          # Unit and integration tests
-│   └── infrastructure/     # AWS CDK infrastructure
-├── website/                # Static website
-│   ├── src/               # Website source files
-│   ├── build/             # Generated website (auto-created)
-│   └── build.py           # Build script
-├── ios/                   # iOS mobile application
-├── client-sdk/            # Client SDKs (Python, etc.)
+│   │   │   ├── repositories/ # Data access layer
+│   │   │   └── utils/      # Utility functions
+│   │   ├── tests/          # Test suite
+│   │   ├── pyproject.toml  # Poetry dependencies
+│   │   └── poetry.lock     # Locked dependencies
+│   ├── infrastructure/     # AWS CDK infrastructure
+│   └── docs/              # Backend documentation
+├── ios/                    # iOS Application
+│   ├── Lingible/          # Main iOS app
+│   ├── generated/         # Generated API client
+│   └── scripts/           # iOS build scripts
+├── client-sdk/            # Generated client SDKs
+│   └── python/           # Python client SDK
 ├── shared/                # Shared resources
-│   ├── assets/            # Brand assets and images
-│   ├── api/               # API specifications
-│   ├── config/            # Configuration files
-│   └── legal/             # Legal documents (Terms, Privacy Policy)
-└── memory-bank/           # Project documentation and context
+│   ├── api/              # OpenAPI specifications
+│   ├── assets/           # Shared assets
+│   ├── config/           # Configuration files
+│   └── legal/            # Legal documents
+├── website/              # Static marketing website
+└── memory-bank/          # Project context and documentation
 ```
 
-## Backend Architecture
+## 🚀 Quick Start
 
-The backend uses AWS serverless architecture with individual Lambda handlers:
-
-- **API Gateway**: RESTful API endpoints with individual routes
-- **Lambda Functions**: One handler per API path/endpoint
-- **DynamoDB**: NoSQL database for data storage
-- **Cognito**: User authentication and authorization
-- **S3**: File storage
-- **CloudWatch**: Monitoring and logging
-- **AWS CDK**: Infrastructure as Code
-
-## Website
-
-The project includes a static website deployed to AWS S3 + CloudFront:
-
-- **Landing page** for the Lingible mobile app
-- **Legal documentation** (Terms of Service, Privacy Policy)
-- **Marketing content** showcasing features and pricing
-- **Single build script** (`website/build.py`) handles everything
-- **Auto-deployment** via CDK when backend is deployed
-
-See `website/README.md` for detailed website development information.
-
-## API Endpoints Structure
-
-Each API endpoint has its own Lambda handler:
-
-```
-/api/
-├── auth/
-│   ├── login
-│   ├── register
-│   └── refresh
-├── users/
-│   ├── profile
-│   ├── update
-│   └── delete
-├── data/
-│   ├── list
-│   ├── create
-│   ├── get/{id}
-│   ├── update/{id}
-│   └── delete/{id}
-└── files/
-    ├── upload
-    ├── download/{id}
-    └── delete/{id}
-```
-
-## Quick Start
-
-### Prerequisites
-- Node.js 18+ and npm
-- AWS CLI configured
-- Python 3.13+ (for Lambda functions)
-- AWS CDK CLI installed
-
-### Backend Setup
+### Backend Development
 ```bash
-cd backend
-pip install -r requirements.txt
-cd infrastructure
-npm install
+cd backend/lambda
+./setup-poetry.sh          # Setup Poetry (first time)
+poetry shell               # Activate environment
+poetry run pytest          # Run tests
 ```
 
-### Deploy Infrastructure
+### iOS Development
+```bash
+cd ios/Lingible
+# Open Lingible.xcodeproj in Xcode
+# Follow AdMob integration guide in ADMOB_INTEGRATION.md
+```
+
+### Deployment
 ```bash
 cd backend/infrastructure
-npm run build
-cdk deploy
+npm run deploy:dev         # Deploy to dev environment
+npm run deploy:prod        # Deploy to production
 ```
 
-### Mobile Setup
-Choose your framework:
+## 🎯 Key Features
 
-**React Native:**
-```bash
-cd mobile/react-native
-npm install
-npx react-native run-ios  # or run-android
-```
+### Translation Engine
+- **GenZ ↔ English** bidirectional translation
+- **AWS Bedrock** AI-powered translations
+- **Usage tracking** with daily limits
+- **Translation history** for premium users
 
-**Flutter:**
-```bash
-cd mobile/flutter
-flutter pub get
-flutter run
-```
+### User Management
+- **Free Tier**: 10 daily translations with ads
+- **Premium Tier**: Unlimited translations, ad-free
+- **Daily Reset**: Midnight Central Time
+- **Usage Tracking**: Real-time usage monitoring
 
-## Development Workflow
+### Monetization
+- **Banner Ads**: Always visible for free users
+- **Interstitial Ads**: Every 4th translation
+- **Upgrade Prompts**: When daily limit reached
+- **Premium Subscription**: Ad-free unlimited usage
 
-1. **Lambda Development**: Create new handlers in `backend/src/handlers/`
-2. **Infrastructure**: Update CDK stack in `backend/infrastructure/`
-3. **Testing**: Run tests for individual handlers
-4. **Deployment**: Deploy with `cdk deploy`
-5. **Mobile Development**: Choose React Native or Flutter
+## 🔧 Development
 
-## Environment Variables
+### Backend (Poetry + CDK)
+- **Dependencies**: Managed with Poetry
+- **Build**: CDK uses Docker bundling
+- **Testing**: pytest with 90%+ coverage
+- **Type Safety**: Full type hints with mypy
 
-Create `.env` files in each subdirectory as needed:
+### iOS (SwiftUI + AdMob)
+- **UI**: Modern SwiftUI interface
+- **Ads**: Google AdMob integration
+- **API**: Generated Swift client
+- **Payments**: StoreKit integration
 
-```bash
-# Backend
-AWS_REGION=us-east-1
-AWS_PROFILE=default
+## 📚 Documentation
 
-# Mobile
-API_BASE_URL=https://your-api-gateway-url.amazonaws.com
-```
+- [`API_SPEC_RULE.md`](./API_SPEC_RULE.md) - Critical API development rules
+- [`backend/docs/poetry-migration.md`](./backend/docs/poetry-migration.md) - Poetry setup guide
+- [`ios/Lingible/ADMOB_INTEGRATION.md`](./ios/Lingible/ADMOB_INTEGRATION.md) - AdMob integration
+- [`backend/docs/timezone-change-summary.md`](./backend/docs/timezone-change-summary.md) - Timezone fixes
+- [`backend/docs/tier-storage-fix-summary.md`](./backend/docs/tier-storage-fix-summary.md) - Performance optimizations
 
-## Contributing
+## 🌐 Environments
 
-1. Create feature branches
-2. Write tests for new functionality
-3. Update documentation
-4. Submit pull requests
+- **Development**: `api.dev.lingible.com`
+- **Production**: `api.lingible.com`
+- **Website**: `lingible.com`
 
-## License
+## 📄 License
 
-MIT License - see LICENSE file for details
+See [`shared/legal/`](./shared/legal/) for terms and privacy policy.
