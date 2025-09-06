@@ -1,6 +1,7 @@
 import SwiftUI
 import Amplify
 import AWSCognitoAuthPlugin
+import GoogleMobileAds
 
 @main
 struct LingibleApp: App {
@@ -9,6 +10,7 @@ struct LingibleApp: App {
     init() {
         configureAmplify()
         configureAPI()
+        configureAdMob()
     }
 
     var body: some Scene {
@@ -27,7 +29,7 @@ struct LingibleApp: App {
             try Amplify.add(plugin: AWSCognitoAuthPlugin())
             print("✅ AWSCognitoAuthPlugin added successfully")
 
-            // Use Gen 2 configuration with amplify_outputs.json
+            // Use Gen 2 configuration - default will look for amplify_outputs.json
             print("🔧 Configuring Amplify with Gen 2 outputs...")
             try Amplify.configure(with: .amplifyOutputs)
             print("✅ Amplify configured successfully with Gen 2 configuration")
@@ -47,5 +49,11 @@ struct LingibleApp: App {
 
     private func configureAPI() {
         AppConfiguration.configureAPI()
+    }
+    
+    private func configureAdMob() {
+        print("🔧 LingibleApp: Configuring AdMob...")
+        AdMobConfig.initialize()
+        AdMobConfig.configureTestDevices()
     }
 }

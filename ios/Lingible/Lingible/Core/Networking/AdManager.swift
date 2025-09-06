@@ -1,0 +1,173 @@
+import Foundation
+import SwiftUI
+import LingibleAPI
+
+// MARK: - Ad Manager Service
+@MainActor
+@preconcurrency
+final class AdManager: ObservableObject {
+    
+    // MARK: - Published Properties
+    @Published var shouldShowBanner = false
+    @Published var isBannerLoaded = false
+    @Published var interstitialAdManager: InterstitialAdManager?
+    
+    // MARK: - Private Properties
+    private let userService: UserServiceProtocol
+    private var translationCount = 0
+    
+    // MARK: - Initialization
+    init(userService: UserServiceProtocol) {
+        self.userService = userService
+        self.interstitialAdManager = InterstitialAdManager(userService: userService)
+        
+        // Initialize AdMob
+        AdMobConfig.initialize()
+        
+        // Set up user tier observation
+        setupUserTierObservation()
+    }
+    
+    // MARK: - Public Methods
+    
+    /// Update translation count and check if ads should be shown
+    func updateTranslationCount(_ count: Int) {
+        translationCount = count
+        updateAdVisibility()
+    }
+    
+    /// Increment translation count and check for interstitial ad
+    func incrementTranslationCount() {
+        translationCount += 1
+        updateAdVisibility()
+        
+        // Check if we should show interstitial ad
+        if let interstitialManager = interstitialAdManager {
+            let adShown = interstitialManager.showAdIfNeeded(translationCount: translationCount)
+            if adShown {
+                print("📺 AdManager: Interstitial ad shown after \(translationCount) translations")
+            }
+        }
+    }
+    
+    /// Reset translation count (called daily)
+    func resetTranslationCount() {
+        translationCount = 0
+        updateAdVisibility()
+        print("🔄 AdManager: Translation count reset")
+    }
+    
+    /// Force show interstitial ad (for testing)
+    func showInterstitialAd() -> Bool {
+        guard let interstitialManager = interstitialAdManager else { return false }
+        return interstitialManager.showAd()
+    }
+    
+    /// Preload next interstitial ad
+    func preloadInterstitialAd() {
+        interstitialAdManager?.preloadNextAd()
+    }
+    
+    // MARK: - Private Methods
+    
+    private func setupUserTierObservation() {
+        // Observe user tier changes
+        userService.$userUsage
+            .map { $0?.tier }
+            .removeDuplicates()
+            .sink { [weak self] tier in
+                self?.updateAdVisibility()
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func updateAdVisibility() {
+        let currentTier = userService.userUsage?.tier ?? .free
+        
+        // Only show ads for free users
+        shouldShowBanner = currentTier == .free
+        
+        print("📊 AdManager: Updated ad visibility - Tier: \(currentTier), Show Banner: \(shouldShowBanner)")
+    }
+    
+    private var cancellables = Set<AnyCancellable>()
+}
+
+// MARK: - AdMob Integration Extensions
+extension AdManager {
+    
+    /// Get banner ad unit ID
+    var bannerAdUnitID: String {
+        return AdMobConfig.bannerAdUnitID
+    }
+    
+    /// Get interstitial ad unit ID
+    var interstitialAdUnitID: String {
+        return AdMobConfig.interstitialAdUnitID
+    }
+    
+    /// Check if user should see ads
+    var shouldShowAds: Bool {
+        let currentTier = userService.userUsage?.tier ?? .free
+        return currentTier == .free
+    }
+    
+    /// Get current translation count
+    var currentTranslationCount: Int {
+        return translationCount
+    }
+    
+    /// Check if interstitial ad is ready
+    var isInterstitialReady: Bool {
+        return interstitialAdManager?.isAdReady ?? false
+    }
+}
+
+// MARK: - SwiftUI Integration
+extension AdManager {
+    
+    /// Create banner ad view
+    func createBannerAdView() -> some View {
+        SwiftUIBannerAd(adUnitID: bannerAdUnitID)
+            .opacity(shouldShowBanner ? 1.0 : 0.0)
+            .animation(.easeInOut(duration: 0.3), value: shouldShowBanner)
+    }
+    
+    /// Create enhanced header with upgrade button
+    func createEnhancedHeader(
+        title: String? = nil,
+        actionButton: HeaderActionButton? = nil,
+        onUpgradeTap: (() -> Void)? = nil
+    ) -> EnhancedHeader {
+        let userTier = userService.userUsage?.tier ?? .free
+        
+        return EnhancedHeader(
+            title: title,
+            actionButton: actionButton,
+            userTier: userTier,
+            onUpgradeTap: onUpgradeTap
+        )
+    }
+}
+
+// MARK: - Testing Helpers
+#if DEBUG
+extension AdManager {
+    
+    /// Simulate translation count for testing
+    func simulateTranslationCount(_ count: Int) {
+        translationCount = count
+        updateAdVisibility()
+    }
+    
+    /// Force show banner for testing
+    func forceShowBanner() {
+        shouldShowBanner = true
+    }
+    
+    /// Force hide banner for testing
+    func forceHideBanner() {
+        shouldShowBanner = false
+    }
+}
+#endif

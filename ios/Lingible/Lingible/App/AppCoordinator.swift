@@ -14,6 +14,7 @@ final class AppCoordinator: ObservableObject {
     // MARK: - Dependencies
     let authenticationService: AuthenticationServiceProtocol
     let userService: any UserServiceProtocol
+    let adManager: AdManager
 
     // MARK: - Published User Service Properties (for UI observation)
     var userProfile: UserProfileResponse? { userService.userProfile }
@@ -26,16 +27,18 @@ final class AppCoordinator: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
-    init(authenticationService: AuthenticationServiceProtocol, userService: any UserServiceProtocol) {
+    init(authenticationService: AuthenticationServiceProtocol, userService: any UserServiceProtocol, adManager: AdManager) {
         self.authenticationService = authenticationService
         self.userService = userService
+        self.adManager = adManager
         setupBindings()
     }
 
     convenience init() {
         let authService = AuthenticationService()
         let userService = UserService(authenticationService: authService)
-        self.init(authenticationService: authService, userService: userService)
+        let adManager = AdManager(userService: userService)
+        self.init(authenticationService: authService, userService: userService, adManager: adManager)
     }
 
     // MARK: - Public Methods

@@ -61,8 +61,20 @@ struct TranslationView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Header
-                    CommonHeader.logoOnly()
+                    // Header with upgrade button
+                    EnhancedHeader.logoOnly(
+                        userTier: userTier,
+                        onUpgradeTap: {
+                            showingUpgradePrompt = true
+                        }
+                    )
+
+                    // Banner Ad (for free users only)
+                    if appCoordinator.adManager.shouldShowAds {
+                        appCoordinator.adManager.createBannerAdView()
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 10)
+                    }
 
                     // Content
                     if showInputCard {
@@ -447,7 +459,17 @@ struct TranslationView: View {
             )
 
             // Make API call
-            let response = try await TranslationAPI.translatePost(translationRequest: request)
+            let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<TranslationResponse, Error>) in
+                TranslationAPI.translatePost(translationRequest: request) { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "TranslationError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                    }
+                }
+            }
 
             // Create history item
             let historyItem = TranslationHistoryItem(
@@ -466,12 +488,16 @@ struct TranslationView: View {
 
             // Update the local usage count immediately
             appCoordinator.userService.incrementTranslationCount()
+            
+            // Update AdManager with new translation count
+            appCoordinator.adManager.incrementTranslationCount()
 
             // Check if we should show upgrade prompt for free users
-            // Calculate the expected count after increment (since increment is async)
+            // Only show when daily limit is reached (use dynamic limit from user profile)
             let currentUsage = (appCoordinator.userUsage?.dailyUsed ?? 0) + 1
-            if userTier == .free && currentUsage > 0 && currentUsage % 3 == 0 {
-                // Show upgrade prompt every 3 translations
+            let dailyLimit = appCoordinator.userUsage?.dailyLimit ?? 10 // Fallback to 10 if not available
+            if userTier == .free && currentUsage >= dailyLimit {
+                // Show upgrade prompt when daily limit reached
                 upgradePromptCount = currentUsage
                 DispatchQueue.main.async {
                     showingUpgradePrompt = true
@@ -530,12 +556,23 @@ struct TranslationView: View {
                                    let limit = details["limit"] as? Int {
 
                                     if limitType == "daily_translations" {
-                                        errorMessage = "You've reached your daily limit of \(limit) translations. Upgrade to Premium for unlimited translations!"
+                                        // Show upgrade prompt instead of error message
+                                        upgradePromptCount = currentUsage
+                                        DispatchQueue.main.async {
+                                            showingUpgradePrompt = true
+                                        }
+                                        return // Don't set errorMessage
                                     } else {
                                         errorMessage = "You've reached your \(limitType) limit of \(limit). Current usage: \(currentUsage)."
                                     }
                                 } else {
-                                    errorMessage = "You've reached your daily translation limit. Upgrade to Premium for unlimited translations!"
+                                    // Show upgrade prompt for daily limit (use dynamic limit)
+                                    let dailyLimit = appCoordinator.userUsage?.dailyLimit ?? 10
+                                    upgradePromptCount = dailyLimit
+                                    DispatchQueue.main.async {
+                                        showingUpgradePrompt = true
+                                    }
+                                    return // Don't set errorMessage
                                 }
 
                             case "insufficientcreditserror":
