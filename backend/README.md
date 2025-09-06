@@ -44,6 +44,11 @@ backend/
 
 ### Initial Setup
 ```bash
+# Setup Python virtual environment (first time)
+python3.13 -m venv .venv
+source .venv/bin/activate
+
+# Setup Poetry and dependencies
 cd backend/lambda
 ./setup-poetry.sh          # Install Poetry and dependencies
 poetry shell               # Activate Poetry environment

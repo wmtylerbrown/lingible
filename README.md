@@ -61,9 +61,14 @@ lingible/
 
 ### Backend Development
 ```bash
+# Setup Python virtual environment (first time)
+python3.13 -m venv .venv
+source .venv/bin/activate
+
+# Setup Poetry and dependencies
 cd backend/lambda
 ./setup-poetry.sh          # Setup Poetry (first time)
-poetry shell               # Activate environment
+poetry shell               # Activate Poetry environment
 poetry run pytest          # Run tests
 ```
 

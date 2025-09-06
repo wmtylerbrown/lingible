@@ -4,6 +4,15 @@ set -e
 
 echo "🎭 Setting up Poetry for Lingible backend..."
 
+# Check if we're in a virtual environment
+if [[ "$VIRTUAL_ENV" == "" ]]; then
+    echo "⚠️  Warning: No virtual environment detected!"
+    echo "   It's recommended to run this from the project's .venv:"
+    echo "   python3.13 -m venv .venv"
+    echo "   source .venv/bin/activate"
+    echo ""
+fi
+
 # Check if Poetry is installed
 if ! command -v poetry &> /dev/null; then
     echo "❌ Poetry is not installed. Please install it first:"
