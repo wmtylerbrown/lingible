@@ -108,3 +108,5 @@ class TrendingListResponse(BaseModel):
             "category_filter": obj.get("category_filter")
         })
         return _obj
+
+

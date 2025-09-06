@@ -5,14 +5,14 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**translation_id** | **str** | Unique translation ID | [optional]
-**user_id** | **str** | User ID | [optional]
-**original_text** | **str** |  | [optional]
-**translated_text** | **str** |  | [optional]
-**direction** | **str** | Translation direction used | [optional]
-**confidence_score** | **float** |  | [optional]
-**created_at** | **datetime** | Translation timestamp | [optional]
-**model_used** | **str** | AI model used for translation | [optional]
+**translation_id** | **str** | Unique translation ID | [optional] 
+**user_id** | **str** | User ID | [optional] 
+**original_text** | **str** |  | [optional] 
+**translated_text** | **str** |  | [optional] 
+**direction** | **str** | Translation direction used | [optional] 
+**confidence_score** | **float** |  | [optional] 
+**created_at** | **datetime** | Translation timestamp | [optional] 
+**model_used** | **str** | AI model used for translation | [optional] 
 
 ## Example
 
@@ -32,3 +32,5 @@ translation_history_item_response_dict = translation_history_item_response_insta
 translation_history_item_response_from_dict = TranslationHistoryItemResponse.from_dict(translation_history_item_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

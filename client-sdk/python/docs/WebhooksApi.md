@@ -35,7 +35,7 @@ configuration = lingible_client.Configuration(
 with lingible_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = lingible_client.WebhooksApi(api_client)
-    apple_webhook_request = lingible_client.AppleWebhookRequest() # AppleWebhookRequest |
+    apple_webhook_request = lingible_client.AppleWebhookRequest() # AppleWebhookRequest | 
 
     try:
         # Apple webhook for subscription notifications
@@ -53,7 +53,7 @@ with lingible_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **apple_webhook_request** | [**AppleWebhookRequest**](AppleWebhookRequest.md)|  |
+ **apple_webhook_request** | [**AppleWebhookRequest**](AppleWebhookRequest.md)|  | 
 
 ### Return type
 
@@ -76,3 +76,4 @@ No authorization required
 **400** | Invalid webhook payload |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

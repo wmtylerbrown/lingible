@@ -5,9 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**translations** | [**List[TranslationHistoryItemResponse]**](TranslationHistoryItemResponse.md) |  | [optional]
-**total_count** | **int** | Total number of translations | [optional]
-**has_more** | **bool** | Whether there are more translations to load | [optional]
+**translations** | [**List[TranslationHistoryItemResponse]**](TranslationHistoryItemResponse.md) |  | [optional] 
+**total_count** | **int** | Total number of translations | [optional] 
+**has_more** | **bool** | Whether there are more translations to load | [optional] 
 
 ## Example
 
@@ -27,3 +27,5 @@ translation_history_response_dict = translation_history_response_instance.to_dic
 translation_history_response_from_dict = TranslationHistoryResponse.from_dict(translation_history_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**text** | **str** | Text to translate |
-**direction** | **str** | Translation direction |
+**text** | **str** | Text to translate | 
+**direction** | **str** | Translation direction | 
 
 ## Example
 
@@ -26,3 +26,5 @@ translation_request_dict = translation_request_instance.to_dict()
 translation_request_from_dict = TranslationRequest.from_dict(translation_request_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

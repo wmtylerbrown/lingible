@@ -33,7 +33,7 @@
   "apple": {
     "client_id": "com.lingible.lingible.signin",
     "team_id": "PH33VX3MUL",
-    "key_id": "YOUR_KEY_ID",
+    "key_id": "P5H6AH9K77",
     "bundle_id": "com.lingible.lingible",
     "environment": "production",
     "shared_secret": "your_app_specific_shared_secret"
@@ -47,6 +47,11 @@
   "api": {
     "base_url": "https://api.lingible.com",
     "cors_origins": ["https://lingible.com", "https://www.lingible.com", "https://api.lingible.com"]
+  },
+
+  "website": {
+    "domain": "lingible.com",
+    "www_domain": "www.lingible.com"
   },
 
   "observability": {

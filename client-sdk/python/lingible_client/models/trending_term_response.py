@@ -117,3 +117,5 @@ class TrendingTermResponse(BaseModel):
             "related_terms": obj.get("related_terms")
         })
         return _obj
+
+

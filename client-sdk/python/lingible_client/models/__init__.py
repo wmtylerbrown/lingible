@@ -34,7 +34,7 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.user_profile_response import UserProfileResponse
     from lingible_client.models.user_subscription_response import UserSubscriptionResponse
     from lingible_client.models.webhook_response import WebhookResponse
-
+    
 else:
     from lazy_imports import LazyModule, as_package, load
 

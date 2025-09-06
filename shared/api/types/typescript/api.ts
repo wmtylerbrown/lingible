@@ -110,6 +110,7 @@ export interface UsageLimits {
 export interface UpgradeRequest {
   platform: 'apple' | 'google';
   receipt_data: string;
+  transaction_id: string;
 }
 
 export interface UpgradeResponse {

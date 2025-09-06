@@ -109,3 +109,5 @@ class TranslationHistoryItemResponse(BaseModel):
             "model_used": obj.get("model_used")
         })
         return _obj
+
+

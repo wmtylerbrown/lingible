@@ -48,7 +48,7 @@ configuration = lingible_client.Configuration(
 with lingible_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = lingible_client.TranslationApi(api_client)
-    translation_request = lingible_client.TranslationRequest() # TranslationRequest |
+    translation_request = lingible_client.TranslationRequest() # TranslationRequest | 
 
     try:
         # Translate teen slang
@@ -66,7 +66,7 @@ with lingible_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **translation_request** | [**TranslationRequest**](TranslationRequest.md)|  |
+ **translation_request** | [**TranslationRequest**](TranslationRequest.md)|  | 
 
 ### Return type
 
@@ -305,7 +305,7 @@ with lingible_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **translation_id** | **str**| Translation ID |
+ **translation_id** | **str**| Translation ID | 
 
 ### Return type
 
@@ -329,3 +329,4 @@ Name | Type | Description  | Notes
 **404** | Slang translation not found |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

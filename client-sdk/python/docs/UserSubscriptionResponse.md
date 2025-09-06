@@ -5,12 +5,12 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**provider** | **str** | Subscription provider | [optional]
-**transaction_id** | **str** | Provider transaction ID | [optional]
-**status** | **str** | Subscription status | [optional]
-**start_date** | **datetime** | Subscription start date | [optional]
-**end_date** | **datetime** | Subscription end date | [optional]
-**created_at** | **datetime** | Record creation date | [optional]
+**provider** | **str** | Subscription provider | [optional] 
+**transaction_id** | **str** | Provider transaction ID | [optional] 
+**status** | **str** | Subscription status | [optional] 
+**start_date** | **datetime** | Subscription start date | [optional] 
+**end_date** | **datetime** | Subscription end date | [optional] 
+**created_at** | **datetime** | Record creation date | [optional] 
 
 ## Example
 
@@ -30,3 +30,5 @@ user_subscription_response_dict = user_subscription_response_instance.to_dict()
 user_subscription_response_from_dict = UserSubscriptionResponse.from_dict(user_subscription_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

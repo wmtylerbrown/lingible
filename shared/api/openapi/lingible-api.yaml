@@ -591,6 +591,7 @@ components:
       required:
         - platform
         - receipt_data
+        - transaction_id
       properties:
         platform:
           type: string
@@ -601,6 +602,10 @@ components:
           type: string
           description: Receipt data from app store
           example: "base64_encoded_receipt_data"
+        transaction_id:
+          type: string
+          description: Provider transaction ID
+          example: "1000000123456789"
 
     UpgradeResponse:
       type: object

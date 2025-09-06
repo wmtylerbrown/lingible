@@ -112,3 +112,5 @@ class UsageResponse(BaseModel):
             "premium_daily_limit": obj.get("premium_daily_limit")
         })
         return _obj
+
+

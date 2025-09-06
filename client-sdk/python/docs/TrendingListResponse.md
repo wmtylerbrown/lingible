@@ -5,10 +5,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**terms** | [**List[TrendingTermResponse]**](TrendingTermResponse.md) | List of trending terms | [optional]
-**total_count** | **int** | Total number of trending terms | [optional]
-**last_updated** | **datetime** | When the trending data was last updated | [optional]
-**category_filter** | **str** | Applied category filter | [optional]
+**terms** | [**List[TrendingTermResponse]**](TrendingTermResponse.md) | List of trending terms | [optional] 
+**total_count** | **int** | Total number of trending terms | [optional] 
+**last_updated** | **datetime** | When the trending data was last updated | [optional] 
+**category_filter** | **str** | Applied category filter | [optional] 
 
 ## Example
 
@@ -28,3 +28,5 @@ trending_list_response_dict = trending_list_response_instance.to_dict()
 trending_list_response_from_dict = TrendingListResponse.from_dict(trending_list_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

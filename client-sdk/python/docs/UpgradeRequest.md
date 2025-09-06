@@ -5,8 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**platform** | **str** | App store platform |
-**receipt_data** | **str** | Receipt data from app store |
+**platform** | **str** | App store platform | 
+**receipt_data** | **str** | Receipt data from app store | 
+**transaction_id** | **str** | Provider transaction ID | 
 
 ## Example
 
@@ -26,3 +27,5 @@ upgrade_request_dict = upgrade_request_instance.to_dict()
 upgrade_request_from_dict = UpgradeRequest.from_dict(upgrade_request_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

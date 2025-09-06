@@ -7,7 +7,7 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.api.trending_api import TrendingApi
     from lingible_client.api.user_api import UserApi
     from lingible_client.api.webhooks_api import WebhooksApi
-
+    
 else:
     from lazy_imports import LazyModule, as_package, load
 

@@ -122,7 +122,7 @@ configuration = lingible_client.Configuration(
 with lingible_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = lingible_client.UserApi(api_client)
-    upgrade_request = lingible_client.UpgradeRequest() # UpgradeRequest |
+    upgrade_request = lingible_client.UpgradeRequest() # UpgradeRequest | 
 
     try:
         # Upgrade user subscription
@@ -140,7 +140,7 @@ with lingible_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **upgrade_request** | [**UpgradeRequest**](UpgradeRequest.md)|  |
+ **upgrade_request** | [**UpgradeRequest**](UpgradeRequest.md)|  | 
 
 ### Return type
 
@@ -239,3 +239,4 @@ This endpoint does not need any parameter.
 **401** | Unauthorized |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

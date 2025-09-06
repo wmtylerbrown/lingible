@@ -28,7 +28,8 @@ class UpgradeRequest(BaseModel):
     """ # noqa: E501
     platform: StrictStr = Field(description="App store platform")
     receipt_data: StrictStr = Field(description="Receipt data from app store")
-    __properties: ClassVar[List[str]] = ["platform", "receipt_data"]
+    transaction_id: StrictStr = Field(description="Provider transaction ID")
+    __properties: ClassVar[List[str]] = ["platform", "receipt_data", "transaction_id"]
 
     @field_validator('platform')
     def platform_validate_enum(cls, value):
@@ -89,6 +90,9 @@ class UpgradeRequest(BaseModel):
 
         _obj = cls.model_validate({
             "platform": obj.get("platform"),
-            "receipt_data": obj.get("receipt_data")
+            "receipt_data": obj.get("receipt_data"),
+            "transaction_id": obj.get("transaction_id")
         })
         return _obj
+
+

@@ -120,3 +120,5 @@ class ReceiptValidationResponse(BaseModel):
             "retry_after": obj.get("retry_after")
         })
         return _obj
+
+
