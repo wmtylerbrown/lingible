@@ -65,3 +65,4 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
     }
 }
+

@@ -95,3 +95,4 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(relatedTerms, forKey: .relatedTerms)
     }
 }
+

@@ -41,3 +41,4 @@ public struct UpgradeResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(expiresAt, forKey: .expiresAt)
     }
 }
+

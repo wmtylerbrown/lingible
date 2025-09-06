@@ -20,15 +20,19 @@ public struct UpgradeRequest: Codable, JSONEncodable, Hashable {
     public var platform: Platform
     /** Receipt data from app store */
     public var receiptData: String
+    /** Provider transaction ID */
+    public var transactionId: String
 
-    public init(platform: Platform, receiptData: String) {
+    public init(platform: Platform, receiptData: String, transactionId: String) {
         self.platform = platform
         self.receiptData = receiptData
+        self.transactionId = transactionId
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case platform
         case receiptData = "receipt_data"
+        case transactionId = "transaction_id"
     }
 
     // Encodable protocol methods
@@ -37,5 +41,7 @@ public struct UpgradeRequest: Codable, JSONEncodable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(platform, forKey: .platform)
         try container.encode(receiptData, forKey: .receiptData)
+        try container.encode(transactionId, forKey: .transactionId)
     }
 }
+

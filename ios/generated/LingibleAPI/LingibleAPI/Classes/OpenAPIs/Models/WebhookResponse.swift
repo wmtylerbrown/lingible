@@ -33,3 +33,4 @@ public struct WebhookResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(message, forKey: .message)
     }
 }
+

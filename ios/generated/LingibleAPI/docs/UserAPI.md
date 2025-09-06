@@ -69,7 +69,7 @@ Upgrade user to premium subscription
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import LingibleAPI
 
-let upgradeRequest = UpgradeRequest(platform: "platform_example", receiptData: "receiptData_example") // UpgradeRequest |
+let upgradeRequest = UpgradeRequest(platform: "platform_example", receiptData: "receiptData_example", transactionId: "transactionId_example") // UpgradeRequest | 
 
 // Upgrade user subscription
 UserAPI.userUpgradePost(upgradeRequest: upgradeRequest) { (response, error) in
@@ -88,7 +88,7 @@ UserAPI.userUpgradePost(upgradeRequest: upgradeRequest) { (response, error) in
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **upgradeRequest** | [**UpgradeRequest**](UpgradeRequest.md) |  |
+ **upgradeRequest** | [**UpgradeRequest**](UpgradeRequest.md) |  | 
 
 ### Return type
 
@@ -150,3 +150,4 @@ This endpoint does not need any parameter.
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

@@ -42,7 +42,17 @@ final class TranslationService: TranslationServiceProtocol {
 
         do {
             // Make API call using the generated API
-            let response = try await TranslationAPI.translatePost(translationRequest: request)
+            let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<TranslationResponse, Error>) in
+                TranslationAPI.translatePost(translationRequest: request) { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "TranslationError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                    }
+                }
+            }
 
             // Convert to our domain model
             return TranslationResult(

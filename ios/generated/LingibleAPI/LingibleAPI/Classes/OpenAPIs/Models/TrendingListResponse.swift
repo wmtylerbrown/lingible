@@ -52,3 +52,4 @@ public struct TrendingListResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(categoryFilter, forKey: .categoryFilter)
     }
 }
+

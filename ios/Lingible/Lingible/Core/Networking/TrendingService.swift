@@ -37,7 +37,17 @@ final class TrendingService: TrendingServiceProtocol {
 
         do {
             // Make API call using the generated API
-            return try await TrendingAPI.trendingGet(limit: limit, category: apiCategory, activeOnly: activeOnly)
+            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<TrendingListResponse, Error>) in
+                TrendingAPI.trendingGet(limit: limit, category: apiCategory, activeOnly: activeOnly) { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "TrendingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                    }
+                }
+            }
 
         } catch {
             // Check if it's an authentication/authorization error

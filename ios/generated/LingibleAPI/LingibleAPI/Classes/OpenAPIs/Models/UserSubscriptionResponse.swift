@@ -64,3 +64,4 @@ public struct UserSubscriptionResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(createdAt, forKey: .createdAt)
     }
 }
+

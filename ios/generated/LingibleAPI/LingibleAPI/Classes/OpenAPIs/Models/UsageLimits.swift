@@ -35,3 +35,4 @@ public struct UsageLimits: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(premiumTier, forKey: .premiumTier)
     }
 }
+

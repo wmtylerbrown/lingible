@@ -1,17 +1,17 @@
 {
   "version": "1",
   "auth": {
-    "user_pool_id": "us-east-1_ENGYDDFRb",
-    "user_pool_client_id": "7d14opgvr8vrut332547paf9pn",
+    "user_pool_id": "us-east-1_65YoJgNVi",
+    "user_pool_client_id": "68n1e6i3fs8m802c5nf5fc94re",
     "aws_region": "us-east-1",
     "oauth": {
-      "domain": "lingible-prod.auth.us-east-1.amazoncognito.com",
+      "domain": "lingible-dev.auth.us-east-1.amazoncognito.com",
       "scopes": ["email", "openid", "profile"],
       "redirect_sign_in_uri": [
-        "com.lingible.lingible://auth/callback"
+        "com.lingible.lingible.dev://auth/callback"
       ],
       "redirect_sign_out_uri": [
-        "com.lingible.lingible://auth/logout"
+        "com.lingible.lingible.dev://auth/logout"
       ],
       "response_type": "code",
       "identity_providers": ["SIGN_IN_WITH_APPLE"]

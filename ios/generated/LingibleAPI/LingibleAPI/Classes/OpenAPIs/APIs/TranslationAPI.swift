@@ -14,13 +14,21 @@ open class TranslationAPI {
 
     /**
      Translate teen slang
-
-     - parameter translationRequest: (body)
-     - returns: TranslationResponse
+     
+     - parameter translationRequest: (body)  
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func translatePost(translationRequest: TranslationRequest) async throws -> TranslationResponse {
-        return try await translatePostWithRequestBuilder(translationRequest: translationRequest).execute().body
+    @discardableResult
+    open class func translatePost(translationRequest: TranslationRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: TranslationResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return translatePostWithRequestBuilder(translationRequest: translationRequest).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -30,8 +38,8 @@ open class TranslationAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter translationRequest: (body)
-     - returns: RequestBuilder<TranslationResponse>
+     - parameter translationRequest: (body)  
+     - returns: RequestBuilder<TranslationResponse> 
      */
     open class func translatePostWithRequestBuilder(translationRequest: TranslationRequest) -> RequestBuilder<TranslationResponse> {
         let localVariablePath = "/translate"
@@ -53,12 +61,20 @@ open class TranslationAPI {
 
     /**
      Clear all slang translations
-
-     - returns: SuccessResponse
+     
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func translationsDeleteAllDelete() async throws -> SuccessResponse {
-        return try await translationsDeleteAllDeleteWithRequestBuilder().execute().body
+    @discardableResult
+    open class func translationsDeleteAllDelete(apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: SuccessResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return translationsDeleteAllDeleteWithRequestBuilder().execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -68,7 +84,7 @@ open class TranslationAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<SuccessResponse>
+     - returns: RequestBuilder<SuccessResponse> 
      */
     open class func translationsDeleteAllDeleteWithRequestBuilder() -> RequestBuilder<SuccessResponse> {
         let localVariablePath = "/translations/delete-all"
@@ -90,14 +106,22 @@ open class TranslationAPI {
 
     /**
      Get slang translation history
-
+     
      - parameter limit: (query) Number of translations to return (optional, default to 20)
      - parameter offset: (query) Number of translations to skip (optional, default to 0)
-     - returns: TranslationHistoryResponse
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func translationsGet(limit: Int? = nil, offset: Int? = nil) async throws -> TranslationHistoryResponse {
-        return try await translationsGetWithRequestBuilder(limit: limit, offset: offset).execute().body
+    @discardableResult
+    open class func translationsGet(limit: Int? = nil, offset: Int? = nil, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: TranslationHistoryResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return translationsGetWithRequestBuilder(limit: limit, offset: offset).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -109,7 +133,7 @@ open class TranslationAPI {
        - name: BearerAuth
      - parameter limit: (query) Number of translations to return (optional, default to 20)
      - parameter offset: (query) Number of translations to skip (optional, default to 0)
-     - returns: RequestBuilder<TranslationHistoryResponse>
+     - returns: RequestBuilder<TranslationHistoryResponse> 
      */
     open class func translationsGetWithRequestBuilder(limit: Int? = nil, offset: Int? = nil) -> RequestBuilder<TranslationHistoryResponse> {
         let localVariablePath = "/translations"
@@ -135,13 +159,21 @@ open class TranslationAPI {
 
     /**
      Delete specific slang translation
-
-     - parameter translationId: (path) Translation ID
-     - returns: SuccessResponse
+     
+     - parameter translationId: (path) Translation ID 
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func translationsTranslationIdDelete(translationId: String) async throws -> SuccessResponse {
-        return try await translationsTranslationIdDeleteWithRequestBuilder(translationId: translationId).execute().body
+    @discardableResult
+    open class func translationsTranslationIdDelete(translationId: String, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: SuccessResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return translationsTranslationIdDeleteWithRequestBuilder(translationId: translationId).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -151,8 +183,8 @@ open class TranslationAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter translationId: (path) Translation ID
-     - returns: RequestBuilder<SuccessResponse>
+     - parameter translationId: (path) Translation ID 
+     - returns: RequestBuilder<SuccessResponse> 
      */
     open class func translationsTranslationIdDeleteWithRequestBuilder(translationId: String) -> RequestBuilder<SuccessResponse> {
         var localVariablePath = "/translations/{translationId}"

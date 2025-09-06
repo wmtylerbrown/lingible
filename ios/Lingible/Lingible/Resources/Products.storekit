@@ -4,11 +4,32 @@
 
   ],
   "products" : [
+    {
+      "codeOffers" : [
 
+      ],
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "groupNumber" : 1,
+      "internalID" : "1234567890",
+      "introductoryOffer" : null,
+      "localizations" : [
+        {
+          "description" : "Unlimited translations and premium features",
+          "displayName" : "Premium Monthly",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.lingible.lingible.dev.premium.monthly",
+      "recurringSubscriptionPeriod" : "P1M",
+      "referenceName" : "Premium Monthly",
+      "subscriptionGroupID" : "21482456",
+      "type" : "RecurringSubscription"
+    }
   ],
   "settings" : {
     "_applicationInternalID" : "com.lingible.lingible.dev",
-    "_developerTeamID" : "YOUR_TEAM_ID",
+    "_developerTeamID" : "FJZKRUXQ93",
     "_failTransactionsEnabled" : false,
     "_lastSynchronizedDate" : 737712000.0,
     "_locale" : "en_US",
@@ -80,7 +101,7 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "4.99",
+          "displayPrice" : "2.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "1234567890",
@@ -92,7 +113,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.lingible.lingible.premium.monthly",
+          "productID" : "com.lingible.lingible.dev.premium.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Premium Monthly",
           "subscriptionGroupID" : "21482456",

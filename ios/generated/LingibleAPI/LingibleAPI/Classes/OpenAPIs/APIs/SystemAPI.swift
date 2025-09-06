@@ -14,12 +14,20 @@ open class SystemAPI {
 
     /**
      Health check endpoint
-
-     - returns: HealthResponse
+     
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func healthGet() async throws -> HealthResponse {
-        return try await healthGetWithRequestBuilder().execute().body
+    @discardableResult
+    open class func healthGet(apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: HealthResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return healthGetWithRequestBuilder().execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -29,7 +37,7 @@ open class SystemAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<HealthResponse>
+     - returns: RequestBuilder<HealthResponse> 
      */
     open class func healthGetWithRequestBuilder() -> RequestBuilder<HealthResponse> {
         let localVariablePath = "/health"

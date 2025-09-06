@@ -14,7 +14,7 @@ Method | HTTP request | Description
 
 Get trending GenZ slang terms
 
-Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options
+Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options 
 
 ### Example
 ```swift
@@ -43,7 +43,7 @@ TrendingAPI.trendingGet(limit: limit, category: category, activeOnly: activeOnly
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **limit** | **Int** | Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms  | [optional] [default to 50]
- **category** | **String** | Filter by trending category. - Free tier: Only &#39;slang&#39; category allowed - Premium tier: All categories available  | [optional]
+ **category** | **String** | Filter by trending category. - Free tier: Only &#39;slang&#39; category allowed - Premium tier: All categories available  | [optional] 
  **activeOnly** | **Bool** | Show only active trending terms | [optional] [default to true]
 
 ### Return type
@@ -60,3 +60,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

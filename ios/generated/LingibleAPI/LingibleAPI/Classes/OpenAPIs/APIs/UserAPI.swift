@@ -14,12 +14,20 @@ open class UserAPI {
 
     /**
      Get user profile
-
-     - returns: UserProfileResponse
+     
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func userProfileGet() async throws -> UserProfileResponse {
-        return try await userProfileGetWithRequestBuilder().execute().body
+    @discardableResult
+    open class func userProfileGet(apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: UserProfileResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return userProfileGetWithRequestBuilder().execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -29,7 +37,7 @@ open class UserAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<UserProfileResponse>
+     - returns: RequestBuilder<UserProfileResponse> 
      */
     open class func userProfileGetWithRequestBuilder() -> RequestBuilder<UserProfileResponse> {
         let localVariablePath = "/user/profile"
@@ -51,13 +59,21 @@ open class UserAPI {
 
     /**
      Upgrade user subscription
-
-     - parameter upgradeRequest: (body)
-     - returns: UpgradeResponse
+     
+     - parameter upgradeRequest: (body)  
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func userUpgradePost(upgradeRequest: UpgradeRequest) async throws -> UpgradeResponse {
-        return try await userUpgradePostWithRequestBuilder(upgradeRequest: upgradeRequest).execute().body
+    @discardableResult
+    open class func userUpgradePost(upgradeRequest: UpgradeRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: UpgradeResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return userUpgradePostWithRequestBuilder(upgradeRequest: upgradeRequest).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -67,8 +83,8 @@ open class UserAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter upgradeRequest: (body)
-     - returns: RequestBuilder<UpgradeResponse>
+     - parameter upgradeRequest: (body)  
+     - returns: RequestBuilder<UpgradeResponse> 
      */
     open class func userUpgradePostWithRequestBuilder(upgradeRequest: UpgradeRequest) -> RequestBuilder<UpgradeResponse> {
         let localVariablePath = "/user/upgrade"
@@ -90,12 +106,20 @@ open class UserAPI {
 
     /**
      Get usage statistics
-
-     - returns: UsageResponse
+     
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
      */
-    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func userUsageGet() async throws -> UsageResponse {
-        return try await userUsageGetWithRequestBuilder().execute().body
+    @discardableResult
+    open class func userUsageGet(apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: UsageResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return userUsageGetWithRequestBuilder().execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
     }
 
     /**
@@ -105,7 +129,7 @@ open class UserAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<UsageResponse>
+     - returns: RequestBuilder<UsageResponse> 
      */
     open class func userUsageGetWithRequestBuilder() -> RequestBuilder<UsageResponse> {
         let localVariablePath = "/user/usage"

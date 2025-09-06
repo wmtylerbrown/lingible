@@ -60,3 +60,4 @@ public struct ModelErrorResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(requestId, forKey: .requestId)
     }
 }
+

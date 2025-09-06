@@ -79,3 +79,4 @@ public struct UsageResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(premiumDailyLimit, forKey: .premiumDailyLimit)
     }
 }
+

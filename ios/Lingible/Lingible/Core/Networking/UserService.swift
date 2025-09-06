@@ -144,11 +144,22 @@ final class UserService: UserServiceProtocol {
             // Create upgrade request body
             let upgradeRequest = UpgradeRequest(
                 platform: request.provider == .apple ? .apple : .google,
-                receiptData: request.receiptData
+                receiptData: request.receiptData,
+                transactionId: request.transactionId
             )
 
             // Call the upgrade API
-            _ = try await UserAPI.userUpgradePost(upgradeRequest: upgradeRequest)
+            _ = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UpgradeResponse, Error>) in
+                UserAPI.userUpgradePost(upgradeRequest: upgradeRequest) { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "UserUpgradeError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                    }
+                }
+            }
 
             print("✅ UserService: Upgrade successful")
 
@@ -194,7 +205,17 @@ final class UserService: UserServiceProtocol {
         }
 
         print("🌐 UserService: Fetching profile from API")
-        let response = try await UserAPI.userProfileGet()
+        let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UserProfileResponse, Error>) in
+            UserAPI.userProfileGet() { data, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let data = data {
+                    continuation.resume(returning: data)
+                } else {
+                    continuation.resume(throwing: NSError(domain: "UserProfileError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                }
+            }
+        }
         print("✅ UserService: Profile loaded successfully")
 
         lastProfileUpdate = Date()
@@ -211,7 +232,17 @@ final class UserService: UserServiceProtocol {
         }
 
         print("🌐 UserService: Fetching usage from API")
-        let response = try await UserAPI.userUsageGet()
+        let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UsageResponse, Error>) in
+            UserAPI.userUsageGet() { data, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let data = data {
+                    continuation.resume(returning: data)
+                } else {
+                    continuation.resume(throwing: NSError(domain: "UserUsageError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                }
+            }
+        }
         print("✅ UserService: Usage loaded successfully")
 
         lastUsageUpdate = Date()

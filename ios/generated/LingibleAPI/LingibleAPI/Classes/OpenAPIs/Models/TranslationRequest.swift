@@ -40,3 +40,4 @@ public struct TranslationRequest: Codable, JSONEncodable, Hashable {
         try container.encode(direction, forKey: .direction)
     }
 }
+

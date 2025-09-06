@@ -82,3 +82,4 @@ public struct ReceiptValidationResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(retryAfter, forKey: .retryAfter)
     }
 }
+

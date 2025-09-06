@@ -30,3 +30,4 @@ public struct HealthResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(status, forKey: .status)
     }
 }
+

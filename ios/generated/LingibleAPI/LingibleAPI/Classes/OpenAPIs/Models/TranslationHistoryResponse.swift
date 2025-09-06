@@ -39,3 +39,4 @@ public struct TranslationHistoryResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(hasMore, forKey: .hasMore)
     }
 }
+

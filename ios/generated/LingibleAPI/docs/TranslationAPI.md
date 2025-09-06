@@ -24,7 +24,7 @@ Translate GenZ/teen slang to formal English and vice versa using AWS Bedrock AI
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import LingibleAPI
 
-let translationRequest = TranslationRequest(text: "text_example", direction: "direction_example") // TranslationRequest |
+let translationRequest = TranslationRequest(text: "text_example", direction: "direction_example") // TranslationRequest | 
 
 // Translate teen slang
 TranslationAPI.translatePost(translationRequest: translationRequest) { (response, error) in
@@ -43,7 +43,7 @@ TranslationAPI.translatePost(translationRequest: translationRequest) { (response
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **translationRequest** | [**TranslationRequest**](TranslationRequest.md) |  |
+ **translationRequest** | [**TranslationRequest**](TranslationRequest.md) |  | 
 
 ### Return type
 
@@ -191,7 +191,7 @@ TranslationAPI.translationsTranslationIdDelete(translationId: translationId) { (
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **translationId** | **String** | Translation ID |
+ **translationId** | **String** | Translation ID | 
 
 ### Return type
 
@@ -207,3 +207,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

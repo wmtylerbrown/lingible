@@ -67,3 +67,4 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(modelUsed, forKey: .modelUsed)
     }
 }
+
