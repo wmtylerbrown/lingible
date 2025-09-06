@@ -257,6 +257,7 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+
 /* Begin PBXSourcesBuildPhase section */
 		2F92D12D2E674BAB00281549 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -625,6 +626,7 @@
 		};
 		2F92D1F82E67544100281549 /* LingibleAPI */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 2F92D1F72E67544100281549 /* XCLocalSwiftPackageReference "../generated/LingibleAPI" */;
 			productName = LingibleAPI;
 		};
 /* End XCSwiftPackageProductDependency section */

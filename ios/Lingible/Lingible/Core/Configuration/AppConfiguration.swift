@@ -80,6 +80,26 @@ struct AppConfiguration {
         }
     }
 
+    /// Amplify configuration file name based on environment
+    static var amplifyConfigFileName: String {
+        switch currentEnvironment {
+        case .development:
+            return "amplifyconfiguration-dev"
+        case .production:
+            return "amplifyconfiguration-prod"
+        }
+    }
+    
+    /// Amplify outputs file name based on environment
+    static var amplifyOutputsFileName: String {
+        switch currentEnvironment {
+        case .development:
+            return "amplify_outputs-dev"
+        case .production:
+            return "amplify_outputs-prod"
+        }
+    }
+
     /// Configure the API client with the correct base URL for the current environment
     static func configureAPI() {
         LingibleAPIAPI.basePath = apiBaseURL
