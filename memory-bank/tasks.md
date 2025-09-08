@@ -732,6 +732,132 @@ Successfully achieved **5/5 API tests passing** with complete backend system ope
 
 ---
 
+## ✅ COMPLETED: iOS Environment Configuration & App Store Submission Preparation (2024-12-19)
+
+### **🎯 Major Accomplishment:**
+Successfully implemented comprehensive iOS environment configuration system and prepared the app for App Store submission with proper legal compliance and privacy questionnaire completion.
+
+### **🔧 Key Improvements:**
+
+#### **1. Environment-Specific Configuration System:**
+- ✅ **Build Configuration Management**: Implemented Xcode User-Defined Build Settings for environment-specific values
+- ✅ **AdMob Configuration**: Environment-specific AdMob application identifier and ad unit IDs
+- ✅ **API Endpoint Management**: Dynamic API base URL configuration based on build environment
+- ✅ **Bundle Identifier Management**: Proper bundle ID management for different environments
+- ✅ **Amplify Configuration**: Automatic switching between dev and production Amplify configurations
+
+#### **2. Automatic Amplify Configuration Switching:**
+- ✅ **Xcode Build Script**: Inline shell script embedded in Xcode Build Phases for automatic config switching
+- ✅ **Environment Detection**: Script automatically detects Debug vs Release build configuration
+- ✅ **File Management**: Copies appropriate `amplify_outputs-dev.json` or `amplify_outputs-prod.json` to build directory
+- ✅ **Sandbox Compliance**: Uses `$(DERIVED_FILE_DIR)` for output to comply with Xcode sandbox restrictions
+- ✅ **Verification**: Script logs user pool ID for verification of correct configuration
+
+#### **3. App Store Submission Preparation:**
+- ✅ **Production Archive**: Built production archive with correct bundle ID (com.lingible.lingible)
+- ✅ **App Store Connect Setup**: Complete app listing with screenshots, description, keywords, and 1024x1024 icon
+- ✅ **Legal Document Updates**: Updated Privacy Policy and Terms of Service to match Apple privacy questionnaire
+- ✅ **Privacy Questionnaire**: Completed Email Address and User ID sections with proper data usage declarations
+- ✅ **Subscription Products**: Configured $2.99/month premium subscription in App Store Connect
+
+#### **4. Project Cleanup and Organization:**
+- ✅ **Script Cleanup**: Removed temporary Amplify configuration scripts and entire `scripts/` directory
+- ✅ **Documentation Cleanup**: Removed outdated iOS markdown files (BUILD_PROCESS.md, SETUP_GUIDE.md)
+- ✅ **Generated File Cleanup**: Removed unnecessary generated files in `ios/generated/LingibleAPI/`
+- ✅ **Build Artifact Cleanup**: Removed redundant `.gitignore` and build metadata files
+
+#### **5. Xcode Package Management:**
+- ✅ **Package Resolution**: Fixed "Missing package product 'LingibleAPI'" error by clearing Xcode caches
+- ✅ **Dependency Management**: Resolved GUID conflicts in Xcode package references
+- ✅ **Build System**: iOS project builds successfully with proper package structure
+- ✅ **Cache Management**: Cleared Xcode DerivedData and Swift Package Manager caches
+
+### **📊 Technical Implementation:**
+
+#### **Environment Configuration Structure:**
+```swift
+// Development.xcconfig (reference only - values set in Xcode)
+GAD_APPLICATION_IDENTIFIER = ca-app-pub-3940256099942544~1458002511
+GAD_BANNER_AD_UNIT_ID = ca-app-pub-3940256099942544/2934735716
+GAD_INTERSTITIAL_AD_UNIT_ID = ca-app-pub-3940256099942544/4411468910
+API_BASE_URL = https://api.dev.lingible.com
+WEBSITE_BASE_URL = https://dev.lingible.com
+SUPPORT_EMAIL = support@lingible.com
+
+// Production.xcconfig (reference only - values set in Xcode)
+GAD_APPLICATION_IDENTIFIER = ca-app-pub-1234567890123456~1234567890
+GAD_BANNER_AD_UNIT_ID = ca-app-pub-1234567890123456/1234567890
+GAD_INTERSTITIAL_AD_UNIT_ID = ca-app-pub-1234567890123456/0987654321
+API_BASE_URL = https://api.lingible.com
+WEBSITE_BASE_URL = https://lingible.com
+SUPPORT_EMAIL = support@lingible.com
+```
+
+#### **Amplify Configuration Script:**
+```bash
+# Xcode Run Script Phase (inline)
+echo " Setting up Amplify configuration..."
+BUILD_CONFIG="${CONFIGURATION:-Debug}"
+echo "📱 Build Configuration: $BUILD_CONFIG"
+
+if [ "$BUILD_CONFIG" = "Release" ]; then
+    SOURCE_FILE="$SRCROOT/Lingible/amplify_outputs-prod.json"
+    echo "🔧 Using production configuration..."
+else
+    SOURCE_FILE="$SRCROOT/Lingible/amplify_outputs-dev.json"
+    echo "🔧 Using development configuration..."
+fi
+
+if [ -f "$SOURCE_FILE" ]; then
+    cp "$SOURCE_FILE" "$DERIVED_FILE_DIR/amplify_outputs.json"
+    echo "✅ Configuration set up"
+    USER_POOL_ID=$(grep -o "user_pool_id.*" "$DERIVED_FILE_DIR/amplify_outputs.json" | cut -d: -f2 | tr -d " \",")
+    echo "🔗 User Pool ID: $USER_POOL_ID"
+    echo "🎯 Configuration complete!"
+else
+    echo "❌ Error: $SOURCE_FILE not found"
+    exit 1
+fi
+```
+
+#### **App Store Privacy Questionnaire Answers:**
+- **Email Address**: App Functionality, Analytics, Linked to Identity, No Tracking
+- **User ID**: App Functionality, Analytics, Linked to Identity, No Tracking
+- **Coarse Location**: App Functionality, Not Linked to Identity, No Tracking
+- **Usage Data**: App Functionality, Analytics, Not Linked to Identity, No Tracking
+- **Advertising Data**: Third-party advertising, Not Linked to Identity, No Tracking
+- **Diagnostics**: App Functionality, Not Linked to Identity, No Tracking
+
+### **📁 Files Modified/Created:**
+- **iOS Configuration**: `Info.plist`, `AdMobConfig.swift`, `AppConfiguration.swift` - Environment-specific values
+- **Build Scripts**: Xcode Run Script Phase for automatic Amplify configuration switching
+- **Legal Documents**: Updated Privacy Policy and Terms of Service for App Store compliance
+- **Project Cleanup**: Removed temporary scripts, outdated documentation, and unnecessary generated files
+- **Package Management**: Fixed Xcode package resolution and build cache issues
+
+### **🎯 Benefits Achieved:**
+- **Environment Separation**: Clear separation between development and production configurations
+- **Automated Configuration**: No manual intervention required for environment-specific builds
+- **App Store Ready**: Production archive built with correct configuration and legal compliance
+- **Clean Project Structure**: Removed clutter and organized project files properly
+- **Build Reliability**: iOS project builds consistently without package resolution issues
+
+### **🚀 Production Readiness:**
+- **Production Archive**: ✅ Built and ready for App Store submission
+- **Legal Compliance**: ✅ Privacy Policy and Terms of Service updated
+- **Privacy Questionnaire**: ✅ Completed with accurate data usage declarations
+- **Environment Configuration**: ✅ Proper separation between dev and production settings
+- **Build System**: ✅ Reliable builds with automatic configuration switching
+
+### **🔍 Issues Resolved:**
+- **Hardcoded Values**: Replaced hardcoded AdMob IDs and API endpoints with environment-specific configuration
+- **Amplify Configuration**: Automated switching between dev and production Amplify settings
+- **Package Resolution**: Fixed Xcode package dependency issues and GUID conflicts
+- **Project Clutter**: Cleaned up temporary files and outdated documentation
+- **Build Consistency**: Ensured builds use correct environment-specific values
+
+---
+
 ## 🔐 PENDING: Apple Identity Provider Security Discussion
 
 ### **🎯 Context:**

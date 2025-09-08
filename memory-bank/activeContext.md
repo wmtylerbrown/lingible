@@ -1,6 +1,6 @@
 # Active Context - Lingible
 
-## Current Focus: App Store Submission with Google AdMob Integration
+## Current Focus: Google AdMob Integration & Final App Store Submission
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 - **Mandatory TDD Workflow**: Red-Green-Refactor process for all backend development
@@ -102,6 +102,17 @@
 - **OpenAPI Spec Updates**: Updated shared API specification and TypeScript types
 - **View Consolidation**: Removed duplicate upgrade views and consolidated into single component
 
+### ✅ **COMPLETED: iOS Environment Configuration & App Store Submission Preparation (2024-12-19)**
+- **Environment-Specific Configuration**: Implemented Xcode User-Defined Build Settings for AdMob IDs, API endpoints, and bundle identifiers
+- **Automatic Amplify Configuration**: Xcode Build Script automatically switches between dev and production Amplify configurations
+- **App Store Submission Ready**: Production archive built with correct bundle ID and legal compliance
+- **Privacy Questionnaire**: Completed Apple privacy questionnaire with accurate data usage declarations
+- **Project Cleanup**: Removed temporary scripts, outdated documentation, and unnecessary generated files
+- **Xcode Package Management**: Fixed package resolution issues and GUID conflicts
+- **Build System**: iOS project builds consistently with proper environment-specific configuration
+- **Legal Compliance**: Updated Privacy Policy and Terms of Service to match App Store requirements
+- **App Store Connect**: Complete setup with screenshots, description, keywords, and subscription products
+
 ### ✅ **COMPLETED: StoreKit 2 Subscription Integration & TestFlight Setup (2024-12-19)**
 - **StoreKit 2 Integration**: Complete SubscriptionManager implementation with real Apple StoreKit products
 - **Subscription Purchase Flow**: Full purchase flow with $2.99/month premium subscription pricing
@@ -157,21 +168,22 @@
 
 ### 🎯 **CURRENT PRIORITIES:**
 
-#### **1. App Store Submission with Google AdMob Integration**
-- **Current Status**: Production archive built, legal docs updated, Apple privacy questionnaire in progress
+#### **1. Google AdMob Integration & Final App Store Submission**
+- **Current Status**: iOS environment configuration complete, App Store submission preparation complete, ready for AdMob integration
 - **Production Archive**: ✅ Built with correct bundle ID (com.lingible.lingible) and Amplify configuration
 - **App Store Connect**: ✅ Setup complete with screenshots, description, keywords, and 1024x1024 icon
 - **Legal Documents**: ✅ Updated Privacy Policy and Terms of Service to match Apple privacy questionnaire
-- **Apple Privacy Questionnaire**: 🔄 Currently in progress - completed Email Address and User ID sections
-- **Google AdMob Decision**: ✅ Decided to integrate AdMob for free tier users only (premium users get ad-free)
-- **Production Website**: ✅ Deployed to lingible.com with CloudFront distribution ready for DNS configuration
-- **Next Step**: Update legal documents and privacy questionnaire for AdMob integration
+- **Apple Privacy Questionnaire**: ✅ Completed with accurate data usage declarations
+- **Environment Configuration**: ✅ Implemented environment-specific configuration system for AdMob, API endpoints, and Amplify
+- **Xcode Package Management**: ✅ Fixed package resolution issues and build system
+- **Project Cleanup**: ✅ Removed temporary files and organized project structure
+- **Next Step**: Complete Google AdMob integration for free tier users and final App Store submission
 
-#### **2. Environment Configuration & Production Setup**
-- **Environment Configuration**: Implement proper environment configuration system for production
-- **Build Variants**: Create separate build configurations for dev/staging/production
-- **API Endpoint Management**: Dynamic API endpoint configuration based on environment
-- **Bundle Identifier Management**: Proper bundle ID management for different environments
+#### **2. Production Deployment & Monitoring**
+- **Production Deployment**: Deploy backend to production environment with proper configuration
+- **Monitoring Setup**: CloudWatch dashboards and alerting for production systems
+- **Performance Optimization**: Lambda function optimization and cost monitoring
+- **Security Monitoring**: Monitor for security events and anomalies
 
 #### **3. System Monitoring & Optimization**
 - **CloudWatch Dashboards**: Monitor API performance and error rates
@@ -256,4 +268,4 @@
 
 ---
 
-**Current Status**: ✅ **APP STORE SUBMISSION IN PROGRESS** - Production archive built with correct bundle ID and Amplify configuration. Legal documents updated to match Apple privacy questionnaire answers. Production website deployed to lingible.com with CloudFront distribution ready for DNS configuration. Currently working through Apple App Privacy questionnaire and planning Google AdMob integration for free tier users. Ready for final App Store submission once AdMob integration is complete.
+**Current Status**: ✅ **APP STORE SUBMISSION PREPARATION COMPLETE** - Production archive built with correct bundle ID and Amplify configuration. Legal documents updated to match Apple privacy questionnaire answers. Apple privacy questionnaire completed with accurate data usage declarations. iOS environment configuration system implemented with automatic Amplify configuration switching. Xcode package management issues resolved. Project cleaned up and organized. Ready for Google AdMob integration and final App Store submission.

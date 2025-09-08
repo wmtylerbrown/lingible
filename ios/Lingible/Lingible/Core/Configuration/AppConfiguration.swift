@@ -32,6 +32,12 @@ struct AppConfiguration {
 
     /// Base URL for the API based on environment
     static var apiBaseURL: String {
+        // Try to get from build configuration first
+        if let configURL = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String {
+            return configURL
+        }
+
+        // Fallback to environment-based logic
         switch currentEnvironment {
         case .development:
             return "https://api.dev.lingible.com"
@@ -42,6 +48,12 @@ struct AppConfiguration {
 
     /// Base URL for the website based on environment
     static var websiteBaseURL: String {
+        // Try to get from build configuration first
+        if let configURL = Bundle.main.object(forInfoDictionaryKey: "WEBSITE_BASE_URL") as? String {
+            return configURL
+        }
+
+        // Fallback to environment-based logic
         switch currentEnvironment {
         case .development:
             return "https://dev.lingible.com"
@@ -62,6 +74,12 @@ struct AppConfiguration {
 
     /// Support email based on environment
     static var supportEmail: String {
+        // Try to get from build configuration first
+        if let configEmail = Bundle.main.object(forInfoDictionaryKey: "SUPPORT_EMAIL") as? String {
+            return configEmail
+        }
+
+        // Fallback to environment-based logic
         switch currentEnvironment {
         case .development:
             return "support-dev@lingible.com"
@@ -89,7 +107,7 @@ struct AppConfiguration {
             return "amplifyconfiguration-prod"
         }
     }
-    
+
     /// Amplify outputs file name based on environment
     static var amplifyOutputsFileName: String {
         switch currentEnvironment {

@@ -1,0 +1,26 @@
+// Production Configuration
+// This file contains production-specific build settings
+//
+// NOTE: These values are set directly in Xcode Build Settings, not through this .xcconfig file.
+// This file serves as documentation/reference only.
+
+// AdMob Configuration
+// TODO: Replace with real AdMob App ID after App Store approval
+GAD_APPLICATION_IDENTIFIER = ca-app-pub-3940256099942544~1458002511
+GAD_BANNER_AD_UNIT_ID = ca-app-pub-3940256099942544/2934735716
+GAD_INTERSTITIAL_AD_UNIT_ID = ca-app-pub-3940256099942544/4411468910
+
+// API Configuration
+API_BASE_URL = https://api.lingible.com
+WEBSITE_BASE_URL = https://lingible.com
+
+// App Configuration
+APP_ENVIRONMENT = prod
+SUPPORT_EMAIL = support@lingible.com
+
+// Bundle Configuration
+PRODUCT_BUNDLE_IDENTIFIER = com.lingible.lingible
+PRODUCT_NAME = Lingible
+
+// Display Configuration
+CFBundleDisplayName = Lingible

@@ -129,6 +129,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2F92D1522E674BAC00281549 /* Build configuration list for PBXNativeTarget "Lingible" */;
 			buildPhases = (
+				2FCCD10E2E6E644B00B4AC6C /* Setup Amplify Configuration */,
 				2F92D12D2E674BAB00281549 /* Sources */,
 				2F92D12E2E674BAB00281549 /* Frameworks */,
 				2F92D12F2E674BAB00281549 /* Resources */,
@@ -268,6 +269,32 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		2FCCD10E2E6E644B00B4AC6C /* Setup Amplify Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"",
+			);
+			inputPaths = (
+				"$(SRCROOT)/Lingible/amplify_outputs-dev.json\n",
+				"$(SRCROOT)/Lingible/amplify_outputs-prod.json\n",
+			);
+			name = "Setup Amplify Configuration";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/amplify_outputs.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "echo \"�� Setting up Amplify configuration...\"\n\n# Get the build configuration from Xcode environment\nBUILD_CONFIG=\"${CONFIGURATION:-Debug}\"\n\necho \"📱 Build Configuration: $BUILD_CONFIG\"\n\n# Determine which config file to use based on build configuration\nif [ \"$BUILD_CONFIG\" = \"Release\" ]; then\n    SOURCE_FILE=\"$SRCROOT/Lingible/amplify_outputs-prod.json\"\n    echo \"🔧 Using production configuration...\"\nelse\n    SOURCE_FILE=\"$SRCROOT/Lingible/amplify_outputs-dev.json\"\n    echo \"🔧 Using development configuration...\"\nfi\n\n# Copy the appropriate config file\nif [ -f \"$SOURCE_FILE\" ]; then\n    cp \"$SOURCE_FILE\" \"$DERIVED_FILE_DIR/amplify_outputs.json\"\n    echo \"✅ Configuration set up\"\n    \n    # Extract and display the user pool ID for verification\n    USER_POOL_ID=$(grep -o \"user_pool_id.*\" \"$DERIVED_FILE_DIR/amplify_outputs.json\" | cut -d: -f2 | tr -d \" \\\",\")\n    echo \"🔗 User Pool ID: $USER_POOL_ID\"\n    echo \"🎯 Configuration complete!\"\nelse\n    echo \"❌ Error: $SOURCE_FILE not found\"\n    echo \"Available files:\"\n    ls -la \"$SRCROOT/Lingible/amplify_outputs*.json\"\n    exit 1\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2F92D12D2E674BAB00281549 /* Sources */ = {
@@ -431,6 +458,8 @@
 		2F92D1532E674BAC00281549 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				API_BASE_URL = "https://api.dev.lingible.com";
+				APP_ENVIRONMENT = dev;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Lingible/Lingible.entitlements;
@@ -438,6 +467,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PH33VX3MUL;
 				ENABLE_PREVIEWS = YES;
+				GAD_APPLICATION_IDENTIFIER = "ca-app-pub-3940256099942544~1458002511";
+				GAD_BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/2934735716";
+				GAD_INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/4411468910";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Lingible/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -457,15 +489,19 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORT_EMAIL = "support+dev@lingible.com";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WEBSITE_BASE_URL = "https://dev.lingible.com";
 			};
 			name = Debug;
 		};
 		2F92D1542E674BAC00281549 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				API_BASE_URL = "https://api.lingible.com";
+				APP_ENVIRONMENT = prod;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Lingible/Lingible.entitlements;
@@ -473,6 +509,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PH33VX3MUL;
 				ENABLE_PREVIEWS = YES;
+				GAD_APPLICATION_IDENTIFIER = "ca-app-pub-7364009324611772~6700422443";
+				GAD_BANNER_AD_UNIT_ID = "ca-app-pub-7364009324611772/6744670389";
+				GAD_INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7364009324611772/7723512465";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Lingible/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -492,9 +531,11 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORT_EMAIL = "support@lingible.com";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WEBSITE_BASE_URL = "https://lingible.com";
 			};
 			name = Release;
 		};
