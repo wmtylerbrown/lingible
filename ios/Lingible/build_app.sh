@@ -5,10 +5,11 @@
 # with the correct amplify_outputs.json files
 #
 # Usage:
-#   ./build_app.sh [dev|prod|both]
-#   - dev:  Build only development (Debug configuration)
-#   - prod: Build only production (Release configuration)
-#   - both: Build both environments (default if no parameter)
+#   ./build_app.sh [dev|prod|both|archive]
+#   - dev:     Build only development (Debug configuration)
+#   - prod:    Build only production (Release configuration)
+#   - both:    Build both environments (default if no parameter)
+#   - archive: Create production archive for App Store submission
 
 set -e  # Exit on any error
 
@@ -16,12 +17,13 @@ set -e  # Exit on any error
 BUILD_TARGET=${1:-both}  # Default to 'both' if no parameter provided
 
 # Validate parameter
-if [[ "$BUILD_TARGET" != "dev" && "$BUILD_TARGET" != "prod" && "$BUILD_TARGET" != "both" ]]; then
+if [[ "$BUILD_TARGET" != "dev" && "$BUILD_TARGET" != "prod" && "$BUILD_TARGET" != "both" && "$BUILD_TARGET" != "archive" ]]; then
     echo "❌ Invalid parameter: $BUILD_TARGET"
-    echo "Usage: $0 [dev|prod|both]"
-    echo "  dev:  Build only development (Debug configuration)"
-    echo "  prod: Build only production (Release configuration)"
-    echo "  both: Build both environments (default)"
+    echo "Usage: $0 [dev|prod|both|archive]"
+    echo "  dev:     Build only development (Debug configuration)"
+    echo "  prod:    Build only production (Release configuration)"
+    echo "  both:    Build both environments (default)"
+    echo "  archive: Create production archive for App Store submission"
     exit 1
 fi
 
@@ -91,6 +93,70 @@ build_app() {
     fi
 }
 
+# Function to create archive for App Store submission
+create_archive() {
+    print_status "Creating production archive for App Store submission..."
+
+    # Copy the production amplify_outputs file
+    print_status "Setting up amplify_outputs.json for production..."
+    rm -f "Lingible/amplify_outputs.json"
+    cp "Lingible/amplify_outputs-prod.json" "Lingible/amplify_outputs.json"
+
+    # Create archive
+    local archive_name="Lingible-Production-$(date +%Y%m%d-%H%M%S).xcarchive"
+    print_status "Creating archive: $archive_name"
+
+    xcodebuild -project Lingible.xcodeproj \
+               -scheme Lingible \
+               -configuration Release \
+               -destination generic/platform=iOS \
+               -archivePath "./$archive_name" \
+               archive
+
+    if [ $? -eq 0 ]; then
+        print_success "Archive created successfully!"
+
+        # Move archive to Xcode Archives directory
+        local archives_dir="$HOME/Library/Developer/Xcode/Archives/$(date +%Y-%m-%d)"
+        mkdir -p "$archives_dir"
+        mv "./$archive_name" "$archives_dir/"
+
+        print_success "Archive moved to: $archives_dir/$archive_name"
+
+        # Clean up AdMob dSYM files to prevent upload issues
+        print_status "Cleaning up AdMob dSYM files..."
+        find "$archives_dir/$archive_name" -name "*GoogleMobileAds*" -type d -exec rm -rf {} + 2>/dev/null || true
+        find "$archives_dir/$archive_name" -name "*UserMessagingPlatform*" -type d -exec rm -rf {} + 2>/dev/null || true
+
+        print_success "AdMob dSYM cleanup completed"
+
+        # Show archive info
+        local archive_size=$(du -sh "$archives_dir/$archive_name" | cut -f1)
+        print_status "Archive size: $archive_size"
+
+        # Verify production configuration
+        if grep -q "lingible-prod" "$archives_dir/$archive_name/Products/Applications/Lingible.app/amplify_outputs.json"; then
+            print_success "✅ Production configuration verified in archive"
+        else
+            print_error "❌ Archive does not contain production configuration!"
+            exit 1
+        fi
+
+        echo ""
+        print_success "🎉 Archive ready for App Store submission!"
+        echo "📱 Archive location: $archives_dir/$archive_name"
+        echo "🔧 Next steps:"
+        echo "   1. Open Xcode Organizer (Window → Organizer)"
+        echo "   2. Select the 'Archives' tab"
+        echo "   3. Find your archive and click 'Distribute App'"
+        echo "   4. Choose 'App Store Connect' for submission"
+
+    else
+        print_error "Archive creation failed!"
+        exit 1
+    fi
+}
+
 # Main execution
 echo "🚀 Starting Lingible iOS App Build Process"
 echo "=========================================="
@@ -123,7 +189,13 @@ xcodebuild clean -project Lingible.xcodeproj -scheme Lingible
 BUILT_ENVIRONMENTS=()
 
 # Build based on target
-if [[ "$BUILD_TARGET" == "dev" || "$BUILD_TARGET" == "both" ]]; then
+if [[ "$BUILD_TARGET" == "archive" ]]; then
+    echo ""
+    echo "📦 Creating Production Archive"
+    echo "============================="
+    create_archive
+    BUILT_ENVIRONMENTS+=("Archive")
+elif [[ "$BUILD_TARGET" == "dev" || "$BUILD_TARGET" == "both" ]]; then
     echo ""
     echo "📱 Building Development App (Debug)"
     echo "==================================="
@@ -143,7 +215,11 @@ echo ""
 print_success "Build(s) completed successfully!"
 
 # Restore appropriate configuration based on what was built
-if [[ "$BUILD_TARGET" == "dev" ]]; then
+if [[ "$BUILD_TARGET" == "archive" ]]; then
+    # Keep prod config in place for archive
+    print_status "Keeping production configuration active for archive..."
+    print_success "Production configuration is ready for archive"
+elif [[ "$BUILD_TARGET" == "dev" ]]; then
     # Keep dev config in place
     print_status "Keeping development configuration active..."
     print_success "Development configuration is ready for testing"
@@ -160,19 +236,31 @@ echo "=================="
 for env in "${BUILT_ENVIRONMENTS[@]}"; do
     if [[ "$env" == "Development" ]]; then
         echo "• Development build: Debug configuration with dev amplify_outputs"
-    else
+    elif [[ "$env" == "Production" ]]; then
         echo "• Production build: Release configuration with prod amplify_outputs"
+    elif [[ "$env" == "Archive" ]]; then
+        echo "• Production archive: Release configuration with prod amplify_outputs"
     fi
 done
 echo "• All builds are iPhone-only (no iPad support)"
-echo "• Build outputs are in ./DerivedData/Build/Products/"
+if [[ "$BUILD_TARGET" != "archive" ]]; then
+    echo "• Build outputs are in ./DerivedData/Build/Products/"
+fi
 
-if [[ "$BUILD_TARGET" == "both" ]]; then
+if [[ "$BUILD_TARGET" == "archive" ]]; then
+    echo "• amplify_outputs.json configured for production"
+    echo ""
+    echo "🎯 Next steps:"
+    echo "• Open Xcode Organizer (Window → Organizer)"
+    echo "• Select the 'Archives' tab"
+    echo "• Find your archive and click 'Distribute App'"
+    echo "• Choose 'App Store Connect' for submission"
+elif [[ "$BUILD_TARGET" == "both" ]]; then
     echo "• amplify_outputs.json restored to development configuration"
     echo ""
     echo "🎯 Next steps:"
     echo "• Test the development build in the simulator (ready to go!)"
-    echo "• Archive the production build for App Store submission"
+    echo "• Run './build_app.sh archive' to create App Store archive"
     echo "• Verify both builds use the correct API endpoints"
 elif [[ "$BUILD_TARGET" == "dev" ]]; then
     echo "• amplify_outputs.json configured for development"
@@ -185,5 +273,5 @@ elif [[ "$BUILD_TARGET" == "prod" ]]; then
     echo ""
     echo "🎯 Next steps:"
     echo "• Test the production build in the simulator"
-    echo "• Archive for App Store submission when ready"
+    echo "• Run './build_app.sh archive' to create App Store archive"
 fi

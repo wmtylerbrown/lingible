@@ -62,6 +62,7 @@ export class BackendStack extends Construct {
   // API Gateway resources
   public api!: apigateway.RestApi;
   public certificate!: acm.Certificate;
+  public apiDomainName!: string;
 
   // Monitoring resources
   public dashboard!: cloudwatch.Dashboard;
@@ -691,6 +692,17 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.userAccountDeletionLambda.addToRolePolicy(statement));
 
+    // Add Cognito permissions for user account deletion
+    this.userAccountDeletionLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'cognito-idp:AdminDeleteUser',
+      ],
+      resources: [
+        this.userPool.userPoolArn,
+      ],
+    }));
+
     this.translationHistoryLambda = new lambda.Function(this, 'TranslationHistoryLambda', {
       functionName: `lingible-translation-history-${environment}`,
       handler: 'handler.handler',
@@ -882,6 +894,11 @@ export class BackendStack extends Construct {
       sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
     });
 
+    this.userAccountDeletionLambda.addPermission('ApiGatewayUserAccountDeletion', {
+      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
+    });
+
     this.translationHistoryLambda.addPermission('ApiGatewayTranslationHistory', {
       principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
       sourceArn: `arn:aws:execute-api:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${this.api.restApiId}/*`,
@@ -904,9 +921,10 @@ export class BackendStack extends Construct {
   }
 
   private createApiGateway(environment: string, hostedZone: route53.IHostedZone): void {
-    // Create SSL certificate
+    // Create SSL certificate - use api.lingible.com for prod, api.dev.lingible.com for dev
+    this.apiDomainName = environment === 'prod' ? 'api.lingible.com' : `api.${environment}.lingible.com`;
     this.certificate = new acm.Certificate(this, 'ApiCertificate', {
-      domainName: `api.${environment}.lingible.com`,
+      domainName: this.apiDomainName,
       validation: acm.CertificateValidation.fromDns(),
     });
 
@@ -920,7 +938,7 @@ export class BackendStack extends Construct {
         allowHeaders: apigateway.Cors.DEFAULT_HEADERS,
       },
       domainName: {
-        domainName: `api.${environment}.lingible.com`,
+        domainName: this.apiDomainName,
         certificate: this.certificate,
       },
     });
@@ -1380,7 +1398,7 @@ export class BackendStack extends Construct {
     });
 
     new CfnOutput(this, 'ApiDomainName', {
-      value: `api.${environment}.lingible.com`,
+      value: this.apiDomainName,
       description: 'API Gateway custom domain name',
       exportName: `Lingible-${environment}-ApiDomainName`,
     });

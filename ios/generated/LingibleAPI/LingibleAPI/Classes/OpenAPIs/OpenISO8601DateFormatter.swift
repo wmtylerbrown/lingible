@@ -36,6 +36,15 @@ public class OpenISO8601DateFormatter: DateFormatter {
         return formatter
     }()
 
+    static let withMicrosecondsNoTz: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        return formatter
+    }()
+
     private func setup() {
         calendar = Calendar(identifier: .iso8601)
         locale = Locale(identifier: "en_US_POSIX")
@@ -54,8 +63,12 @@ public class OpenISO8601DateFormatter: DateFormatter {
     }
 
     override public func date(from string: String) -> Date? {
-        // Try microseconds first (6 digits)
+        // Try microseconds with timezone first (6 digits + timezone)
         if let result = OpenISO8601DateFormatter.withMicroseconds.date(from: string) {
+            return result
+        }
+        // Try microseconds without timezone (6 digits, no timezone)
+        if let result = OpenISO8601DateFormatter.withMicrosecondsNoTz.date(from: string) {
             return result
         }
         // Try standard format (3 digits milliseconds)

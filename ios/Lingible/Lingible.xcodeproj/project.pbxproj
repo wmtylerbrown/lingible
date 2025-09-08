@@ -130,6 +130,7 @@
 			buildConfigurationList = 2F92D1522E674BAC00281549 /* Build configuration list for PBXNativeTarget "Lingible" */;
 			buildPhases = (
 				2FCCD10E2E6E644B00B4AC6C /* Setup Amplify Configuration */,
+				2FCCD10F2E6E644B00B4AC6D /* Fix AdMob dSYM Issues */,
 				2F92D12D2E674BAB00281549 /* Sources */,
 				2F92D12E2E674BAB00281549 /* Frameworks */,
 				2F92D12F2E674BAB00281549 /* Resources */,
@@ -292,6 +293,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "echo \"�� Setting up Amplify configuration...\"\n\n# Get the build configuration from Xcode environment\nBUILD_CONFIG=\"${CONFIGURATION:-Debug}\"\n\necho \"📱 Build Configuration: $BUILD_CONFIG\"\n\n# Determine which config file to use based on build configuration\nif [ \"$BUILD_CONFIG\" = \"Release\" ]; then\n    SOURCE_FILE=\"$SRCROOT/Lingible/amplify_outputs-prod.json\"\n    echo \"🔧 Using production configuration...\"\nelse\n    SOURCE_FILE=\"$SRCROOT/Lingible/amplify_outputs-dev.json\"\n    echo \"🔧 Using development configuration...\"\nfi\n\n# Copy the appropriate config file\nif [ -f \"$SOURCE_FILE\" ]; then\n    # Create symlink to the correct config file\n    rm -f \"$SRCROOT/Lingible/amplify_outputs.json\"\n    ln -sf \"$(basename \"$SOURCE_FILE\")\" \"$SRCROOT/Lingible/amplify_outputs.json\"\n    echo \"✅ Configuration symlink created\"\n    \n    # Extract and display the user pool ID for verification\n    USER_POOL_ID=$(grep -o \"user_pool_id.*\" \"$SOURCE_FILE\" | cut -d: -f2 | tr -d \" \\\",\")\n    echo \"🔗 User Pool ID: $USER_POOL_ID\"\n    echo \"🎯 Configuration complete!\"\nelse\n    echo \"❌ Error: $SOURCE_FILE not found\"\n    echo \"Available files:\"\n    ls -la \"$SRCROOT/Lingible/amplify_outputs*.json\"\n    exit 1\nfi\n";
+		};
+		2FCCD10F2E6E644B00B4AC6D /* Fix AdMob dSYM Issues */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Fix AdMob dSYM Issues";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+			shellPath = /bin/sh;
+			shellScript = "# Fix AdMob dSYM issues by removing problematic frameworks from dSYM\nif [ \"${CONFIGURATION}\" = \"Release\" ]; then\n    echo \"🔧 Fixing AdMob dSYM issues for Release build...\"\n    \n    # Find the dSYM directory\n    DSYM_DIR=\"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\n    \n    if [ -d \"$DSYM_DIR\" ]; then\n        echo \"📁 Found dSYM directory: $DSYM_DIR\"\n        \n        # Remove AdMob framework dSYMs if they exist\n        find \"$DSYM_DIR\" -name \"*GoogleMobileAds*\" -type d -exec rm -rf {} + 2>/dev/null || true\n        find \"$DSYM_DIR\" -name \"*UserMessagingPlatform*\" -type d -exec rm -rf {} + 2>/dev/null || true\n        \n        # Also remove from the main dSYM bundle if they exist\n        find \"$DSYM_DIR\" -name \"GoogleMobileAds\" -type f -delete 2>/dev/null || true\n        find \"$DSYM_DIR\" -name \"UserMessagingPlatform\" -type f -delete 2>/dev/null || true\n        \n        echo \"✅ AdMob dSYM cleanup completed\"\n    else\n        echo \"⚠️  dSYM directory not found, skipping cleanup\"\n    fi\n    \n    # Also clean up any framework dSYMs in the build directory\n    find \"${CONFIGURATION_BUILD_DIR}\" -name \"*GoogleMobileAds*.dSYM\" -exec rm -rf {} + 2>/dev/null || true\n    find \"${CONFIGURATION_BUILD_DIR}\" -name \"*UserMessagingPlatform*.dSYM\" -exec rm -rf {} + 2>/dev/null || true\n    \n    echo \"🧹 Cleaned up framework dSYMs from build directory\"\nelse\n    echo \"⏭️  Skipping AdMob dSYM fix for ${CONFIGURATION} build\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -493,6 +513,13 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1";
 				WEBSITE_BASE_URL = "https://dev.lingible.com";
+				ENABLE_BITCODE = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				STRIP_INSTALLED_PRODUCT = NO;
+				STRIP_SWIFT_SYMBOLS = NO;
+				DWARF_DSYM_FOLDER_PATH = "$(CONFIGURATION_BUILD_DIR)";
+				DWARF_DSYM_FILE_NAME = "$(EXECUTABLE_NAME).dSYM";
+				DWARF_DSYM_FILE_SHOULD_ACCOMPANY_PRODUCT = NO;
 			};
 			name = Debug;
 		};
@@ -535,6 +562,13 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1";
 				WEBSITE_BASE_URL = "https://lingible.com";
+				ENABLE_BITCODE = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				STRIP_INSTALLED_PRODUCT = NO;
+				STRIP_SWIFT_SYMBOLS = NO;
+				DWARF_DSYM_FOLDER_PATH = "$(CONFIGURATION_BUILD_DIR)";
+				DWARF_DSYM_FILE_NAME = "$(EXECUTABLE_NAME).dSYM";
+				DWARF_DSYM_FILE_SHOULD_ACCOMPANY_PRODUCT = NO;
 			};
 			name = Release;
 		};

@@ -156,6 +156,15 @@
 - **DNS Instructions**: Provided clear Squarespace DNS configuration instructions for A and CNAME records
 - **Infrastructure Updates**: Modified website stack to handle production domain without creating conflicting hosted zones
 
+### ✅ **COMPLETED: Production API Custom Domain Configuration (2024-12-19)**
+- **Custom Domain Setup**: Successfully configured `api.lingible.com` for production API Gateway
+- **SSL Certificate**: Issued and validated SSL certificate for `api.lingible.com` (ARN: `arn:aws:acm:us-east-1:480421270075:certificate/8b5bc3dc-608b-472d-896c-4b4407aa3667`)
+- **Regional Endpoint**: API Gateway configured with regional endpoint `d-d3a0nvcap4.execute-api.us-east-1.amazonaws.com`
+- **Hosted Zone**: Regional hosted zone ID `Z1UJRXOUMOOFQ8` for DNS configuration
+- **Backend Stack Updates**: Modified CDK infrastructure to use `api.lingible.com` for production instead of `api.prod.lingible.com`
+- **Squarespace DNS Configuration**: CNAME record required: `api` → `d-d3a0nvcap4.execute-api.us-east-1.amazonaws.com`
+- **Production App Configuration**: iOS app configured to use `https://api.lingible.com` for production API calls
+
 ### ✅ **COMPLETED: Translation API & Full System Integration (2024-09-04)**
 - **Authentication System**: ✅ Working perfectly with fresh JWT tokens from Cognito
 - **Enum Serialization Issues**: ✅ Completely resolved across all repositories
