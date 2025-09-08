@@ -32,6 +32,9 @@ __all__ = [
     "ApiKeyError",
     "ApiAttributeError",
     "ApiException",
+    "AccountDeletionRequest",
+    "AccountDeletionResponse",
+    "AccountDeletionResponseCleanupSummary",
     "AppleWebhookRequest",
     "ErrorResponse",
     "HealthResponse",
@@ -60,7 +63,7 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.api.trending_api import TrendingApi as TrendingApi
     from lingible_client.api.user_api import UserApi as UserApi
     from lingible_client.api.webhooks_api import WebhooksApi as WebhooksApi
-    
+
     # import ApiClient
     from lingible_client.api_response import ApiResponse as ApiResponse
     from lingible_client.api_client import ApiClient as ApiClient
@@ -71,8 +74,11 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.exceptions import ApiKeyError as ApiKeyError
     from lingible_client.exceptions import ApiAttributeError as ApiAttributeError
     from lingible_client.exceptions import ApiException as ApiException
-    
+
     # import models into sdk package
+    from lingible_client.models.account_deletion_request import AccountDeletionRequest as AccountDeletionRequest
+    from lingible_client.models.account_deletion_response import AccountDeletionResponse as AccountDeletionResponse
+    from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary as AccountDeletionResponseCleanupSummary
     from lingible_client.models.apple_webhook_request import AppleWebhookRequest as AppleWebhookRequest
     from lingible_client.models.error_response import ErrorResponse as ErrorResponse
     from lingible_client.models.health_response import HealthResponse as HealthResponse
@@ -92,7 +98,7 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.user_profile_response import UserProfileResponse as UserProfileResponse
     from lingible_client.models.user_subscription_response import UserSubscriptionResponse as UserSubscriptionResponse
     from lingible_client.models.webhook_response import WebhookResponse as WebhookResponse
-    
+
 else:
     from lazy_imports import LazyModule, as_package, load
 
@@ -120,6 +126,9 @@ from lingible_client.exceptions import ApiAttributeError as ApiAttributeError
 from lingible_client.exceptions import ApiException as ApiException
 
 # import models into sdk package
+from lingible_client.models.account_deletion_request import AccountDeletionRequest as AccountDeletionRequest
+from lingible_client.models.account_deletion_response import AccountDeletionResponse as AccountDeletionResponse
+from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary as AccountDeletionResponseCleanupSummary
 from lingible_client.models.apple_webhook_request import AppleWebhookRequest as AppleWebhookRequest
 from lingible_client.models.error_response import ErrorResponse as ErrorResponse
 from lingible_client.models.health_response import HealthResponse as HealthResponse

@@ -3,6 +3,9 @@
 .gitlab-ci.yml
 .travis.yml
 README.md
+docs/AccountDeletionRequest.md
+docs/AccountDeletionResponse.md
+docs/AccountDeletionResponseCleanupSummary.md
 docs/AppleWebhookRequest.md
 docs/ErrorResponse.md
 docs/HealthResponse.md
@@ -40,6 +43,9 @@ lingible_client/api_response.py
 lingible_client/configuration.py
 lingible_client/exceptions.py
 lingible_client/models/__init__.py
+lingible_client/models/account_deletion_request.py
+lingible_client/models/account_deletion_response.py
+lingible_client/models/account_deletion_response_cleanup_summary.py
 lingible_client/models/apple_webhook_request.py
 lingible_client/models/error_response.py
 lingible_client/models/health_response.py

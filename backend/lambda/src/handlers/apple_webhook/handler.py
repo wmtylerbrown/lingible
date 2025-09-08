@@ -5,12 +5,16 @@ from aws_lambda_powertools.utilities.parser import event_parser
 
 from models.events import WebhookEvent
 from models.subscriptions import WebhookResponse
+from models.users import UserTier
 from services.subscription_service import SubscriptionService
+from services.user_service import UserService
 from utils.decorators import api_handler
 from utils.tracing import tracer
+from utils.logging import logger
 
-# Initialize service at module level for Lambda container reuse
+# Initialize services at module level for Lambda container reuse
 subscription_service = SubscriptionService()
+user_service = UserService()
 
 
 @event_parser(model=WebhookEvent)
@@ -29,6 +33,9 @@ def handler(
     success = subscription_service.handle_apple_webhook(
         notification_type, transaction_id, receipt_data
     )
+
+    # Note: User tier downgrades are now handled by the SubscriptionService
+    # No need for additional handling here since the service manages the full flow
 
     return WebhookResponse(
         success=success,

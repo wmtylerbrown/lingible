@@ -256,3 +256,19 @@
 - **Complete Deployment**: Successfully deployed both dev and prod environments including separate website stacks
 - **Website Updates**: Verified website deployment includes updated legal documents with AdMob content
 - **Lambda Layers**: Confirmed proper Docker bundling during CDK deployment for platform-specific packages
+
+### ✅ **Account Deletion Feature Implementation (2024-09-07)**
+- **Backend API Implementation**: Complete account deletion endpoint with proper validation and error handling
+- **Subscription Protection**: Prevents account deletion if active subscription exists to avoid billing issues
+- **Free User Translation Deletion**: Allows free users to delete their translation history during account deletion
+- **Architecture Refactoring**: Resolved circular dependencies between UserService and SubscriptionService
+- **UserService Orchestration**: UserService now owns user lifecycle operations with proper service coordination
+- **API Documentation**: Updated OpenAPI specification with account deletion endpoint and error responses
+- **TypeScript Types**: Updated shared TypeScript types with new account deletion models and error codes
+- **Client SDK Regeneration**: Regenerated both iOS and Python client SDKs with updated API changes
+- **iOS App Integration**: Enhanced iOS app with proper error handling for new API error responses
+- **Dual Protection**: Both client-side and server-side validation prevent accidental account deletion
+- **User Experience**: Seamless flow guides users through subscription cancellation before account deletion
+- **Error Handling**: Specific error codes (ACTIVE_SUBSCRIPTION_EXISTS, INVALID_CONFIRMATION) with user-friendly responses
+- **Type Safety**: Fixed mypy issues and ensured strong typing throughout the account deletion flow
+- **Production Ready**: Complete end-to-end account deletion feature ready for production deployment

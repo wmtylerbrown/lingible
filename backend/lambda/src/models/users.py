@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -94,3 +95,26 @@ class UserUsageResponse(BaseModel):
     # Daily translation limits for comparison
     free_daily_limit: int = Field(..., description="Free tier daily translation limit")
     premium_daily_limit: int = Field(..., description="Premium tier daily translation limit")
+
+
+class AccountDeletionRequest(BaseModel):
+    """Request model for account deletion."""
+
+    confirmation_text: str = Field(..., description="User must type 'DELETE' to confirm")
+    reason: Optional[str] = Field(None, description="Optional reason for account deletion")
+
+
+class AccountDeletionResponse(BaseModel):
+    """Response model for account deletion."""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            datetime: lambda v: v.isoformat(),
+        },
+    )
+
+    success: bool = Field(..., description="Whether the deletion was successful")
+    message: str = Field(..., description="Confirmation message")
+    deleted_at: datetime = Field(..., description="When the account was deleted")
+    cleanup_summary: dict = Field(..., description="Summary of data cleanup performed")

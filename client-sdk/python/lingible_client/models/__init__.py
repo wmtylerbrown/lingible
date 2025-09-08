@@ -15,6 +15,9 @@
 
 if __import__("typing").TYPE_CHECKING:
     # import models into model package
+    from lingible_client.models.account_deletion_request import AccountDeletionRequest
+    from lingible_client.models.account_deletion_response import AccountDeletionResponse
+    from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary
     from lingible_client.models.apple_webhook_request import AppleWebhookRequest
     from lingible_client.models.error_response import ErrorResponse
     from lingible_client.models.health_response import HealthResponse
@@ -34,7 +37,7 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.user_profile_response import UserProfileResponse
     from lingible_client.models.user_subscription_response import UserSubscriptionResponse
     from lingible_client.models.webhook_response import WebhookResponse
-    
+
 else:
     from lazy_imports import LazyModule, as_package, load
 
@@ -42,6 +45,9 @@ else:
         LazyModule(
             *as_package(__file__),
             """# import models into model package
+from lingible_client.models.account_deletion_request import AccountDeletionRequest
+from lingible_client.models.account_deletion_response import AccountDeletionResponse
+from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary
 from lingible_client.models.apple_webhook_request import AppleWebhookRequest
 from lingible_client.models.error_response import ErrorResponse
 from lingible_client.models.health_response import HealthResponse

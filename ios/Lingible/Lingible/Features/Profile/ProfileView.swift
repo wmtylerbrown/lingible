@@ -1,12 +1,18 @@
 import SwiftUI
+import StoreKit
 import LingibleAPI
 
 struct ProfileView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
     @State private var showingSignOutAlert = false
+    @State private var showingDeleteAccountAlert = false
+    @State private var showingDeleteConfirmation = false
+    @State private var deleteConfirmationText = ""
+    @State private var isDeletingAccount = false
     @State private var showingThemePicker = false
     @State private var showingUpgradeSheet = false
     @State private var showingClearCacheAlert = false
+    @State private var showingSubscriptionWarning = false
 
     var body: some View {
         NavigationView {
@@ -40,8 +46,17 @@ struct ProfileView: View {
                 Section(header: Text("Preferences")) {
                     settingsRow(icon: "paintbrush", title: "Theme", action: { showingThemePicker = true })
                     settingsRow(icon: "trash", title: "Clear Cache", action: { showingClearCacheAlert = true })
-                    settingsRow(icon: "star", title: "Upgrade to Premium", action: { showingUpgradeSheet = true })
-                    settingsRow(icon: "arrow.clockwise.circle", title: "Restore Purchases", action: { restorePurchases() })
+
+                    // Show different options based on user tier
+                    if let usage = appCoordinator.userUsage, usage.tier == .premium {
+                        // Premium user - show subscription management
+                        settingsRow(icon: "creditcard", title: "Manage Subscriptions", action: { manageSubscriptions() })
+                        settingsRow(icon: "arrow.clockwise.circle", title: "Restore Purchases", action: { restorePurchases() })
+                    } else {
+                        // Free user - show upgrade option
+                        settingsRow(icon: "star", title: "Upgrade to Premium", action: { showingUpgradeSheet = true })
+                        settingsRow(icon: "arrow.clockwise.circle", title: "Restore Purchases", action: { restorePurchases() })
+                    }
                 }
 
                 // Account Section
@@ -116,6 +131,20 @@ struct ProfileView: View {
                         }
                     }
                 }
+
+                // Account Deletion Section
+                Section(header: Text("Danger Zone"), footer: Text("This action cannot be undone. All your data will be permanently deleted.")) {
+                    Button(action: { showingDeleteAccountAlert = true }) {
+                        HStack {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                            Text("Delete Account")
+                                .foregroundColor(.red)
+                            Spacer()
+                        }
+                    }
+                    .disabled(isDeletingAccount)
+                }
             }
             .navigationTitle("Profile")
         }
@@ -152,6 +181,44 @@ struct ProfileView: View {
             }
         } message: {
             Text("This will clear all cached data including translation history and trending data. This action cannot be undone.")
+        }
+        .alert("Delete Account", isPresented: $showingDeleteAccountAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Continue", role: .destructive) {
+                // Check if user has active subscription
+                if let usage = appCoordinator.userUsage, usage.tier == .premium {
+                    showingSubscriptionWarning = true
+                } else {
+                    showingDeleteConfirmation = true
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete your account? This will permanently delete all your data including translations, preferences, and subscription information. This action cannot be undone.")
+        }
+        .alert("Confirm Account Deletion", isPresented: $showingDeleteConfirmation) {
+            TextField("Type DELETE to confirm", text: $deleteConfirmationText)
+            Button("Cancel", role: .cancel) {
+                deleteConfirmationText = ""
+            }
+            Button("Delete Account", role: .destructive) {
+                Task {
+                    await deleteAccount()
+                }
+            }
+            .disabled(deleteConfirmationText != "DELETE" || isDeletingAccount)
+        } message: {
+            Text("Type 'DELETE' in the text field above to confirm account deletion.")
+        }
+        .alert("Cancel Subscription First", isPresented: $showingSubscriptionWarning) {
+            Button("Manage Subscriptions") {
+                manageSubscriptions()
+            }
+            Button("Continue Anyway", role: .destructive) {
+                showingDeleteConfirmation = true
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("You have an active subscription. Please cancel it first to avoid future charges, or continue with account deletion anyway.")
         }
         .onAppear {
             print("🔥 ProfileView onAppear called!")
@@ -293,7 +360,7 @@ struct ProfileView: View {
     private func contactSupport() {
         let email = AppConfiguration.supportEmail
         print("📧 ProfileView: Attempting to open email to: \(email)")
-        
+
         if let url = URL(string: "mailto:\(email)") {
             print("📧 ProfileView: Created mailto URL: \(url)")
             if UIApplication.shared.canOpenURL(url) {
@@ -334,6 +401,30 @@ struct ProfileView: View {
         }
     }
 
+    private func manageSubscriptions() {
+        Task {
+            do {
+                // Use AppStore.showManageSubscriptions for iOS 15+
+                if #available(iOS 15.0, *) {
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                        try await AppStore.showManageSubscriptions(in: windowScene)
+                    }
+                } else {
+                    // Fallback for older iOS versions - open App Store
+                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                        await UIApplication.shared.open(url)
+                    }
+                }
+            } catch {
+                print("❌ Failed to open subscription management: \(error)")
+                // Fallback to App Store URL
+                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                    await UIApplication.shared.open(url)
+                }
+            }
+        }
+    }
+
     private func clearAllCache() {
         // Clear translation history cache
         UserDefaults.standard.removeObject(forKey: "cached_translations")
@@ -347,6 +438,94 @@ struct ProfileView: View {
         // UserDefaults.standard.removeObject(forKey: "user_usage_cache")
 
         print("🗑️ All cache cleared successfully")
+    }
+
+    // MARK: - Account Deletion
+    private func deleteAccount() async {
+        guard deleteConfirmationText == "DELETE" else {
+            print("❌ Account deletion cancelled: confirmation text mismatch")
+            return
+        }
+
+        isDeletingAccount = true
+
+        do {
+            print("🗑️ Starting account deletion process...")
+
+            // Create the account deletion request
+            let request = AccountDeletionRequest(
+                confirmationText: deleteConfirmationText,
+                reason: "User requested account deletion via iOS app"
+            )
+
+            // Get access token and configure API client
+            let accessToken = try await appCoordinator.authenticationService.getAuthToken()
+            LingibleAPIAPI.customHeaders["Authorization"] = "Bearer \(accessToken)"
+
+            // Call the API to delete the account
+            let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<AccountDeletionResponse, Error>) in
+                UserAPI.userAccountDelete(accountDeletionRequest: request) { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "AccountDeletionError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown error occurred"]))
+                    }
+                }
+            }
+
+            if response.success == true {
+                print("✅ Account deleted successfully")
+
+                // Clear local data
+                clearAllCache()
+
+                // Sign out the user (this will clear authentication state)
+                await MainActor.run {
+                    appCoordinator.signOut()
+                }
+            } else {
+                print("❌ Account deletion failed: \(response.message ?? "Unknown error")")
+                // Show error to user
+                await MainActor.run {
+                    // You could show an error alert here
+                    print("❌ Failed to delete account: \(response.message ?? "Unknown error")")
+                }
+            }
+
+        } catch {
+            print("❌ Account deletion error: \(error)")
+            await MainActor.run {
+                // Handle specific error cases
+                if let apiError = error as? ModelErrorResponse {
+                    handleAccountDeletionError(apiError)
+                } else {
+                    // Generic error handling
+                    print("❌ Account deletion failed: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        await MainActor.run {
+            isDeletingAccount = false
+            deleteConfirmationText = ""
+        }
+    }
+
+    // MARK: - Error Handling
+    private func handleAccountDeletionError(_ error: ModelErrorResponse) {
+        switch error.errorCode {
+        case "ACTIVE_SUBSCRIPTION_EXISTS":
+            // Show subscription warning alert
+            showingSubscriptionWarning = true
+        case "INVALID_CONFIRMATION":
+            // Show confirmation error
+            print("❌ Invalid confirmation text. Please type 'DELETE' exactly.")
+        default:
+            // Generic error handling
+            print("❌ Account deletion failed: \(error.message ?? "Unknown error")")
+        }
     }
 }
 

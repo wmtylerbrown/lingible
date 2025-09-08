@@ -13,8 +13,55 @@ import AnyCodable
 open class UserAPI {
 
     /**
+     Delete user account
+
+     - parameter accountDeletionRequest: (body)
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
+     */
+    @discardableResult
+    open class func userAccountDelete(accountDeletionRequest: AccountDeletionRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: AccountDeletionResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return userAccountDeleteWithRequestBuilder(accountDeletionRequest: accountDeletionRequest).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
+    }
+
+    /**
+     Delete user account
+     - DELETE /user/account
+     - Permanently delete the user's account and all associated data. This action cannot be undone. Requires that the user has no active subscription - cancel subscription first in App Store/Google Play Store.
+     - Bearer Token:
+       - type: http
+       - name: BearerAuth
+     - parameter accountDeletionRequest: (body)
+     - returns: RequestBuilder<AccountDeletionResponse>
+     */
+    open class func userAccountDeleteWithRequestBuilder(accountDeletionRequest: AccountDeletionRequest) -> RequestBuilder<AccountDeletionResponse> {
+        let localVariablePath = "/user/account"
+        let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
+        let localVariableParameters = JSONEncodingHelper.encodingParameters(forEncodableObject: accountDeletionRequest)
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "Content-Type": "application/json",
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AccountDeletionResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "DELETE", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
      Get user profile
-     
+
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -37,7 +84,7 @@ open class UserAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<UserProfileResponse> 
+     - returns: RequestBuilder<UserProfileResponse>
      */
     open class func userProfileGetWithRequestBuilder() -> RequestBuilder<UserProfileResponse> {
         let localVariablePath = "/user/profile"
@@ -59,8 +106,8 @@ open class UserAPI {
 
     /**
      Upgrade user subscription
-     
-     - parameter upgradeRequest: (body)  
+
+     - parameter upgradeRequest: (body)
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -83,8 +130,8 @@ open class UserAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter upgradeRequest: (body)  
-     - returns: RequestBuilder<UpgradeResponse> 
+     - parameter upgradeRequest: (body)
+     - returns: RequestBuilder<UpgradeResponse>
      */
     open class func userUpgradePostWithRequestBuilder(upgradeRequest: UpgradeRequest) -> RequestBuilder<UpgradeResponse> {
         let localVariablePath = "/user/upgrade"
@@ -106,7 +153,7 @@ open class UserAPI {
 
     /**
      Get usage statistics
-     
+
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -129,7 +176,7 @@ open class UserAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<UsageResponse> 
+     - returns: RequestBuilder<UsageResponse>
      */
     open class func userUsageGetWithRequestBuilder() -> RequestBuilder<UsageResponse> {
         let localVariablePath = "/user/usage"

@@ -16,6 +16,9 @@ LingibleAPI/Classes/OpenAPIs/Extensions.swift
 LingibleAPI/Classes/OpenAPIs/JSONDataEncoding.swift
 LingibleAPI/Classes/OpenAPIs/JSONEncodingHelper.swift
 LingibleAPI/Classes/OpenAPIs/Models.swift
+LingibleAPI/Classes/OpenAPIs/Models/AccountDeletionRequest.swift
+LingibleAPI/Classes/OpenAPIs/Models/AccountDeletionResponse.swift
+LingibleAPI/Classes/OpenAPIs/Models/AccountDeletionResponseCleanupSummary.swift
 LingibleAPI/Classes/OpenAPIs/Models/AppleWebhookRequest.swift
 LingibleAPI/Classes/OpenAPIs/Models/HealthResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/ModelErrorResponse.swift
@@ -41,6 +44,9 @@ LingibleAPI/Classes/OpenAPIs/URLSessionImplementations.swift
 LingibleAPI/Classes/OpenAPIs/Validation.swift
 Package.swift
 README.md
+docs/AccountDeletionRequest.md
+docs/AccountDeletionResponse.md
+docs/AccountDeletionResponseCleanupSummary.md
 docs/AppleWebhookRequest.md
 docs/HealthResponse.md
 docs/ModelErrorResponse.md

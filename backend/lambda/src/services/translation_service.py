@@ -78,7 +78,7 @@ class TranslationService:
             translated_text = self._parse_bedrock_response(
                 bedrock_response, request.direction
             )
-            
+
             # Validate that we got an actual translation, not the same text
             if self._is_same_text(translated_text, request.text):
                 logger.log_business_event(
@@ -254,7 +254,7 @@ Translate:"""
             "Result:",
             "result:",
         ]
-        
+
         for prefix in prefixes_to_remove:
             if completion.lower().startswith(prefix.lower()):
                 completion = completion[len(prefix):].strip()
@@ -275,19 +275,19 @@ Translate:"""
         # Normalize both texts for comparison
         normalized_translated = translated_text.lower().strip()
         normalized_original = original_text.lower().strip()
-        
+
         # Check for exact match
         if normalized_translated == normalized_original:
             return True
-            
+
         # Check for very similar text (e.g., just punctuation differences)
         # Remove common punctuation and compare
         clean_translated = re.sub(r'[^\w\s]', '', normalized_translated)
         clean_original = re.sub(r'[^\w\s]', '', normalized_original)
-        
+
         if clean_translated == clean_original:
             return True
-            
+
         return False
 
     def _calculate_confidence_score(self, response: BedrockResponse) -> Optional[float]:
@@ -398,10 +398,10 @@ Translate:"""
         return success
 
     @tracer.trace_method("delete_user_translations")
-    def delete_user_translations(self, user_id: str) -> int:
-        """Delete all translations for a user (premium feature). Returns number of deleted records."""
-        # Check if user has premium access
-        if not self._is_premium_user(user_id):
+    def delete_user_translations(self, user_id: str, is_account_deletion: bool = False) -> int:
+        """Delete all translations for a user. Returns number of deleted records."""
+        # Check if user has premium access (allow deletion during account closure)
+        if not self._is_premium_user(user_id) and not is_account_deletion:
             raise InsufficientPermissionsError(
                 message="Translation history management is a premium feature. Upgrade to manage your translation history.",
             )

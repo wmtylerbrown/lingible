@@ -43,6 +43,7 @@ export class BackendStack extends Construct {
   public userProfileLambda!: lambda.Function;
   public userUsageLambda!: lambda.Function;
   public userUpgradeLambda!: lambda.Function;
+  public userAccountDeletionLambda!: lambda.Function;
   public translationHistoryLambda!: lambda.Function;
   public deleteTranslationLambda!: lambda.Function;
   public deleteAllTranslationsLambda!: lambda.Function;
@@ -675,6 +676,21 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.userUpgradeLambda.addToRolePolicy(statement));
 
+    this.userAccountDeletionLambda = new lambda.Function(this, 'UserAccountDeletionLambda', {
+      functionName: `lingible-user-account-deletion-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.user_account_deletion.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-user-account-deletion',
+        ENVIRONMENT: environment,
+
+      },
+      layers: [this.dependenciesLayer, this.sharedLayer],
+
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.userAccountDeletionLambda.addToRolePolicy(statement));
+
     this.translationHistoryLambda = new lambda.Function(this, 'TranslationHistoryLambda', {
       functionName: `lingible-translation-history-${environment}`,
       handler: 'handler.handler',
@@ -1051,6 +1067,38 @@ export class BackendStack extends Construct {
         },
         {
           statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
+    // User account deletion endpoint
+    const account = user.addResource('account');
+    account.addMethod('DELETE', new apigateway.LambdaIntegration(this.userAccountDeletionLambda), {
+      authorizer: authorizer,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': successModel,
+          },
+        },
+        {
+          statusCode: '400',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '500',
           responseModels: {
             'application/json': errorModel,
           },

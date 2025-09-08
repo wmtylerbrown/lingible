@@ -6,6 +6,7 @@ from aws_lambda_powertools.utilities.parser.models import APIGatewayEventRequest
 
 from .translations import TranslationRequest
 from .subscriptions import UserUpgradeRequest, AppleWebhookRequest
+from .users import AccountDeletionRequest
 
 
 class TranslationEvent(BaseModel):
@@ -153,6 +154,33 @@ class UserUpgradeEvent(BaseModel):
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
     )
+
+
+class AccountDeletionEvent(BaseModel):
+    """Typed event for account deletion handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_body: "AccountDeletionRequest" = Field(..., description="Parsed request body")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    username: str = Field(
+        ..., description="Username from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+    # Convenience properties for request body
+    @property
+    def confirmation_text(self) -> str:
+        """Get confirmation text from request body."""
+        return self.request_body.confirmation_text
+
+    @property
+    def reason(self) -> Optional[str]:
+        """Get deletion reason from request body."""
+        return self.request_body.reason
 
 
 class WebhookEvent(BaseModel):

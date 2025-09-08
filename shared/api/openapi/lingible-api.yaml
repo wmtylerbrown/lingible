@@ -252,6 +252,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/account:
+    delete:
+      summary: Delete user account
+      description: Permanently delete the user's account and all associated data. This action cannot be undone. Requires that the user has no active subscription - cancel subscription first in App Store/Google Play Store.
+      tags:
+        - User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionRequest'
+      responses:
+        '200':
+          description: Account deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionResponse'
+        '400':
+          description: Invalid request or active subscription exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_confirmation:
+                  summary: Invalid confirmation text
+                  value:
+                    error: "Confirmation text must be exactly 'DELETE'"
+                    error_code: "INVALID_CONFIRMATION"
+                active_subscription:
+                  summary: Active subscription exists
+                  value:
+                    error: "Cannot delete account with active subscription. Please cancel your subscription first in the App Store or Google Play Store, then try again."
+                    error_code: "ACTIVE_SUBSCRIPTION_EXISTS"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /webhook/apple:
     post:
@@ -878,3 +927,48 @@ components:
           enum: [slang, meme, expression, hashtag, phrase]
           description: Applied category filter
           example: "slang"
+
+    AccountDeletionRequest:
+      type: object
+      required:
+        - confirmation_text
+      properties:
+        confirmation_text:
+          type: string
+          description: User must type "DELETE" to confirm account deletion
+          example: "DELETE"
+        reason:
+          type: string
+          description: Optional reason for account deletion
+          example: "No longer using the app"
+      example:
+        confirmation_text: "DELETE"
+        reason: "No longer using the app"
+
+    AccountDeletionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the account deletion was successful
+          example: true
+        message:
+          type: string
+          description: Confirmation message
+          example: "Your account and all associated data have been permanently deleted."
+        deleted_at:
+          type: string
+          format: date-time
+          description: When the account was deleted
+          example: "2024-12-19T10:30:00Z"
+        cleanup_summary:
+          type: object
+          properties:
+            translations_deleted:
+              type: integer
+              description: Number of translation records deleted
+              example: 25
+            data_retention_period:
+              type: string
+              description: How long some data may be retained for legal/operational purposes
+              example: "30 days for billing records"

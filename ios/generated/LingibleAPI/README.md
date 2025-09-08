@@ -33,6 +33,7 @@ Class | Method | HTTP request | Description
 *TranslationAPI* | [**translationsGet**](docs/TranslationAPI.md#translationsget) | **GET** /translations | Get slang translation history
 *TranslationAPI* | [**translationsTranslationIdDelete**](docs/TranslationAPI.md#translationstranslationiddelete) | **DELETE** /translations/{translationId} | Delete specific slang translation
 *TrendingAPI* | [**trendingGet**](docs/TrendingAPI.md#trendingget) | **GET** /trending | Get trending GenZ slang terms
+*UserAPI* | [**userAccountDelete**](docs/UserAPI.md#useraccountdelete) | **DELETE** /user/account | Delete user account
 *UserAPI* | [**userProfileGet**](docs/UserAPI.md#userprofileget) | **GET** /user/profile | Get user profile
 *UserAPI* | [**userUpgradePost**](docs/UserAPI.md#userupgradepost) | **POST** /user/upgrade | Upgrade user subscription
 *UserAPI* | [**userUsageGet**](docs/UserAPI.md#userusageget) | **GET** /user/usage | Get usage statistics
@@ -41,6 +42,9 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AccountDeletionRequest](docs/AccountDeletionRequest.md)
+ - [AccountDeletionResponse](docs/AccountDeletionResponse.md)
+ - [AccountDeletionResponseCleanupSummary](docs/AccountDeletionResponseCleanupSummary.md)
  - [AppleWebhookRequest](docs/AppleWebhookRequest.md)
  - [HealthResponse](docs/HealthResponse.md)
  - [ModelErrorResponse](docs/ModelErrorResponse.md)
@@ -82,6 +86,3 @@ https://openapi-generator.tech/docs/faq-generators#how-do-i-migrate-from-the-swi
 https://openapi-generator.tech/docs/faq-generators#how-do-i-implement-bearer-token-authentication-with-urlsession-on-the-swift-5-api-client
 
 ## Author
-
-
-

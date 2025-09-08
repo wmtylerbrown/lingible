@@ -119,6 +119,24 @@ export interface UpgradeResponse {
   expires_at: string;
 }
 
+// Account Deletion Types
+export interface AccountDeletionRequest {
+  confirmation_text: string;
+  reason?: string;
+}
+
+export interface AccountDeletionResponse {
+  success: boolean;
+  message: string;
+  deleted_at: Date;
+  cleanup_summary: AccountDeletionCleanupSummary;
+}
+
+export interface AccountDeletionCleanupSummary {
+  translations_deleted: number;
+  data_retention_period: string;
+}
+
 // Trending Types
 export type TrendingCategory = 'slang' | 'meme' | 'expression' | 'hashtag' | 'phrase';
 
@@ -254,6 +272,9 @@ export const ERROR_CODES = {
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  // Account Deletion Error Codes
+  INVALID_CONFIRMATION: 'INVALID_CONFIRMATION',
+  ACTIVE_SUBSCRIPTION_EXISTS: 'ACTIVE_SUBSCRIPTION_EXISTS',
 } as const;
 
 export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];

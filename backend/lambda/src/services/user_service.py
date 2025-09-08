@@ -1,6 +1,6 @@
 """User service for user management and usage tracking."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from models.users import (
@@ -9,6 +9,8 @@ from models.users import (
     UserStatus,
     UserUsageResponse,
 )
+from models.subscriptions import SubscriptionProvider
+from services.subscription_service import SubscriptionService
 from models.translations import UsageLimit
 from utils.logging import logger
 from utils.tracing import tracer
@@ -25,6 +27,7 @@ class UserService:
         """Initialize user service."""
         self.config_service = get_config_service()
         self.repository = UserRepository()
+        self.subscription_service = SubscriptionService()
         self.usage_config = self.config_service.get_config(UsageLimitsConfig)
 
     @tracer.trace_method("create_user")
@@ -188,7 +191,7 @@ class UserService:
             raise SystemError(f"Failed to reset usage for user {user_id}")
 
     @tracer.trace_method("upgrade_user_tier")
-    def upgrade_user_tier(self, user_id: str, new_tier: UserTier) -> bool:
+    def _upgrade_user_tier(self, user_id: str, new_tier: UserTier) -> bool:
         """Upgrade user to a new tier."""
         try:
             user = self.repository.get_user(user_id)
@@ -257,6 +260,116 @@ class UserService:
         except Exception as e:
             logger.log_error(e, {"operation": "suspend_user", "user_id": user_id})
             raise
+
+    @tracer.trace_method("downgrade_user_tier")
+    def _downgrade_user_tier(self, user_id: str, new_tier: UserTier) -> bool:
+        """Downgrade user to a new tier (typically FREE)."""
+        try:
+            user = self.repository.get_user(user_id)
+            if not user:
+                raise ValidationError(f"User not found: {user_id}")
+
+            user.tier = new_tier
+            user.updated_at = datetime.now(timezone.utc)
+
+            # Update user profile
+            success = self.repository.update_user(user)
+            if not success:
+                raise SystemError(f"Failed to update user {user_id}")
+
+            # CRITICAL: Also update the usage limits tier to keep them in sync
+            # Usage limits are the source of truth for performance (frequent get_user_usage calls)
+            usage_limits = self.repository.get_usage_limits(user_id)
+            if usage_limits:
+                usage_limits.tier = new_tier
+                success = self.repository.update_usage_limits(user_id, usage_limits)
+                if not success:
+                    raise SystemError(f"Failed to update usage limits tier for user {user_id}")
+            else:
+                # Create default usage limits with new tier
+                self._create_default_usage_limits(user_id, new_tier)
+
+            logger.log_business_event(
+                "user_tier_downgraded",
+                {
+                    "user_id": user_id,
+                    "new_tier": new_tier,
+                },
+            )
+
+            return True
+
+        except Exception as e:
+            logger.log_error(e, {"operation": "downgrade_user_tier", "user_id": user_id})
+            raise
+
+    @tracer.trace_method("upgrade_user_subscription")
+    def upgrade_user_subscription(self, user_id: str, provider: SubscriptionProvider, receipt_data: str, transaction_id: str) -> User:
+        """Orchestrate user subscription upgrade (user lifecycle operation)."""
+        try:
+            # Get user first
+            user = self.get_user(user_id)
+            if not user:
+                raise ValidationError("User not found", error_code="USER_NOT_FOUND")
+
+            # Create subscription via subscription service
+            subscription_created = self.subscription_service.validate_and_create_subscription(
+                user_id=user_id,
+                provider=provider,
+                receipt_data=receipt_data,
+                transaction_id=transaction_id
+            )
+
+            if not subscription_created:
+                raise SystemError("Failed to create subscription")
+
+            # Upgrade user tier
+            tier_updated = self._upgrade_user_tier(user_id, UserTier.PREMIUM)
+            if not tier_updated:
+                raise SystemError("Failed to upgrade user tier")
+
+            # Return updated user
+            updated_user = self.get_user(user_id)
+            if not updated_user:
+                raise SystemError("User not found after tier update")
+            return updated_user
+
+        except Exception as e:
+            logger.log_error(e, {"operation": "upgrade_user_subscription", "user_id": user_id})
+            raise
+
+    @tracer.trace_method("downgrade_user_on_cancellation")
+    def downgrade_user_on_cancellation(self, user_id: str) -> bool:
+        """Orchestrate user downgrade on subscription cancellation (user lifecycle operation)."""
+        try:
+            # Cancel subscription via subscription service
+            subscription_cancelled = self.subscription_service.cancel_subscription(user_id)
+            if not subscription_cancelled:
+                logger.log_error(
+                    SystemError("Failed to cancel subscription"),
+                    {"operation": "downgrade_user_on_cancellation", "user_id": user_id}
+                )
+                return False
+
+            # Downgrade user tier
+            tier_downgraded = self._downgrade_user_tier(user_id, UserTier.FREE)
+            if not tier_downgraded:
+                logger.log_error(
+                    SystemError("Failed to downgrade user tier"),
+                    {"operation": "downgrade_user_on_cancellation", "user_id": user_id}
+                )
+                return False
+
+            logger.log_business_event(
+                "user_downgraded_on_cancellation",
+                {"user_id": user_id, "new_tier": "FREE"}
+            )
+
+            return True
+
+        except Exception as e:
+            logger.log_error(e, {"operation": "downgrade_user_on_cancellation", "user_id": user_id})
+            return False
 
     @tracer.trace_method("delete_user")
     def delete_user(self, user_id: str) -> bool:
