@@ -283,3 +283,16 @@
 - **Build System**: iOS project builds consistently with proper environment-specific configuration
 - **Legal Compliance**: Updated Privacy Policy and Terms of Service to match App Store requirements
 - **App Store Connect**: Complete setup with screenshots, description, keywords, and subscription products
+
+### ✅ **Account Deletion & Date Parsing Fixes (2024-09-08)**
+- **Account Deletion API Fix**: Resolved ValidationError by implementing AccountDeletionEnvelope for proper request body parsing
+- **Cognito User Deletion**: Enhanced UserService to delete users from both DynamoDB and Cognito User Pool
+- **iOS Date Parsing**: Fixed microseconds parsing issue in OpenISO8601DateFormatter with post-generation patch
+- **API Contract Compliance**: Maintained backend API spec by fixing iOS client instead of changing backend datetime format
+- **Regeneration Script Enhancement**: Added automatic microseconds support patch to iOS client regeneration process
+- **Build Script Improvements**: Enhanced iOS build script with parameterized environment support (dev/prod/both)
+- **Asset Catalog Cleanup**: Resolved persistent "unassigned children" warnings by cleaning up orphaned icon files
+- **SKAdNetwork Compliance**: Added required 49 SKAdNetwork identifiers to Info.plist for AdMob attribution
+- **iOS Simulator Warnings**: Identified and documented harmless simulator-specific warnings (eligibility.plist, networking)
+- **Memory Bank Integration**: Added iOS build process rules to system patterns for consistent development workflow
+- **Dev Environment Deployment**: Successfully deployed backend fixes to development environment

@@ -498,7 +498,7 @@ struct ProfileView: View {
             print("❌ Account deletion error: \(error)")
             await MainActor.run {
                 // Handle specific error cases
-                if let apiError = error as? ModelErrorResponse {
+                if let apiError = error as? ErrorResponse {
                     handleAccountDeletionError(apiError)
                 } else {
                     // Generic error handling
@@ -514,17 +514,33 @@ struct ProfileView: View {
     }
 
     // MARK: - Error Handling
-    private func handleAccountDeletionError(_ error: ModelErrorResponse) {
-        switch error.errorCode {
-        case "ACTIVE_SUBSCRIPTION_EXISTS":
-            // Show subscription warning alert
-            showingSubscriptionWarning = true
-        case "INVALID_CONFIRMATION":
-            // Show confirmation error
-            print("❌ Invalid confirmation text. Please type 'DELETE' exactly.")
-        default:
-            // Generic error handling
-            print("❌ Account deletion failed: \(error.message ?? "Unknown error")")
+    private func handleAccountDeletionError(_ error: ErrorResponse) {
+        switch error {
+        case .error(let statusCode, let data, _, _):
+            print("❌ Account deletion failed with status code: \(statusCode)")
+
+            // Try to parse the response data as ModelErrorResponse for structured error handling
+            if let data = data {
+                do {
+                    let errorResponse = try JSONDecoder().decode(ModelErrorResponse.self, from: data)
+                    switch errorResponse.errorCode {
+                    case "ACTIVE_SUBSCRIPTION_EXISTS":
+                        // Show subscription warning alert
+                        showingSubscriptionWarning = true
+                    case "INVALID_CONFIRMATION":
+                        // Show confirmation error
+                        print("❌ Invalid confirmation text. Please type 'DELETE' exactly.")
+                    default:
+                        // Generic error handling
+                        print("❌ Account deletion failed: \(errorResponse.message ?? "Unknown error")")
+                    }
+                } catch {
+                    // If we can't parse as ModelErrorResponse, show generic error
+                    print("❌ Account deletion failed: Could not parse error response")
+                }
+            } else {
+                print("❌ Account deletion failed: No error data available")
+            }
         }
     }
 }

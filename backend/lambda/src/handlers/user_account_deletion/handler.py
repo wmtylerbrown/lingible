@@ -11,7 +11,7 @@ from services.subscription_service import SubscriptionService
 from services.translation_service import TranslationService
 from utils.tracing import tracer
 from utils.decorators import api_handler, extract_user_from_parsed_data
-from utils.envelopes import SimpleAuthenticatedEnvelope
+from utils.envelopes import AccountDeletionEnvelope
 from utils.exceptions import BusinessLogicError, ValidationError
 from utils.logging import logger
 
@@ -24,7 +24,7 @@ translation_service = TranslationService()
 
 # Lambda handler entry point - API Gateway authorizer handles authentication
 @tracer.trace_lambda
-@event_parser(model=AccountDeletionEvent, envelope=SimpleAuthenticatedEnvelope)
+@event_parser(model=AccountDeletionEvent, envelope=AccountDeletionEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDeletionResponse:
     """Handle user account deletion requests from mobile app."""

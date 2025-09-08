@@ -1,6 +1,6 @@
 """User service for user management and usage tracking."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 from models.users import (
@@ -14,9 +14,10 @@ from services.subscription_service import SubscriptionService
 from models.translations import UsageLimit
 from utils.logging import logger
 from utils.tracing import tracer
-from utils.config import get_config_service, UsageLimitsConfig
+from utils.config import get_config_service, UsageLimitsConfig, CognitoConfig
 from utils.exceptions import ValidationError
 from utils.timezone_utils import get_central_midnight_tomorrow, is_new_day_central_time
+from utils.aws_services import get_cognito_client
 from repositories.user_repository import UserRepository
 
 
@@ -373,12 +374,44 @@ class UserService:
 
     @tracer.trace_method("delete_user")
     def delete_user(self, user_id: str) -> bool:
-        """Delete a user and all associated data."""
+        """Delete a user and all associated data from both DynamoDB and Cognito."""
         try:
+            # Step 1: Delete user data from DynamoDB
             success = self.repository.delete_user(user_id)
 
             if not success:
-                raise SystemError(f"Failed to delete user {user_id}")
+                raise SystemError(f"Failed to delete user {user_id} from DynamoDB")
+
+            # Step 2: Delete user from Cognito
+            try:
+                cognito_config = self.config_service.get_config(CognitoConfig)
+                cognito_client = get_cognito_client()
+
+                cognito_client.admin_delete_user(
+                    UserPoolId=cognito_config.user_pool_id,
+                    Username=user_id
+                )
+
+                logger.log_business_event(
+                    "cognito_user_deleted",
+                    {
+                        "user_id": user_id,
+                        "user_pool_id": cognito_config.user_pool_id,
+                    },
+                )
+
+            except Exception as cognito_error:
+                # Log the error but don't fail the entire deletion
+                # The user data is already deleted from DynamoDB
+                logger.log_error(
+                    cognito_error,
+                    {
+                        "operation": "delete_cognito_user",
+                        "user_id": user_id,
+                        "note": "User data deleted from DynamoDB but Cognito deletion failed"
+                    }
+                )
+                # Continue - we don't want to fail the entire deletion if Cognito fails
 
             logger.log_business_event(
                 "user_deleted",

@@ -233,6 +233,32 @@ class TranslationHistoryEnvelope(AuthenticatedAPIGatewayEnvelope):
         return base_data
 
 
+class AccountDeletionEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for account deletion endpoints that parses request body."""
+
+    def _parse_api_gateway(
+        self,
+        event: CustomAPIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse account deletion specific data."""
+        # Parse the request body
+        if not event.body:
+            raise ValidationError("Request body is required")
+
+        # Import here to avoid circular imports
+        from models.users import AccountDeletionRequest
+
+        # Parse and validate the request body
+        request_body = AccountDeletionRequest.model_validate_json(str(event.body))
+
+        # Add account deletion-specific data
+        base_data["request_body"] = request_body
+
+        return base_data
+
+
 class WebhookEnvelope(APIGatewayEnvelope):
     """Envelope for webhook endpoints that parses request body."""
 

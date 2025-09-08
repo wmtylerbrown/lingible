@@ -219,3 +219,19 @@ src/
 - **CORS**: Proper CORS configuration
 - **Rate Limiting**: Usage-based rate limiting
 - **Request Validation**: Comprehensive request validation
+
+## iOS Development Patterns
+
+### Build Process
+- **CRITICAL**: Always use custom build script `./build_app.sh` instead of Xcode build button (⌘+B)
+- **Environment Management**: Script handles dev/prod environment switching automatically
+- **Configuration Safety**: Prevents wrong environment configurations and ensures proper `amplify_outputs.json` files
+- **Usage**: `./build_app.sh dev` (development), `./build_app.sh prod` (production), `./build_app.sh both` (both environments)
+- **Location**: `/Users/tyler/mobile-app-aws-backend/ios/Lingible/build_app.sh`
+
+### Build Script Benefits
+- **Consistency**: Same build process every time across environments
+- **Environment Safety**: Automatic switching between dev/prod configurations
+- **Bundle ID Management**: Correct bundle identifiers for each environment
+- **Post-Build Cleanup**: Restores development configuration for testing
+- **Validation**: Built-in error checking and detailed build reporting
