@@ -17,7 +17,7 @@ from models.translations import (
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config_service, BedrockConfig, UsageLimitsConfig, TranslationConfig
+from utils.config import get_config_service, BedrockConfig, UsageLimitsConfig
 from utils.exceptions import (
     ValidationError,
     BusinessLogicError,
@@ -40,7 +40,6 @@ class TranslationService:
         self.user_service = UserService()
         self.bedrock_config = self.config_service.get_config(BedrockConfig)
         self.usage_config = self.config_service.get_config(UsageLimitsConfig)
-        self.translation_config = self.config_service.get_config(TranslationConfig)
 
 
 

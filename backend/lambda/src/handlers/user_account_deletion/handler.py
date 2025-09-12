@@ -12,7 +12,7 @@ from services.translation_service import TranslationService
 from utils.tracing import tracer
 from utils.decorators import api_handler, extract_user_from_parsed_data
 from utils.envelopes import AccountDeletionEnvelope
-from utils.exceptions import BusinessLogicError, ValidationError
+from utils.exceptions import ValidationError
 from utils.logging import logger
 
 

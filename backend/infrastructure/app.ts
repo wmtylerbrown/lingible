@@ -19,7 +19,12 @@ let appleCredentials: { clientId: string; teamId: string; keyId: string } | unde
 if (deployBackend) {
   try {
     const configLoader = new ConfigLoader(path.resolve(__dirname, '../..'));
-    appleCredentials = configLoader.getAppleCredentials(environment);
+    const infrastructureConfig = configLoader.loadInfrastructureConfig(environment);
+    appleCredentials = {
+      clientId: infrastructureConfig.apple.client_id,
+      teamId: infrastructureConfig.apple.team_id,
+      keyId: infrastructureConfig.apple.key_id
+    };
   } catch (error) {
     console.warn('⚠️  Failed to load Apple credentials from shared config. Using default values.');
     appleCredentials = { clientId: 'TO_BE_SET', teamId: 'TO_BE_SET', keyId: 'TO_BE_SET' };

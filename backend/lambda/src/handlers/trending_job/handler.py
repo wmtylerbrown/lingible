@@ -3,7 +3,7 @@
 import json
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
-from models.trending import TrendingJobRequest, TrendingJobResponse
+from models.trending import TrendingJobRequest
 from services.trending_service import TrendingService
 from utils.tracing import tracer
 from utils.logging import logger

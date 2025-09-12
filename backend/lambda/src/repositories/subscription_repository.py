@@ -11,7 +11,7 @@ from models.subscriptions import (
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config_service, TableConfig
+from utils.config import get_config_service
 
 
 class SubscriptionRepository:
@@ -20,8 +20,7 @@ class SubscriptionRepository:
     def __init__(self) -> None:
         """Initialize subscription repository."""
         self.config_service = get_config_service()
-        users_table_config = self.config_service.get_config(TableConfig, "users")
-        self.table_name = users_table_config.name
+        self.table_name = self.config_service._get_env_var('USERS_TABLE')
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "subscriptions")

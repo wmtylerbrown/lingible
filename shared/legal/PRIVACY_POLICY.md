@@ -133,10 +133,19 @@ Our Service may integrate with:
 ### 9.2 Third-Party Privacy Policies
 These services have their own privacy policies that govern their use of your information.
 
-## 10. Cookies and Tracking
+## 10. App Tracking Transparency and Advertising
 
-### 10.1 App Analytics
-We use analytics tools to understand app usage and performance.
+### 10.1 App Tracking Transparency (ATT)
+**Permission Request**: Before collecting any data used for tracking, we request your permission through Apple's App Tracking Transparency framework. This includes:
+- Device identifiers for advertising (IDFA)
+- Cross-app tracking data
+- Personalized advertising data
+
+**Your Choice**: You can choose to:
+- **Allow Tracking**: Enables personalized ads and cross-app tracking
+- **Ask App Not to Track**: Disables tracking and uses non-personalized ads only
+
+**Privacy Control**: You can change your tracking preference anytime in your device's Privacy & Security settings.
 
 ### 10.2 Advertising and Tracking
 **Free Users**: Our app displays third-party advertisements through Google AdMob. This includes:
@@ -148,11 +157,17 @@ We use analytics tools to understand app usage and performance.
 **Premium Users**: No advertisements are displayed and no advertising data is collected.
 
 **Data Sharing**: We share limited information with Google AdMob for free users only, including:
-- Device information and advertising identifiers
+- Device information and advertising identifiers (with your consent)
 - App usage patterns and ad interaction data
 - General location data (if available) for ad targeting
 
 **Your Control**: You can upgrade to premium to remove all advertisements and advertising data collection.
+
+### 10.3 Tracking Compliance
+- **Explicit Consent**: We only track users who have explicitly consented through ATT
+- **Non-Personalized Fallback**: Users who deny tracking receive non-personalized ads
+- **Data Minimization**: We collect only the minimum data necessary for ad delivery
+- **Third-Party Compliance**: All advertising partners comply with privacy regulations
 
 ## 11. Data Breach Notification
 

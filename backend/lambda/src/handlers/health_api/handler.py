@@ -1,6 +1,5 @@
 """Lambda handler for health check endpoint."""
 
-from typing import Dict, Any
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 

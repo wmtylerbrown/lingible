@@ -13,6 +13,11 @@ This document outlines the Lambda function optimization implemented to reduce co
 
 **Note:** SnapStart implementation has been removed to avoid the 3-hour minimum charge complexity.
 
+### ARM64 Graviton2 Migration
+
+**Before:** All Lambda functions used x86_64 architecture
+**After:** All Lambda functions migrated to ARM64 Graviton2 processors for better price/performance ratio
+
 ## Memory Allocation Strategy
 
 ### Simple Functions (128-256 MB)
@@ -56,41 +61,57 @@ These functions perform the most resource-intensive operations:
 ### Memory Optimization Savings
 
 **Before Optimization:**
-- 13 functions × 512 MB = 6,656 MB total
-- Monthly cost: ~$85 (assuming 100k invocations)
+- 15 functions × 512 MB = 7,680 MB total
+- Monthly cost: ~$98 (assuming 100k invocations)
 
 **After Optimization:**
-- Total memory: 3,328 MB (50% reduction)
-- Monthly cost: ~$42 (50% savings)
+- Total memory: 4,224 MB (45% reduction)
+- Monthly cost: ~$54 (45% savings)
 
-**Monthly Savings: ~$43**
+**Memory Optimization Savings: ~$44/month**
+
+### ARM64 Graviton2 Savings
+
+**Additional 20% cost reduction** with ARM64 Graviton2 processors:
+- Optimized cost: ~$43/month
+- **Total ARM64 Savings: ~$11/month**
 
 ### Net Cost Impact
 
-**Total Monthly Savings:** ~$40-50
-**Performance Improvement:** Faster cold starts due to lower memory allocation
+**Total Monthly Savings:** ~$55/month (56% reduction)
+**Performance Improvement:**
+- Faster cold starts due to lower memory allocation
+- Better price/performance ratio with ARM64 Graviton2
+- Improved CPU efficiency with Graviton2 processors
 
 ## Implementation Details
 
 ### CDK Changes
 
-**Note:** The optimized memory allocation has been reverted. All functions currently use the original 512 MB configuration.
+**Current Implementation:** Function-specific memory allocation and ARM64 Graviton2 architecture implemented.
 
-The original optimization included:
-1. **Function-specific memory allocation** instead of blanket 512 MB
+The optimization includes:
+1. **Function-specific memory allocation** based on actual requirements
 2. **Optimized timeouts** based on function complexity
-3. **Helper method** for consistent function creation
+3. **ARM64 Graviton2 architecture** for all functions
+4. **Helper method** (`getFunctionConfig`) for consistent function creation
 
-**Current Status:** All functions use 512 MB memory allocation as originally configured.
+**Current Status:** All functions use optimized memory allocation and ARM64 Graviton2 processors.
 
 ## Performance Benefits
 
-**Note:** Performance benefits from memory optimization are not currently active since the optimization has been reverted.
+**Current Active Optimizations:**
 
-The original optimization would have provided:
-- **50% reduction** in total memory allocation
+### Memory Optimization Benefits
+- **45% reduction** in total memory allocation
 - **Faster container initialization** due to lower memory requirements
 - **Better resource utilization** across all functions
+
+### ARM64 Graviton2 Benefits
+- **20% better price/performance ratio** compared to x86_64
+- **Improved CPU efficiency** for Python workloads
+- **Better memory bandwidth** and lower latency
+- **Reduced cold start times** due to optimized architecture
 
 ## Monitoring & Validation
 

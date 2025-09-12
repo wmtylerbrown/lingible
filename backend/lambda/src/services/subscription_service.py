@@ -3,7 +3,6 @@
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 
-from models.users import UserTier
 from models.subscriptions import (
     UserSubscription,
     SubscriptionProvider,

@@ -18,7 +18,6 @@ from .exceptions import (
     AppException,
 )
 from .logging import logger
-from models.aws import APIGatewayResponse
 
 
 def api_handler(

@@ -1,6 +1,7 @@
 import SwiftUI
 import StoreKit
 import LingibleAPI
+import AppTrackingTransparency
 
 struct ProfileView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
@@ -13,6 +14,7 @@ struct ProfileView: View {
     @State private var showingUpgradeSheet = false
     @State private var showingClearCacheAlert = false
     @State private var showingSubscriptionWarning = false
+    @State private var showingTrackingSettingsAlert = false
 
     var body: some View {
         NavigationView {
@@ -57,6 +59,11 @@ struct ProfileView: View {
                         settingsRow(icon: "star", title: "Upgrade to Premium", action: { showingUpgradeSheet = true })
                         settingsRow(icon: "arrow.clockwise.circle", title: "Restore Purchases", action: { restorePurchases() })
                     }
+                }
+
+                // Privacy Settings Section
+                Section(header: Text("Privacy & Tracking")) {
+                    privacySettingsRow()
                 }
 
                 // Account Section
@@ -219,6 +226,14 @@ struct ProfileView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("You have an active subscription. Please cancel it first to avoid future charges, or continue with account deletion anyway.")
+        }
+        .alert("Tracking Settings", isPresented: $showingTrackingSettingsAlert) {
+            Button("Open Settings") {
+                openTrackingSettings()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("To change your tracking permission, you'll need to go to your device's Privacy & Security settings. This will open the Settings app where you can manage App Tracking permissions.")
         }
         .onAppear {
             print("🔥 ProfileView onAppear called!")
@@ -541,6 +556,74 @@ struct ProfileView: View {
             } else {
                 print("❌ Account deletion failed: No error data available")
             }
+        }
+    }
+
+    // MARK: - Privacy Settings
+    private func privacySettingsRow() -> some View {
+        Button(action: { showingTrackingSettingsAlert = true }) {
+            HStack {
+                Image(systemName: trackingIcon)
+                    .foregroundColor(.lingiblePrimary)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("App Tracking")
+                        .foregroundColor(.primary)
+
+                    Text(trackingStatusText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+            }
+        }
+    }
+
+    private var trackingIcon: String {
+        if #available(iOS 14, *) {
+            switch ATTrackingManager.trackingAuthorizationStatus {
+            case .authorized:
+                return "checkmark.circle.fill"
+            case .denied, .restricted:
+                return "xmark.circle.fill"
+            case .notDetermined:
+                return "questionmark.circle.fill"
+            @unknown default:
+                return "questionmark.circle.fill"
+            }
+        } else {
+            return "questionmark.circle.fill"
+        }
+    }
+
+    private var trackingStatusText: String {
+        if #available(iOS 14, *) {
+            switch ATTrackingManager.trackingAuthorizationStatus {
+            case .authorized:
+                return "Enabled - Personalized ads"
+            case .denied:
+                return "Disabled - Non-personalized ads"
+            case .restricted:
+                return "Restricted - Non-personalized ads"
+            case .notDetermined:
+                return "Not set - Tap to configure"
+            @unknown default:
+                return "Unknown status"
+            }
+        } else {
+            return "Not available on this iOS version"
+        }
+    }
+
+    private func openTrackingSettings() {
+        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(settingsUrl)
         }
     }
 }

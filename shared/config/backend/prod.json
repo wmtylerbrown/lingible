@@ -1,0 +1,23 @@
+{
+  "environment": "prod",
+  "bedrock": {
+    "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "max_tokens": 1000,
+    "temperature": 0.7
+  },
+  "limits": {
+    "free_daily_translations": 10,
+    "premium_daily_translations": 100,
+    "free_max_text_length": 50,
+    "premium_max_text_length": 100,
+    "free_history_retention_days": 0,
+    "premium_history_retention_days": 30
+  },
+  "security": {
+    "sensitive_field_patterns": ["*token*", "*secret*", "*key*", "*auth*"]
+  },
+  "observability": {
+    "log_level": "INFO",
+    "enable_tracing": true
+  }
+}

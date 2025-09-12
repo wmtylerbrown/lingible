@@ -2,10 +2,13 @@ import SwiftUI
 import Amplify
 import AWSCognitoAuthPlugin
 import GoogleMobileAds
+import AppTrackingTransparency
 
 @main
 struct LingibleApp: App {
     @StateObject private var appCoordinator = AppCoordinator()
+    @StateObject private var attManager = AppTrackingTransparencyManager()
+    @State private var showATTPermission = false
 
     init() {
         configureAmplify()
@@ -17,13 +20,20 @@ struct LingibleApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appCoordinator)
+                .environmentObject(attManager)
                 .preferredColorScheme(selectedColorScheme)
+                .onAppear {
+                    checkATTPermission()
+                }
+                .sheet(isPresented: $showATTPermission) {
+                    attManager.createPermissionRequestView()
+                }
         }
     }
-    
+
     // MARK: - Theme Support
     @AppStorage("selectedTheme") private var selectedTheme = "system"
-    
+
     private var selectedColorScheme: ColorScheme? {
         switch selectedTheme {
         case "light":
@@ -65,10 +75,20 @@ struct LingibleApp: App {
     private func configureAPI() {
         AppConfiguration.configureAPI()
     }
-    
+
     private func configureAdMob() {
         print("🔧 LingibleApp: Configuring AdMob...")
-        AdMobConfig.initialize()
+        AdMobConfig.initializeWithATT()
         AdMobConfig.configureTestDevices()
+    }
+
+    private func checkATTPermission() {
+        // Check if we need to show ATT permission request
+        if attManager.shouldShowPermissionRequest {
+            // Delay the presentation slightly to ensure the app is fully loaded
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                showATTPermission = true
+            }
+        }
     }
 }

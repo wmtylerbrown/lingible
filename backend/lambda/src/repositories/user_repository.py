@@ -1,6 +1,6 @@
 """User repository for user-related data operations."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 from models.users import User, UserTier, UserStatus
@@ -8,8 +8,8 @@ from models.translations import UsageLimit
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config_service, TableConfig
-from utils.timezone_utils import get_central_midnight_tomorrow, get_central_midnight_today, is_new_day_central_time
+from utils.config import get_config_service
+from utils.timezone_utils import get_central_midnight_tomorrow, get_central_midnight_today
 
 
 class UserRepository:
@@ -18,8 +18,7 @@ class UserRepository:
     def __init__(self) -> None:
         """Initialize user repository."""
         self.config_service = get_config_service()
-        users_table_config = self.config_service.get_config(TableConfig, "users")
-        self.table_name = users_table_config.name
+        self.table_name = self.config_service._get_env_var('USERS_TABLE')
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "users")

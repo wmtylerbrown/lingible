@@ -8,7 +8,7 @@ from models.trending import TrendingTerm, TrendingCategory
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config_service, TableConfig
+from utils.config import get_config_service
 
 
 class TrendingRepository:
@@ -17,8 +17,7 @@ class TrendingRepository:
     def __init__(self) -> None:
         """Initialize trending repository."""
         self.config_service = get_config_service()
-        trending_table_config = self.config_service.get_config(TableConfig, "trending")
-        self.table_name = trending_table_config.name
+        self.table_name = self.config_service._get_env_var('TRENDING_TABLE')
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "trending")

@@ -73,30 +73,49 @@ You agree not to:
 - You grant us a license to use your content to provide the Service
 - We may remove content that violates these Terms
 
-## 6. Advertising and AdMob Integration
+## 6. App Tracking Transparency and Advertising
 
-### 6.1 Free Tier Advertising
+### 6.1 App Tracking Transparency (ATT) Compliance
+**Permission Requirement**: Before collecting any data used for tracking, we request your explicit permission through Apple's App Tracking Transparency framework. This includes:
+- Device identifiers for advertising (IDFA)
+- Cross-app tracking data
+- Personalized advertising data
+
+**Your Consent**: By using our app, you acknowledge that:
+- We will request tracking permission before collecting tracking data
+- You can choose to allow or deny tracking
+- Your choice affects the type of advertisements you receive
+- You can change your preference anytime in device settings
+
+### 6.2 Free Tier Advertising
 Free users will see advertisements through Google AdMob, including:
 - **Banner Advertisements**: Displayed on all screens below the header
 - **Interstitial Advertisements**: Shown at regular intervals during app usage
 - **Ad Interaction Tracking**: We collect data on ad views, clicks, and interactions for analytics
+- **Personalized or Non-Personalized Ads**: Based on your ATT permission choice
 
-### 6.2 Premium Ad-Free Experience
+### 6.3 Premium Ad-Free Experience
 Premium subscribers receive:
 - **No Advertisements**: Complete removal of all banner and interstitial ads
 - **No Ad Tracking**: No advertising data collection or sharing
 - **Enhanced Experience**: Uninterrupted translation experience
 
-### 6.3 Ad Content and Third Parties
+### 6.4 Ad Content and Third Parties
 - Advertisements are provided by Google AdMob and third-party advertisers
 - We do not control the content of advertisements
-- Advertisers may collect data about your interactions with their ads
+- Advertisers may collect data about your interactions with their ads (with your consent)
 - Please review Google AdMob's privacy policy for their data practices
 
-### 6.4 Ad Blocking and Manipulation
+### 6.5 Ad Blocking and Manipulation
 - Free users may not block, disable, or interfere with advertisements
 - Automated ad interaction or manipulation is prohibited
 - Violation may result in account suspension or termination
+
+### 6.6 Privacy Compliance
+- We comply with all applicable privacy laws and regulations
+- We respect your privacy choices and preferences
+- We provide clear information about data collection and use
+- We implement appropriate security measures to protect your data
 
 ## 7. Privacy and Data Protection
 

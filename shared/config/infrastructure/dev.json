@@ -1,0 +1,34 @@
+{
+  "environment": "dev",
+  "aws": {
+    "region": "us-east-1"
+  },
+  "bedrock": {
+    "region": "us-east-1"
+  },
+  "tables": {
+    "users_table": {
+      "name": "lingible-users-dev"
+    },
+    "translations_table": {
+      "name": "lingible-translations-dev"
+    },
+    "trending_table": {
+      "name": "lingible-trending-dev"
+    }
+  },
+  "apple": {
+    "client_id": "com.lingible.lingible.dev",
+    "team_id": "YOUR_TEAM_ID",
+    "key_id": "YOUR_KEY_ID",
+    "bundle_id": "com.lingible.lingible.dev",
+    "environment": "sandbox"
+  },
+  "google": {
+    "package_name": "com.lingible.lingible.dev"
+  },
+  "api": {
+    "base_url": "https://api.dev.lingible.com",
+    "cors_origins": ["https://dev.lingible.com"]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "environment": "prod",
+  "bundle_identifier": "com.lingible.lingible",
+  "display_name": "Lingible",
+  "api_base_url": "https://api.lingible.com",
+  "website_base_url": "https://lingible.com",
+  "support_email": "support@lingible.com",
+  "admob": {
+    "application_identifier": "ca-app-pub-3940256099942544~1458002511",
+    "banner_ad_unit_id": "ca-app-pub-3940256099942544/2934735716",
+    "interstitial_ad_unit_id": "ca-app-pub-3940256099942544/4411468910"
+  }
+}

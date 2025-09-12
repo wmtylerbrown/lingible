@@ -2,16 +2,14 @@
 Pydantic models for Lambda configuration.
 
 These models provide type safety and validation for configuration
-loaded from SSM Parameter Store.
+loaded from environment variables and secrets.
 """
 
 from typing import List
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from enum import Enum
-from .subscriptions import StoreEnvironment
 
 
-# Enums for validation
 class LogLevel(str, Enum):
     """Logging level options."""
     DEBUG = "DEBUG"
@@ -21,86 +19,47 @@ class LogLevel(str, Enum):
     CRITICAL = "CRITICAL"
 
 
-# Configuration models used by config service
-class BedrockModel(BaseModel):
-    """Bedrock configuration."""
+class BedrockConfig(BaseModel):
+    """Bedrock configuration - only fields used in Python code."""
     model: str = Field(description="Required: Bedrock model ID")
-    region: str = Field(description="Required: AWS region for Bedrock")
-    max_tokens: int = Field(default=1000, ge=1, le=8192)
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-
-    @validator('model')
-    def validate_model(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Bedrock model is required and cannot be empty")
-        return v
+    max_tokens: int = Field(description="Maximum tokens for Bedrock requests")
+    temperature: float = Field(description="Temperature for Bedrock requests")
 
 
-class TableConfigModel(BaseModel):
-    """Database table configuration."""
-    name: str = Field(description="Required: DynamoDB table name")
-    read_capacity: int = Field(default=5, ge=1)
-    write_capacity: int = Field(default=5, ge=1)
-
-    @validator('name')
-    def validate_name(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Table name is required and cannot be empty")
-        return v
-
-
-class LimitsModel(BaseModel):
+class UsageLimitsConfig(BaseModel):
     """Usage limits configuration."""
-    free_daily_translations: int = 10
-    free_max_text_length: int = 50
-    free_history_retention_days: int = 0
-    premium_daily_translations: int = 100
-    premium_max_text_length: int = 100
-    premium_history_retention_days: int = 30
+    free_daily_translations: int = Field(description="Free tier daily translation limit")
+    premium_daily_translations: int = Field(description="Premium tier daily translation limit")
+    free_max_text_length: int = Field(description="Free tier maximum text length for translation")
+    premium_max_text_length: int = Field(description="Premium tier maximum text length for translation")
+    free_history_retention_days: int = Field(description="Free tier translation history retention in days")
+    premium_history_retention_days: int = Field(description="Premium tier translation history retention in days")
 
 
-class TranslationModel(BaseModel):
-    """Translation configuration."""
-    context: str = "GenZ slang to formal English and vice versa"
-    max_concurrent: int = 5
-    timeout_seconds: int = 30
+class SecurityConfig(BaseModel):
+    """Security configuration - only fields used in Python code."""
+    sensitive_field_patterns: List[str] = Field(description="Patterns for sensitive field detection")
 
 
-class SecurityModel(BaseModel):
-    """Security configuration."""
-    sensitive_field_patterns: List[str] = ["*token*", "*secret*", "*key*", "*auth*"]
-    bearer_prefix: str = "Bearer "
-    jwt_expiration_seconds: int = 7200  # 2 hours
+class ObservabilityConfig(BaseModel):
+    """Observability configuration - only fields used in Python code."""
+    log_level: LogLevel = Field(description="Log level for the application")
+    enable_tracing: bool = Field(description="Whether to enable tracing")
 
 
-class ObservabilityModel(BaseModel):
-    """Observability configuration."""
-    debug_mode: bool = True
-    log_level: LogLevel = LogLevel.DEBUG
-    enable_metrics: bool = False
-    enable_tracing: bool = True
-    log_retention_days: int = 7
+class AppleConfig(BaseModel):
+    """Apple configuration - only fields used in Python code."""
+    shared_secret: str = Field(description="Apple shared secret for receipt validation")
 
 
-class AppleModel(BaseModel):
-    """Apple configuration."""
-    client_id: str  # Required - no default
-    team_id: str = ""
-    key_id: str = ""
-    bundle_id: str = ""
-    environment: StoreEnvironment = StoreEnvironment.SANDBOX
-    shared_secret: str = ""  # Will be loaded from Secrets Manager
+class GoogleConfig(BaseModel):
+    """Google configuration - only fields used in Python code."""
+    service_account_key: str = Field(description="Google service account key for Play Store validation")
 
 
-class GoogleModel(BaseModel):
-    """Google configuration."""
-    package_name: str  # Required - no default
-    service_account_key: str = ""  # Path to service account key file
-
-
-class CognitoModel(BaseModel):
+class CognitoConfig(BaseModel):
     """Cognito configuration populated by CDK with actual resource IDs."""
-    user_pool_id: str  # Required - populated by CDK
-    user_pool_client_id: str  # Required - populated by CDK
-    user_pool_region: str  # Required - populated by CDK
-    api_gateway_arn: str  # Required - populated by CDK
+    user_pool_id: str = Field(description="Cognito User Pool ID")
+    user_pool_client_id: str = Field(description="Cognito App Client ID")
+    user_pool_region: str = Field(description="AWS region")
+    api_gateway_arn: str = Field(description="API Gateway ARN for authorizer")
