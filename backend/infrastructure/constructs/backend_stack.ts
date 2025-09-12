@@ -607,7 +607,6 @@ export class BackendStack extends Construct {
       ENVIRONMENT: environment,
 
       // AWS Resources
-      AWS_REGION: config.aws.region,
       USERS_TABLE: config.tables.users_table.name,
       TRANSLATIONS_TABLE: config.tables.translations_table.name,
       TRENDING_TABLE: config.tables.trending_table.name,
@@ -640,7 +639,7 @@ export class BackendStack extends Construct {
       COGNITO_USER_POOL_ID: this.userPool.userPoolId,
       COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
       COGNITO_USER_POOL_REGION: config.aws.region,
-      API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:${this.api.restApiId}/*`,
+      API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
 
       // API Config
       API_BASE_URL: config.api.base_url,
@@ -1088,9 +1087,6 @@ export class BackendStack extends Construct {
     // Grant API Gateway permission to invoke Lambda functions
     this.grantApiGatewayPermissions();
 
-    // Create SSM parameters for configuration (after all resources are created)
-    this.createSsmParameters(environment, this.mergedConfig);
-
     // Create DNS record
     new route53.ARecord(this, 'ApiAliasRecord', {
       zone: hostedZone,
@@ -1464,6 +1460,7 @@ export class BackendStack extends Construct {
       sourceArn: manualTrendingJobRule.ruleArn,
     });
   }
+
 
   private createOutputs(environment: string): void {
     // Database outputs
