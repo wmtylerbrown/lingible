@@ -17,7 +17,6 @@ import * as eventTargets from 'aws-cdk-lib/aws-events-targets';
 
 import { Duration, RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigLoader } from '../utils/config-loader';
 
@@ -149,6 +148,9 @@ export class BackendStack extends Construct {
 
     // Create API Gateway
     this.createApiGateway(environment, hostedZone);
+
+    // Update Lambda environment variables with Cognito IDs
+    this.updateLambdaEnvironmentVariables();
 
     // Configure Cognito triggers (after Lambda functions are created)
     this.setupCognitoTriggers();
@@ -493,9 +495,7 @@ export class BackendStack extends Construct {
       FREE_HISTORY_RETENTION_DAYS: backendConfig.limits.free_history_retention_days.toString(),
       PREMIUM_HISTORY_RETENTION_DAYS: backendConfig.limits.premium_history_retention_days.toString(),
 
-      // Cognito Config
-      COGNITO_USER_POOL_ID: this.userPool.userPoolId,
-      COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
+      // Cognito Config - These will be set later via updateLambdaEnvironmentVariables
       COGNITO_USER_POOL_REGION: config.aws.region,
       API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
 
@@ -506,6 +506,38 @@ export class BackendStack extends Construct {
       LOG_LEVEL: backendConfig.observability.log_level,
       ENABLE_TRACING: backendConfig.observability.enable_tracing.toString(),
     };
+  }
+
+  private updateLambdaEnvironmentVariables(): void {
+    const cognitoEnvVars = {
+      COGNITO_USER_POOL_ID: this.userPool.userPoolId,
+      COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
+    };
+
+    // Update all Lambda functions with Cognito environment variables
+    const lambdaFunctions = [
+      this.authorizerLambda,
+      this.translateLambda,
+      this.userProfileLambda,
+      this.userUsageLambda,
+      this.userUpgradeLambda,
+      this.userAccountDeletionLambda,
+      this.translationHistoryLambda,
+      this.deleteTranslationLambda,
+      this.deleteAllTranslationsLambda,
+      this.healthLambda,
+      this.trendingLambda,
+      this.appleWebhookLambda,
+      this.postConfirmationLambda,
+      this.userDataCleanupLambda,
+      this.trendingJobLambda,
+    ];
+
+    lambdaFunctions.forEach(lambda => {
+      Object.entries(cognitoEnvVars).forEach(([key, value]) => {
+        lambda.addEnvironment(key, value);
+      });
+    });
   }
 
   private createLambdaFunctions(
