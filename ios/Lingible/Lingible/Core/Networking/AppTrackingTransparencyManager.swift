@@ -157,29 +157,6 @@ extension ATTrackingManager.AuthorizationStatus {
     }
 }
 
-// MARK: - SwiftUI Integration
-extension AppTrackingTransparencyManager {
-
-    /// Create a permission request view
-    @ViewBuilder
-    func createPermissionRequestView() -> some View {
-        ATTPrivacyView(attManager: self)
-    }
-
-    /// Get permission request message
-    var permissionRequestMessage: String {
-        return """
-        Lingible would like to show you personalized ads to help keep the app free.
-
-        This helps us:
-        • Show relevant ads based on your interests
-        • Keep the app free for everyone
-        • Improve your ad experience
-
-        You can change this setting anytime in your device's Privacy & Security settings.
-        """
-    }
-}
 
 // MARK: - Testing Helpers
 #if DEBUG

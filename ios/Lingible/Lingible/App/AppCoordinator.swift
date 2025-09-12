@@ -15,6 +15,7 @@ final class AppCoordinator: ObservableObject {
     let authenticationService: AuthenticationServiceProtocol
     let userService: any UserServiceProtocol
     let adManager: AdManager
+    let attManager: AppTrackingTransparencyManager
 
     // MARK: - Published User Service Properties (for UI observation)
     var userProfile: UserProfileResponse? { userService.userProfile }
@@ -27,18 +28,19 @@ final class AppCoordinator: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
-    init(authenticationService: AuthenticationServiceProtocol, userService: any UserServiceProtocol, adManager: AdManager) {
+    init(authenticationService: AuthenticationServiceProtocol, userService: any UserServiceProtocol, attManager: AppTrackingTransparencyManager) {
         self.authenticationService = authenticationService
         self.userService = userService
-        self.adManager = adManager
+        self.attManager = attManager
+        self.adManager = AdManager(userService: userService, attManager: attManager)
         setupBindings()
     }
 
     convenience init() {
         let authService = AuthenticationService()
         let userService = UserService(authenticationService: authService)
-        let adManager = AdManager(userService: userService)
-        self.init(authenticationService: authService, userService: userService, adManager: adManager)
+        let attManager = AppTrackingTransparencyManager()
+        self.init(authenticationService: authService, userService: userService, attManager: attManager)
     }
 
     // MARK: - Public Methods
@@ -58,7 +60,7 @@ final class AppCoordinator: ObservableObject {
             }
         }
     }
-    
+
     /// Restore authenticated state (used when ad dismissal causes state issues)
     func restoreAuthenticatedState() {
         currentState = .authenticated
@@ -73,6 +75,9 @@ final class AppCoordinator: ObservableObject {
 
         // Load user data after successful authentication
         await userService.loadUserData(forceRefresh: false)
+
+        // Request ATT permission after successful authentication
+        await requestATTPermission()
 
         return user
     }
@@ -130,6 +135,16 @@ final class AppCoordinator: ObservableObject {
         // Load user data after successful authentication
         if isAuthenticated {
             await userService.loadUserData(forceRefresh: false)
+        }
+    }
+
+    private func requestATTPermission() async {
+        // Only request ATT permission if it hasn't been determined yet
+        if attManager.shouldShowPermissionRequest {
+            print("📱 AppCoordinator: Requesting ATT permission after authentication")
+            await attManager.requestTrackingPermission()
+        } else {
+            print("📱 AppCoordinator: ATT permission already determined, skipping request")
         }
     }
 }

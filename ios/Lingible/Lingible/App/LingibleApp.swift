@@ -6,11 +6,18 @@ import AppTrackingTransparency
 
 @main
 struct LingibleApp: App {
-    @StateObject private var appCoordinator = AppCoordinator()
     @StateObject private var attManager = AppTrackingTransparencyManager()
-    @State private var showATTPermission = false
+    @StateObject private var appCoordinator: AppCoordinator
 
     init() {
+        // Initialize ATT manager first
+        let attManager = AppTrackingTransparencyManager()
+        self._attManager = StateObject(wrappedValue: attManager)
+
+        // Initialize app coordinator with ATT manager
+        self._appCoordinator = StateObject(wrappedValue: AppCoordinator(authenticationService: AuthenticationService(), userService: UserService(authenticationService: AuthenticationService()), attManager: attManager))
+
+        // Configure services
         configureAmplify()
         configureAPI()
         configureAdMob()
@@ -23,10 +30,7 @@ struct LingibleApp: App {
                 .environmentObject(attManager)
                 .preferredColorScheme(selectedColorScheme)
                 .onAppear {
-                    checkATTPermission()
-                }
-                .sheet(isPresented: $showATTPermission) {
-                    attManager.createPermissionRequestView()
+                    // ATT permission will now be requested after authentication
                 }
         }
     }
@@ -82,13 +86,4 @@ struct LingibleApp: App {
         AdMobConfig.configureTestDevices()
     }
 
-    private func checkATTPermission() {
-        // Check if we need to show ATT permission request
-        if attManager.shouldShowPermissionRequest {
-            // Delay the presentation slightly to ensure the app is fully loaded
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                showATTPermission = true
-            }
-        }
-    }
 }

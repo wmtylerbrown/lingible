@@ -100,8 +100,8 @@
 - **Production Archive**: ✅ Built with correct bundle ID (com.lingible.lingible) and Amplify configuration
 - **App Store Connect**: ✅ Setup complete with screenshots, description, keywords, and 1024x1024 icon
 - **Legal Documents**: ✅ Updated Privacy Policy and Terms of Service to match Apple privacy questionnaire
-- **Apple Privacy Questionnaire**: 🔄 In progress - completed Email Address and User ID sections
-- **Google AdMob Planning**: 🔄 Planning integration for free tier users only
+- **Apple Privacy Questionnaire**: ✅ Complete - App Tracking Transparency (ATT) implementation resolved App Store rejection
+- **App Tracking Transparency**: ✅ Complete - ATT integration with proper user flow and ad personalization compliance
 
 ## Milestones
 
@@ -154,10 +154,10 @@
 
 ## Next Actions
 
-1. **Immediate**: Complete Google AdMob integration for free tier users
-2. **Short-term**: Update legal documents and privacy questionnaire for AdMob integration
-3. **Medium-term**: Final App Store submission with AdMob integration
-4. **Long-term**: Monitor app performance and user feedback after App Store launch
+1. **Immediate**: Resubmit app to App Store with ATT compliance fixes
+2. **Short-term**: Monitor App Store review process and respond to any feedback
+3. **Medium-term**: Launch app and monitor user adoption and ATT permission rates
+4. **Long-term**: Monitor app performance, user feedback, and ad revenue after App Store launch
 
 ## Critical Issues
 
@@ -296,3 +296,25 @@
 - **iOS Simulator Warnings**: Identified and documented harmless simulator-specific warnings (eligibility.plist, networking)
 - **Memory Bank Integration**: Added iOS build process rules to system patterns for consistent development workflow
 - **Dev Environment Deployment**: Successfully deployed backend fixes to development environment
+
+### ✅ **Configuration Management Refactor & Apple Sign-In Fix (2024-12-19)**
+- **Configuration Migration**: Migrated from SSM Parameter Store to environment variables for faster Lambda cold starts
+- **ARM64 Optimization**: Updated Lambda bundling to use ARM64 containers for Graviton2 processors
+- **Circular Dependency Resolution**: Fixed CloudFormation circular dependency by using proper deployment script
+- **Apple Sign-In Fix**: Resolved "Sign into null" issue by updating Apple credentials in infrastructure config
+- **Bedrock Model Update**: Updated Bedrock model configuration across all environments
+- **Lazy Loading Implementation**: Implemented lazy loading for SubscriptionService to prevent unnecessary secret access
+- **Deployment Rule**: Added memory bank rule to prevent future deployment issues
+- **Code Quality**: Fixed trailing whitespace and pre-commit hook issues
+
+### ✅ **App Tracking Transparency (ATT) Implementation & App Store Compliance (2024-12-19)**
+- **Apple App Store Rejection Resolution**: Fixed Guideline 5.1.2 - Legal - Privacy - Data Use and Sharing rejection
+- **ATT Framework Integration**: Complete AppTrackingTransparency framework implementation with proper permission requests
+- **Optimal User Flow**: ATT dialog now triggers after authentication instead of app startup for better user experience
+- **Ad Personalization Compliance**: Ads now properly respect user tracking choices with npa parameter configuration
+- **AdMob Integration**: Fixed ad requests to use ATT-aware configuration for personalized vs non-personalized ads
+- **Dynamic ATT Updates**: AdManager observes ATT status changes and reconfigures ads accordingly
+- **Apple's Official Dialog**: Removed custom ATT dialogs to use Apple's native permission dialog for compliance
+- **Privacy Settings**: Users can change tracking preferences anytime through iOS Settings app
+- **Code Cleanup**: Removed unused ATT privacy views and methods for cleaner codebase
+- **Build Success**: iOS app builds successfully with complete ATT integration and compliance

@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import LingibleAPI
 import Combine
+import AppTrackingTransparency
 
 // MARK: - Ad Manager Service
 @MainActor
@@ -15,12 +16,14 @@ final class AdManager: ObservableObject {
 
     // MARK: - Private Properties
     private let userService: any UserServiceProtocol
+    private let attManager: AppTrackingTransparencyManager
     private var translationCount = 0
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
-    init(userService: any UserServiceProtocol) {
+    init(userService: any UserServiceProtocol, attManager: AppTrackingTransparencyManager) {
         self.userService = userService
+        self.attManager = attManager
         self.interstitialAdManager = InterstitialAdManager(userService: userService)
 
         // Initialize AdMob with ATT support
@@ -28,6 +31,9 @@ final class AdManager: ObservableObject {
 
         // Set up user tier observation
         setupUserTierObservation()
+
+        // Set up ATT status observation
+        setupATTStatusObservation()
     }
 
     // MARK: - Public Methods
@@ -75,6 +81,49 @@ final class AdManager: ObservableObject {
     private func setupUserTierObservation() {
         // Since userService is a protocol, we'll update ad visibility when translation count changes
         // The user tier will be checked in updateAdVisibility()
+    }
+
+    private func setupATTStatusObservation() {
+        // Observe ATT status changes and reconfigure ads accordingly
+        attManager.$trackingStatus
+            .sink { [weak self] status in
+                self?.handleATTStatusChange(status)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleATTStatusChange(_ status: ATTrackingManager.AuthorizationStatus) {
+        print("📱 AdManager: ATT status changed to \(status.rawValue)")
+
+        switch status {
+        case .authorized:
+            print("📱 AdManager: Tracking authorized, configuring for personalized ads")
+            AdMobConfig.configureForPersonalizedAds()
+
+        case .denied, .restricted:
+            print("📱 AdManager: Tracking denied/restricted, configuring for non-personalized ads")
+            AdMobConfig.configureForNonPersonalizedAds()
+
+        case .notDetermined:
+            print("📱 AdManager: ATT not determined, using default configuration")
+
+        @unknown default:
+            print("📱 AdManager: Unknown ATT status: \(status.rawValue)")
+        }
+
+        // Reload ads with new configuration
+        reloadAdsWithNewConfiguration()
+    }
+
+    private func reloadAdsWithNewConfiguration() {
+        // Reload banner ads with new ATT configuration
+        if shouldShowBanner {
+            print("🔄 AdManager: Reloading banner ads with new ATT configuration")
+            // The banner will reload automatically when the view updates
+        }
+
+        // Reload interstitial ads with new ATT configuration
+        interstitialAdManager?.loadAd()
     }
 
     private func updateAdVisibility() {
