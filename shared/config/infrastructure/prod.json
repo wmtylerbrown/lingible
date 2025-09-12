@@ -18,9 +18,9 @@
     }
   },
   "apple": {
-    "client_id": "com.lingible.lingible",
-    "team_id": "YOUR_TEAM_ID",
-    "key_id": "YOUR_KEY_ID",
+    "client_id": "com.lingible.lingible.signin",
+    "team_id": "PH33VX3MUL",
+    "key_id": "P5H6AH9K77",
     "bundle_id": "com.lingible.lingible",
     "environment": "production"
   },

@@ -53,7 +53,6 @@ export class BackendStack extends Construct {
 
   // Configuration loader
   private configLoader!: ConfigLoader;
-  private mergedConfig: any;
   private environment!: string;
   public userDataCleanupLambda!: lambda.Function;
 
@@ -86,7 +85,6 @@ export class BackendStack extends Construct {
     this.environment = environment;
     const config = this.configLoader.getMergedConfig(environment);
     const backendConfig = this.configLoader.loadBackendConfig(environment);
-    this.mergedConfig = config;  // Store for later use
 
     // Create Lambda layers
     this.dependenciesLayer = this.createDependenciesLayer(environment);
@@ -104,9 +102,40 @@ export class BackendStack extends Construct {
       memorySize: 512,
       logRetention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: RemovalPolicy.DESTROY, // For development
+      architecture: lambda.Architecture.ARM_64, // ARM64 Graviton2
     };
 
     // Environment variables are now inlined in each Lambda function
+    const baseEnvironmentVariables ={
+        // Environment
+        ENVIRONMENT: environment,
+
+        // AWS Resources
+        USERS_TABLE: config.tables.users_table.name,
+        TRANSLATIONS_TABLE: config.tables.translations_table.name,
+        TRENDING_TABLE: config.tables.trending_table.name,
+
+        // Bedrock Config
+        BEDROCK_MODEL: backendConfig.bedrock.model,
+        BEDROCK_MAX_TOKENS: backendConfig.bedrock.max_tokens.toString(),
+        BEDROCK_TEMPERATURE: backendConfig.bedrock.temperature.toString(),
+
+        // Usage Limits
+        FREE_DAILY_TRANSLATIONS: backendConfig.limits.free_daily_translations.toString(),
+        PREMIUM_DAILY_TRANSLATIONS: backendConfig.limits.premium_daily_translations.toString(),
+        FREE_MAX_TEXT_LENGTH: backendConfig.limits.free_max_text_length.toString(),
+        PREMIUM_MAX_TEXT_LENGTH: backendConfig.limits.premium_max_text_length.toString(),
+        FREE_HISTORY_RETENTION_DAYS: backendConfig.limits.free_history_retention_days.toString(),
+        PREMIUM_HISTORY_RETENTION_DAYS: backendConfig.limits.premium_history_retention_days.toString(),
+
+        // Security Config
+        SENSITIVE_FIELD_PATTERNS: JSON.stringify(backendConfig.security.sensitive_field_patterns),
+
+        // Observability Config
+        LOG_LEVEL: backendConfig.observability.log_level,
+        ENABLE_TRACING: backendConfig.observability.enable_tracing.toString(),
+  };
+
 
     // Common IAM policy statements for Lambda functions
     const lambdaPolicyStatements = [
@@ -144,19 +173,18 @@ export class BackendStack extends Construct {
     this.createCognitoUserPool(environment, appleClientId, appleTeamId, appleKeyId);
 
     // Create Lambda functions
-    this.createLambdaFunctions(environment, lambdaConfig, lambdaPolicyStatements);
-
-    // Create API Gateway
-    this.createApiGateway(environment, hostedZone);
-
-    // Update Lambda environment variables with Cognito IDs
-    this.updateLambdaEnvironmentVariables();
+    this.createLambdaFunctions(environment, lambdaConfig, lambdaPolicyStatements, baseEnvironmentVariables);
 
     // Configure Cognito triggers (after Lambda functions are created)
     this.setupCognitoTriggers();
 
+    // Create API Gateway
+    this.createApiGateway(environment, hostedZone);
+
+
+
     // Create scheduled jobs
-    this.createScheduledJobs(environment);
+    this.createScheduledJobs(environment, backendConfig);
 
     // Create monitoring
     this.createMonitoring(environment);
@@ -363,9 +391,10 @@ export class BackendStack extends Construct {
       code: lambda.Code.fromAsset('../lambda', {
         bundling: {
           image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+          platform: 'linux/arm64',
           command: [
             'bash', '-c',
-            'rm -rf /asset-output/python && pip install --platform manylinux2014_x86_64 --implementation cp --python-version 3.13 --only-binary=:all: --upgrade --target /asset-output/python -r requirements.txt'
+            'rm -rf /asset-output/python && pip install --platform manylinux2014_aarch64 --implementation cp --python-version 3.13 --only-binary=:all: --upgrade --target /asset-output/python -r requirements.txt'
           ],
         },
         // Only redeploy requirements layer when requirements.txt changes
@@ -420,6 +449,7 @@ export class BackendStack extends Construct {
     return lambda.Code.fromAsset(`../lambda/src/handlers/${handlerName}`, {
       bundling: {
         image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+        platform: 'linux/arm64',
         command: [
           'bash', '-c',
           `cp ${pythonFileName} /asset-output/`
@@ -439,40 +469,8 @@ export class BackendStack extends Construct {
 
 
 
-  private getFunctionConfig(functionName: string, baseConfig: any): any {
-    // Function-specific memory allocation and timeout optimization
-    const functionConfigs: { [key: string]: { memorySize: number; timeout: number } } = {
-      'lingible-health': { memorySize: 128, timeout: 10 },
-      'lingible-user-profile': { memorySize: 256, timeout: 30 },
-      'lingible-user-usage': { memorySize: 256, timeout: 30 },
-      'lingible-translation-history': { memorySize: 256, timeout: 30 },
-      'lingible-delete-translation': { memorySize: 256, timeout: 30 },
-      'lingible-delete-all-translations': { memorySize: 256, timeout: 30 },
-      'lingible-trending': { memorySize: 256, timeout: 30 },
-      'lingible-post-confirmation': { memorySize: 256, timeout: 30 },
-      'lingible-user-data-cleanup': { memorySize: 256, timeout: 60 },
-      'lingible-trending-job': { memorySize: 256, timeout: 60 },
-      'lingible-user-account-deletion': { memorySize: 384, timeout: 30 },
-      'lingible-authorizer': { memorySize: 384, timeout: 30 },
-      'lingible-user-upgrade': { memorySize: 384, timeout: 30 },
-      'lingible-apple-webhook': { memorySize: 384, timeout: 30 },
-      'lingible-translate': { memorySize: 512, timeout: 30 },
-    };
 
-    const specificConfig = functionConfigs[functionName] || { memorySize: 512, timeout: 30 };
-
-    return {
-      ...baseConfig,
-      memorySize: specificConfig.memorySize,
-      timeout: Duration.seconds(specificConfig.timeout),
-      architecture: lambda.Architecture.ARM_64, // ARM64 Graviton2
-    };
-  }
-
-  private getEnvironmentVariables(environment: string): { [key: string]: string } {
-    const config = this.configLoader.getMergedConfig(environment);
-    const backendConfig = this.configLoader.loadBackendConfig(environment);
-
+  private getEnvironmentVariables(environment: string, config: any, backendConfig: any): { [key: string]: string } {
     return {
       // Environment
       ENVIRONMENT: environment,
@@ -495,10 +493,6 @@ export class BackendStack extends Construct {
       FREE_HISTORY_RETENTION_DAYS: backendConfig.limits.free_history_retention_days.toString(),
       PREMIUM_HISTORY_RETENTION_DAYS: backendConfig.limits.premium_history_retention_days.toString(),
 
-      // Cognito Config - These will be set later via updateLambdaEnvironmentVariables
-      COGNITO_USER_POOL_REGION: config.aws.region,
-      API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
-
       // Security Config
       SENSITIVE_FIELD_PATTERNS: JSON.stringify(backendConfig.security.sensitive_field_patterns),
 
@@ -508,55 +502,32 @@ export class BackendStack extends Construct {
     };
   }
 
-  private updateLambdaEnvironmentVariables(): void {
-    const cognitoEnvVars = {
-      COGNITO_USER_POOL_ID: this.userPool.userPoolId,
-      COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
-    };
-
-    // Update all Lambda functions with Cognito environment variables
-    const lambdaFunctions = [
-      this.authorizerLambda,
-      this.translateLambda,
-      this.userProfileLambda,
-      this.userUsageLambda,
-      this.userUpgradeLambda,
-      this.userAccountDeletionLambda,
-      this.translationHistoryLambda,
-      this.deleteTranslationLambda,
-      this.deleteAllTranslationsLambda,
-      this.healthLambda,
-      this.trendingLambda,
-      this.appleWebhookLambda,
-      this.postConfirmationLambda,
-      this.userDataCleanupLambda,
-      this.trendingJobLambda,
-    ];
-
-    lambdaFunctions.forEach(lambda => {
-      Object.entries(cognitoEnvVars).forEach(([key, value]) => {
-        lambda.addEnvironment(key, value);
-      });
-    });
-  }
-
   private createLambdaFunctions(
     environment: string,
     lambdaConfig: any,
-    lambdaPolicyStatements: iam.PolicyStatement[]
+    lambdaPolicyStatements: iam.PolicyStatement[],
+    baseEnvironmentVariables: { [key: string]: string }
   ): void {
     // API Handlers
+    const config = this.configLoader.getMergedConfig(environment);
+    const backendConfig = this.configLoader.loadBackendConfig(environment);
+
     this.authorizerLambda = new lambda.Function(this, 'AuthorizerLambda', {
       functionName: `lingible-authorizer-${environment}`,
       handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.authorizer.authorizer'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-authorizer',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
+        COGNITO_USER_POOL_ID: this.userPool.userPoolId,
+        COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
+        COGNITO_USER_POOL_REGION: config.aws.region,
+        API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
-
-      ...this.getFunctionConfig(`lingible-authorizer-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 384,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.authorizerLambda.addToRolePolicy(statement));
 
@@ -566,11 +537,12 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.translate_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-translate',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
-
-      ...this.getFunctionConfig(`lingible-translate-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 512,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.translateLambda.addToRolePolicy(statement));
 
@@ -581,11 +553,7 @@ export class BackendStack extends Construct {
         'bedrock:InvokeModel',
       ],
       resources: [
-        (() => {
-          const config = this.configLoader.getMergedConfig(this.environment);
-          const backendConfig = this.configLoader.loadBackendConfig(this.environment);
-          return `arn:aws:bedrock:${config.bedrock.region}::foundation-model/${backendConfig.bedrock.model}`;
-        })(),
+        `arn:aws:bedrock:${config.bedrock.region}::foundation-model/${backendConfig.bedrock.model}`,
       ],
     }));
 
@@ -595,11 +563,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.user_profile_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-profile',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-user-profile-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.userProfileLambda.addToRolePolicy(statement));
 
@@ -609,11 +579,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.user_usage_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-usage',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-user-usage-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.userUsageLambda.addToRolePolicy(statement));
 
@@ -623,11 +595,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.user_upgrade_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-upgrade',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-user-upgrade-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 384,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.userUpgradeLambda.addToRolePolicy(statement));
 
@@ -649,11 +623,17 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.user_account_deletion.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-account-deletion',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
+        COGNITO_USER_POOL_ID: this.userPool.userPoolId,
+        COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
+        COGNITO_USER_POOL_REGION: config.aws.region,
+        API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-user-account-deletion-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 384,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.userAccountDeletionLambda.addToRolePolicy(statement));
 
@@ -686,11 +666,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.get_translation_history.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-translation-history',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-translation-history-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.translationHistoryLambda.addToRolePolicy(statement));
 
@@ -700,11 +682,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.delete_translation.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-delete-translation',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-delete-translation-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.deleteTranslationLambda.addToRolePolicy(statement));
 
@@ -714,11 +698,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.delete_translations.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-delete-all-translations',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-delete-all-translations-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.deleteAllTranslationsLambda.addToRolePolicy(statement));
 
@@ -728,11 +714,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.health_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-health',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-health-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 128,
+      timeout: Duration.seconds(10),
     });
     lambdaPolicyStatements.forEach(statement => this.healthLambda.addToRolePolicy(statement));
 
@@ -742,11 +730,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.trending_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-trending',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-trending-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.trendingLambda.addToRolePolicy(statement));
 
@@ -757,11 +747,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.apple_webhook.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-apple-webhook',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-apple-webhook-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 384,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.appleWebhookLambda.addToRolePolicy(statement));
 
@@ -784,11 +776,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.cognito_post_confirmation.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-post-confirmation',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-post-confirmation-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
     });
     lambdaPolicyStatements.forEach(statement => this.postConfirmationLambda.addToRolePolicy(statement));
 
@@ -801,11 +795,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.user_data_cleanup.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-data-cleanup',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-user-data-cleanup-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(60),
     });
     lambdaPolicyStatements.forEach(statement => this.userDataCleanupLambda.addToRolePolicy(statement));
 
@@ -827,11 +823,13 @@ export class BackendStack extends Construct {
       code: this.createHandlerPackage('src.handlers.trending_job.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-trending-job',
-        ...this.getEnvironmentVariables(environment),
+        ...baseEnvironmentVariables,
       },
       layers: [this.dependenciesLayer, this.sharedLayer],
 
-      ...this.getFunctionConfig(`lingible-trending-job-${environment}`, lambdaConfig),
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(60),
     });
     lambdaPolicyStatements.forEach(statement => this.trendingJobLambda.addToRolePolicy(statement));
   }
@@ -1285,7 +1283,7 @@ export class BackendStack extends Construct {
     }).addAlarmAction(new actions.SnsAction(this.alertTopic));
   }
 
-  private createScheduledJobs(environment: string): void {
+  private createScheduledJobs(environment: string, backendConfig: any): void {
     // Create EventBridge rule for trending job (daily at 6 AM UTC)
     const trendingJobRule = new events.Rule(this, 'TrendingJobSchedule', {
       ruleName: `lingible-trending-job-schedule-${environment}`,
@@ -1305,7 +1303,7 @@ export class BackendStack extends Construct {
         job_type: 'gen_z_slang_analysis',
         source: 'bedrock_ai',
         parameters: {
-          model: this.configLoader.loadBackendConfig(this.environment).bedrock.model,
+          model: backendConfig.bedrock.model,
           max_terms: 20,
           categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
         },
@@ -1333,7 +1331,7 @@ export class BackendStack extends Construct {
         job_type: 'gen_z_slang_analysis',
         source: 'bedrock_ai',
         parameters: {
-          model: this.configLoader.loadBackendConfig(this.environment).bedrock.model,
+          model: backendConfig.bedrock.model,
           max_terms: 20,
           categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
         },

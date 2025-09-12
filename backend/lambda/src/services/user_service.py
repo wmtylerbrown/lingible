@@ -28,8 +28,15 @@ class UserService:
         """Initialize user service."""
         self.config_service = get_config_service()
         self.repository = UserRepository()
-        self.subscription_service = SubscriptionService()
+        self._subscription_service: Optional[SubscriptionService] = None
         self.usage_config = self.config_service.get_config(UsageLimitsConfig)
+
+    @property
+    def subscription_service(self) -> SubscriptionService:
+        """Get subscription service (lazy initialization)."""
+        if self._subscription_service is None:
+            self._subscription_service = SubscriptionService()
+        return self._subscription_service
 
     @tracer.trace_method("create_user")
     def create_user(
