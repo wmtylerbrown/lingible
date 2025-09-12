@@ -12,7 +12,6 @@ import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as sns from 'aws-cdk-lib/aws-sns';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as eventTargets from 'aws-cdk-lib/aws-events-targets';
 
@@ -140,17 +139,6 @@ export class BackendStack extends Construct {
         ],
         resources: ['*'],
       }),
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'ssm:GetParameter',
-          'ssm:GetParameters',
-          'ssm:GetParametersByPath',
-        ],
-        resources: [
-          `arn:aws:ssm:*:*:parameter/lingible/${environment}/*`,
-        ],
-      }),
     ];
 
     // Create Cognito User Pool
@@ -159,11 +147,11 @@ export class BackendStack extends Construct {
     // Create Lambda functions
     this.createLambdaFunctions(environment, lambdaConfig, lambdaPolicyStatements);
 
-    // Configure Cognito triggers
-    this.setupCognitoTriggers();
-
     // Create API Gateway
     this.createApiGateway(environment, hostedZone);
+
+    // Configure Cognito triggers (after Lambda functions are created)
+    this.setupCognitoTriggers();
 
     // Create scheduled jobs
     this.createScheduledJobs(environment);
@@ -263,123 +251,6 @@ export class BackendStack extends Construct {
 
   }
 
-  private createSsmParameters(environment: string, config: any): void {
-    const appName = 'lingible';
-    const parameterPrefix = `/${appName}/${environment}`;
-
-    // App-wide configuration parameters
-    new ssm.StringParameter(this, 'AppConfigParameter', {
-      parameterName: `${parameterPrefix}/app`,
-      stringValue: JSON.stringify(config.app),
-      description: 'App configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'TranslationConfigParameter', {
-      parameterName: `${parameterPrefix}/translation`,
-      stringValue: JSON.stringify(config.translation),
-      description: 'Translation configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'LimitsConfigParameter', {
-      parameterName: `${parameterPrefix}/limits`,
-      stringValue: JSON.stringify(config.limits),
-      description: 'Usage limits configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'SecurityConfigParameter', {
-      parameterName: `${parameterPrefix}/security`,
-      stringValue: JSON.stringify(config.security),
-      description: 'Security configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'ApiConfigParameter', {
-      parameterName: `${parameterPrefix}/api`,
-      stringValue: JSON.stringify(config.api),
-      description: 'API configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'StoresConfigParameter', {
-      parameterName: `${parameterPrefix}/stores`,
-      stringValue: JSON.stringify(config.stores),
-      description: 'Store configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    // Environment-specific configuration parameters
-    new ssm.StringParameter(this, 'AwsConfigParameter', {
-      parameterName: `${parameterPrefix}/aws`,
-      stringValue: JSON.stringify(config.aws),
-      description: 'AWS configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'BedrockConfigParameter', {
-      parameterName: `${parameterPrefix}/bedrock`,
-      stringValue: JSON.stringify(config.bedrock),
-      description: 'Bedrock configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    // Cognito config populated with actual resource IDs (not from static config)
-    new ssm.StringParameter(this, 'CognitoConfigParameter', {
-      parameterName: `${parameterPrefix}/cognito`,
-      stringValue: JSON.stringify({
-        user_pool_id: this.userPool.userPoolId,
-        user_pool_client_id: this.userPoolClient.userPoolClientId,
-        user_pool_region: Stack.of(this).region,
-        api_gateway_arn: `arn:aws:execute-api:${Stack.of(this).region}:${Stack.of(this).account}:${this.api.restApiId}`,
-      }),
-      description: 'Cognito configuration populated with actual resource IDs',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'UsersTableConfigParameter', {
-      parameterName: `${parameterPrefix}/users_table`,
-      stringValue: JSON.stringify(config.users_table),
-      description: 'Users table configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'TranslationsTableConfigParameter', {
-      parameterName: `${parameterPrefix}/translations_table`,
-      stringValue: JSON.stringify(config.translations_table),
-      description: 'Translations table configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'TrendingTableConfigParameter', {
-      parameterName: `${parameterPrefix}/trending_table`,
-      stringValue: JSON.stringify(config.trending_table),
-      description: 'Trending table configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'AppleConfigParameter', {
-      parameterName: `${parameterPrefix}/apple`,
-      stringValue: JSON.stringify(config.apple),
-      description: 'Apple configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'GoogleConfigParameter', {
-      parameterName: `${parameterPrefix}/google`,
-      stringValue: JSON.stringify(config.google),
-      description: 'Google configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-
-    new ssm.StringParameter(this, 'ObservabilityConfigParameter', {
-      parameterName: `${parameterPrefix}/observability`,
-      stringValue: JSON.stringify(config.observability),
-      description: 'Observability configuration for Lingible',
-      tier: ssm.ParameterTier.STANDARD,
-    });
-  }
 
   private createCognitoUserPool(
     environment: string,
@@ -601,9 +472,7 @@ export class BackendStack extends Construct {
     const backendConfig = this.configLoader.loadBackendConfig(environment);
 
     return {
-      // App Identity
-      APP_NAME: "Lingible",
-      APP_VERSION: "1.0.0",
+      // Environment
       ENVIRONMENT: environment,
 
       // AWS Resources
@@ -613,7 +482,6 @@ export class BackendStack extends Construct {
 
       // Bedrock Config
       BEDROCK_MODEL: backendConfig.bedrock.model,
-      BEDROCK_REGION: config.bedrock.region,
       BEDROCK_MAX_TOKENS: backendConfig.bedrock.max_tokens.toString(),
       BEDROCK_TEMPERATURE: backendConfig.bedrock.temperature.toString(),
 
@@ -625,25 +493,11 @@ export class BackendStack extends Construct {
       FREE_HISTORY_RETENTION_DAYS: backendConfig.limits.free_history_retention_days.toString(),
       PREMIUM_HISTORY_RETENTION_DAYS: backendConfig.limits.premium_history_retention_days.toString(),
 
-      // Apple Config (non-sensitive parts)
-      APPLE_CLIENT_ID: config.apple.client_id,
-      APPLE_TEAM_ID: config.apple.team_id,
-      APPLE_KEY_ID: config.apple.key_id,
-      APPLE_BUNDLE_ID: config.apple.bundle_id,
-      APPLE_ENVIRONMENT: config.apple.environment,
-
-      // Google Config (non-sensitive parts)
-      GOOGLE_PACKAGE_NAME: config.google.package_name,
-
       // Cognito Config
       COGNITO_USER_POOL_ID: this.userPool.userPoolId,
       COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
       COGNITO_USER_POOL_REGION: config.aws.region,
       API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
-
-      // API Config
-      API_BASE_URL: config.api.base_url,
-      API_CORS_ORIGINS: JSON.stringify(config.api.cors_origins),
 
       // Security Config
       SENSITIVE_FIELD_PATTERNS: JSON.stringify(backendConfig.security.sensitive_field_patterns),
@@ -651,7 +505,6 @@ export class BackendStack extends Construct {
       // Observability Config
       LOG_LEVEL: backendConfig.observability.log_level,
       ENABLE_TRACING: backendConfig.observability.enable_tracing.toString(),
-
     };
   }
 
