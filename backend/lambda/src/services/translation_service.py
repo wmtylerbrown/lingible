@@ -13,6 +13,7 @@ from models.translations import (
     TranslationDirection,
     BedrockResponse,
 )
+from models.users import UserUsageResponse
 
 from utils.logging import logger
 from utils.tracing import tracer
@@ -67,6 +68,11 @@ class TranslationService:
             # Atomically increment usage (pass tier for consistency)
             self.user_service.increment_usage(user_id, usage_response.tier)
 
+            # Calculate updated usage data for response
+            updated_daily_used = usage_response.daily_used + 1
+            updated_daily_limit = usage_response.daily_limit
+            updated_tier = usage_response.tier
+
             # Generate Bedrock prompt
             prompt = self._generate_bedrock_prompt(request)
 
@@ -104,6 +110,9 @@ class TranslationService:
                 created_at=datetime.now(timezone.utc),
                 processing_time_ms=processing_time_ms,
                 model_used=self.bedrock_config.model,
+                daily_used=updated_daily_used,
+                daily_limit=updated_daily_limit,
+                tier=updated_tier,
             )
 
             # Save translation history

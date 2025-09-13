@@ -29,9 +29,9 @@ class ReceiptValidationResponse(BaseModel):
     """ # noqa: E501
     is_valid: Optional[StrictBool] = Field(default=None, description="Whether receipt is valid")
     status: Optional[StrictStr] = Field(default=None, description="Validation status")
-    transaction_id: Optional[StrictStr] = Field(default=None, description="Transaction ID")
-    product_id: Optional[StrictStr] = Field(default=None, description="Product ID from receipt")
-    purchase_date: Optional[datetime] = Field(default=None, description="Purchase date")
+    transaction_id: StrictStr = Field(description="Transaction ID")
+    product_id: StrictStr = Field(description="Product ID from receipt")
+    purchase_date: datetime = Field(description="Purchase date")
     expiration_date: Optional[datetime] = Field(default=None, description="Expiration date")
     environment: Optional[StrictStr] = Field(default=None, description="Environment")
     error_message: Optional[StrictStr] = Field(default=None, description="Error message if validation failed")
@@ -120,5 +120,3 @@ class ReceiptValidationResponse(BaseModel):
             "retry_after": obj.get("retry_after")
         })
         return _obj
-
-

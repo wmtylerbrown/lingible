@@ -16,22 +16,32 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         case englishToGenz = "english_to_genz"
         case genzToEnglish = "genz_to_english"
     }
+    public enum Tier: String, Codable, CaseIterable {
+        case free = "free"
+        case premium = "premium"
+    }
     public static let confidenceScoreRule = NumericRule<Float>(minimum: 0, exclusiveMinimum: false, maximum: 1, exclusiveMaximum: false, multipleOf: nil)
     /** Unique translation ID */
-    public var translationId: String?
-    public var originalText: String?
-    public var translatedText: String?
+    public var translationId: String
+    public var originalText: String
+    public var translatedText: String
     /** Translation direction used */
-    public var direction: Direction?
+    public var direction: Direction
     public var confidenceScore: Float?
     /** Translation timestamp */
-    public var createdAt: Date?
+    public var createdAt: Date
     /** Processing time in milliseconds */
     public var processingTimeMs: Int?
     /** AI model used for translation */
     public var modelUsed: String?
+    /** Total translations used today (after this translation) */
+    public var dailyUsed: Int
+    /** Daily translation limit */
+    public var dailyLimit: Int
+    /** User tier (free/premium) */
+    public var tier: Tier
 
-    public init(translationId: String? = nil, originalText: String? = nil, translatedText: String? = nil, direction: Direction? = nil, confidenceScore: Float? = nil, createdAt: Date? = nil, processingTimeMs: Int? = nil, modelUsed: String? = nil) {
+    public init(translationId: String, originalText: String, translatedText: String, direction: Direction, confidenceScore: Float? = nil, createdAt: Date, processingTimeMs: Int? = nil, modelUsed: String? = nil, dailyUsed: Int, dailyLimit: Int, tier: Tier) {
         self.translationId = translationId
         self.originalText = originalText
         self.translatedText = translatedText
@@ -40,6 +50,9 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         self.createdAt = createdAt
         self.processingTimeMs = processingTimeMs
         self.modelUsed = modelUsed
+        self.dailyUsed = dailyUsed
+        self.dailyLimit = dailyLimit
+        self.tier = tier
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -51,20 +64,25 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         case createdAt = "created_at"
         case processingTimeMs = "processing_time_ms"
         case modelUsed = "model_used"
+        case dailyUsed = "daily_used"
+        case dailyLimit = "daily_limit"
+        case tier
     }
 
     // Encodable protocol methods
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(translationId, forKey: .translationId)
-        try container.encodeIfPresent(originalText, forKey: .originalText)
-        try container.encodeIfPresent(translatedText, forKey: .translatedText)
-        try container.encodeIfPresent(direction, forKey: .direction)
+        try container.encode(translationId, forKey: .translationId)
+        try container.encode(originalText, forKey: .originalText)
+        try container.encode(translatedText, forKey: .translatedText)
+        try container.encode(direction, forKey: .direction)
         try container.encodeIfPresent(confidenceScore, forKey: .confidenceScore)
-        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(processingTimeMs, forKey: .processingTimeMs)
         try container.encodeIfPresent(modelUsed, forKey: .modelUsed)
+        try container.encode(dailyUsed, forKey: .dailyUsed)
+        try container.encode(dailyLimit, forKey: .dailyLimit)
+        try container.encode(tier, forKey: .tier)
     }
 }
-

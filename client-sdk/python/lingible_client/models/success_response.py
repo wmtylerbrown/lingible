@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -26,8 +26,8 @@ class SuccessResponse(BaseModel):
     """
     SuccessResponse
     """ # noqa: E501
-    success: Optional[StrictBool] = None
-    message: Optional[StrictStr] = None
+    success: StrictBool
+    message: StrictStr
     __properties: ClassVar[List[str]] = ["success", "message"]
 
     model_config = ConfigDict(
@@ -85,5 +85,3 @@ class SuccessResponse(BaseModel):
             "message": obj.get("message")
         })
         return _obj
-
-

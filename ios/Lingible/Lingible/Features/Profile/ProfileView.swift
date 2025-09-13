@@ -27,13 +27,11 @@ struct ProfileView: View {
                 // Usage & Limits Section
                 Section(header: Text("Usage & Limits")) {
                     if let usage = appCoordinator.userUsage {
-                        usageRow(title: "Daily Translations", value: "\(usage.dailyUsed ?? 0)/\(usage.dailyLimit ?? 0)")
-                        usageRow(title: "Text Length Limit", value: "\(usage.currentMaxTextLength ?? 50) characters")
+                        usageRow(title: "Daily Translations", value: "\(usage.dailyUsed)/\(usage.dailyLimit)")
+                        usageRow(title: "Text Length Limit", value: "\(usage.currentMaxTextLength) characters")
                         usageRow(title: "Account Tier", value: tierDisplayName(usage.tier))
 
-                        if let resetDate = usage.resetDate {
-                            usageRow(title: "Next Reset", value: resetDate)
-                        }
+                        usageRow(title: "Next Reset", value: usage.resetDate)
                     } else {
                         HStack {
                             ProgressView()

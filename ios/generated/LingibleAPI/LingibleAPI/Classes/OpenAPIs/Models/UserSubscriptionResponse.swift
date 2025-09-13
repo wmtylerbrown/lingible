@@ -22,19 +22,19 @@ public struct UserSubscriptionResponse: Codable, JSONEncodable, Hashable {
         case cancelled = "cancelled"
     }
     /** Subscription provider */
-    public var provider: Provider?
+    public var provider: Provider
     /** Provider transaction ID */
-    public var transactionId: String?
+    public var transactionId: String
     /** Subscription status */
-    public var status: Status?
+    public var status: Status
     /** Subscription start date */
-    public var startDate: Date?
+    public var startDate: Date
     /** Subscription end date */
     public var endDate: Date?
     /** Record creation date */
-    public var createdAt: Date?
+    public var createdAt: Date
 
-    public init(provider: Provider? = nil, transactionId: String? = nil, status: Status? = nil, startDate: Date? = nil, endDate: Date? = nil, createdAt: Date? = nil) {
+    public init(provider: Provider, transactionId: String, status: Status, startDate: Date, endDate: Date? = nil, createdAt: Date) {
         self.provider = provider
         self.transactionId = transactionId
         self.status = status
@@ -56,12 +56,11 @@ public struct UserSubscriptionResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(provider, forKey: .provider)
-        try container.encodeIfPresent(transactionId, forKey: .transactionId)
-        try container.encodeIfPresent(status, forKey: .status)
-        try container.encodeIfPresent(startDate, forKey: .startDate)
+        try container.encode(provider, forKey: .provider)
+        try container.encode(transactionId, forKey: .transactionId)
+        try container.encode(status, forKey: .status)
+        try container.encode(startDate, forKey: .startDate)
         try container.encodeIfPresent(endDate, forKey: .endDate)
-        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encode(createdAt, forKey: .createdAt)
     }
 }
-

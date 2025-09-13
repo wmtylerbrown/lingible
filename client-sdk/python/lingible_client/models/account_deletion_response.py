@@ -28,10 +28,10 @@ class AccountDeletionResponse(BaseModel):
     """
     AccountDeletionResponse
     """ # noqa: E501
-    success: Optional[StrictBool] = Field(default=None, description="Whether the account deletion was successful")
-    message: Optional[StrictStr] = Field(default=None, description="Confirmation message")
+    success: StrictBool = Field(description="Whether the account deletion was successful")
+    message: StrictStr = Field(description="Confirmation message")
     deleted_at: Optional[datetime] = Field(default=None, description="When the account was deleted")
-    cleanup_summary: Optional[AccountDeletionResponseCleanupSummary] = None
+    cleanup_summary: AccountDeletionResponseCleanupSummary
     __properties: ClassVar[List[str]] = ["success", "message", "deleted_at", "cleanup_summary"]
 
     model_config = ConfigDict(

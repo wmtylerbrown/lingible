@@ -34,6 +34,9 @@ final class AdManager: ObservableObject {
 
         // Set up ATT status observation
         setupATTStatusObservation()
+
+        // Set up daily rollover observation
+        setupDailyRolloverObservation()
     }
 
     // MARK: - Public Methods
@@ -45,16 +48,24 @@ final class AdManager: ObservableObject {
     }
 
     /// Increment translation count and check for interstitial ad
-    func incrementTranslationCount(onAdDismissed: (() -> Void)? = nil) {
-        translationCount += 1
-        updateAdVisibility()
+    func updateAdVisibility() {
+        // Always use backend data as single source of truth
+        guard let userUsage = userService.userUsage else {
+            print("⚠️ AdManager: No user usage data available")
+            return
+        }
 
-        // Check if we should show interstitial ad
+        let actualTranslationCount = userUsage.dailyUsed
+        print("📊 AdManager: Using backend dailyUsed: \(actualTranslationCount)")
+
+        // Update ad visibility based on backend count
+        updateAdVisibilityForCount(actualTranslationCount)
+
+        // Check if we should show an interstitial ad
         if let interstitialManager = interstitialAdManager {
-            let adShown = interstitialManager.showAdIfNeeded(translationCount: translationCount, onDismissed: onAdDismissed)
-            if adShown {
-                print("📺 AdManager: Interstitial ad shown after \(translationCount) translations")
-            }
+            let shouldShow = interstitialManager.shouldShowAd(translationCount: actualTranslationCount)
+            let isReady = interstitialManager.isAdReady
+            print("📊 AdManager: shouldShowAd=\(shouldShow), isAdReady=\(isReady)")
         }
     }
 
@@ -63,6 +74,19 @@ final class AdManager: ObservableObject {
         translationCount = 0
         updateAdVisibility()
         print("🔄 AdManager: Translation count reset")
+    }
+
+    private func updateAdVisibilityForCount(_ count: Int) {
+        // Update banner ad visibility based on user tier and count
+        if let userUsage = userService.userUsage {
+            let tier = userUsage.tier
+            let dailyLimit = userUsage.dailyLimit
+
+            // Show banner ads for free users who haven't hit daily limit
+            shouldShowBanner = (tier == .free) && (count < dailyLimit)
+
+            print("📊 AdManager: Banner visibility - tier: \(tier), count: \(count), limit: \(dailyLimit), show: \(shouldShowBanner)")
+        }
     }
 
     /// Force show interstitial ad (for testing)
@@ -92,6 +116,15 @@ final class AdManager: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func setupDailyRolloverObservation() {
+        // Listen for daily rollover notifications
+        NotificationCenter.default.publisher(for: .dailyRolloverDetected)
+            .sink { [weak self] _ in
+                self?.handleDailyRollover()
+            }
+            .store(in: &cancellables)
+    }
+
     private func handleATTStatusChange(_ status: ATTrackingManager.AuthorizationStatus) {
         print("📱 AdManager: ATT status changed to \(status.rawValue)")
 
@@ -115,6 +148,11 @@ final class AdManager: ObservableObject {
         reloadAdsWithNewConfiguration()
     }
 
+    private func handleDailyRollover() {
+        print("🔄 AdManager: Daily rollover detected, resetting translation count")
+        resetTranslationCount()
+    }
+
     private func reloadAdsWithNewConfiguration() {
         // Reload banner ads with new ATT configuration
         if shouldShowBanner {
@@ -126,14 +164,6 @@ final class AdManager: ObservableObject {
         interstitialAdManager?.loadAd()
     }
 
-    private func updateAdVisibility() {
-        let currentTier = userService.userUsage?.tier ?? .free
-
-        // Only show ads for free users
-        shouldShowBanner = currentTier == .free
-
-        print("📊 AdManager: Updated ad visibility - Tier: \(currentTier), Show Banner: \(shouldShowBanner), Should Show Ads: \(shouldShowAds)")
-    }
 }
 
 // MARK: - AdMob Integration Extensions

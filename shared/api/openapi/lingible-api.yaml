@@ -409,6 +409,9 @@ components:
   schemas:
     HealthResponse:
       type: object
+      required:
+        - status
+        - timestamp
       properties:
         status:
           type: string
@@ -434,6 +437,15 @@ components:
 
     TranslationResponse:
       type: object
+      required:
+        - translation_id
+        - original_text
+        - translated_text
+        - direction
+        - created_at
+        - daily_used
+        - daily_limit
+        - tier
       properties:
         translation_id:
           type: string
@@ -469,9 +481,28 @@ components:
           type: string
           description: AI model used for translation
           example: "anthropic.claude-3-haiku-20240307-v1:0"
+        daily_used:
+          type: integer
+          description: Total translations used today (after this translation)
+          example: 5
+        daily_limit:
+          type: integer
+          description: Daily translation limit
+          example: 10
+        tier:
+          type: string
+          description: User tier (free/premium)
+          enum: ["free", "premium"]
+          example: "free"
 
     TranslationHistoryItemResponse:
       type: object
+      required:
+        - translation_id
+        - original_text
+        - translated_text
+        - direction
+        - created_at
       properties:
         translation_id:
           type: string
@@ -510,6 +541,9 @@ components:
 
     TranslationHistoryResponse:
       type: object
+      required:
+        - translations
+        - pagination
       properties:
         translations:
           type: array
@@ -546,6 +580,13 @@ components:
 
     UserProfileResponse:
       type: object
+      required:
+        - user_id
+        - email
+        - username
+        - tier
+        - status
+        - created_at
       properties:
         user_id:
           type: string
@@ -579,6 +620,17 @@ components:
 
     UsageResponse:
       type: object
+      required:
+        - tier
+        - daily_limit
+        - daily_used
+        - daily_remaining
+        - reset_date
+        - current_max_text_length
+        - free_tier_max_length
+        - premium_tier_max_length
+        - free_daily_limit
+        - premium_daily_limit
       properties:
         tier:
           type: string
@@ -658,6 +710,9 @@ components:
 
     UpgradeResponse:
       type: object
+      required:
+        - success
+        - message
       properties:
         success:
           type: boolean
@@ -674,6 +729,9 @@ components:
 
     SuccessResponse:
       type: object
+      required:
+        - success
+        - message
       properties:
         success:
           type: boolean
@@ -684,6 +742,12 @@ components:
 
     ErrorResponse:
       type: object
+      required:
+        - success
+        - message
+        - error_code
+        - status_code
+        - timestamp
       properties:
         success:
           type: boolean
@@ -758,6 +822,9 @@ components:
 
     WebhookResponse:
       type: object
+      required:
+        - success
+        - message
       properties:
         success:
           type: boolean
@@ -768,6 +835,12 @@ components:
 
     UserSubscriptionResponse:
       type: object
+      required:
+        - provider
+        - transaction_id
+        - status
+        - start_date
+        - created_at
       properties:
         provider:
           type: string
@@ -801,6 +874,11 @@ components:
 
     ReceiptValidationResponse:
       type: object
+      required:
+        - valid
+        - transaction_id
+        - product_id
+        - purchase_date
       properties:
         is_valid:
           type: boolean
@@ -845,6 +923,11 @@ components:
 
     TrendingTermResponse:
       type: object
+      required:
+        - term
+        - translation
+        - usage_count
+        - last_updated
       properties:
         term:
           type: string
@@ -907,6 +990,9 @@ components:
 
     TrendingListResponse:
       type: object
+      required:
+        - trending_terms
+        - last_updated
       properties:
         terms:
           type: array
@@ -947,6 +1033,10 @@ components:
 
     AccountDeletionResponse:
       type: object
+      required:
+        - success
+        - message
+        - cleanup_summary
       properties:
         success:
           type: boolean

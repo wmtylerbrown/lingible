@@ -13,9 +13,9 @@ import AnyCodable
 public struct HealthResponse: Codable, JSONEncodable, Hashable {
 
     /** Service status */
-    public var status: String?
+    public var status: String
 
-    public init(status: String? = nil) {
+    public init(status: String) {
         self.status = status
     }
 
@@ -27,7 +27,6 @@ public struct HealthResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(status, forKey: .status)
+        try container.encode(status, forKey: .status)
     }
 }
-

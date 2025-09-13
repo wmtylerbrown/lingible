@@ -24,11 +24,11 @@ public struct TrendingListResponse: Codable, JSONEncodable, Hashable {
     /** Total number of trending terms */
     public var totalCount: Int?
     /** When the trending data was last updated */
-    public var lastUpdated: Date?
+    public var lastUpdated: Date
     /** Applied category filter */
     public var categoryFilter: CategoryFilter?
 
-    public init(terms: [TrendingTermResponse]? = nil, totalCount: Int? = nil, lastUpdated: Date? = nil, categoryFilter: CategoryFilter? = nil) {
+    public init(terms: [TrendingTermResponse]? = nil, totalCount: Int? = nil, lastUpdated: Date, categoryFilter: CategoryFilter? = nil) {
         self.terms = terms
         self.totalCount = totalCount
         self.lastUpdated = lastUpdated
@@ -48,8 +48,7 @@ public struct TrendingListResponse: Codable, JSONEncodable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(terms, forKey: .terms)
         try container.encodeIfPresent(totalCount, forKey: .totalCount)
-        try container.encodeIfPresent(lastUpdated, forKey: .lastUpdated)
+        try container.encode(lastUpdated, forKey: .lastUpdated)
         try container.encodeIfPresent(categoryFilter, forKey: .categoryFilter)
     }
 }
-

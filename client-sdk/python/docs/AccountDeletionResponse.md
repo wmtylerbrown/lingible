@@ -5,10 +5,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**success** | **bool** | Whether the account deletion was successful | [optional]
-**message** | **str** | Confirmation message | [optional]
+**success** | **bool** | Whether the account deletion was successful |
+**message** | **str** | Confirmation message |
 **deleted_at** | **datetime** | When the account was deleted | [optional]
-**cleanup_summary** | [**AccountDeletionResponseCleanupSummary**](AccountDeletionResponseCleanupSummary.md) |  | [optional]
+**cleanup_summary** | [**AccountDeletionResponseCleanupSummary**](AccountDeletionResponseCleanupSummary.md) |  |
 
 ## Example
 

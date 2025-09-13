@@ -27,7 +27,7 @@ class UpgradeResponse(BaseModel):
     """
     UpgradeResponse
     """ # noqa: E501
-    success: Optional[StrictBool] = None
+    success: StrictBool
     tier: Optional[StrictStr] = None
     expires_at: Optional[datetime] = Field(default=None, description="Subscription expiration date")
     __properties: ClassVar[List[str]] = ["success", "tier", "expires_at"]
@@ -98,5 +98,3 @@ class UpgradeResponse(BaseModel):
             "expires_at": obj.get("expires_at")
         })
         return _obj
-
-

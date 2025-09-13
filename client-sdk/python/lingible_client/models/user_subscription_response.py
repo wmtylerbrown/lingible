@@ -27,20 +27,17 @@ class UserSubscriptionResponse(BaseModel):
     """
     UserSubscriptionResponse
     """ # noqa: E501
-    provider: Optional[StrictStr] = Field(default=None, description="Subscription provider")
-    transaction_id: Optional[StrictStr] = Field(default=None, description="Provider transaction ID")
-    status: Optional[StrictStr] = Field(default=None, description="Subscription status")
-    start_date: Optional[datetime] = Field(default=None, description="Subscription start date")
+    provider: StrictStr = Field(description="Subscription provider")
+    transaction_id: StrictStr = Field(description="Provider transaction ID")
+    status: StrictStr = Field(description="Subscription status")
+    start_date: datetime = Field(description="Subscription start date")
     end_date: Optional[datetime] = Field(default=None, description="Subscription end date")
-    created_at: Optional[datetime] = Field(default=None, description="Record creation date")
+    created_at: datetime = Field(description="Record creation date")
     __properties: ClassVar[List[str]] = ["provider", "transaction_id", "status", "start_date", "end_date", "created_at"]
 
     @field_validator('provider')
     def provider_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
         if value not in set(['apple', 'google']):
             raise ValueError("must be one of enum values ('apple', 'google')")
         return value
@@ -48,9 +45,6 @@ class UserSubscriptionResponse(BaseModel):
     @field_validator('status')
     def status_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
         if value not in set(['active', 'expired', 'cancelled']):
             raise ValueError("must be one of enum values ('active', 'expired', 'cancelled')")
         return value
@@ -114,5 +108,3 @@ class UserSubscriptionResponse(BaseModel):
             "created_at": obj.get("created_at")
         })
         return _obj
-
-

@@ -27,7 +27,7 @@ class TranslationHistoryResponse(BaseModel):
     """
     TranslationHistoryResponse
     """ # noqa: E501
-    translations: Optional[List[TranslationHistoryItemResponse]] = None
+    translations: List[TranslationHistoryItemResponse]
     total_count: Optional[StrictInt] = Field(default=None, description="Total number of translations")
     has_more: Optional[StrictBool] = Field(default=None, description="Whether there are more translations to load")
     __properties: ClassVar[List[str]] = ["translations", "total_count", "has_more"]
@@ -95,5 +95,3 @@ class TranslationHistoryResponse(BaseModel):
             "has_more": obj.get("has_more")
         })
         return _obj
-
-

@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
-from .users import UserTier
+from .users import UserTier, UserUsageResponse
 
 
 class TranslationDirection(str, Enum):
@@ -71,35 +71,11 @@ class Translation(BaseModel):
     )
     model_used: Optional[str] = Field(None, description="AI model used for translation")
 
-    def to_api_response(self) -> "TranslationResponse":
-        """Convert to API response model."""
-        return TranslationResponse(
-            translation_id=self.translation_id,
-            original_text=self.original_text,
-            translated_text=self.translated_text,
-            direction=self.direction,
-            confidence_score=self.confidence_score,
-            created_at=self.created_at,
-            processing_time_ms=self.processing_time_ms,
-            model_used=self.model_used,
-        )
+    # Usage data for response
+    daily_used: int = Field(..., description="Total translations used today (after this translation)")
+    daily_limit: int = Field(..., description="Daily translation limit")
+    tier: UserTier = Field(..., description="User tier (free/premium)")
 
-
-class TranslationResponse(BaseModel):
-    """API response model for translation data."""
-
-    translation_id: str = Field(..., description="Unique translation ID")
-    original_text: str = Field(..., description="Original text")
-    translated_text: str = Field(..., description="Translated text")
-    direction: TranslationDirection = Field(..., description="Translation direction")
-    confidence_score: Optional[float] = Field(
-        None, ge=0.0, le=1.0, description="Translation confidence score"
-    )
-    created_at: datetime = Field(..., description="Translation timestamp")
-    processing_time_ms: Optional[int] = Field(
-        None, ge=0, description="Processing time in milliseconds"
-    )
-    model_used: Optional[str] = Field(None, description="AI model used for translation")
 
 
 class TranslationHistory(BaseModel):

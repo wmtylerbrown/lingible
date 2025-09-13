@@ -30,7 +30,7 @@ class TrendingListResponse(BaseModel):
     """ # noqa: E501
     terms: Optional[List[TrendingTermResponse]] = Field(default=None, description="List of trending terms")
     total_count: Optional[StrictInt] = Field(default=None, description="Total number of trending terms")
-    last_updated: Optional[datetime] = Field(default=None, description="When the trending data was last updated")
+    last_updated: datetime = Field(description="When the trending data was last updated")
     category_filter: Optional[StrictStr] = Field(default=None, description="Applied category filter")
     __properties: ClassVar[List[str]] = ["terms", "total_count", "last_updated", "category_filter"]
 
@@ -108,5 +108,3 @@ class TrendingListResponse(BaseModel):
             "category_filter": obj.get("category_filter")
         })
         return _obj
-
-

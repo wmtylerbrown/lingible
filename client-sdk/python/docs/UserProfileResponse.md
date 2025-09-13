@@ -5,13 +5,13 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**user_id** | **str** |  | [optional] 
-**email** | **str** |  | [optional] 
-**username** | **str** | Cognito username | [optional] 
-**tier** | **str** |  | [optional] 
-**status** | **str** |  | [optional] 
-**created_at** | **datetime** | Account creation date | [optional] 
-**updated_at** | **datetime** | Last update date | [optional] 
+**user_id** | **str** |  |
+**email** | **str** |  |
+**username** | **str** | Cognito username |
+**tier** | **str** |  |
+**status** | **str** |  |
+**created_at** | **datetime** | Account creation date |
+**updated_at** | **datetime** | Last update date | [optional]
 
 ## Example
 
@@ -31,5 +31,3 @@ user_profile_response_dict = user_profile_response_instance.to_dict()
 user_profile_response_from_dict = UserProfileResponse.from_dict(user_profile_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

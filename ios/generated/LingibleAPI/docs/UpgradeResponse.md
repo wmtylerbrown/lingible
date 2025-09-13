@@ -3,7 +3,7 @@
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**success** | **Bool** |  | [optional]
+**success** | **Bool** |  |
 **tier** | **String** |  | [optional]
 **expiresAt** | **Date** | Subscription expiration date | [optional]
 

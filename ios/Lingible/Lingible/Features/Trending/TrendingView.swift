@@ -351,7 +351,9 @@ class MockUserService: UserServiceProtocol {
         // Mock implementation
     }
 
-    func incrementTranslationCount() {
+    // incrementTranslationCount removed - no longer needed
+
+    func updateUsageFromTranslation(dailyUsed: Int, dailyLimit: Int, tier: UserTier) {
         // Mock implementation
     }
 

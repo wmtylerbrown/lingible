@@ -27,21 +27,18 @@ class UserProfileResponse(BaseModel):
     """
     UserProfileResponse
     """ # noqa: E501
-    user_id: Optional[StrictStr] = None
-    email: Optional[StrictStr] = None
-    username: Optional[StrictStr] = Field(default=None, description="Cognito username")
-    tier: Optional[StrictStr] = None
-    status: Optional[StrictStr] = None
-    created_at: Optional[datetime] = Field(default=None, description="Account creation date")
+    user_id: StrictStr
+    email: StrictStr
+    username: StrictStr = Field(description="Cognito username")
+    tier: StrictStr
+    status: StrictStr
+    created_at: datetime = Field(description="Account creation date")
     updated_at: Optional[datetime] = Field(default=None, description="Last update date")
     __properties: ClassVar[List[str]] = ["user_id", "email", "username", "tier", "status", "created_at", "updated_at"]
 
     @field_validator('tier')
     def tier_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
         if value not in set(['free', 'premium']):
             raise ValueError("must be one of enum values ('free', 'premium')")
         return value
@@ -49,9 +46,6 @@ class UserProfileResponse(BaseModel):
     @field_validator('status')
     def status_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
         if value not in set(['active', 'cancelled', 'suspended']):
             raise ValueError("must be one of enum values ('active', 'cancelled', 'suspended')")
         return value
@@ -116,5 +110,3 @@ class UserProfileResponse(BaseModel):
             "updated_at": obj.get("updated_at")
         })
         return _obj
-
-

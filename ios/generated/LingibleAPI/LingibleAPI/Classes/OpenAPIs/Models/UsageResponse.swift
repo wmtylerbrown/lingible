@@ -17,27 +17,27 @@ public struct UsageResponse: Codable, JSONEncodable, Hashable {
         case premium = "premium"
     }
     /** User tier */
-    public var tier: Tier?
+    public var tier: Tier
     /** Daily translation limit */
-    public var dailyLimit: Int?
+    public var dailyLimit: Int
     /** Number of translations used today */
-    public var dailyUsed: Int?
+    public var dailyUsed: Int
     /** Number of translations remaining today */
-    public var dailyRemaining: Int?
+    public var dailyRemaining: Int
     /** Next daily reset date */
-    public var resetDate: Date?
+    public var resetDate: Date
     /** Maximum text length for user's current tier */
-    public var currentMaxTextLength: Int?
+    public var currentMaxTextLength: Int
     /** Free tier text length limit */
-    public var freeTierMaxLength: Int?
+    public var freeTierMaxLength: Int
     /** Premium tier text length limit */
-    public var premiumTierMaxLength: Int?
+    public var premiumTierMaxLength: Int
     /** Free tier daily translation limit */
-    public var freeDailyLimit: Int?
+    public var freeDailyLimit: Int
     /** Premium tier daily translation limit */
-    public var premiumDailyLimit: Int?
+    public var premiumDailyLimit: Int
 
-    public init(tier: Tier? = nil, dailyLimit: Int? = nil, dailyUsed: Int? = nil, dailyRemaining: Int? = nil, resetDate: Date? = nil, currentMaxTextLength: Int? = nil, freeTierMaxLength: Int? = nil, premiumTierMaxLength: Int? = nil, freeDailyLimit: Int? = nil, premiumDailyLimit: Int? = nil) {
+    public init(tier: Tier, dailyLimit: Int, dailyUsed: Int, dailyRemaining: Int, resetDate: Date, currentMaxTextLength: Int, freeTierMaxLength: Int, premiumTierMaxLength: Int, freeDailyLimit: Int, premiumDailyLimit: Int) {
         self.tier = tier
         self.dailyLimit = dailyLimit
         self.dailyUsed = dailyUsed
@@ -67,16 +67,15 @@ public struct UsageResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(tier, forKey: .tier)
-        try container.encodeIfPresent(dailyLimit, forKey: .dailyLimit)
-        try container.encodeIfPresent(dailyUsed, forKey: .dailyUsed)
-        try container.encodeIfPresent(dailyRemaining, forKey: .dailyRemaining)
-        try container.encodeIfPresent(resetDate, forKey: .resetDate)
-        try container.encodeIfPresent(currentMaxTextLength, forKey: .currentMaxTextLength)
-        try container.encodeIfPresent(freeTierMaxLength, forKey: .freeTierMaxLength)
-        try container.encodeIfPresent(premiumTierMaxLength, forKey: .premiumTierMaxLength)
-        try container.encodeIfPresent(freeDailyLimit, forKey: .freeDailyLimit)
-        try container.encodeIfPresent(premiumDailyLimit, forKey: .premiumDailyLimit)
+        try container.encode(tier, forKey: .tier)
+        try container.encode(dailyLimit, forKey: .dailyLimit)
+        try container.encode(dailyUsed, forKey: .dailyUsed)
+        try container.encode(dailyRemaining, forKey: .dailyRemaining)
+        try container.encode(resetDate, forKey: .resetDate)
+        try container.encode(currentMaxTextLength, forKey: .currentMaxTextLength)
+        try container.encode(freeTierMaxLength, forKey: .freeTierMaxLength)
+        try container.encode(premiumTierMaxLength, forKey: .premiumTierMaxLength)
+        try container.encode(freeDailyLimit, forKey: .freeDailyLimit)
+        try container.encode(premiumDailyLimit, forKey: .premiumDailyLimit)
     }
 }
-

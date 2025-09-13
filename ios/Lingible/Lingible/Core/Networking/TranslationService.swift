@@ -56,9 +56,12 @@ final class TranslationService: TranslationServiceProtocol {
 
             // Convert to our domain model
             return TranslationResult(
-                originalText: response.originalText ?? text,
-                translatedText: response.translatedText ?? "",
-                direction: response.direction?.toAppDirection() ?? .genzToStandard
+                originalText: response.originalText,
+                translatedText: response.translatedText,
+                direction: response.direction.toAppDirection(),
+                dailyUsed: response.dailyUsed,
+                dailyLimit: response.dailyLimit,
+                tier: response.tier.toAppTier()
             )
 
         } catch {
@@ -93,6 +96,9 @@ struct TranslationResult {
     let originalText: String
     let translatedText: String
     let direction: TranslationDirection
+    let dailyUsed: Int
+    let dailyLimit: Int
+    let tier: UserTier
 }
 
 // MARK: - Translation Direction

@@ -27,12 +27,12 @@ class ErrorResponse(BaseModel):
     """
     ErrorResponse
     """ # noqa: E501
-    success: Optional[StrictBool] = Field(default=None, description="Always false for error responses")
-    message: Optional[StrictStr] = Field(default=None, description="Human-readable error message")
-    error_code: Optional[StrictStr] = Field(default=None, description="Application-specific error code")
-    status_code: Optional[StrictInt] = Field(default=None, description="HTTP status code")
+    success: StrictBool = Field(description="Always false for error responses")
+    message: StrictStr = Field(description="Human-readable error message")
+    error_code: StrictStr = Field(description="Application-specific error code")
+    status_code: StrictInt = Field(description="HTTP status code")
     details: Optional[Dict[str, Any]] = Field(default=None, description="Additional error details")
-    timestamp: Optional[datetime] = Field(default=None, description="Error timestamp")
+    timestamp: datetime = Field(description="Error timestamp")
     request_id: Optional[StrictStr] = Field(default=None, description="Request ID for tracing")
     __properties: ClassVar[List[str]] = ["success", "message", "error_code", "status_code", "details", "timestamp", "request_id"]
 
@@ -96,5 +96,3 @@ class ErrorResponse(BaseModel):
             "request_id": obj.get("request_id")
         })
         return _obj
-
-

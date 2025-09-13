@@ -28,14 +28,14 @@ class TrendingTermResponse(BaseModel):
     """
     TrendingTermResponse
     """ # noqa: E501
-    term: Optional[StrictStr] = Field(default=None, description="The slang term or phrase")
+    term: StrictStr = Field(description="The slang term or phrase")
     definition: Optional[StrictStr] = Field(default=None, description="Definition or explanation of the term")
     category: Optional[StrictStr] = Field(default=None, description="Category of the trending term")
     popularity_score: Optional[Union[Annotated[float, Field(le=100.0, strict=True, ge=0.0)], Annotated[int, Field(le=100, strict=True, ge=0)]]] = Field(default=None, description="Popularity score (0-100)")
     search_count: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Number of times searched")
     translation_count: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Number of times translated")
     first_seen: Optional[datetime] = Field(default=None, description="When this term was first detected")
-    last_updated: Optional[datetime] = Field(default=None, description="Last time metrics were updated")
+    last_updated: datetime = Field(description="Last time metrics were updated")
     is_active: Optional[StrictBool] = Field(default=None, description="Whether this term is currently trending")
     example_usage: Optional[StrictStr] = Field(default=None, description="Example of how the term is used")
     origin: Optional[StrictStr] = Field(default=None, description="Origin or source of the term")
@@ -117,5 +117,3 @@ class TrendingTermResponse(BaseModel):
             "related_terms": obj.get("related_terms")
         })
         return _obj
-
-

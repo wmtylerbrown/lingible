@@ -3,7 +3,7 @@
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**translations** | [TranslationHistoryItemResponse] |  | [optional]
+**translations** | [TranslationHistoryItemResponse] |  |
 **totalCount** | **Int** | Total number of translations | [optional]
 **hasMore** | **Bool** | Whether there are more translations to load | [optional]
 

@@ -13,14 +13,14 @@ import AnyCodable
 public struct AccountDeletionResponse: Codable, JSONEncodable, Hashable {
 
     /** Whether the account deletion was successful */
-    public var success: Bool?
+    public var success: Bool
     /** Confirmation message */
-    public var message: String?
+    public var message: String
     /** When the account was deleted */
     public var deletedAt: Date?
-    public var cleanupSummary: AccountDeletionResponseCleanupSummary?
+    public var cleanupSummary: AccountDeletionResponseCleanupSummary
 
-    public init(success: Bool? = nil, message: String? = nil, deletedAt: Date? = nil, cleanupSummary: AccountDeletionResponseCleanupSummary? = nil) {
+    public init(success: Bool, message: String, deletedAt: Date? = nil, cleanupSummary: AccountDeletionResponseCleanupSummary) {
         self.success = success
         self.message = message
         self.deletedAt = deletedAt
@@ -38,9 +38,9 @@ public struct AccountDeletionResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(success, forKey: .success)
-        try container.encodeIfPresent(message, forKey: .message)
+        try container.encode(success, forKey: .success)
+        try container.encode(message, forKey: .message)
         try container.encodeIfPresent(deletedAt, forKey: .deletedAt)
-        try container.encodeIfPresent(cleanupSummary, forKey: .cleanupSummary)
+        try container.encode(cleanupSummary, forKey: .cleanupSummary)
     }
 }

@@ -29,11 +29,11 @@ public struct ReceiptValidationResponse: Codable, JSONEncodable, Hashable {
     /** Validation status */
     public var status: Status?
     /** Transaction ID */
-    public var transactionId: String?
+    public var transactionId: String
     /** Product ID from receipt */
-    public var productId: String?
+    public var productId: String
     /** Purchase date */
-    public var purchaseDate: Date?
+    public var purchaseDate: Date
     /** Expiration date */
     public var expirationDate: Date?
     /** Environment */
@@ -43,7 +43,7 @@ public struct ReceiptValidationResponse: Codable, JSONEncodable, Hashable {
     /** Seconds to wait before retry */
     public var retryAfter: Int?
 
-    public init(isValid: Bool? = nil, status: Status? = nil, transactionId: String? = nil, productId: String? = nil, purchaseDate: Date? = nil, expirationDate: Date? = nil, environment: Environment? = nil, errorMessage: String? = nil, retryAfter: Int? = nil) {
+    public init(isValid: Bool? = nil, status: Status? = nil, transactionId: String, productId: String, purchaseDate: Date, expirationDate: Date? = nil, environment: Environment? = nil, errorMessage: String? = nil, retryAfter: Int? = nil) {
         self.isValid = isValid
         self.status = status
         self.transactionId = transactionId
@@ -73,13 +73,12 @@ public struct ReceiptValidationResponse: Codable, JSONEncodable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(isValid, forKey: .isValid)
         try container.encodeIfPresent(status, forKey: .status)
-        try container.encodeIfPresent(transactionId, forKey: .transactionId)
-        try container.encodeIfPresent(productId, forKey: .productId)
-        try container.encodeIfPresent(purchaseDate, forKey: .purchaseDate)
+        try container.encode(transactionId, forKey: .transactionId)
+        try container.encode(productId, forKey: .productId)
+        try container.encode(purchaseDate, forKey: .purchaseDate)
         try container.encodeIfPresent(expirationDate, forKey: .expirationDate)
         try container.encodeIfPresent(environment, forKey: .environment)
         try container.encodeIfPresent(errorMessage, forKey: .errorMessage)
         try container.encodeIfPresent(retryAfter, forKey: .retryAfter)
     }
 }
-

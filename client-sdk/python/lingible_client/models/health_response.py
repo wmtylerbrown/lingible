@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -26,7 +26,7 @@ class HealthResponse(BaseModel):
     """
     HealthResponse
     """ # noqa: E501
-    status: Optional[StrictStr] = Field(default=None, description="Service status")
+    status: StrictStr = Field(description="Service status")
     __properties: ClassVar[List[str]] = ["status"]
 
     model_config = ConfigDict(
@@ -83,5 +83,3 @@ class HealthResponse(BaseModel):
             "status": obj.get("status")
         })
         return _obj
-
-

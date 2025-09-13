@@ -318,3 +318,15 @@
 - **Privacy Settings**: Users can change tracking preferences anytime through iOS Settings app
 - **Code Cleanup**: Removed unused ATT privacy views and methods for cleaner codebase
 - **Build Success**: iOS app builds successfully with complete ATT integration and compliance
+
+### ✅ **Usage Tracking System Overhaul & Daily Rollover Fixes (2024-12-19)**
+- **Single Source of Truth**: Implemented backend-only usage tracking, eliminating local increment conflicts
+- **Daily Rollover Detection**: Added proper rollover detection on app launch and during translation updates
+- **Ad Timing Fixes**: Fixed ad display logic to use consistent backend data instead of mixed local/backend counts
+- **Translation API Enhancement**: Translation API now returns updated usage data, eliminating need for separate API calls
+- **OpenAPI Specification Updates**: Added required fields to all schemas, ensuring proper type safety across platforms
+- **iOS Client Regeneration**: Updated Swift client with non-optional fields and simplified translation models
+- **Protocol Updates**: Removed incrementTranslationCount from UserServiceProtocol, simplified ad management
+- **Rollover Notifications**: Implemented NotificationCenter-based rollover detection for AdManager synchronization
+- **Code Quality**: Fixed all Swift compilation errors and main actor isolation warnings
+- **Build Success**: iOS app builds successfully with comprehensive usage tracking fixes

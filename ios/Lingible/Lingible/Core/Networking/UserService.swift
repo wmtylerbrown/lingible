@@ -2,6 +2,11 @@ import Foundation
 import Combine
 import LingibleAPI
 
+// MARK: - Notification Names
+extension Notification.Name {
+    static let dailyRolloverDetected = Notification.Name("dailyRolloverDetected")
+}
+
 // MARK: - User Service Protocol
 @preconcurrency
 protocol UserServiceProtocol: ObservableObject {
@@ -14,7 +19,7 @@ protocol UserServiceProtocol: ObservableObject {
     func loadUserData(forceRefresh: Bool) async
     func refreshUserData() async
     func clearCache()
-    func incrementTranslationCount()
+    func updateUsageFromTranslation(dailyUsed: Int, dailyLimit: Int, tier: UserTier)
     func upgradeUser(_ request: UserUpgradeRequest) async -> Bool
 }
 
@@ -78,6 +83,9 @@ final class UserService: UserServiceProtocol {
 
             let (profile, usage) = try await (profileTask, usageTask)
 
+            // Check for daily rollover on app launch
+            checkForDailyRolloverOnLaunch(usage: usage)
+
             // Update state
             userProfile = profile
             userUsage = usage
@@ -103,27 +111,42 @@ final class UserService: UserServiceProtocol {
         }
     }
 
-    /// Increment the local usage count after a successful translation
-    nonisolated func incrementTranslationCount() {
+    /// Reset local translation count (called on daily rollover)
+    nonisolated func resetLocalTranslationCount() {
+        Task { @MainActor in
+            print("🔄 UserService: Resetting local translation count due to daily rollover")
+            // Notify AdManager to reset its local count
+            NotificationCenter.default.post(name: .dailyRolloverDetected, object: nil)
+        }
+    }
+
+    nonisolated func updateUsageFromTranslation(dailyUsed: Int, dailyLimit: Int, tier: UserTier) {
         Task { @MainActor in
             guard var currentUsage = userUsage else {
-                print("⚠️ UserService: Cannot increment usage - no current usage data")
+                print("⚠️ UserService: Cannot update usage - no current usage data")
                 return
             }
 
-            // Increment the daily_used count (handle optional)
-            let currentDailyUsed = currentUsage.dailyUsed ?? 0
-            currentUsage.dailyUsed = currentDailyUsed + 1
+            // Check for daily rollover - if backend dailyUsed is less than our local count, reset occurred
+            let previousDailyUsed = currentUsage.dailyUsed ?? 0
+            if dailyUsed < previousDailyUsed {
+                print("🔄 UserService: Daily rollover detected - backend reset dailyUsed from \(previousDailyUsed) to \(dailyUsed)")
+                resetLocalTranslationCount()
+            }
 
-            // Update daily remaining (handle optional)
-            let currentDailyRemaining = currentUsage.dailyRemaining ?? 0
-            currentUsage.dailyRemaining = max(0, currentDailyRemaining - 1)
+            // Update usage data with values from translation response
+            currentUsage.dailyUsed = dailyUsed
+            currentUsage.dailyLimit = dailyLimit
+            currentUsage.tier = tier.toAPITier()
+
+            // Calculate daily remaining
+            currentUsage.dailyRemaining = max(0, dailyLimit - dailyUsed)
 
             // Update the local state
             userUsage = currentUsage
             lastUsageUpdate = Date()
 
-            print("✅ UserService: Incremented translation count to \(currentUsage.dailyUsed ?? 0)")
+            print("✅ UserService: Updated usage from translation - dailyUsed: \(dailyUsed), dailyLimit: \(dailyLimit), dailyRemaining: \(currentUsage.dailyRemaining), tier: \(tier)")
         }
     }
 
@@ -131,6 +154,23 @@ final class UserService: UserServiceProtocol {
         print("🔄 UserService: Force reloading all data")
         clearCache()
         await loadUserData(forceRefresh: true)
+    }
+
+    private func checkForDailyRolloverOnLaunch(usage: UsageResponse) {
+        // Check if this is a new day since last update
+        if let lastUpdate = lastUsageUpdate {
+            let calendar = Calendar.current
+            if !calendar.isDate(lastUpdate, inSameDayAs: Date()) {
+                print("🔄 UserService: New day detected on app launch, resetting local translation count")
+                resetLocalTranslationCount()
+            }
+        }
+
+        // Also check if backend usage is 0 but we have a non-zero local count
+        if usage.dailyUsed == 0 {
+            print("🔄 UserService: Backend usage is 0, ensuring local count is reset")
+            resetLocalTranslationCount()
+        }
     }
 
     // MARK: - Subscription Upgrade
@@ -261,6 +301,18 @@ enum UserServiceError: LocalizedError {
             return "Invalid response from server"
         case .unauthorized:
             return "You need to sign in to access this data"
+        }
+    }
+}
+
+// MARK: - UserTier Extension
+extension UserTier {
+    func toAPITier() -> UsageResponse.Tier {
+        switch self {
+        case .free:
+            return .free
+        case .premium:
+            return .premium
         }
     }
 }

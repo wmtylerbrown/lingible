@@ -19,7 +19,7 @@ import json
 
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,24 +27,21 @@ class UsageResponse(BaseModel):
     """
     UsageResponse
     """ # noqa: E501
-    tier: Optional[StrictStr] = Field(default=None, description="User tier")
-    daily_limit: Optional[StrictInt] = Field(default=None, description="Daily translation limit")
-    daily_used: Optional[StrictInt] = Field(default=None, description="Number of translations used today")
-    daily_remaining: Optional[StrictInt] = Field(default=None, description="Number of translations remaining today")
-    reset_date: Optional[datetime] = Field(default=None, description="Next daily reset date")
-    current_max_text_length: Optional[StrictInt] = Field(default=None, description="Maximum text length for user's current tier")
-    free_tier_max_length: Optional[StrictInt] = Field(default=None, description="Free tier text length limit")
-    premium_tier_max_length: Optional[StrictInt] = Field(default=None, description="Premium tier text length limit")
-    free_daily_limit: Optional[StrictInt] = Field(default=None, description="Free tier daily translation limit")
-    premium_daily_limit: Optional[StrictInt] = Field(default=None, description="Premium tier daily translation limit")
+    tier: StrictStr = Field(description="User tier")
+    daily_limit: StrictInt = Field(description="Daily translation limit")
+    daily_used: StrictInt = Field(description="Number of translations used today")
+    daily_remaining: StrictInt = Field(description="Number of translations remaining today")
+    reset_date: datetime = Field(description="Next daily reset date")
+    current_max_text_length: StrictInt = Field(description="Maximum text length for user's current tier")
+    free_tier_max_length: StrictInt = Field(description="Free tier text length limit")
+    premium_tier_max_length: StrictInt = Field(description="Premium tier text length limit")
+    free_daily_limit: StrictInt = Field(description="Free tier daily translation limit")
+    premium_daily_limit: StrictInt = Field(description="Premium tier daily translation limit")
     __properties: ClassVar[List[str]] = ["tier", "daily_limit", "daily_used", "daily_remaining", "reset_date", "current_max_text_length", "free_tier_max_length", "premium_tier_max_length", "free_daily_limit", "premium_daily_limit"]
 
     @field_validator('tier')
     def tier_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
         if value not in set(['free', 'premium']):
             raise ValueError("must be one of enum values ('free', 'premium')")
         return value
@@ -112,5 +109,3 @@ class UsageResponse(BaseModel):
             "premium_daily_limit": obj.get("premium_daily_limit")
         })
         return _obj
-
-

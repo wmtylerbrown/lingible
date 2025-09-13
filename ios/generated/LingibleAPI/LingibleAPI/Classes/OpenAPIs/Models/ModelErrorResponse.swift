@@ -13,21 +13,21 @@ import AnyCodable
 public struct ModelErrorResponse: Codable, JSONEncodable, Hashable {
 
     /** Always false for error responses */
-    public var success: Bool?
+    public var success: Bool
     /** Human-readable error message */
-    public var message: String?
+    public var message: String
     /** Application-specific error code */
-    public var errorCode: String?
+    public var errorCode: String
     /** HTTP status code */
-    public var statusCode: Int?
+    public var statusCode: Int
     /** Additional error details */
     public var details: AnyCodable?
     /** Error timestamp */
-    public var timestamp: Date?
+    public var timestamp: Date
     /** Request ID for tracing */
     public var requestId: String?
 
-    public init(success: Bool? = nil, message: String? = nil, errorCode: String? = nil, statusCode: Int? = nil, details: AnyCodable? = nil, timestamp: Date? = nil, requestId: String? = nil) {
+    public init(success: Bool, message: String, errorCode: String, statusCode: Int, details: AnyCodable? = nil, timestamp: Date, requestId: String? = nil) {
         self.success = success
         self.message = message
         self.errorCode = errorCode
@@ -51,13 +51,12 @@ public struct ModelErrorResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(success, forKey: .success)
-        try container.encodeIfPresent(message, forKey: .message)
-        try container.encodeIfPresent(errorCode, forKey: .errorCode)
-        try container.encodeIfPresent(statusCode, forKey: .statusCode)
+        try container.encode(success, forKey: .success)
+        try container.encode(message, forKey: .message)
+        try container.encode(errorCode, forKey: .errorCode)
+        try container.encode(statusCode, forKey: .statusCode)
         try container.encodeIfPresent(details, forKey: .details)
-        try container.encodeIfPresent(timestamp, forKey: .timestamp)
+        try container.encode(timestamp, forKey: .timestamp)
         try container.encodeIfPresent(requestId, forKey: .requestId)
     }
 }
-

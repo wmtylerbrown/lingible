@@ -6,7 +6,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from models.translations import (
     TranslationRequestInternal,
     TranslationDirection,
-    TranslationResponse,
+    Translation,
 )
 from models.events import TranslationEvent
 from services.translation_service import TranslationService
@@ -23,7 +23,7 @@ translation_service = TranslationService()
 @tracer.trace_lambda
 @event_parser(model=TranslationEvent, envelope=TranslationEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
-def handler(event: TranslationEvent, context: LambdaContext) -> TranslationResponse:
+def handler(event: TranslationEvent, context: LambdaContext) -> Translation:
     """Handle translation requests from mobile app."""
 
     # Create TranslationRequest
@@ -36,5 +36,5 @@ def handler(event: TranslationEvent, context: LambdaContext) -> TranslationRespo
     # Perform translation
     translation = translation_service.translate_text(translation_request, event.user_id)
 
-    # Return the response model - decorator handles the API response creation
-    return translation.to_api_response()
+    # Return the translation directly - decorator handles the API response creation
+    return translation

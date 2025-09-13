@@ -28,22 +28,19 @@ class TranslationHistoryItemResponse(BaseModel):
     """
     TranslationHistoryItemResponse
     """ # noqa: E501
-    translation_id: Optional[StrictStr] = Field(default=None, description="Unique translation ID")
+    translation_id: StrictStr = Field(description="Unique translation ID")
     user_id: Optional[StrictStr] = Field(default=None, description="User ID")
-    original_text: Optional[StrictStr] = None
-    translated_text: Optional[StrictStr] = None
-    direction: Optional[StrictStr] = Field(default=None, description="Translation direction used")
+    original_text: StrictStr
+    translated_text: StrictStr
+    direction: StrictStr = Field(description="Translation direction used")
     confidence_score: Optional[Union[Annotated[float, Field(le=1, strict=True, ge=0)], Annotated[int, Field(le=1, strict=True, ge=0)]]] = None
-    created_at: Optional[datetime] = Field(default=None, description="Translation timestamp")
+    created_at: datetime = Field(description="Translation timestamp")
     model_used: Optional[StrictStr] = Field(default=None, description="AI model used for translation")
     __properties: ClassVar[List[str]] = ["translation_id", "user_id", "original_text", "translated_text", "direction", "confidence_score", "created_at", "model_used"]
 
     @field_validator('direction')
     def direction_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
         if value not in set(['english_to_genz', 'genz_to_english']):
             raise ValueError("must be one of enum values ('english_to_genz', 'genz_to_english')")
         return value
@@ -109,5 +106,3 @@ class TranslationHistoryItemResponse(BaseModel):
             "model_used": obj.get("model_used")
         })
         return _obj
-
-

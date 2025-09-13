@@ -12,13 +12,13 @@ import AnyCodable
 
 public struct TranslationHistoryResponse: Codable, JSONEncodable, Hashable {
 
-    public var translations: [TranslationHistoryItemResponse]?
+    public var translations: [TranslationHistoryItemResponse]
     /** Total number of translations */
     public var totalCount: Int?
     /** Whether there are more translations to load */
     public var hasMore: Bool?
 
-    public init(translations: [TranslationHistoryItemResponse]? = nil, totalCount: Int? = nil, hasMore: Bool? = nil) {
+    public init(translations: [TranslationHistoryItemResponse], totalCount: Int? = nil, hasMore: Bool? = nil) {
         self.translations = translations
         self.totalCount = totalCount
         self.hasMore = hasMore
@@ -34,9 +34,8 @@ public struct TranslationHistoryResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(translations, forKey: .translations)
+        try container.encode(translations, forKey: .translations)
         try container.encodeIfPresent(totalCount, forKey: .totalCount)
         try container.encodeIfPresent(hasMore, forKey: .hasMore)
     }
 }
-

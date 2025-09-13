@@ -76,26 +76,31 @@ struct TranslationView: View {
                             .padding(.bottom, 10)
                     }
 
-                    // Content
-                    if showInputCard {
-                        inputCardView
-                            .padding(.horizontal, 20)
-                            .padding(.top, 20)
-                            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showInputCard)
-                    } else if let currentResult = currentTranslationResult {
-                        currentResultCardView(translation: currentResult)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 20)
-                            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showInputCard)
-                    }
+                    // Scrollable content area
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Input card
+                            if showInputCard {
+                                inputCardView
+                                    .padding(.horizontal, 20)
+                                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showInputCard)
+                            }
 
-                    // Results
-                    if !translationHistory.isEmpty {
-                        translationHistoryView
-                            .padding(.top, 30)
-                    }
+                            // Current result (if any)
+                            if let currentResult = currentTranslationResult {
+                                currentResultCardView(translation: currentResult)
+                                    .padding(.horizontal, 20)
+                                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showInputCard)
+                            }
 
-                    Spacer()
+                            // Translation history
+                            if !translationHistory.isEmpty {
+                                translationHistoryView
+                            }
+                        }
+                        .padding(.top, 20)
+                        .padding(.bottom, 100) // Extra padding for better scrolling
+                    }
                 }
             }
             .navigationBarHidden(true)
@@ -159,7 +164,8 @@ struct TranslationView: View {
 
             // Input field
             TextEditor(text: $inputText)
-                .frame(height: 120)
+                .frame(minHeight: 120, maxHeight: 300)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(12)
                 .background(Color(.systemBackground))
                 .cornerRadius(12)
@@ -270,75 +276,75 @@ struct TranslationView: View {
 
     // MARK: - Current Result Card View
     private func currentResultCardView(translation: TranslationHistoryItem) -> some View {
-        VStack(spacing: 20) {
-            // Header with success indicator
+        VStack(spacing: 16) {
+            // Compact header with new translation button
             HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.green)
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundColor(.green)
 
-                Text("Translation Complete")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.lingiblePrimary)
+                    Text("Just translated")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
 
                 Spacer()
 
-                Text(translation.createdAt, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Button(action: handleNewButtonTap) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.subheadline)
+
+                        Text("New")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.lingiblePrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.lingiblePrimary.opacity(0.1))
+                    .cornerRadius(12)
+                }
             }
 
             // Original text
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(translation.direction == .genzToStandard ? "Gen Z:" : "English:")
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
                 Text(translation.originalText)
                     .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
                     .background(Color.lingibleSecondary.opacity(0.1))
                     .cornerRadius(8)
             }
 
             // Translated text
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(translation.direction == .genzToStandard ? "English:" : "Gen Z:")
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
                 Text(translation.translatedText)
                     .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
                     .background(Color.lingiblePrimary.opacity(0.1))
                     .cornerRadius(8)
             }
-
-            // New translation button
-            Button(action: handleNewButtonTap) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.headline)
-
-                    Text("New Translation")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.lingiblePrimary)
-                .cornerRadius(25)
-                .scaleAnimation()
-            }
         }
-        .padding(24)
+        .padding(20)
         .background(Color(.systemBackground))
-        .cornerRadius(20)
-        .shadow(color: Color(.label).opacity(0.1), radius: 10, x: 0, y: 5)
+        .cornerRadius(16)
+        .shadow(color: Color(.label).opacity(0.08), radius: 8, x: 0, y: 4)
     }
 
     // MARK: - Translation History View
@@ -359,15 +365,12 @@ struct TranslationView: View {
             }
             .padding(.horizontal, 20)
 
-            ScrollView {
-                LazyVStack(spacing: 16) {
-                    ForEach(translationHistory) { translation in
-                        TranslationResultCard(translation: translation)
-                    }
+            LazyVStack(spacing: 16) {
+                ForEach(translationHistory) { translation in
+                    TranslationResultCard(translation: translation)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
             }
+            .padding(.horizontal, 20)
         }
     }
 
@@ -485,7 +488,7 @@ struct TranslationView: View {
             let historyItem = TranslationHistoryItem(
                 id: UUID().uuidString,
                 originalText: text,
-                translatedText: response.translatedText ?? "",
+                translatedText: response.translatedText,
                 createdAt: Date(),
                 direction: isGenZToEnglish ? .genzToStandard : .standardToGenz
             )
@@ -496,31 +499,30 @@ struct TranslationView: View {
                 showInputCard = false
             }
 
-            // Update the local usage count immediately
-            appCoordinator.userService.incrementTranslationCount()
-            
-            // Update AdManager with new translation count and handle ad dismissal
-            appCoordinator.adManager.incrementTranslationCount {
-                // This callback is called when the interstitial ad is dismissed
-                // Ensure we stay on the translation view and don't lose the results
-                print("📺 TranslationView: Interstitial ad dismissed, staying on translation view")
-                
-                // Ensure the translation result is still visible and app state is preserved
-                DispatchQueue.main.async {
-                    // Make sure we're still in the authenticated state
-                    if appCoordinator.currentState != .authenticated {
-                        print("⚠️ TranslationView: App state changed to \(appCoordinator.currentState), restoring authenticated state")
-                        appCoordinator.restoreAuthenticatedState()
-                    }
-                    
-                    // Ensure the translation result is still visible
-                    if currentTranslationResult == nil {
-                        print("⚠️ TranslationView: Translation result was lost, restoring...")
-                        // The result should still be there, but let's make sure the UI is in the right state
-                        showInputCard = false
-                    } else {
-                        print("✅ TranslationView: Translation result preserved: \(currentTranslationResult?.translatedText ?? "nil")")
-                    }
+            // Update user usage data with the response from backend
+            appCoordinator.userService.updateUsageFromTranslation(
+                dailyUsed: response.dailyUsed,
+                dailyLimit: response.dailyLimit,
+                tier: response.tier.toAppTier()
+            )
+
+            // Update AdManager with new translation count
+            appCoordinator.adManager.updateAdVisibility()
+
+            DispatchQueue.main.async {
+                // Make sure we're still in the authenticated state
+                if appCoordinator.currentState != .authenticated {
+                    print("⚠️ TranslationView: App state changed to \(appCoordinator.currentState), restoring authenticated state")
+                    appCoordinator.restoreAuthenticatedState()
+                }
+
+                // Ensure the translation result is still visible
+                if currentTranslationResult == nil {
+                    print("⚠️ TranslationView: Translation result was lost, restoring...")
+                    // The result should still be there, but let's make sure the UI is in the right state
+                    showInputCard = false
+                } else {
+                    print("✅ TranslationView: Translation result preserved: \(currentTranslationResult?.translatedText ?? "nil")")
                 }
             }
 
@@ -569,8 +571,8 @@ struct TranslationView: View {
                         print("❌ ErrorResponse.error - Parsed ModelErrorResponse: \(errorResponse)")
 
                         // Use the structured error response to show user-friendly message
-                        if let errorCode = errorResponse.errorCode {
-                            switch errorCode {
+                        let errorCode = errorResponse.errorCode
+                        switch errorCode {
                             case "usagelimitexceedederror":
                                 if let details = errorResponse.details?.value as? [String: Any],
                                    let limitType = details["limit_type"] as? String,
@@ -610,10 +612,7 @@ struct TranslationView: View {
                                 errorMessage = "Translation service is temporarily unavailable. Please try again later."
 
                             default:
-                                errorMessage = errorResponse.message ?? error.localizedDescription
-                            }
-                        } else {
-                            errorMessage = errorResponse.message ?? error.localizedDescription
+                                errorMessage = errorResponse.message
                         }
 
                         // Don't set errorMessage again below since we set it above
@@ -699,21 +698,36 @@ struct TranslationView: View {
     }
 }
 
+// MARK: - API Tier Extension
+extension TranslationResponse.Tier {
+    func toAppTier() -> UserTier {
+        switch self {
+        case .free:
+            return .free
+        case .premium:
+            return .premium
+        }
+    }
+}
+
 // MARK: - Translation Result Card
 struct TranslationResultCard: View {
     let translation: TranslationHistoryItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
+        VStack(alignment: .leading, spacing: 12) {
+            // Compact header
             HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.green)
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundColor(.green)
 
-                Text("Translation")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                    Text("Translation")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
 
                 Spacer()
 
@@ -723,35 +737,41 @@ struct TranslationResultCard: View {
             }
 
             // Original text
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(translation.direction == .genzToStandard ? "Gen Z:" : "English:")
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
                 Text(translation.originalText)
                     .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
                     .background(Color.lingibleSecondary.opacity(0.1))
                     .cornerRadius(8)
             }
 
             // Translated text
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(translation.direction == .genzToStandard ? "English:" : "Gen Z:")
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
 
                 Text(translation.translatedText)
                     .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
                     .background(Color.lingiblePrimary.opacity(0.1))
                     .cornerRadius(8)
             }
         }
-        .padding(20)
-        .cardStyle()
+        .padding(16)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color(.label).opacity(0.06), radius: 6, x: 0, y: 3)
     }
 }
 

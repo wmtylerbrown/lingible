@@ -23,7 +23,7 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
     public static let searchCountRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
     public static let translationCountRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
     /** The slang term or phrase */
-    public var term: String?
+    public var term: String
     /** Definition or explanation of the term */
     public var definition: String?
     /** Category of the trending term */
@@ -37,7 +37,7 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
     /** When this term was first detected */
     public var firstSeen: Date?
     /** Last time metrics were updated */
-    public var lastUpdated: Date?
+    public var lastUpdated: Date
     /** Whether this term is currently trending */
     public var isActive: Bool?
     /** Example of how the term is used */
@@ -47,7 +47,7 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
     /** Related slang terms */
     public var relatedTerms: [String]?
 
-    public init(term: String? = nil, definition: String? = nil, category: Category? = nil, popularityScore: Float? = nil, searchCount: Int? = nil, translationCount: Int? = nil, firstSeen: Date? = nil, lastUpdated: Date? = nil, isActive: Bool? = nil, exampleUsage: String? = nil, origin: String? = nil, relatedTerms: [String]? = nil) {
+    public init(term: String, definition: String? = nil, category: Category? = nil, popularityScore: Float? = nil, searchCount: Int? = nil, translationCount: Int? = nil, firstSeen: Date? = nil, lastUpdated: Date, isActive: Bool? = nil, exampleUsage: String? = nil, origin: String? = nil, relatedTerms: [String]? = nil) {
         self.term = term
         self.definition = definition
         self.category = category
@@ -81,18 +81,17 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(term, forKey: .term)
+        try container.encode(term, forKey: .term)
         try container.encodeIfPresent(definition, forKey: .definition)
         try container.encodeIfPresent(category, forKey: .category)
         try container.encodeIfPresent(popularityScore, forKey: .popularityScore)
         try container.encodeIfPresent(searchCount, forKey: .searchCount)
         try container.encodeIfPresent(translationCount, forKey: .translationCount)
         try container.encodeIfPresent(firstSeen, forKey: .firstSeen)
-        try container.encodeIfPresent(lastUpdated, forKey: .lastUpdated)
+        try container.encode(lastUpdated, forKey: .lastUpdated)
         try container.encodeIfPresent(isActive, forKey: .isActive)
         try container.encodeIfPresent(exampleUsage, forKey: .exampleUsage)
         try container.encodeIfPresent(origin, forKey: .origin)
         try container.encodeIfPresent(relatedTerms, forKey: .relatedTerms)
     }
 }
-

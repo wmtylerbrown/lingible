@@ -28,24 +28,31 @@ class TranslationResponse(BaseModel):
     """
     TranslationResponse
     """ # noqa: E501
-    translation_id: Optional[StrictStr] = Field(default=None, description="Unique translation ID")
-    original_text: Optional[StrictStr] = None
-    translated_text: Optional[StrictStr] = None
-    direction: Optional[StrictStr] = Field(default=None, description="Translation direction used")
+    translation_id: StrictStr = Field(description="Unique translation ID")
+    original_text: StrictStr
+    translated_text: StrictStr
+    direction: StrictStr = Field(description="Translation direction used")
     confidence_score: Optional[Union[Annotated[float, Field(le=1, strict=True, ge=0)], Annotated[int, Field(le=1, strict=True, ge=0)]]] = None
-    created_at: Optional[datetime] = Field(default=None, description="Translation timestamp")
+    created_at: datetime = Field(description="Translation timestamp")
     processing_time_ms: Optional[StrictInt] = Field(default=None, description="Processing time in milliseconds")
     model_used: Optional[StrictStr] = Field(default=None, description="AI model used for translation")
-    __properties: ClassVar[List[str]] = ["translation_id", "original_text", "translated_text", "direction", "confidence_score", "created_at", "processing_time_ms", "model_used"]
+    daily_used: StrictInt = Field(description="Total translations used today (after this translation)")
+    daily_limit: StrictInt = Field(description="Daily translation limit")
+    tier: StrictStr = Field(description="User tier (free/premium)")
+    __properties: ClassVar[List[str]] = ["translation_id", "original_text", "translated_text", "direction", "confidence_score", "created_at", "processing_time_ms", "model_used", "daily_used", "daily_limit", "tier"]
 
     @field_validator('direction')
     def direction_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
         if value not in set(['english_to_genz', 'genz_to_english']):
             raise ValueError("must be one of enum values ('english_to_genz', 'genz_to_english')")
+        return value
+
+    @field_validator('tier')
+    def tier_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['free', 'premium']):
+            raise ValueError("must be one of enum values ('free', 'premium')")
         return value
 
     model_config = ConfigDict(
@@ -106,8 +113,9 @@ class TranslationResponse(BaseModel):
             "confidence_score": obj.get("confidence_score"),
             "created_at": obj.get("created_at"),
             "processing_time_ms": obj.get("processing_time_ms"),
-            "model_used": obj.get("model_used")
+            "model_used": obj.get("model_used"),
+            "daily_used": obj.get("daily_used"),
+            "daily_limit": obj.get("daily_limit"),
+            "tier": obj.get("tier")
         })
         return _obj
-
-

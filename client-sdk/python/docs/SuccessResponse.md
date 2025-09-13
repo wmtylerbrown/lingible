@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**success** | **bool** |  | [optional] 
-**message** | **str** |  | [optional] 
+**success** | **bool** |  |
+**message** | **str** |  |
 
 ## Example
 
@@ -26,5 +26,3 @@ success_response_dict = success_response_instance.to_dict()
 success_response_from_dict = SuccessResponse.from_dict(success_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

@@ -128,11 +128,20 @@ extension InterstitialAdManager {
 
     /// Check if we should show an interstitial ad based on translation count
     func shouldShowAd(translationCount: Int) -> Bool {
-        // Show ad every 4th translation, but not after daily limit
+        // Use local translation count for ad logic (more reliable and efficient)
+        let actualTranslationCount = translationCount
+        print("📊 InterstitialAdManager: Using local translation count: \(actualTranslationCount)")
+
         let dailyLimit = userService?.userUsage?.dailyLimit ?? 10
-        return translationCount > 0 &&
-               translationCount % 4 == 0 &&
-               translationCount <= dailyLimit
+
+        // Show ad every 4th translation, but not after daily limit
+        let shouldShow = actualTranslationCount > 0 &&
+                        actualTranslationCount % 4 == 0 &&
+                        actualTranslationCount <= dailyLimit
+
+        print("📊 InterstitialAdManager: shouldShowAd check - count: \(actualTranslationCount), dailyLimit: \(dailyLimit), shouldShow: \(shouldShow)")
+
+        return shouldShow
     }
 
     /// Show ad if conditions are met

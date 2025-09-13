@@ -12,10 +12,10 @@ import AnyCodable
 
 public struct WebhookResponse: Codable, JSONEncodable, Hashable {
 
-    public var success: Bool?
-    public var message: String?
+    public var success: Bool
+    public var message: String
 
-    public init(success: Bool? = nil, message: String? = nil) {
+    public init(success: Bool, message: String) {
         self.success = success
         self.message = message
     }
@@ -29,8 +29,7 @@ public struct WebhookResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(success, forKey: .success)
-        try container.encodeIfPresent(message, forKey: .message)
+        try container.encode(success, forKey: .success)
+        try container.encode(message, forKey: .message)
     }
 }
-

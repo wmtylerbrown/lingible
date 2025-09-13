@@ -21,18 +21,18 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
         case cancelled = "cancelled"
         case suspended = "suspended"
     }
-    public var userId: String?
-    public var email: String?
+    public var userId: String
+    public var email: String
     /** Cognito username */
-    public var username: String?
-    public var tier: Tier?
-    public var status: Status?
+    public var username: String
+    public var tier: Tier
+    public var status: Status
     /** Account creation date */
-    public var createdAt: Date?
+    public var createdAt: Date
     /** Last update date */
     public var updatedAt: Date?
 
-    public init(userId: String? = nil, email: String? = nil, username: String? = nil, tier: Tier? = nil, status: Status? = nil, createdAt: Date? = nil, updatedAt: Date? = nil) {
+    public init(userId: String, email: String, username: String, tier: Tier, status: Status, createdAt: Date, updatedAt: Date? = nil) {
         self.userId = userId
         self.email = email
         self.username = username
@@ -56,13 +56,12 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(userId, forKey: .userId)
-        try container.encodeIfPresent(email, forKey: .email)
-        try container.encodeIfPresent(username, forKey: .username)
-        try container.encodeIfPresent(tier, forKey: .tier)
-        try container.encodeIfPresent(status, forKey: .status)
-        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encode(userId, forKey: .userId)
+        try container.encode(email, forKey: .email)
+        try container.encode(username, forKey: .username)
+        try container.encode(tier, forKey: .tier)
+        try container.encode(status, forKey: .status)
+        try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
     }
 }
-

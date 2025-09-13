@@ -18,20 +18,20 @@ public struct TranslationHistoryItemResponse: Codable, JSONEncodable, Hashable {
     }
     public static let confidenceScoreRule = NumericRule<Float>(minimum: 0, exclusiveMinimum: false, maximum: 1, exclusiveMaximum: false, multipleOf: nil)
     /** Unique translation ID */
-    public var translationId: String?
+    public var translationId: String
     /** User ID */
     public var userId: String?
-    public var originalText: String?
-    public var translatedText: String?
+    public var originalText: String
+    public var translatedText: String
     /** Translation direction used */
-    public var direction: Direction?
+    public var direction: Direction
     public var confidenceScore: Float?
     /** Translation timestamp */
-    public var createdAt: Date?
+    public var createdAt: Date
     /** AI model used for translation */
     public var modelUsed: String?
 
-    public init(translationId: String? = nil, userId: String? = nil, originalText: String? = nil, translatedText: String? = nil, direction: Direction? = nil, confidenceScore: Float? = nil, createdAt: Date? = nil, modelUsed: String? = nil) {
+    public init(translationId: String, userId: String? = nil, originalText: String, translatedText: String, direction: Direction, confidenceScore: Float? = nil, createdAt: Date, modelUsed: String? = nil) {
         self.translationId = translationId
         self.userId = userId
         self.originalText = originalText
@@ -57,14 +57,13 @@ public struct TranslationHistoryItemResponse: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(translationId, forKey: .translationId)
+        try container.encode(translationId, forKey: .translationId)
         try container.encodeIfPresent(userId, forKey: .userId)
-        try container.encodeIfPresent(originalText, forKey: .originalText)
-        try container.encodeIfPresent(translatedText, forKey: .translatedText)
-        try container.encodeIfPresent(direction, forKey: .direction)
+        try container.encode(originalText, forKey: .originalText)
+        try container.encode(translatedText, forKey: .translatedText)
+        try container.encode(direction, forKey: .direction)
         try container.encodeIfPresent(confidenceScore, forKey: .confidenceScore)
-        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(modelUsed, forKey: .modelUsed)
     }
 }
-

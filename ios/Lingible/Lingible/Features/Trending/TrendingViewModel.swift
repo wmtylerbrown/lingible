@@ -74,7 +74,7 @@ final class TrendingViewModel: ObservableObject {
     func loadTrendingTerms(category: TrendingTermResponse.Category?) async {
         // Update user tier from user profile
         if let userProfile = userService.userProfile {
-            userTier = userProfile.tier?.toAppTier() ?? .free
+            userTier = userProfile.tier.toAppTier()
         } else {
             // If no user profile available, assume free tier
             userTier = .free
