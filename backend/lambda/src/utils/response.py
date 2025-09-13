@@ -1,6 +1,6 @@
 """Enhanced response utilities with proper error handling."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from models.base import ErrorResponse, HTTPStatus, ErrorCode
 from models.aws import APIGatewayResponse
@@ -12,6 +12,9 @@ def create_model_response(
     status_code: int = HTTPStatus.OK.value,
 ) -> Dict[str, Any]:
     """Create a successful API Gateway response from a Pydantic model."""
+    # All API response models now inherit from LingibleBaseModel and have to_json()
+    json_body = model.to_json()
+
     return APIGatewayResponse(
         statusCode=status_code,
         headers={
@@ -20,7 +23,7 @@ def create_model_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=model.model_dump_json(),
+        body=json_body,
         isBase64Encoded=False,
     ).model_dump()
 
@@ -64,7 +67,7 @@ def create_validation_error_response(
         error_code=ErrorCode.INVALID_INPUT.value,
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY.value,
         details=details,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         request_id=request_id,
     )
 
@@ -91,7 +94,7 @@ def create_unauthorized_response(
         error_code=ErrorCode.INVALID_TOKEN.value,
         status_code=HTTPStatus.UNAUTHORIZED.value,
         details={"reason": "authentication_required"},
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         request_id=request_id,
     )
 
@@ -118,7 +121,7 @@ def create_rate_limit_response(
         error_code=ErrorCode.RATE_LIMIT_EXCEEDED.value,
         status_code=HTTPStatus.TOO_MANY_REQUESTS.value,
         details={"limit": limit, "window_seconds": window_seconds},
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         request_id=request_id,
     )
 

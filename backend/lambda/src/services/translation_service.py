@@ -4,16 +4,17 @@ import json
 import re
 import time
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Optional, Dict, Any
 
 from models.translations import (
     TranslationRequestInternal,
     Translation,
     TranslationHistory,
+    TranslationHistoryServiceResult,
     TranslationDirection,
     BedrockResponse,
 )
-from models.users import UserUsageResponse
 
 from utils.logging import logger
 from utils.tracing import tracer
@@ -298,21 +299,21 @@ Translate:"""
 
         return False
 
-    def _calculate_confidence_score(self, response: BedrockResponse) -> Optional[float]:
+    def _calculate_confidence_score(self, response: BedrockResponse) -> Optional[Decimal]:
         """Calculate confidence score based on response quality."""
         # Simple heuristic - in production, you might use more sophisticated analysis
         completion = response.completion.strip()
 
         if not completion:
-            return 0.0
+            return Decimal("0.0")
 
         # Basic confidence based on response length and content
         if len(completion) < 3:
-            return 0.3
+            return Decimal("0.3")
         elif len(completion) > 50:
-            return 0.9
+            return Decimal("0.9")
         else:
-            return 0.7
+            return Decimal("0.7")
 
     def _save_translation_history(self, response: Translation, user_id: str) -> None:
         """Save translation to history (premium users only)."""
@@ -358,7 +359,7 @@ Translate:"""
         user_id: str,
         limit: int = 20,
         last_evaluated_key: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    ) -> TranslationHistoryServiceResult:
         """Get user's translation history (premium feature)."""
         # Check if user has premium access
         if not self._is_premium_user(user_id):
@@ -370,12 +371,12 @@ Translate:"""
             user_id, limit, last_evaluated_key
         )
 
-        return {
-            "translations": result.items,
-            "total_count": result.count,
-            "has_more": result.last_evaluated_key is not None,
-            "last_evaluated_key": result.last_evaluated_key,
-        }
+        return TranslationHistoryServiceResult(
+            translations=result.items,
+            total_count=result.count,
+            has_more=result.last_evaluated_key is not None,
+            last_evaluated_key=result.last_evaluated_key,
+        )
 
     def delete_translation(self, user_id: str, translation_id: str) -> bool:
         """Delete a translation from history (premium feature)."""

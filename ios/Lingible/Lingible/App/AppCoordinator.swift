@@ -10,6 +10,7 @@ final class AppCoordinator: ObservableObject {
     @Published var currentState: AppState = .splash
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var isUserDataLoaded = false
 
     // MARK: - Dependencies
     let authenticationService: AuthenticationServiceProtocol
@@ -70,11 +71,17 @@ final class AppCoordinator: ObservableObject {
     func authenticateUserWithApple() async throws -> AuthenticatedUser {
         let user = try await authenticationService.signInWithApple()
 
-        // Update app state to authenticated after successful sign in
-        currentState = .authenticated
-
-        // Load user data after successful authentication
+        // Load user data before showing main UI
+        print("🔄 AppCoordinator: Loading user data after Apple sign in...")
         await userService.loadUserData(forceRefresh: false)
+
+        // Wait for user data to be loaded
+        await waitForUserDataLoading()
+
+        // Now show the main UI with all data loaded
+        currentState = .authenticated
+        isUserDataLoaded = true
+        print("✅ AppCoordinator: User data loaded after Apple sign in, showing main UI")
 
         // Request ATT permission after successful authentication
         await requestATTPermission()
@@ -116,6 +123,7 @@ final class AppCoordinator: ObservableObject {
         private func authenticateUser() async {
         // Always start with splash screen
         currentState = .splash
+        isUserDataLoaded = false
 
         // Start auth check in background while showing splash
         let authTask = Task {
@@ -128,14 +136,35 @@ final class AppCoordinator: ObservableObject {
         // Get auth result (should be ready by now)
         let isAuthenticated = await authTask.value
 
-        // Move directly to appropriate state (no intermediate loading)
-        currentState = isAuthenticated ? .authenticated : .unauthenticated
-        isLoading = false
-
-        // Load user data after successful authentication
         if isAuthenticated {
+            // Load user data before showing main UI
+            print("🔄 AppCoordinator: Loading user data before showing main UI...")
             await userService.loadUserData(forceRefresh: false)
+
+            // Wait for user data to be loaded
+            await waitForUserDataLoading()
+
+            // Now show the main UI with all data loaded
+            currentState = .authenticated
+            isUserDataLoaded = true
+            print("✅ AppCoordinator: User data loaded, showing main UI")
+        } else {
+            // No user data needed for unauthenticated state
+            currentState = .unauthenticated
+            isUserDataLoaded = true
         }
+
+        isLoading = false
+    }
+
+    private func waitForUserDataLoading() async {
+        // Wait for user data to be loaded
+        while userService.isLoading {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        // Additional small delay to ensure UI updates are processed
+        try? await Task.sleep(for: .milliseconds(200))
     }
 
     private func requestATTPermission() async {

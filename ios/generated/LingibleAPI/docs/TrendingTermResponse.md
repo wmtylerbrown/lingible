@@ -6,7 +6,7 @@ Name | Type | Description | Notes
 **term** | **String** | The slang term or phrase |
 **definition** | **String** | Definition or explanation of the term | [optional]
 **category** | **String** | Category of the trending term | [optional]
-**popularityScore** | **Float** | Popularity score (0-100) | [optional]
+**popularityScore** | **Double** | Popularity score (0-100) | [optional]
 **searchCount** | **Int** | Number of times searched | [optional]
 **translationCount** | **Int** | Number of times translated | [optional]
 **firstSeen** | **Date** | When this term was first detected | [optional]

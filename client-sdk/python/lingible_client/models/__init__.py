@@ -24,8 +24,8 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.pagination_info import PaginationInfo
     from lingible_client.models.receipt_validation_response import ReceiptValidationResponse
     from lingible_client.models.success_response import SuccessResponse
-    from lingible_client.models.translation_history_item_response import TranslationHistoryItemResponse
-    from lingible_client.models.translation_history_response import TranslationHistoryResponse
+    from lingible_client.models.translation_history import TranslationHistory
+    from lingible_client.models.translation_history_service_result import TranslationHistoryServiceResult
     from lingible_client.models.translation_request import TranslationRequest
     from lingible_client.models.translation_response import TranslationResponse
     from lingible_client.models.trending_list_response import TrendingListResponse
@@ -54,8 +54,8 @@ from lingible_client.models.health_response import HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo
 from lingible_client.models.receipt_validation_response import ReceiptValidationResponse
 from lingible_client.models.success_response import SuccessResponse
-from lingible_client.models.translation_history_item_response import TranslationHistoryItemResponse
-from lingible_client.models.translation_history_response import TranslationHistoryResponse
+from lingible_client.models.translation_history import TranslationHistory
+from lingible_client.models.translation_history_service_result import TranslationHistoryServiceResult
 from lingible_client.models.translation_request import TranslationRequest
 from lingible_client.models.translation_response import TranslationResponse
 from lingible_client.models.trending_list_response import TrendingListResponse

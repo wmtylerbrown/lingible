@@ -70,7 +70,7 @@ struct TranslationView: View {
                     )
 
                     // Banner Ad (for free users only)
-                    if appCoordinator.adManager.shouldShowAds {
+                    if appCoordinator.adManager.shouldShowBanner {
                         appCoordinator.adManager.createBannerAdView()
                             .padding(.horizontal, 20)
                             .padding(.bottom, 10)
@@ -376,6 +376,11 @@ struct TranslationView: View {
 
     // MARK: - Actions
     private func handleNewButtonTap() {
+        // Check if we should show an interstitial ad when opening new translation
+        if userTier == .free {
+            appCoordinator.adManager.checkAndShowInterstitialAdForNewTranslation()
+        }
+
         // If we have a current result, move it to history
         if let currentResult = currentTranslationResult {
             translationHistory.insert(currentResult, at: 0)

@@ -9,9 +9,7 @@ shared/
 ├── api/                        # API definitions and documentation
 │   ├── openapi/               # OpenAPI/Swagger specifications
 │   │   └── lingible-api.yaml  # Complete API specification
-│   ├── types/                 # Shared type definitions
-│   │   ├── typescript/        # TypeScript types
-│   │   │   └── api.ts         # API type definitions
+│   ├── types/                 # Shared type definitions (future)
 │   │   ├── swift/             # Swift types (future)
 │   │   └── kotlin/            # Kotlin types (future)
 │   └── docs/                  # API documentation
@@ -60,27 +58,18 @@ shared/
 
 ### **Backend Development**
 ```bash
-# Reference shared types in backend code
-from shared.api.types.typescript.api import TranslationRequest
-
 # Use shared configuration
 import shared.config.app as app_config
 ```
 
 ### **iOS Development** (Future)
 ```swift
-// Import shared types
-import SharedTypes
-
 // Use shared configuration
 let config = SharedConfig.current
 ```
 
 ### **Android Development** (Future)
 ```kotlin
-// Import shared types
-import com.lingible.shared.types.*
-
 // Use shared configuration
 val config = SharedConfig.current
 ```
@@ -94,7 +83,6 @@ The complete API specification is available at:
 - **Generation**: Use to generate client SDKs
 
 ### **Type Definitions**
-- **TypeScript**: `api/types/typescript/api.ts`
 - **Swift**: `api/types/swift/` (future)
 - **Kotlin**: `api/types/kotlin/` (future)
 

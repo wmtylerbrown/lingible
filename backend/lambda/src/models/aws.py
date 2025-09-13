@@ -1,13 +1,12 @@
 """AWS-specific typed models."""
 
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import Field
+from .base import LingibleBaseModel
 
 
-class APIGatewayResponse(BaseModel):
+class APIGatewayResponse(LingibleBaseModel):
     """Typed API Gateway response structure."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     statusCode: int = Field(..., description="HTTP status code")
     headers: Dict[str, str] = Field(
@@ -17,10 +16,8 @@ class APIGatewayResponse(BaseModel):
     isBase64Encoded: bool = Field(False, description="Whether body is base64 encoded")
 
 
-class CognitoUserInfo(BaseModel):
+class CognitoUserInfo(LingibleBaseModel):
     """Typed Cognito user information for our app."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     user_id: str = Field(..., description="Cognito user ID")
     username: str = Field(..., description="Cognito username")

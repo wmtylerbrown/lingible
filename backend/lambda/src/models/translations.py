@@ -3,9 +3,10 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
-
-from .users import UserTier, UserUsageResponse
+from decimal import Decimal
+from pydantic import Field
+from .base import LingibleBaseModel
+from .users import UserTier
 
 
 class TranslationDirection(str, Enum):
@@ -24,7 +25,7 @@ class TranslationStatus(str, Enum):
     RATE_LIMITED = "rate_limited"
 
 
-class TranslationRequest(BaseModel):
+class TranslationRequest(LingibleBaseModel):
     """API request model for translation endpoint."""
 
     text: str = Field(
@@ -33,10 +34,8 @@ class TranslationRequest(BaseModel):
     direction: TranslationDirection = Field(..., description="Translation direction")
 
 
-class TranslationRequestInternal(BaseModel):
+class TranslationRequestInternal(LingibleBaseModel):
     """Internal request model for translation (includes user_id)."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     text: str = Field(
         ..., min_length=1, max_length=1000, description="Text to translate"
@@ -45,23 +44,15 @@ class TranslationRequestInternal(BaseModel):
     user_id: Optional[str] = Field(None, description="User ID for usage tracking")
 
 
-class Translation(BaseModel):
+class Translation(LingibleBaseModel):
     """Domain model for translation records (DB storage and API responses)."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-        },
-        use_enum_values=True,  # Serialize enums as their values
-    )
 
     original_text: str = Field(..., description="Original text")
     translated_text: str = Field(..., description="Translated text")
     direction: TranslationDirection = Field(
         ..., description="Translation direction used"
     )
-    confidence_score: Optional[float] = Field(
+    confidence_score: Optional[Decimal] = Field(
         None, ge=0.0, le=1.0, description="Translation confidence score"
     )
     translation_id: str = Field(..., description="Unique translation ID")
@@ -78,69 +69,23 @@ class Translation(BaseModel):
 
 
 
-class TranslationHistory(BaseModel):
+class TranslationHistory(LingibleBaseModel):
     """Domain model for translation history records (DB storage)."""
 
-    model_config = ConfigDict(from_attributes=True)
-
     translation_id: str = Field(..., description="Unique translation ID")
     user_id: str = Field(..., description="User ID")
     original_text: str = Field(..., description="Original text")
     translated_text: str = Field(..., description="Translated text")
     direction: TranslationDirection = Field(..., description="Translation direction")
-    confidence_score: Optional[float] = Field(
-        None, description="Translation confidence score"
-    )
-    created_at: datetime = Field(..., description="Translation timestamp")
-    model_used: Optional[str] = Field(None, description="AI model used")
-
-    def to_api_response(self) -> "TranslationHistoryItemResponse":
-        """Convert to API response model."""
-        return TranslationHistoryItemResponse(
-            translation_id=self.translation_id,
-            user_id=self.user_id,
-            original_text=self.original_text,
-            translated_text=self.translated_text,
-            direction=self.direction,
-            confidence_score=self.confidence_score,
-            created_at=self.created_at,
-            model_used=self.model_used,
-        )
-
-
-class TranslationHistoryItemResponse(BaseModel):
-    """API response model for individual translation history items."""
-
-    translation_id: str = Field(..., description="Unique translation ID")
-    user_id: str = Field(..., description="User ID")
-    original_text: str = Field(..., description="Original text")
-    translated_text: str = Field(..., description="Translated text")
-    direction: TranslationDirection = Field(..., description="Translation direction")
-    confidence_score: Optional[float] = Field(
+    confidence_score: Optional[Decimal] = Field(
         None, description="Translation confidence score"
     )
     created_at: datetime = Field(..., description="Translation timestamp")
     model_used: Optional[str] = Field(None, description="AI model used")
 
 
-class TranslationHistoryResponse(BaseModel):
-    """Response model for translation history."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    translations: List[TranslationHistoryItemResponse] = Field(
-        ..., description="List of translations"
-    )
-    total_count: int = Field(..., ge=0, description="Total number of translations")
-    has_more: bool = Field(
-        ..., description="Whether there are more translations to load"
-    )
-
-
-class UsageLimit(BaseModel):
+class UsageLimit(LingibleBaseModel):
     """Model for usage limits (database storage)."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     tier: UserTier = Field(..., description="User tier (free/premium) - source of truth for performance")
     daily_used: int = Field(0, ge=0, description="Current daily usage")
@@ -149,10 +94,8 @@ class UsageLimit(BaseModel):
     )
 
 
-class UsageLimitResponse(BaseModel):
+class UsageLimitResponse(LingibleBaseModel):
     """Response model for usage limits (includes derived limits)."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     tier: UserTier = Field(..., description="User tier (free/premium)")
     daily_limit: int = Field(..., ge=0, description="Daily translation limit")
@@ -161,10 +104,8 @@ class UsageLimitResponse(BaseModel):
     reset_date: datetime = Field(..., description="Next daily reset date")
 
 
-class TranslationError(BaseModel):
+class TranslationError(LingibleBaseModel):
     """Model for translation errors."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     error_code: str = Field(..., description="Error code")
     error_message: str = Field(..., description="Error message")
@@ -176,28 +117,34 @@ class TranslationError(BaseModel):
     )
 
 
-class BedrockRequest(BaseModel):
+class BedrockRequest(LingibleBaseModel):
     """Model for Bedrock API request."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     prompt: str = Field(..., description="Prompt for the AI model")
     max_tokens: int = Field(
         1000, ge=1, le=4000, description="Maximum tokens to generate"
     )
-    temperature: float = Field(
-        0.7, ge=0.0, le=1.0, description="Temperature for generation"
+    temperature: Decimal = Field(
+        Decimal("0.7"), ge=0.0, le=1.0, description="Temperature for generation"
     )
-    top_p: float = Field(0.9, ge=0.0, le=1.0, description="Top-p sampling parameter")
+    top_p: Decimal = Field(Decimal("0.9"), ge=0.0, le=1.0, description="Top-p sampling parameter")
 
 
-class BedrockResponse(BaseModel):
+class BedrockResponse(LingibleBaseModel):
     """Model for Bedrock API response."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     completion: str = Field(..., description="Generated completion")
     stop_reason: Optional[str] = Field(
         None, description="Reason for stopping generation"
     )
     usage: Optional[Dict[str, Any]] = Field(None, description="Token usage information")
+
+
+# Service return types
+class TranslationHistoryServiceResult(LingibleBaseModel):
+    """Service return type for translation history operations."""
+
+    translations: List[TranslationHistory] = Field(..., description="List of translation history items")
+    total_count: int = Field(..., ge=0, description="Total number of translations")
+    has_more: bool = Field(..., description="Whether there are more results available")
+    last_evaluated_key: Optional[Dict[str, Any]] = Field(None, description="Pagination key for next request")

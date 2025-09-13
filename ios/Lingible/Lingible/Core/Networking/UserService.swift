@@ -128,7 +128,7 @@ final class UserService: UserServiceProtocol {
             }
 
             // Check for daily rollover - if backend dailyUsed is less than our local count, reset occurred
-            let previousDailyUsed = currentUsage.dailyUsed ?? 0
+            let previousDailyUsed = currentUsage.dailyUsed
             if dailyUsed < previousDailyUsed {
                 print("🔄 UserService: Daily rollover detected - backend reset dailyUsed from \(previousDailyUsed) to \(dailyUsed)")
                 resetLocalTranslationCount()

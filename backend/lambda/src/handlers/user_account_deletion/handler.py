@@ -1,6 +1,6 @@
 """Lambda handler for user account deletion endpoint."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
@@ -41,7 +41,7 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
         {
             "user_id": user_id,
             "reason": event.reason,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -85,7 +85,7 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
             {
                 "user_id": user_id,
                 "translations_deleted": translations_deleted,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
 
@@ -93,7 +93,7 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
         return AccountDeletionResponse(
             success=True,
             message="Your account and all associated data have been permanently deleted.",
-            deleted_at=datetime.utcnow(),
+            deleted_at=datetime.now(timezone.utc),
             cleanup_summary=cleanup_summary
         )
 

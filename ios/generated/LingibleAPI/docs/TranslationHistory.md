@@ -1,4 +1,4 @@
-# TranslationHistoryItemResponse
+# TranslationHistory
 
 ## Properties
 Name | Type | Description | Notes
@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **originalText** | **String** |  |
 **translatedText** | **String** |  |
 **direction** | **String** | Translation direction used |
-**confidenceScore** | **Float** |  | [optional]
+**confidenceScore** | **Double** |  | [optional]
 **createdAt** | **Date** | Translation timestamp |
 **modelUsed** | **String** | AI model used for translation | [optional]
 

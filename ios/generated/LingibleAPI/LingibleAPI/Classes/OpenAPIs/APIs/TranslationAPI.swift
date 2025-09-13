@@ -14,8 +14,8 @@ open class TranslationAPI {
 
     /**
      Translate teen slang
-     
-     - parameter translationRequest: (body)  
+
+     - parameter translationRequest: (body)
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -38,8 +38,8 @@ open class TranslationAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter translationRequest: (body)  
-     - returns: RequestBuilder<TranslationResponse> 
+     - parameter translationRequest: (body)
+     - returns: RequestBuilder<TranslationResponse>
      */
     open class func translatePostWithRequestBuilder(translationRequest: TranslationRequest) -> RequestBuilder<TranslationResponse> {
         let localVariablePath = "/translate"
@@ -61,7 +61,7 @@ open class TranslationAPI {
 
     /**
      Clear all slang translations
-     
+
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -84,7 +84,7 @@ open class TranslationAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<SuccessResponse> 
+     - returns: RequestBuilder<SuccessResponse>
      */
     open class func translationsDeleteAllDeleteWithRequestBuilder() -> RequestBuilder<SuccessResponse> {
         let localVariablePath = "/translations/delete-all"
@@ -106,14 +106,14 @@ open class TranslationAPI {
 
     /**
      Get slang translation history
-     
+
      - parameter limit: (query) Number of translations to return (optional, default to 20)
      - parameter offset: (query) Number of translations to skip (optional, default to 0)
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
     @discardableResult
-    open class func translationsGet(limit: Int? = nil, offset: Int? = nil, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: TranslationHistoryResponse?, _ error: Error?) -> Void)) -> RequestTask {
+    open class func translationsGet(limit: Int? = nil, offset: Int? = nil, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: TranslationHistoryServiceResult?, _ error: Error?) -> Void)) -> RequestTask {
         return translationsGetWithRequestBuilder(limit: limit, offset: offset).execute(apiResponseQueue) { result in
             switch result {
             case let .success(response):
@@ -133,9 +133,9 @@ open class TranslationAPI {
        - name: BearerAuth
      - parameter limit: (query) Number of translations to return (optional, default to 20)
      - parameter offset: (query) Number of translations to skip (optional, default to 0)
-     - returns: RequestBuilder<TranslationHistoryResponse> 
+     - returns: RequestBuilder<TranslationHistoryServiceResult>
      */
-    open class func translationsGetWithRequestBuilder(limit: Int? = nil, offset: Int? = nil) -> RequestBuilder<TranslationHistoryResponse> {
+    open class func translationsGetWithRequestBuilder(limit: Int? = nil, offset: Int? = nil) -> RequestBuilder<TranslationHistoryServiceResult> {
         let localVariablePath = "/translations"
         let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
         let localVariableParameters: [String: Any]? = nil
@@ -152,15 +152,15 @@ open class TranslationAPI {
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<TranslationHistoryResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+        let localVariableRequestBuilder: RequestBuilder<TranslationHistoryServiceResult>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
     }
 
     /**
      Delete specific slang translation
-     
-     - parameter translationId: (path) Translation ID 
+
+     - parameter translationId: (path) Translation ID
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -183,8 +183,8 @@ open class TranslationAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter translationId: (path) Translation ID 
-     - returns: RequestBuilder<SuccessResponse> 
+     - parameter translationId: (path) Translation ID
+     - returns: RequestBuilder<SuccessResponse>
      */
     open class func translationsTranslationIdDeleteWithRequestBuilder(translationId: String) -> RequestBuilder<SuccessResponse> {
         var localVariablePath = "/translations/{translationId}"

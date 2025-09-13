@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 **originalText** | **String** |  |
 **translatedText** | **String** |  |
 **direction** | **String** | Translation direction used |
-**confidenceScore** | **Float** |  | [optional]
+**confidenceScore** | **Double** |  | [optional]
 **createdAt** | **Date** | Translation timestamp |
 **processingTimeMs** | **Int** | Processing time in milliseconds | [optional]
 **modelUsed** | **String** | AI model used for translation | [optional]

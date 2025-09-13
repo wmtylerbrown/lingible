@@ -2,15 +2,14 @@
 
 🚨 CRITICAL: When modifying these models, ALWAYS update:
 1. OpenAPI spec: shared/api/openapi/lingible-api.yaml
-2. TypeScript types: shared/api/types/typescript/api.ts
-3. Regenerate client SDKs (Python, iOS)
-See: API_SPEC_RULE.md at project root
+2. Regenerate client SDKs (Python, iOS)
 """
 
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import Field
+from .base import LingibleBaseModel
 
 # Domain Models
 class StoreEnvironment(str, Enum):
@@ -45,16 +44,8 @@ class ReceiptValidationStatus(str, Enum):
     RETRYABLE_ERROR = "retryable_error"
 
 
-class UserSubscription(BaseModel):
+class UserSubscription(LingibleBaseModel):
     """User subscription domain model (database storage)."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-        },
-        use_enum_values=True,  # Serialize enums as their values
-    )
 
     user_id: str = Field(..., description="User ID")
     provider: SubscriptionProvider = Field(..., description="Subscription provider")
@@ -65,10 +56,10 @@ class UserSubscription(BaseModel):
     start_date: datetime = Field(..., description="Subscription start date")
     end_date: Optional[datetime] = Field(None, description="Subscription end date")
     created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Record creation date"
+        default_factory=lambda: datetime.now(timezone.utc), description="Record creation date"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Last update date"
+        default_factory=lambda: datetime.now(timezone.utc), description="Last update date"
     )
 
     def to_api_response(self) -> "UserSubscriptionResponse":
@@ -84,7 +75,7 @@ class UserSubscription(BaseModel):
 
 
 # API Models
-class UserSubscriptionResponse(BaseModel):
+class UserSubscriptionResponse(LingibleBaseModel):
     """API response model for user subscription data."""
 
     provider: SubscriptionProvider = Field(..., description="Subscription provider")
@@ -98,7 +89,7 @@ class UserSubscriptionResponse(BaseModel):
 
 
 # Request Models
-class UserUpgradeRequest(BaseModel):
+class UserUpgradeRequest(LingibleBaseModel):
     """Request model for user upgrade endpoint."""
 
     provider: SubscriptionProvider = Field(
@@ -112,7 +103,7 @@ class UserUpgradeRequest(BaseModel):
     )
 
 
-class ReceiptValidationRequest(BaseModel):
+class ReceiptValidationRequest(LingibleBaseModel):
     """Request model for receipt validation."""
 
     provider: SubscriptionProvider = Field(..., description="Receipt provider")
@@ -123,16 +114,8 @@ class ReceiptValidationRequest(BaseModel):
     user_id: Optional[str] = Field(None, description="User ID for audit logging")
 
 
-class ReceiptValidationResult(BaseModel):
+class ReceiptValidationResult(LingibleBaseModel):
     """Result of receipt validation."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-        },
-        use_enum_values=True,
-    )
 
     is_valid: bool = Field(..., description="Whether receipt is valid")
     status: ReceiptValidationStatus = Field(..., description="Validation status")
@@ -163,7 +146,7 @@ class ReceiptValidationResult(BaseModel):
         )
 
 
-class ReceiptValidationResponse(BaseModel):
+class ReceiptValidationResponse(LingibleBaseModel):
     """API response model for receipt validation."""
 
     is_valid: bool = Field(..., description="Whether receipt is valid")
@@ -195,7 +178,7 @@ class AppleNotificationType(str, Enum):
     CONSUMPTION_REQUEST = "CONSUMPTION_REQUEST"
 
 
-class AppleWebhookRequest(BaseModel):
+class AppleWebhookRequest(LingibleBaseModel):
     """Request model for Apple webhook endpoint."""
 
     notification_type: AppleNotificationType = Field(
@@ -208,7 +191,7 @@ class AppleWebhookRequest(BaseModel):
     environment: StoreEnvironment = Field(StoreEnvironment.PRODUCTION, description="Environment")
 
 
-class WebhookResponse(BaseModel):
+class WebhookResponse(LingibleBaseModel):
     """Response model for webhook endpoints."""
 
     success: bool = Field(..., description="Whether webhook was processed successfully")

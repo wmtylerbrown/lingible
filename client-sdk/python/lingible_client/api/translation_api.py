@@ -20,7 +20,7 @@ from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
 from lingible_client.models.success_response import SuccessResponse
-from lingible_client.models.translation_history_response import TranslationHistoryResponse
+from lingible_client.models.translation_history_service_result import TranslationHistoryServiceResult
 from lingible_client.models.translation_request import TranslationRequest
 from lingible_client.models.translation_response import TranslationResponse
 
@@ -594,7 +594,7 @@ class TranslationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> TranslationHistoryResponse:
+    ) -> TranslationHistoryServiceResult:
         """Get slang translation history
 
         Get user's slang translation history (premium feature)
@@ -635,7 +635,7 @@ class TranslationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "TranslationHistoryResponse",
+            '200': "TranslationHistoryServiceResult",
             '401': "ErrorResponse",
             '403': "ErrorResponse",
         }
@@ -667,7 +667,7 @@ class TranslationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[TranslationHistoryResponse]:
+    ) -> ApiResponse[TranslationHistoryServiceResult]:
         """Get slang translation history
 
         Get user's slang translation history (premium feature)
@@ -708,7 +708,7 @@ class TranslationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "TranslationHistoryResponse",
+            '200': "TranslationHistoryServiceResult",
             '401': "ErrorResponse",
             '403': "ErrorResponse",
         }
@@ -781,7 +781,7 @@ class TranslationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "TranslationHistoryResponse",
+            '200': "TranslationHistoryServiceResult",
             '401': "ErrorResponse",
             '403': "ErrorResponse",
         }
@@ -819,13 +819,13 @@ class TranslationApi:
         # process the path parameters
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if offset is not None:
-            
+
             _query_params.append(('offset', offset))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -1126,5 +1126,3 @@ class TranslationApi:
             _host=_host,
             _request_auth=_request_auth
         )
-
-

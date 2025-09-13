@@ -104,7 +104,6 @@ src/
 ### Shared API Contract
 - **Single Source of Truth**: All API definitions in shared files
 - **OpenAPI Specification**: `shared/api/openapi/lingible-api.yaml` defines the complete API contract
-- **TypeScript Types**: `shared/api/types/typescript/api.ts` provides type safety
 - **Cross-Platform Consistency**: Shared definitions ensure consistency across backend, iOS, and Android
 
 ### API Change Management

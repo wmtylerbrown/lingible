@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, Optional
 
 from models.trending import (
@@ -129,7 +130,7 @@ class TrendingService:
         term: str,
         definition: str,
         category: TrendingCategory,
-        popularity_score: float = 0.0,
+        popularity_score: Decimal = Decimal("0.0"),
         example_usage: Optional[str] = None,
         origin: Optional[str] = None,
         related_terms: Optional[List[str]] = None,
@@ -197,7 +198,7 @@ class TrendingService:
         term: str,
         definition: Optional[str] = None,
         category: Optional[TrendingCategory] = None,
-        popularity_score: Optional[float] = None,
+        popularity_score: Optional[Decimal] = None,
         is_active: Optional[bool] = None,
         example_usage: Optional[str] = None,
         origin: Optional[str] = None,
@@ -540,7 +541,7 @@ Generate 15-20 diverse trending terms across different categories. Make sure the
                         "term": term_data["term"].strip(),
                         "definition": term_data["definition"].strip(),
                         "category": category,
-                        "popularity_score": float(term_data["popularity_score"]),
+                        "popularity_score": Decimal(str(term_data["popularity_score"])),
                         "example_usage": term_data.get("example_usage", "").strip(),
                         "origin": term_data.get("origin", "").strip(),
                         "related_terms": term_data.get("related_terms", []),

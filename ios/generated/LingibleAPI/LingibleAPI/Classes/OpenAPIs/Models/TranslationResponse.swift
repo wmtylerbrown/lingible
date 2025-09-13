@@ -20,14 +20,14 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         case free = "free"
         case premium = "premium"
     }
-    public static let confidenceScoreRule = NumericRule<Float>(minimum: 0, exclusiveMinimum: false, maximum: 1, exclusiveMaximum: false, multipleOf: nil)
+    public static let confidenceScoreRule = NumericRule<Double>(minimum: 0, exclusiveMinimum: false, maximum: 1, exclusiveMaximum: false, multipleOf: nil)
     /** Unique translation ID */
     public var translationId: String
     public var originalText: String
     public var translatedText: String
     /** Translation direction used */
     public var direction: Direction
-    public var confidenceScore: Float?
+    public var confidenceScore: Double?
     /** Translation timestamp */
     public var createdAt: Date
     /** Processing time in milliseconds */
@@ -41,7 +41,7 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
     /** User tier (free/premium) */
     public var tier: Tier
 
-    public init(translationId: String, originalText: String, translatedText: String, direction: Direction, confidenceScore: Float? = nil, createdAt: Date, processingTimeMs: Int? = nil, modelUsed: String? = nil, dailyUsed: Int, dailyLimit: Int, tier: Tier) {
+    public init(translationId: String, originalText: String, translatedText: String, direction: Direction, confidenceScore: Double? = nil, createdAt: Date, processingTimeMs: Int? = nil, modelUsed: String? = nil, dailyUsed: Int, dailyLimit: Int, tier: Tier) {
         self.translationId = translationId
         self.originalText = originalText
         self.translatedText = translatedText

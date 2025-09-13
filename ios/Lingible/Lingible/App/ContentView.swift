@@ -7,7 +7,7 @@ struct ContentView: View {
         Group {
             switch appCoordinator.currentState {
             case .splash:
-                SplashView()
+                SplashView(isLoading: !appCoordinator.isUserDataLoaded)
             case .unauthenticated:
                 AuthenticationView()
             case .authenticated:

@@ -36,7 +36,7 @@ struct TrendingView: View {
                     }
 
                     // Banner Ad (for free users only)
-                    if appCoordinator.adManager.shouldShowAds {
+                    if appCoordinator.adManager.shouldShowBanner {
                         appCoordinator.adManager.createBannerAdView()
                             .padding(.horizontal, 20)
                             .padding(.bottom, 10)

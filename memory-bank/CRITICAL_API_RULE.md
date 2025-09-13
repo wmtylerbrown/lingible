@@ -6,13 +6,11 @@
 
 ## 📍 File Locations
 - **OpenAPI Spec**: `shared/api/openapi/lingible-api.yaml`
-- **TypeScript Types**: `shared/api/types/typescript/api.ts`
 
 ## 🔄 Required Updates
 
 ### When you change backend models:
 1. **Update OpenAPI spec** (`lingible-api.yaml`)
-2. **Update TypeScript types** (`api.ts`)
 3. **Regenerate client SDKs**:
    - Python: `cd client-sdk && ./regenerate-sdk.sh`
    - iOS: `cd ios/generated && openapi-generator generate ...`

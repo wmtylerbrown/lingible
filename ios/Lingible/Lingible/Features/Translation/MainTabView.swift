@@ -24,12 +24,25 @@ struct MainTabView: View {
                 }
                 .tag(1)
 
+            // History tab - only show for premium users
+            if appCoordinator.userUsage?.tier == .premium {
+                HistoryView(
+                    authenticationService: appCoordinator.authenticationService,
+                    selectedTab: $selectedTab
+                )
+                    .tabItem {
+                        Image(systemName: "clock.arrow.circlepath")
+                        Text("History")
+                    }
+                    .tag(2)
+            }
+
             ProfileView()
                 .tabItem {
                     Image(systemName: "person.circle")
                     Text("Profile")
                 }
-                .tag(2)
+                .tag(appCoordinator.userUsage?.tier == .premium ? 3 : 2)
         }
         .accentColor(.lingiblePrimary)
     }

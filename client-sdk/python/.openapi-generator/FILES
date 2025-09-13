@@ -14,8 +14,8 @@ docs/ReceiptValidationResponse.md
 docs/SuccessResponse.md
 docs/SystemApi.md
 docs/TranslationApi.md
-docs/TranslationHistoryItemResponse.md
-docs/TranslationHistoryResponse.md
+docs/TranslationHistory.md
+docs/TranslationHistoryServiceResult.md
 docs/TranslationRequest.md
 docs/TranslationResponse.md
 docs/TrendingApi.md
@@ -52,8 +52,8 @@ lingible_client/models/health_response.py
 lingible_client/models/pagination_info.py
 lingible_client/models/receipt_validation_response.py
 lingible_client/models/success_response.py
-lingible_client/models/translation_history_item_response.py
-lingible_client/models/translation_history_response.py
+lingible_client/models/translation_history.py
+lingible_client/models/translation_history_service_result.py
 lingible_client/models/translation_request.py
 lingible_client/models/translation_response.py
 lingible_client/models/trending_list_response.py
@@ -71,4 +71,6 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
+test/test_translation_history.py
+test/test_translation_history_service_result.py
 tox.ini

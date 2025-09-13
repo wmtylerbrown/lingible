@@ -108,7 +108,7 @@ This endpoint does not need any parameter.
 
 # **translationsGet**
 ```swift
-    open class func translationsGet(limit: Int? = nil, offset: Int? = nil, completion: @escaping (_ data: TranslationHistoryResponse?, _ error: Error?) -> Void)
+    open class func translationsGet(limit: Int? = nil, offset: Int? = nil, completion: @escaping (_ data: TranslationHistoryServiceResult?, _ error: Error?) -> Void)
 ```
 
 Get slang translation history
@@ -145,7 +145,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**TranslationHistoryResponse**](TranslationHistoryResponse.md)
+[**TranslationHistoryServiceResult**](TranslationHistoryServiceResult.md)
 
 ### Authorization
 

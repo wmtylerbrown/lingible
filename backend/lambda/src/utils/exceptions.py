@@ -1,6 +1,6 @@
 """Comprehensive exception hierarchy for the application."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from .logging import logger
 from models.base import HTTPStatus, ErrorCode
@@ -25,7 +25,7 @@ class AppException(Exception):
         self.status_code = status_code
         self.details = details or {}
         self.request_id = request_id
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
         self.log_level = log_level
 
         # Log the exception

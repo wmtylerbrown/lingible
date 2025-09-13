@@ -47,7 +47,52 @@ final class AdManager: ObservableObject {
         updateAdVisibility()
     }
 
-    /// Increment translation count and check for interstitial ad
+    /// Check and show interstitial ad when user opens new translation
+    func checkAndShowInterstitialAdForNewTranslation() {
+        // Always use backend data as single source of truth
+        guard let userUsage = userService.userUsage else {
+            print("⚠️ AdManager: No user usage data available for new translation ad check")
+            return
+        }
+
+        let currentTranslationCount = userUsage.dailyUsed
+        print("📊 AdManager: Checking ad for new translation - current count: \(currentTranslationCount)")
+
+        // Check if we should show an interstitial ad
+        if let interstitialManager = interstitialAdManager {
+            let shouldShow = interstitialManager.shouldShowAd(translationCount: currentTranslationCount)
+            let isReady = interstitialManager.isAdReady
+            print("📊 AdManager: New translation ad check - shouldShow: \(shouldShow), isReady: \(isReady)")
+
+            // Actually show the ad if conditions are met
+            if shouldShow && isReady {
+                print("📺 AdManager: Showing interstitial ad for new translation")
+                let success = interstitialManager.showAd()
+                print("📺 AdManager: Ad show result: \(success)")
+            } else if shouldShow && !isReady {
+                print("⚠️ AdManager: Should show ad but not ready - loading ad...")
+                interstitialManager.loadAd()
+            }
+        }
+    }
+
+    /// Force show interstitial ad (for testing)
+    func forceShowInterstitialAd() -> Bool {
+        guard let interstitialManager = interstitialAdManager else {
+            print("⚠️ AdManager: No interstitial manager available")
+            return false
+        }
+
+        if interstitialManager.isAdReady {
+            print("📺 AdManager: Force showing interstitial ad")
+            return interstitialManager.showAd()
+        } else {
+            print("⚠️ AdManager: Interstitial ad not ready")
+            return false
+        }
+    }
+
+    /// Update ad visibility based on user tier and translation count
     func updateAdVisibility() {
         // Always use backend data as single source of truth
         guard let userUsage = userService.userUsage else {
@@ -58,15 +103,11 @@ final class AdManager: ObservableObject {
         let actualTranslationCount = userUsage.dailyUsed
         print("📊 AdManager: Using backend dailyUsed: \(actualTranslationCount)")
 
-        // Update ad visibility based on backend count
-        updateAdVisibilityForCount(actualTranslationCount)
+        // Update banner ad visibility based on user tier
+        updateBannerAdVisibility()
 
-        // Check if we should show an interstitial ad
-        if let interstitialManager = interstitialAdManager {
-            let shouldShow = interstitialManager.shouldShowAd(translationCount: actualTranslationCount)
-            let isReady = interstitialManager.isAdReady
-            print("📊 AdManager: shouldShowAd=\(shouldShow), isAdReady=\(isReady)")
-        }
+        // Note: Interstitial ads are now handled when user taps + NEW button
+        // This ensures ads show before starting new translations, not after completing them
     }
 
     /// Reset translation count (called daily)
@@ -76,16 +117,15 @@ final class AdManager: ObservableObject {
         print("🔄 AdManager: Translation count reset")
     }
 
-    private func updateAdVisibilityForCount(_ count: Int) {
-        // Update banner ad visibility based on user tier and count
+    private func updateBannerAdVisibility() {
+        // Update banner ad visibility based on user tier only
         if let userUsage = userService.userUsage {
             let tier = userUsage.tier
-            let dailyLimit = userUsage.dailyLimit
 
-            // Show banner ads for free users who haven't hit daily limit
-            shouldShowBanner = (tier == .free) && (count < dailyLimit)
+            // Show banner ads for free users (regardless of daily usage)
+            shouldShowBanner = (tier == .free)
 
-            print("📊 AdManager: Banner visibility - tier: \(tier), count: \(count), limit: \(dailyLimit), show: \(shouldShowBanner)")
+            print("📊 AdManager: Banner visibility - tier: \(tier), show: \(shouldShowBanner)")
         }
     }
 
@@ -104,7 +144,7 @@ final class AdManager: ObservableObject {
 
     private func setupUserTierObservation() {
         // Since userService is a protocol, we'll update ad visibility when translation count changes
-        // The user tier will be checked in updateAdVisibility()
+        // The user tier will be checked in updateBannerAdVisibility()
     }
 
     private func setupATTStatusObservation() {
@@ -179,10 +219,9 @@ extension AdManager {
         return AdMobConfig.interstitialAdUnitID
     }
 
-    /// Check if user should see ads
+    /// Check if user should see ads (always true for free users)
     var shouldShowAds: Bool {
-        let currentTier = userService.userUsage?.tier ?? .free
-        return currentTier == .free
+        return shouldShowBanner
     }
 
     /// Get current translation count
@@ -202,8 +241,8 @@ extension AdManager {
     /// Create banner ad view
     func createBannerAdView() -> some View {
         SwiftUIBannerAd(adUnitID: bannerAdUnitID)
-            .opacity(shouldShowAds ? 1.0 : 0.0)
-            .animation(.easeInOut(duration: 0.3), value: shouldShowAds)
+            .opacity(shouldShowBanner ? 1.0 : 0.0)
+            .animation(.easeInOut(duration: 0.3), value: shouldShowBanner)
     }
 
     /// Create enhanced header with upgrade button

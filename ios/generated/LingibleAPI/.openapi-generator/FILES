@@ -25,8 +25,8 @@ LingibleAPI/Classes/OpenAPIs/Models/ModelErrorResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/PaginationInfo.swift
 LingibleAPI/Classes/OpenAPIs/Models/ReceiptValidationResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/SuccessResponse.swift
-LingibleAPI/Classes/OpenAPIs/Models/TranslationHistoryItemResponse.swift
-LingibleAPI/Classes/OpenAPIs/Models/TranslationHistoryResponse.swift
+LingibleAPI/Classes/OpenAPIs/Models/TranslationHistory.swift
+LingibleAPI/Classes/OpenAPIs/Models/TranslationHistoryServiceResult.swift
 LingibleAPI/Classes/OpenAPIs/Models/TranslationRequest.swift
 LingibleAPI/Classes/OpenAPIs/Models/TranslationResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/TrendingListResponse.swift
@@ -55,8 +55,8 @@ docs/ReceiptValidationResponse.md
 docs/SuccessResponse.md
 docs/SystemAPI.md
 docs/TranslationAPI.md
-docs/TranslationHistoryItemResponse.md
-docs/TranslationHistoryResponse.md
+docs/TranslationHistory.md
+docs/TranslationHistoryServiceResult.md
 docs/TranslationRequest.md
 docs/TranslationResponse.md
 docs/TrendingAPI.md

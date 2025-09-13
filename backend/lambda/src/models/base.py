@@ -1,9 +1,11 @@
 """Base API response models."""
 
+import json
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 
 class HTTPStatus(Enum):
@@ -60,7 +62,48 @@ class ErrorCode(Enum):
     RATE_LIMIT_EXCEEDED = "RATE_001"
 
 
-class BaseResponse(BaseModel):
+class LingibleBaseModel(BaseModel):
+    """Base model for all Lingible models with automatic serialization handling."""
+
+    class Config:
+        """Pydantic configuration for consistent serialization."""
+        # Use enum values instead of enum objects
+        use_enum_values = True
+        # Validate assignment to catch type errors early
+        validate_assignment = True
+        # Allow population by field name or alias
+        populate_by_name = True
+        # Allow creation from ORM objects (future-proofing)
+        from_attributes = True
+        # Use custom serializers for complex types
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: lambda v: float(v),
+        }
+
+    @model_serializer
+    def serialize_model(self) -> Dict[str, Any]:
+        """Custom serializer that handles Decimal and datetime objects automatically."""
+        result: Dict[str, Any] = {}
+        for field_name, field_value in self.__dict__.items():
+            if isinstance(field_value, Decimal):
+                result[field_name] = float(field_value)
+            elif isinstance(field_value, datetime):
+                result[field_name] = field_value.isoformat()
+            else:
+                result[field_name] = field_value
+        return result
+
+    def to_json(self) -> str:
+        """Convert model to JSON string with proper serialization."""
+        return json.dumps(self.serialize_model())
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert model to dictionary with proper serialization."""
+        return self.serialize_model()
+
+
+class BaseResponse(LingibleBaseModel):
     """Base API response model."""
 
     success: bool = Field(..., description="Whether the request was successful")
@@ -68,7 +111,7 @@ class BaseResponse(BaseModel):
     timestamp: datetime = Field(..., description="Response timestamp")
 
 
-class ErrorResponse(BaseModel):
+class ErrorResponse(LingibleBaseModel):
     """Standardized error response model."""
 
     success: bool = Field(False, description="Always false for error responses")
@@ -93,7 +136,7 @@ class PaginationParams(BaseModel):
     )
 
 
-class PaginatedResponse(BaseModel):
+class PaginatedResponse(LingibleBaseModel):
     """Paginated response model."""
 
     success: bool = Field(True, description="Whether the request was successful")
@@ -102,7 +145,7 @@ class PaginatedResponse(BaseModel):
     timestamp: datetime = Field(..., description="Response timestamp")
 
 
-class HealthResponse(BaseModel):
+class HealthResponse(LingibleBaseModel):
     """Health check response model."""
 
     status: str = Field(..., description="Service status (healthy, unhealthy, etc.)")

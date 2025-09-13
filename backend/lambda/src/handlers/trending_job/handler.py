@@ -42,7 +42,7 @@ def handler(event: dict, context: LambdaContext) -> dict:
             "headers": {
                 "Content-Type": "application/json",
             },
-            "body": json.dumps(job_response.model_dump()),
+            "body": job_response.to_json(),
         }
 
     except Exception as e:

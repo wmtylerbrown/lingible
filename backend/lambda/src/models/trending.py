@@ -3,7 +3,9 @@
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
-from pydantic import BaseModel, Field, ConfigDict
+from decimal import Decimal
+from pydantic import Field
+from .base import LingibleBaseModel
 
 if TYPE_CHECKING:
     from .users import UserTier
@@ -21,16 +23,8 @@ class TrendingCategory(str, Enum):
     PHRASE = "phrase"
 
 
-class TrendingTerm(BaseModel):
+class TrendingTerm(LingibleBaseModel):
     """Trending slang term domain model."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-        },
-        use_enum_values=True,
-    )
 
     # Core term data
     term: str = Field(..., description="The slang term or phrase")
@@ -38,7 +32,7 @@ class TrendingTerm(BaseModel):
     category: TrendingCategory = Field(..., description="Category of the trending term")
 
     # Trending metrics
-    popularity_score: float = Field(..., ge=0.0, le=100.0, description="Popularity score (0-100)")
+    popularity_score: Decimal = Field(..., ge=0.0, le=100.0, description="Popularity score (0-100)")
     search_count: int = Field(..., ge=0, description="Number of times searched")
     translation_count: int = Field(..., ge=0, description="Number of times translated")
 
@@ -87,7 +81,7 @@ class TrendingTerm(BaseModel):
             )
 
 
-class TrendingListResponse(BaseModel):
+class TrendingListResponse(LingibleBaseModel):
     """API response model for trending terms list."""
 
     terms: List["TrendingTermResponse"] = Field(..., description="List of trending terms")
@@ -96,13 +90,13 @@ class TrendingListResponse(BaseModel):
     category_filter: Optional[TrendingCategory] = Field(None, description="Applied category filter")
 
 
-class TrendingTermResponse(BaseModel):
+class TrendingTermResponse(LingibleBaseModel):
     """API response model for individual trending term."""
 
     term: str = Field(..., description="The slang term or phrase")
     definition: str = Field(..., description="Definition or explanation of the term")
     category: TrendingCategory = Field(..., description="Category of the trending term")
-    popularity_score: float = Field(..., description="Popularity score (0-100)")
+    popularity_score: Decimal = Field(..., description="Popularity score (0-100)")
     search_count: int = Field(..., description="Number of times searched")
     translation_count: int = Field(..., description="Number of times translated")
     first_seen: datetime = Field(..., description="When this term was first detected")
@@ -113,7 +107,7 @@ class TrendingTermResponse(BaseModel):
     related_terms: List[str] = Field(..., description="Related slang terms")
 
 
-class TrendingJobRequest(BaseModel):
+class TrendingJobRequest(LingibleBaseModel):
     """Request model for trending data generation job."""
 
     job_type: str = Field(..., description="Type of trending job to run")
@@ -122,7 +116,7 @@ class TrendingJobRequest(BaseModel):
     scheduled_at: Optional[datetime] = Field(None, description="When to run the job")
 
 
-class TrendingJobResponse(BaseModel):
+class TrendingJobResponse(LingibleBaseModel):
     """Response model for trending job execution."""
 
     job_id: str = Field(..., description="Unique job identifier")
@@ -130,7 +124,7 @@ class TrendingJobResponse(BaseModel):
     terms_processed: int = Field(..., description="Number of terms processed")
     terms_added: int = Field(..., description="Number of new terms added")
     terms_updated: int = Field(..., description="Number of existing terms updated")
-    execution_time_seconds: float = Field(..., description="Job execution time in seconds")
+    execution_time_seconds: Decimal = Field(..., description="Job execution time in seconds")
     started_at: datetime = Field(..., description="Job start time")
     completed_at: Optional[datetime] = Field(None, description="Job completion time")
     error_message: Optional[str] = Field(None, description="Error message if job failed")

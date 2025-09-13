@@ -327,6 +327,24 @@
 - **OpenAPI Specification Updates**: Added required fields to all schemas, ensuring proper type safety across platforms
 - **iOS Client Regeneration**: Updated Swift client with non-optional fields and simplified translation models
 - **Protocol Updates**: Removed incrementTranslationCount from UserServiceProtocol, simplified ad management
+
+### ✅ **Shared TypeScript Types Cleanup (2024-12-19)**
+- **Outdated Types Removal**: Deleted manually maintained TypeScript types that were frequently out of sync
+- **Single Source of Truth**: OpenAPI specification now serves as the single source for all API type definitions
+- **Documentation Cleanup**: Removed all references to shared TypeScript types from README and memory bank
+- **Maintenance Burden Elimination**: No more manual type updates required - types auto-generate from OpenAPI
+- **Consistency Improvement**: All platforms now use the same OpenAPI-generated types for perfect synchronization
 - **Rollover Notifications**: Implemented NotificationCenter-based rollover detection for AdManager synchronization
 - **Code Quality**: Fixed all Swift compilation errors and main actor isolation warnings
 - **Build Success**: iOS app builds successfully with comprehensive usage tracking fixes
+
+### ✅ **Translation History API Architecture Refactor (2024-12-19)**
+- **Model Simplification**: Removed redundant TranslationHistoryItemResponse and TranslationHistoryResponse models
+- **Service Return Type**: Introduced TranslationHistoryServiceResult as dedicated service return type with domain models
+- **Centralized Serialization**: All API response models now inherit from LingibleBaseModel for consistent JSON handling
+- **OpenAPI Specification Update**: Updated API spec to use TranslationHistoryServiceResult and TranslationHistory schemas
+- **Client SDK Regeneration**: Regenerated both Python and iOS client SDKs with new model structure
+- **iOS App Updates**: Updated HistoryService and HistoryView to use new TranslationHistoryServiceResult model
+- **Pagination Support**: Added last_evaluated_key field for proper pagination in translation history
+- **Type Safety**: Maintained strong typing throughout the refactor with proper model inheritance
+- **Build Success**: Both backend and iOS app build successfully with simplified, cleaner architecture

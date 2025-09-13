@@ -4,7 +4,7 @@ from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from models.events import TranslationHistoryEvent
-from models.translations import TranslationHistoryResponse
+from models.translations import TranslationHistoryServiceResult
 from services.translation_service import TranslationService
 from utils.tracing import tracer
 from utils.decorators import api_handler, extract_user_from_parsed_data
@@ -21,7 +21,7 @@ translation_service = TranslationService()
 @api_handler(extract_user_id=extract_user_from_parsed_data)
 def handler(
     event: TranslationHistoryEvent, context: LambdaContext
-) -> TranslationHistoryResponse:
+) -> TranslationHistoryServiceResult:
     """Handle translation history requests from mobile app (premium users only)."""
 
     # Get user ID from the event (guaranteed by envelope)
@@ -38,9 +38,5 @@ def handler(
         last_evaluated_key=last_evaluated_key,
     )
 
-    # Return the response model - decorator handles the API response creation
-    return TranslationHistoryResponse(
-        translations=result["translations"],
-        total_count=result["total_count"],
-        has_more=result["has_more"],
-    )
+    # Return the service result directly - decorator handles the API response creation
+    return result

@@ -1,9 +1,10 @@
 """User models for GenZ slang translation app."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import Field
+from .base import LingibleBaseModel
 
 
 # Domain Models
@@ -22,16 +23,8 @@ class UserStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class User(BaseModel):
+class User(LingibleBaseModel):
     """User domain model."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-        },
-        use_enum_values=True,  # Serialize enums as their values
-    )
 
     # Core user data (from Cognito)
     user_id: str = Field(..., description="Cognito user ID")
@@ -44,10 +37,10 @@ class User(BaseModel):
 
     # Metadata
     created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Account creation date"
+        default_factory=lambda: datetime.now(timezone.utc), description="Account creation date"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Last update date",
     )
 
@@ -64,7 +57,7 @@ class User(BaseModel):
 
 
 # API Models
-class UserResponse(BaseModel):
+class UserResponse(LingibleBaseModel):
     """API response model for user profile data."""
 
     user_id: str = Field(..., description="User ID")
@@ -76,10 +69,8 @@ class UserResponse(BaseModel):
     created_at: datetime = Field(..., description="Account creation date")
 
 
-class UserUsageResponse(BaseModel):
+class UserUsageResponse(LingibleBaseModel):
     """User usage API response - dynamic data, not cacheable."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     tier: UserTier = Field(..., description="User tier (free/premium)")
     daily_limit: int = Field(..., description="Daily translation limit")
@@ -97,22 +88,15 @@ class UserUsageResponse(BaseModel):
     premium_daily_limit: int = Field(..., description="Premium tier daily translation limit")
 
 
-class AccountDeletionRequest(BaseModel):
+class AccountDeletionRequest(LingibleBaseModel):
     """Request model for account deletion."""
 
     confirmation_text: str = Field(..., description="User must type 'DELETE' to confirm")
     reason: Optional[str] = Field(None, description="Optional reason for account deletion")
 
 
-class AccountDeletionResponse(BaseModel):
+class AccountDeletionResponse(LingibleBaseModel):
     """Response model for account deletion."""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-        },
-    )
 
     success: bool = Field(..., description="Whether the deletion was successful")
     message: str = Field(..., description="Confirmation message")

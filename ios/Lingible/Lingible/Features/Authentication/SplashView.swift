@@ -1,10 +1,15 @@
 import SwiftUI
 
 struct SplashView: View {
+    let isLoading: Bool
     @State private var animatedTerms: [AnimatedTerm] = []
     @State private var showLogo = false
     @State private var showWordmark = false
     @State private var timer: Timer?
+
+    init(isLoading: Bool = false) {
+        self.isLoading = isLoading
+    }
 
     // Slang words for background animation (from old app)
     private let slangTerms = [
@@ -77,6 +82,22 @@ struct SplashView: View {
                     .multilineTextAlignment(.center)
                     .opacity(showWordmark ? 1 : 0)
                     .animation(.easeIn(duration: 0.6).delay(0.6), value: showWordmark)
+
+                // Loading indicator when data is being loaded
+                if isLoading {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                            .tint(.lingiblePrimary)
+
+                        Text("Loading your profile...")
+                            .font(.caption)
+                            .foregroundColor(.lingibleSecondary)
+                    }
+                    .opacity(showWordmark ? 1 : 0)
+                    .animation(.easeIn(duration: 0.6).delay(0.8), value: showWordmark)
+                    .padding(.top, 20)
+                }
             }
         }
         .onAppear {

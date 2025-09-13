@@ -108,7 +108,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TranslationHistoryResponse'
+                $ref: '#/components/schemas/TranslationHistoryServiceResult'
         '401':
           description: Unauthorized
           content:
@@ -464,7 +464,6 @@ components:
           example: "english_to_genz"
         confidence_score:
           type: number
-          format: float
           minimum: 0
           maximum: 1
           example: 0.95
@@ -495,7 +494,7 @@ components:
           enum: ["free", "premium"]
           example: "free"
 
-    TranslationHistoryItemResponse:
+    TranslationHistory:
       type: object
       required:
         - translation_id
@@ -525,7 +524,6 @@ components:
           example: "english_to_genz"
         confidence_score:
           type: number
-          format: float
           minimum: 0
           maximum: 1
           example: 0.95
@@ -539,16 +537,17 @@ components:
           description: AI model used for translation
           example: "anthropic.claude-3-haiku-20240307-v1:0"
 
-    TranslationHistoryResponse:
+    TranslationHistoryServiceResult:
       type: object
       required:
         - translations
-        - pagination
+        - total_count
+        - has_more
       properties:
         translations:
           type: array
           items:
-            $ref: '#/components/schemas/TranslationHistoryItemResponse'
+            $ref: '#/components/schemas/TranslationHistory'
         total_count:
           type: integer
           description: Total number of translations
@@ -557,6 +556,10 @@ components:
           type: boolean
           description: Whether there are more translations to load
           example: true
+        last_evaluated_key:
+          type: object
+          description: Pagination key for next request
+          example: {"PK": "USER#user_123", "SK": "TRANSLATION#trans_456"}
 
     PaginationInfo:
       type: object
@@ -944,7 +947,6 @@ components:
           example: "slang"
         popularity_score:
           type: number
-          format: float
           minimum: 0.0
           maximum: 100.0
           description: Popularity score (0-100)

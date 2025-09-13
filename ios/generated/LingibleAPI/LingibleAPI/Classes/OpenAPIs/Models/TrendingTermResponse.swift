@@ -19,7 +19,7 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
         case hashtag = "hashtag"
         case phrase = "phrase"
     }
-    public static let popularityScoreRule = NumericRule<Float>(minimum: 0.0, exclusiveMinimum: false, maximum: 100.0, exclusiveMaximum: false, multipleOf: nil)
+    public static let popularityScoreRule = NumericRule<Double>(minimum: 0.0, exclusiveMinimum: false, maximum: 100.0, exclusiveMaximum: false, multipleOf: nil)
     public static let searchCountRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
     public static let translationCountRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
     /** The slang term or phrase */
@@ -29,7 +29,7 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
     /** Category of the trending term */
     public var category: Category?
     /** Popularity score (0-100) */
-    public var popularityScore: Float?
+    public var popularityScore: Double?
     /** Number of times searched */
     public var searchCount: Int?
     /** Number of times translated */
@@ -47,7 +47,7 @@ public struct TrendingTermResponse: Codable, JSONEncodable, Hashable {
     /** Related slang terms */
     public var relatedTerms: [String]?
 
-    public init(term: String, definition: String? = nil, category: Category? = nil, popularityScore: Float? = nil, searchCount: Int? = nil, translationCount: Int? = nil, firstSeen: Date? = nil, lastUpdated: Date, isActive: Bool? = nil, exampleUsage: String? = nil, origin: String? = nil, relatedTerms: [String]? = nil) {
+    public init(term: String, definition: String? = nil, category: Category? = nil, popularityScore: Double? = nil, searchCount: Int? = nil, translationCount: Int? = nil, firstSeen: Date? = nil, lastUpdated: Date, isActive: Bool? = nil, exampleUsage: String? = nil, origin: String? = nil, relatedTerms: [String]? = nil) {
         self.term = term
         self.definition = definition
         self.category = category
