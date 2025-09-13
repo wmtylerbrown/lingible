@@ -12,7 +12,7 @@ struct TrendingTermCard: View {
             // Header with term and category
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(term.term ?? "Unknown Term")
+                    Text(term.term)
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)

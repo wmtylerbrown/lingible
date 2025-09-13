@@ -260,7 +260,7 @@ struct ProfileView: View {
             // User details
             VStack(alignment: .leading, spacing: 4) {
                 if let profile = appCoordinator.userProfile {
-                    Text(profile.email ?? "Lingible User")
+                    Text(profile.email)
                         .font(.headline)
                         .fontWeight(.semibold)
                         .lineLimit(1)
@@ -271,7 +271,7 @@ struct ProfileView: View {
                 }
 
                 if let profile = appCoordinator.userProfile {
-                    Text(profile.email ?? "No email")
+                    Text(profile.email)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
@@ -499,11 +499,11 @@ struct ProfileView: View {
                     appCoordinator.signOut()
                 }
             } else {
-                print("❌ Account deletion failed: \(response.message ?? "Unknown error")")
+                print("❌ Account deletion failed: \(response.message)")
                 // Show error to user
                 await MainActor.run {
                     // You could show an error alert here
-                    print("❌ Failed to delete account: \(response.message ?? "Unknown error")")
+                    print("❌ Failed to delete account: \(response.message)")
                 }
             }
 
@@ -545,7 +545,7 @@ struct ProfileView: View {
                         print("❌ Invalid confirmation text. Please type 'DELETE' exactly.")
                     default:
                         // Generic error handling
-                        print("❌ Account deletion failed: \(errorResponse.message ?? "Unknown error")")
+                        print("❌ Account deletion failed: \(errorResponse.message)")
                     }
                 } catch {
                     // If we can't parse as ModelErrorResponse, show generic error
