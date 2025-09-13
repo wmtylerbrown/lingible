@@ -1,5 +1,4 @@
 import SwiftUI
-import AuthenticationServices
 
 struct AuthenticationView: View {
     @EnvironmentObject var appCoordinator: AppCoordinator
@@ -41,16 +40,26 @@ struct AuthenticationView: View {
 
                 // Authentication options
                 VStack(spacing: 20) {
-                    // Apple Sign In Button
-                    SignInWithAppleButton(
-                        onRequest: { request in
-                            request.requestedScopes = [.fullName, .email]
-                        },
-                        onCompletion: handleAppleSignIn
-                    )
-                    .signInWithAppleButtonStyle(.black)
-                    .frame(height: 55)
-                    .cornerRadius(12)
+                    // Apple Sign In Button (Custom - uses Amplify WebUI directly)
+                    Button(action: {
+                        Task {
+                            await performAppleSignIn()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "applelogo")
+                                .font(.title2)
+                                .foregroundColor(.white)
+
+                            Text("Sign in with Apple")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 55)
+                        .background(Color.black)
+                        .cornerRadius(12)
+                    }
                     .disabled(isSigningIn)
                     .fadeInAnimation(delay: 0.8)
 
@@ -111,16 +120,6 @@ struct AuthenticationView: View {
     }
 
     // MARK: - Apple Sign In Handler
-    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success:
-            Task {
-                await performAppleSignIn()
-            }
-        case .failure(let error):
-            handleSignInError(error)
-        }
-    }
 
     @MainActor
     private func performAppleSignIn() async {
