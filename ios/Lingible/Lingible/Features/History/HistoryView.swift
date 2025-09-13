@@ -173,7 +173,7 @@ struct HistoryView: View {
                 switch result {
                 case .success(let response):
                     self.translations = response.translations
-                    self.hasMore = response.hasMore ?? false
+                    self.hasMore = response.hasMore
                 case .failure(let error):
                     self.errorMessage = "Failed to load history: \(error.localizedDescription)"
                 }
@@ -194,7 +194,7 @@ struct HistoryView: View {
                 switch result {
                 case .success(let response):
                     self.translations.append(contentsOf: response.translations)
-                    self.hasMore = response.hasMore ?? false
+                    self.hasMore = response.hasMore
                 case .failure(let error):
                     self.errorMessage = "Failed to load more history: \(error.localizedDescription)"
                 }
@@ -213,7 +213,7 @@ struct HistoryView: View {
                 switch result {
                 case .success(let response):
                     self.translations = response.translations
-                    self.hasMore = response.hasMore ?? false
+                    self.hasMore = response.hasMore
                 case .failure(let error):
                     self.errorMessage = "Failed to refresh history: \(error.localizedDescription)"
                 }
