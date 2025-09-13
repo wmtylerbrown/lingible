@@ -61,6 +61,10 @@ export class BackendStack extends Construct {
   public certificate!: acm.Certificate;
   public apiDomainName!: string;
 
+  // Cognito custom domain resources
+  public authCertificate!: acm.Certificate;
+  public authDomainName!: string;
+
   // Monitoring resources
   public dashboard!: cloudwatch.Dashboard;
   public alertTopic!: sns.Topic;
@@ -169,8 +173,11 @@ export class BackendStack extends Construct {
       }),
     ];
 
+    // Create certificates for custom domains
+    this.createCertificates(environment, hostedZone);
+
     // Create Cognito User Pool
-    this.createCognitoUserPool(environment, appleClientId, appleTeamId, appleKeyId);
+    this.createCognitoUserPool(environment, hostedZone, appleClientId, appleTeamId, appleKeyId);
 
     // Create Lambda functions
     this.createLambdaFunctions(environment, lambdaConfig, lambdaPolicyStatements, baseEnvironmentVariables);
@@ -281,9 +288,25 @@ export class BackendStack extends Construct {
 
   }
 
+  private createCertificates(environment: string, hostedZone: route53.IHostedZone): void {
+    // Create SSL certificate for API Gateway
+    this.apiDomainName = environment === 'prod' ? 'api.lingible.com' : `api.${environment}.lingible.com`;
+    this.certificate = new acm.Certificate(this, 'ApiCertificate', {
+      domainName: this.apiDomainName,
+      validation: acm.CertificateValidation.fromDns(),
+    });
+
+    // Create SSL certificate for Cognito custom domain
+    this.authDomainName = environment === 'prod' ? 'auth.lingible.com' : `auth.${environment}.lingible.com`;
+    this.authCertificate = new acm.Certificate(this, 'AuthCertificate', {
+      domainName: this.authDomainName,
+      validation: acm.CertificateValidation.fromDns(),
+    });
+  }
 
   private createCognitoUserPool(
     environment: string,
+    hostedZone: route53.IHostedZone,
     appleClientId?: string,
     appleTeamId?: string,
     appleKeyId?: string
@@ -372,17 +395,28 @@ export class BackendStack extends Construct {
     // Ensure Apple provider is created before User Pool Client
     this.userPoolClient.node.addDependency(this.appleProvider);
 
-    // Add User Pool Domain for OAuth endpoints
-    new cognito.UserPoolDomain(this, 'LingibleUserPoolDomain', {
+    // Add User Pool Domain for OAuth endpoints (Custom Domain)
+    const userPoolDomain = new cognito.UserPoolDomain(this, 'LingibleUserPoolDomain', {
       userPool: this.userPool,
-      cognitoDomain: {
-        domainPrefix: `lingible-${environment}`,
+      customDomain: {
+        domainName: this.authDomainName,
+        certificate: this.authCertificate,
       },
     });
 
-    // Note: Cognito domain changed from custom to managed in AWS Console
-    // This affects OAuth endpoint URLs and requires iOS app configuration updates
-    // Managed domain format: https://lingible-dev.auth.us-east-1.amazoncognito.com
+    // Add CNAME record for Cognito custom domain (dev only - prod requires manual Squarespace setup)
+    if (environment !== 'prod') {
+      new route53.CnameRecord(this, 'AuthDomainCnameRecord', {
+        zone: hostedZone,
+        recordName: this.authDomainName,
+        domainName: userPoolDomain.cloudFrontDomainName,
+      });
+    }
+
+    // Note: Using custom domain for better branding and user experience
+    // Custom domain format: https://auth.dev.lingible.com (dev) or https://auth.lingible.com (prod)
+    // Dev: CNAME record created automatically via Route 53
+    // Prod: Manual CNAME record required in Squarespace DNS pointing to CloudFront domain
   }
 
   private createDependenciesLayer(environment: string): lambda.LayerVersion {
@@ -911,12 +945,7 @@ export class BackendStack extends Construct {
   }
 
   private createApiGateway(environment: string, hostedZone: route53.IHostedZone): void {
-    // Create SSL certificate - use api.lingible.com for prod, api.dev.lingible.com for dev
-    this.apiDomainName = environment === 'prod' ? 'api.lingible.com' : `api.${environment}.lingible.com`;
-    this.certificate = new acm.Certificate(this, 'ApiCertificate', {
-      domainName: this.apiDomainName,
-      validation: acm.CertificateValidation.fromDns(),
-    });
+    // SSL certificate is created in createCertificates method
 
     // Create API Gateway
     this.api = new apigateway.RestApi(this, 'LingibleApi', {
@@ -1389,6 +1418,12 @@ export class BackendStack extends Construct {
       value: this.apiDomainName,
       description: 'API Gateway custom domain name',
       exportName: `Lingible-${environment}-ApiDomainName`,
+    });
+
+    new CfnOutput(this, 'AuthDomainName', {
+      value: this.authDomainName,
+      description: 'Cognito custom domain name for OAuth',
+      exportName: `Lingible-${environment}-AuthDomainName`,
     });
 
     // Monitoring outputs
