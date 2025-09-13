@@ -83,13 +83,22 @@ class LingibleBaseModel(BaseModel):
 
     @model_serializer
     def serialize_model(self) -> Dict[str, Any]:
-        """Custom serializer that handles Decimal and datetime objects automatically."""
+        """Custom serializer that handles Decimal, datetime, and nested Pydantic models."""
         result: Dict[str, Any] = {}
         for field_name, field_value in self.__dict__.items():
             if isinstance(field_value, Decimal):
                 result[field_name] = float(field_value)
             elif isinstance(field_value, datetime):
                 result[field_name] = field_value.isoformat()
+            elif isinstance(field_value, list):
+                # Handle lists of Pydantic models or other objects
+                result[field_name] = [
+                    item.serialize_model() if hasattr(item, 'serialize_model') else item
+                    for item in field_value
+                ]
+            elif hasattr(field_value, 'serialize_model'):
+                # Handle nested Pydantic models
+                result[field_name] = field_value.serialize_model()
             else:
                 result[field_name] = field_value
         return result

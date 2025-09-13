@@ -1,6 +1,6 @@
 # Active Context - Lingible
 
-## Current Focus: Google AdMob Integration & Final App Store Submission
+## Current Focus: App Store Submission Issues & iPad Compatibility Fixes
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 - **Mandatory TDD Workflow**: Red-Green-Refactor process for all backend development
@@ -277,4 +277,24 @@
 
 ---
 
-**Current Status**: ✅ **APP STORE SUBMISSION PREPARATION COMPLETE** - Production archive built with correct bundle ID and Amplify configuration. Legal documents updated to match Apple privacy questionnaire answers. Apple privacy questionnaire completed with accurate data usage declarations. iOS environment configuration system implemented with automatic Amplify configuration switching. Xcode package management issues resolved. Project cleaned up and organized. Ready for Google AdMob integration and final App Store submission.
+### ✅ **COMPLETED: JSON Serialization Fix & Enhanced Logging (2024-12-19)**
+- **Root Cause**: Fixed `serialize_model()` method in LingibleBaseModel to recursively handle nested Pydantic models
+- **Translation History Fix**: Resolved "Object of type TranslationHistory is not JSON serializable" error
+- **Enhanced Logging**: Added comprehensive debug logging with safe serialization for better troubleshooting
+- **Development Logging**: Added debug-only logging for development environment with detailed context
+- **API Response**: Translation history API now properly serializes nested TranslationHistory objects
+- **Deployment**: Successfully deployed fix to development environment
+
+### ✅ **COMPLETED: iOS Recent History Optimization (2024-12-19)**
+- **Recent History Limit**: Reduced recent translation history from 20 to 5 items in translation UI
+- **Performance Improvement**: Cleaner, more focused recent history display
+- **Files Updated**: TranslationView.swift and TranslationViewModel.swift
+- **User Experience**: More streamlined translation interface with essential recent items only
+
+### 🔄 **CURRENT ISSUE: iPad Sign-In Error (2024-12-19)**
+- **Apple Rejection**: Guideline 2.1 - Performance - App Completeness
+- **Issue**: Sign-in error on iPad Air (5th generation) with iPadOS 26.0
+- **Root Cause Analysis**: Potential window hierarchy issues, presentation anchor problems, or iPad-specific UI constraints
+- **Next Steps**: Test on iPad Air (5th generation) simulator and implement iPad-specific fixes
+
+**Current Status**: ✅ **APP STORE SUBMISSION IN PROGRESS** - Production archive built with correct bundle ID and Amplify configuration. Legal documents updated to match Apple privacy questionnaire answers. Apple privacy questionnaire completed with accurate data usage declarations. iOS environment configuration system implemented with automatic Amplify configuration switching. Xcode package management issues resolved. Project cleaned up and organized. **Currently addressing iPad sign-in compatibility issue for App Store resubmission.**

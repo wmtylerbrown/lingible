@@ -385,9 +385,9 @@ struct TranslationView: View {
         if let currentResult = currentTranslationResult {
             translationHistory.insert(currentResult, at: 0)
 
-            // Keep only last 20 translations for performance
-            if translationHistory.count > 20 {
-                translationHistory = Array(translationHistory.prefix(20))
+            // Keep only last 5 translations for performance
+            if translationHistory.count > 5 {
+                translationHistory = Array(translationHistory.prefix(5))
             }
 
             // Cache the translations
