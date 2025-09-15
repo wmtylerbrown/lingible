@@ -19,41 +19,33 @@ class AmplifyAuthTokenProvider: AuthTokenProvider {
     /// - Returns: The JWT token string
     /// - Throws: AuthTokenError if token cannot be extracted
     func getAuthToken() async throws -> String {
-        print("🔑 AuthTokenProvider: Getting JWT token from Amplify Gen 2 session...")
 
         let session = try await Amplify.Auth.fetchAuthSession()
-        print("🔑 AuthTokenProvider: Session type: \(type(of: session))")
 
         // Use reflection to inspect the session and find the userPoolTokensResult
         let mirror = Mirror(reflecting: session)
         for child in mirror.children {
             if let label = child.label {
-                print("🔑 AuthTokenProvider: Property: \(label)")
 
                 // The userPoolTokensResult contains the JWT tokens
                 if label == "userPoolTokensResult" {
-                    print("🔑 AuthTokenProvider: Found userPoolTokensResult, examining contents...")
 
                     // Use reflection to examine the Result type
                     let resultMirror = Mirror(reflecting: child.value)
                     for resultChild in resultMirror.children {
                         if let resultLabel = resultChild.label {
-                            print("🔑 AuthTokenProvider: Result property: \(resultLabel)")
 
                             // Look for the success case that contains the tokens
                             if resultLabel == "success" {
-                                print("🔑 AuthTokenProvider: Found success case, examining tokens...")
 
                                 // The success case contains a dictionary with the tokens
                                 let tokensMirror = Mirror(reflecting: resultChild.value)
                                 for tokenChild in tokensMirror.children {
                                     if let tokenLabel = tokenChild.label {
-                                        print("🔑 AuthTokenProvider: Token property: \(tokenLabel)")
 
                                         // Look for the accessToken
                                         if tokenLabel == "accessToken" {
                                             if let token = tokenChild.value as? String {
-                                                print("✅ AuthTokenProvider: Found JWT token: \(String(token.prefix(20)))...")
 
                                                 // Validate the token format
                                                 let tokenParts = token.components(separatedBy: ".")

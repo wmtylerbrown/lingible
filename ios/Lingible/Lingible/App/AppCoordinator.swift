@@ -65,14 +65,12 @@ final class AppCoordinator: ObservableObject {
     /// Restore authenticated state (used when ad dismissal causes state issues)
     func restoreAuthenticatedState() {
         currentState = .authenticated
-        print("🔄 AppCoordinator: Restored authenticated state")
     }
 
     func authenticateUserWithApple() async throws -> AuthenticatedUser {
         let user = try await authenticationService.signInWithApple()
 
         // Load user data before showing main UI
-        print("🔄 AppCoordinator: Loading user data after Apple sign in...")
         await userService.loadUserData(forceRefresh: false)
 
         // Wait for user data to be loaded
@@ -81,7 +79,6 @@ final class AppCoordinator: ObservableObject {
         // Now show the main UI with all data loaded
         currentState = .authenticated
         isUserDataLoaded = true
-        print("✅ AppCoordinator: User data loaded after Apple sign in, showing main UI")
 
         // Request ATT permission after successful authentication
         await requestATTPermission()
@@ -138,7 +135,6 @@ final class AppCoordinator: ObservableObject {
 
         if isAuthenticated {
             // Load user data before showing main UI
-            print("🔄 AppCoordinator: Loading user data before showing main UI...")
             await userService.loadUserData(forceRefresh: false)
 
             // Wait for user data to be loaded
@@ -147,7 +143,6 @@ final class AppCoordinator: ObservableObject {
             // Now show the main UI with all data loaded
             currentState = .authenticated
             isUserDataLoaded = true
-            print("✅ AppCoordinator: User data loaded, showing main UI")
         } else {
             // No user data needed for unauthenticated state
             currentState = .unauthenticated
@@ -170,10 +165,8 @@ final class AppCoordinator: ObservableObject {
     private func requestATTPermission() async {
         // Only request ATT permission if it hasn't been determined yet
         if attManager.shouldShowPermissionRequest {
-            print("📱 AppCoordinator: Requesting ATT permission after authentication")
             await attManager.requestTrackingPermission()
         } else {
-            print("📱 AppCoordinator: ATT permission already determined, skipping request")
         }
     }
 }

@@ -30,6 +30,7 @@ def handler(
 
     # Get query parameters from the envelope
     limit = getattr(event, "limit", 20) or 20
+    offset = getattr(event, "offset", 0) or 0
     last_evaluated_key = getattr(event, "last_evaluated_key", None)
 
     # Debug logging for development
@@ -38,17 +39,38 @@ def handler(
         {
             "user_id": user_id,
             "limit": limit,
+            "offset": offset,
             "last_evaluated_key": last_evaluated_key,
             "event_type": "translation_history_request"
         }
     )
 
-    # Get translation history (service handles premium check)
-    result = translation_service.get_translation_history(
-        user_id=user_id,
-        limit=limit,
-        last_evaluated_key=last_evaluated_key,
-    )
+    # For offset-based pagination, we need to fetch more items and slice
+    # This is not efficient for large offsets, but works for the current use case
+    if offset > 0 and last_evaluated_key is None:
+        # Fetch more items to account for offset
+        fetch_limit = limit + offset
+        result = translation_service.get_translation_history(
+            user_id=user_id,
+            limit=fetch_limit,
+            last_evaluated_key=last_evaluated_key,
+        )
+
+        # Slice the results to apply offset
+        if len(result.translations) > offset:
+            result.translations = result.translations[offset:]
+            # Adjust has_more based on whether we have more items after slicing
+            result.has_more = len(result.translations) == limit
+        else:
+            result.translations = []
+            result.has_more = False
+    else:
+        # Use normal pagination for first page or when using last_evaluated_key
+        result = translation_service.get_translation_history(
+            user_id=user_id,
+            limit=limit,
+            last_evaluated_key=last_evaluated_key,
+        )
 
     # Debug logging for successful response
     logger.log_debug(

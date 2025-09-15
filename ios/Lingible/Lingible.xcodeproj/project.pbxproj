@@ -129,7 +129,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2F92D1522E674BAC00281549 /* Build configuration list for PBXNativeTarget "Lingible" */;
 			buildPhases = (
-				2FCCD10E2E6E644B00B4AC6C /* Setup Amplify Configuration */,
 				2FCCD10F2E6E644B00B4AC6D /* Fix AdMob dSYM Issues */,
 				2F92D12D2E674BAB00281549 /* Sources */,
 				2F92D12E2E674BAB00281549 /* Frameworks */,
@@ -272,28 +271,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		2FCCD10E2E6E644B00B4AC6C /* Setup Amplify Configuration */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"",
-			);
-			inputPaths = (
-				"$(SRCROOT)/Lingible/amplify_outputs-dev.json\n",
-				"$(SRCROOT)/Lingible/amplify_outputs-prod.json\n",
-			);
-			name = "Setup Amplify Configuration";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "echo \"�� Setting up Amplify configuration...\"\n\n# Get the build configuration from Xcode environment\nBUILD_CONFIG=\"${CONFIGURATION:-Debug}\"\n\necho \"📱 Build Configuration: $BUILD_CONFIG\"\n\n# Determine which config file to use based on build configuration\nif [ \"$BUILD_CONFIG\" = \"Release\" ]; then\n    SOURCE_FILE=\"$SRCROOT/Lingible/amplify_outputs-prod.json\"\n    echo \"🔧 Using production configuration...\"\nelse\n    SOURCE_FILE=\"$SRCROOT/Lingible/amplify_outputs-dev.json\"\n    echo \"🔧 Using development configuration...\"\nfi\n\n# Copy the appropriate config file\nif [ -f \"$SOURCE_FILE\" ]; then\n    # Create symlink to the correct config file\n    rm -f \"$SRCROOT/Lingible/amplify_outputs.json\"\n    ln -sf \"$(basename \"$SOURCE_FILE\")\" \"$SRCROOT/Lingible/amplify_outputs.json\"\n    echo \"✅ Configuration symlink created\"\n    \n    # Extract and display the user pool ID for verification\n    USER_POOL_ID=$(grep -o \"user_pool_id.*\" \"$SOURCE_FILE\" | cut -d: -f2 | tr -d \" \\\",\")\n    echo \"🔗 User Pool ID: $USER_POOL_ID\"\n    echo \"🎯 Configuration complete!\"\nelse\n    echo \"❌ Error: $SOURCE_FILE not found\"\n    echo \"Available files:\"\n    ls -la \"$SRCROOT/Lingible/amplify_outputs*.json\"\n    exit 1\nfi\n";
-		};
 		2FCCD10F2E6E644B00B4AC6D /* Fix AdMob dSYM Issues */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

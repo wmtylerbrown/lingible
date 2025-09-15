@@ -29,7 +29,6 @@ class InterstitialAdManager: NSObject, ObservableObject {
 
     // MARK: - Public Methods
     func loadAd() {
-        print("🔄 InterstitialAdManager: Loading interstitial ad...")
         isLoading = true
         isAdReady = false
         lastError = nil
@@ -40,13 +39,11 @@ class InterstitialAdManager: NSObject, ObservableObject {
                 self?.isLoading = false
 
                 if let error = error {
-                    print("❌ InterstitialAdManager: Failed to load ad: \(error.localizedDescription)")
                     self?.lastError = error
                     self?.isAdReady = false
                     return
                 }
 
-                print("✅ InterstitialAdManager: Ad loaded successfully")
                 self?.interstitialAd = ad
                 self?.interstitialAd?.fullScreenContentDelegate = self
                 self?.isAdReady = true
@@ -57,20 +54,17 @@ class InterstitialAdManager: NSObject, ObservableObject {
 
     func showAd(onDismissed: (() -> Void)? = nil) -> Bool {
         guard let interstitialAd = interstitialAd, isAdReady else {
-            print("⚠️ InterstitialAdManager: Ad not ready to show")
             return false
         }
 
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootViewController = windowScene.windows.first?.rootViewController else {
-            print("❌ InterstitialAdManager: No root view controller found")
             return false
         }
 
         // Store the callback
         self.onAdDismissed = onDismissed
 
-        print("📺 InterstitialAdManager: Showing interstitial ad")
         interstitialAd.present(from: rootViewController)
         return true
     }
@@ -87,11 +81,9 @@ class InterstitialAdManager: NSObject, ObservableObject {
 extension InterstitialAdManager: FullScreenContentDelegate {
 
     func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
-        print("📺 InterstitialAdManager: Ad will present full screen content")
     }
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        print("📺 InterstitialAdManager: Ad did dismiss full screen content")
 
         // Mark ad as no longer ready and preload the next one
         isAdReady = false
@@ -106,7 +98,6 @@ extension InterstitialAdManager: FullScreenContentDelegate {
     }
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        print("❌ InterstitialAdManager: Failed to present ad: \(error.localizedDescription)")
         lastError = error
         isAdReady = false
 
@@ -115,11 +106,9 @@ extension InterstitialAdManager: FullScreenContentDelegate {
     }
 
     func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
-        print("📊 InterstitialAdManager: Ad impression recorded")
     }
 
     func adDidRecordClick(_ ad: FullScreenPresentingAd) {
-        print("👆 InterstitialAdManager: Ad click recorded")
     }
 }
 
@@ -130,7 +119,6 @@ extension InterstitialAdManager {
     func shouldShowAd(translationCount: Int) -> Bool {
         // Use the passed translation count for ad logic
         let actualTranslationCount = translationCount
-        print("📊 InterstitialAdManager: Using translation count: \(actualTranslationCount)")
 
         let dailyLimit = userService?.userUsage?.dailyLimit ?? 10
 
@@ -139,8 +127,6 @@ extension InterstitialAdManager {
                         actualTranslationCount % 4 == 0 &&
                         actualTranslationCount <= dailyLimit
 
-        print("📊 InterstitialAdManager: shouldShowAd check - count: \(actualTranslationCount), dailyLimit: \(dailyLimit), shouldShow: \(shouldShow)")
-        print("📊 InterstitialAdManager: Math check - \(actualTranslationCount) % 4 = \(actualTranslationCount % 4)")
 
         return shouldShow
     }

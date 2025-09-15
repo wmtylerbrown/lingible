@@ -65,7 +65,6 @@ final class TranslationService: TranslationServiceProtocol {
             )
 
         } catch {
-            print("❌ Translation API error: \(error)")
             throw TranslationError.networkError(error)
         }
     }

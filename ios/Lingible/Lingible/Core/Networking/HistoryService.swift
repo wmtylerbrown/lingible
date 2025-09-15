@@ -15,49 +15,40 @@ class HistoryService: ObservableObject {
         offset: Int = 0,
         completion: @escaping (Result<TranslationHistoryServiceResult, Error>) -> Void
     ) {
-        print("📚 HistoryService: Starting getTranslationHistory - limit: \(limit), offset: \(offset)")
 
         // Check authentication
         Task {
             do {
                 guard let user = await authenticationService.getCurrentUserValue() else {
-                    print("❌ HistoryService: User not authenticated")
                     DispatchQueue.main.async {
                         completion(.failure(HistoryError.notAuthenticated))
                     }
                     return
                 }
 
-                print("✅ HistoryService: User authenticated - ID: \(user.id)")
 
                 // Get access token
                 let accessToken = try await authenticationService.getAuthToken()
-                print("🔑 HistoryService: Got access token - length: \(accessToken.count)")
 
                 // Configure API client with auth token
                 configureAPIClient(with: accessToken)
 
-                print("🌐 HistoryService: Making API call to translationsGet...")
 
                 // Make API call
                 TranslationAPI.translationsGet(limit: limit, offset: offset) { response, error in
                     if let error = error {
-                        print("❌ HistoryService: API call failed with error: \(error)")
                         completion(.failure(error))
                         return
                     }
 
                     guard let response = response else {
-                        print("❌ HistoryService: No response received from API")
                         completion(.failure(HistoryError.noResponse))
                         return
                     }
 
-                    print("✅ HistoryService: API call successful - received \(response.translations.count) items")
                     completion(.success(response))
                 }
             } catch {
-                print("❌ HistoryService: Error in getTranslationHistory: \(error)")
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }

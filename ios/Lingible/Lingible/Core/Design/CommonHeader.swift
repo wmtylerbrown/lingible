@@ -99,17 +99,14 @@ extension CommonHeader {
 
         // With refresh button
         CommonHeader.withRefresh(isLoading: false) {
-            print("Refresh tapped")
         }
 
         // With new button
         CommonHeader.withNewButton {
-            print("New tapped")
         }
 
         // With custom button
         CommonHeader.withCustomButton(iconName: "gear") {
-            print("Settings tapped")
         }
     }
     .background(Color.lingibleBackground)

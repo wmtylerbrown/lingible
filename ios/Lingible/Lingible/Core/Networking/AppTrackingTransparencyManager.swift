@@ -28,18 +28,15 @@ final class AppTrackingTransparencyManager: ObservableObject {
     func requestTrackingPermission() async {
         // Check if we've already requested permission
         if hasRequestedPermission {
-            print("📱 ATT: Permission already requested, current status: \(trackingStatus.rawValue)")
             return
         }
 
         // Check if ATT is available (iOS 14+)
         guard #available(iOS 14, *) else {
-            print("📱 ATT: Not available on this iOS version")
             trackingStatus = .authorized // Assume authorized for older iOS versions
             return
         }
 
-        print("📱 ATT: Requesting tracking permission...")
 
         // Request permission
         let status = await ATTrackingManager.requestTrackingAuthorization()
@@ -51,7 +48,6 @@ final class AppTrackingTransparencyManager: ObservableObject {
             self.saveTrackingStatus()
         }
 
-        print("📱 ATT: Permission result: \(status.rawValue)")
 
         // Configure AdMob based on permission
         configureAdMobForTracking(status)
@@ -74,7 +70,6 @@ final class AppTrackingTransparencyManager: ObservableObject {
     /// Get IDFA (Identifier for Advertisers) if authorized
     var advertisingIdentifier: String? {
         guard isTrackingAuthorized else {
-            print("📱 ATT: Tracking not authorized, cannot access IDFA")
             return nil
         }
 
@@ -93,7 +88,6 @@ final class AppTrackingTransparencyManager: ObservableObject {
         hasRequestedPermission = userDefaults.bool(forKey: hasRequestedKey)
         trackingStatus = getCurrentTrackingStatus()
 
-        print("📱 ATT: Loaded status - Requested: \(hasRequestedPermission), Status: \(trackingStatus.rawValue)")
     }
 
     private func saveTrackingStatus() {
@@ -104,11 +98,11 @@ final class AppTrackingTransparencyManager: ObservableObject {
     private func configureAdMobForTracking(_ status: ATTrackingManager.AuthorizationStatus) {
         switch status {
         case .authorized:
-            print("📱 ATT: Tracking authorized, enabling personalized ads")
             // AdMob will automatically use personalized ads when tracking is authorized
+            // No additional configuration needed
+            break
 
         case .denied, .restricted:
-            print("📱 ATT: Tracking denied/restricted, using non-personalized ads")
             // Configure AdMob for non-personalized ads
             let request = Request()
             let extras = Extras()
@@ -116,10 +110,18 @@ final class AppTrackingTransparencyManager: ObservableObject {
             request.register(extras)
 
         case .notDetermined:
-            print("📱 ATT: Tracking not determined, using default behavior")
+            // User hasn't made a decision yet, use non-personalized ads as default
+            let request = Request()
+            let extras = Extras()
+            extras.additionalParameters = ["npa": "1"] // Non-personalized ads
+            request.register(extras)
 
         @unknown default:
-            print("📱 ATT: Unknown tracking status: \(status.rawValue)")
+            // Fallback to non-personalized ads for unknown cases
+            let request = Request()
+            let extras = Extras()
+            extras.additionalParameters = ["npa": "1"] // Non-personalized ads
+            request.register(extras)
         }
     }
 }
@@ -168,7 +170,6 @@ extension AppTrackingTransparencyManager {
         hasRequestedPermission = true
         saveTrackingStatus()
 
-        print("🧪 ATT: Simulated tracking status: \(status.displayName)")
     }
 
     /// Reset permission request for testing
@@ -178,7 +179,6 @@ extension AppTrackingTransparencyManager {
         userDefaults.removeObject(forKey: hasRequestedKey)
         userDefaults.synchronize()
 
-        print("🧪 ATT: Reset permission request for testing")
     }
 }
 #endif

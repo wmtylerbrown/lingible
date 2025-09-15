@@ -438,37 +438,23 @@ struct TranslationView: View {
     }
 
     private func performTranslation(text: String) async {
-        print("🔍 TranslationView: Starting translation for text: '\(text)'")
         isLoading = true
         errorMessage = nil
 
         do {
             // Get current user from the shared authentication service
-            print("🔍 TranslationView: Attempting to get current user...")
             guard let user = try await getCurrentUser() else {
-                print("❌ TranslationView: No user found")
                 errorMessage = "You need to sign in to translate text"
                 isLoading = false
                 return
             }
 
-            print("✅ TranslationView: Found current user: \(user.id)")
-
             // Get the JWT token using the centralized auth service
-            print("🔍 TranslationView: Getting JWT token from centralized auth service...")
-
             let accessToken = try await appCoordinator.authenticationService.getAuthToken()
-            print("✅ TranslationView: Got token: \(String(accessToken.prefix(20)))...")
 
             // Configure API client with auth token
             let authHeader = "Bearer \(accessToken)"
             LingibleAPIAPI.customHeaders["Authorization"] = authHeader
-
-            // Log what we're sending in the Authorization header
-            print("🔍 TranslationView: Setting Authorization header:")
-            print("   - Header value: \(authHeader)")
-            print("   - Header length: \(authHeader.count) characters")
-            print("   - Bearer prefix: \(authHeader.hasPrefix("Bearer ") ? "✅ Present" : "❌ Missing")")
 
             // Create translation request using the generated API
             let request = TranslationRequest(
@@ -517,63 +503,25 @@ struct TranslationView: View {
             DispatchQueue.main.async {
                 // Make sure we're still in the authenticated state
                 if appCoordinator.currentState != .authenticated {
-                    print("⚠️ TranslationView: App state changed to \(appCoordinator.currentState), restoring authenticated state")
                     appCoordinator.restoreAuthenticatedState()
                 }
 
                 // Ensure the translation result is still visible
                 if currentTranslationResult == nil {
-                    print("⚠️ TranslationView: Translation result was lost, restoring...")
-                    // The result should still be there, but let's make sure the UI is in the right state
                     showInputCard = false
-                } else {
-                    print("✅ TranslationView: Translation result preserved: \(currentTranslationResult?.translatedText ?? "nil")")
                 }
             }
 
             // Daily limit check is now handled in translate() function before API call
 
         } catch {
-            // TEMPORARY: Log full error details to understand the 429 response structure
-            print("❌ Translation failed: \(error)")
-            print("❌ Error type: \(type(of: error))")
-            print("❌ Error localized description: \(error.localizedDescription)")
-
-            // Try to extract more details from the error
-            if let nsError = error as NSError? {
-                print("❌ NSError domain: \(nsError.domain)")
-                print("❌ NSError code: \(nsError.code)")
-                print("❌ NSError userInfo: \(nsError.userInfo)")
-
-                // Check if there's response data in userInfo
-                if let responseData = nsError.userInfo["responseData"] as? Data {
-                    print("❌ Response data: \(String(data: responseData, encoding: .utf8) ?? "Could not decode as UTF-8")")
-                }
-
-                // Check for HTTP response details
-                if let httpResponse = nsError.userInfo["response"] as? HTTPURLResponse {
-                    print("❌ HTTP status code: \(httpResponse.statusCode)")
-                    print("❌ HTTP headers: \(httpResponse.allHeaderFields)")
-                }
-            }
-
-            // Check if it's a DecodableRequestBuilderError
-            if let decodableError = error as? DecodableRequestBuilderError {
-                print("❌ DecodableRequestBuilderError case: \(decodableError)")
-            }
 
             // Check if it's an ErrorResponse from the generated API client
             if case let ErrorResponse.error(statusCode, data, response, underlyingError) = error {
-                print("❌ ErrorResponse.error - Status Code: \(statusCode)")
-                print("❌ ErrorResponse.error - Underlying Error: \(underlyingError)")
-
                 if let data = data {
-                    print("❌ ErrorResponse.error - Response Data: \(String(data: data, encoding: .utf8) ?? "Could not decode as UTF-8")")
-
                     // Try to parse as ModelErrorResponse to get structured error info
                     do {
                         let errorResponse = try JSONDecoder().decode(ModelErrorResponse.self, from: data)
-                        print("❌ ErrorResponse.error - Parsed ModelErrorResponse: \(errorResponse)")
 
                         // Use the structured error response to show user-friendly message
                         let errorCode = errorResponse.errorCode
@@ -624,23 +572,8 @@ struct TranslationView: View {
                         return
 
                     } catch {
-                        print("❌ ErrorResponse.error - Could not parse as ModelErrorResponse: \(error)")
-
-                        // Fallback: try to parse as generic JSON
-                        do {
-                            if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                                print("❌ ErrorResponse.error - Parsed JSON: \(jsonObject)")
-                            }
-                        } catch {
-                            print("❌ ErrorResponse.error - Could not parse JSON: \(error)")
-                        }
+                        // Fallback to generic error message
                     }
-                } else {
-                    print("❌ ErrorResponse.error - No response data")
-                }
-
-                if let response = response {
-                    print("❌ ErrorResponse.error - URL Response: \(response)")
                 }
             }
 
@@ -651,27 +584,18 @@ struct TranslationView: View {
     }
 
     private func getCurrentUser() async throws -> AuthenticatedUser? {
-        print("🔍 TranslationView: Getting current user...")
-
         // Use the direct method to get the current user value
         if let currentUser = appCoordinator.authenticationService.getCurrentUserValue() {
-            print("✅ TranslationView: Found current user: \(currentUser.id)")
             return currentUser
         }
 
-        print("⚠️ TranslationView: No current user found, checking authentication status...")
-
         // If no current user, try to check authentication status
         let isAuthenticated = await appCoordinator.authenticationService.checkAuthenticationStatus()
-        print("🔍 TranslationView: Authentication status check result: \(isAuthenticated)")
 
         if isAuthenticated {
-            let userAfterCheck = appCoordinator.authenticationService.getCurrentUserValue()
-            print("🔍 TranslationView: User after auth check: \(userAfterCheck?.id ?? "nil")")
-            return userAfterCheck
+            return appCoordinator.authenticationService.getCurrentUserValue()
         }
 
-        print("❌ TranslationView: No authenticated user found")
         return nil
     }
 
@@ -682,7 +606,8 @@ struct TranslationView: View {
             let data = try encoder.encode(translationHistory)
             UserDefaults.standard.set(data, forKey: "cached_translations")
         } catch {
-            print("❌ Failed to save cached translations: \(error)")
+            // Log error but continue without caching
+            print("Failed to save cached translations: \(error.localizedDescription)")
         }
     }
 
@@ -698,7 +623,8 @@ struct TranslationView: View {
             decoder.dateDecodingStrategy = .iso8601
             translationHistory = try decoder.decode([TranslationHistoryItem].self, from: data)
         } catch {
-            print("❌ Failed to load cached translations: \(error)")
+            // Log error but continue without cached data
+            print("Failed to load cached translations: \(error.localizedDescription)")
         }
     }
 }

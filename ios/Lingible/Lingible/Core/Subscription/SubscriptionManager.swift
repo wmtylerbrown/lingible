@@ -64,7 +64,9 @@ class SubscriptionManager: ObservableObject {
 
             if isDevelopmentMode {
                 // In development mode, create mock products for testing
+                #if DEBUG
                 await createMockProducts()
+                #endif
             } else {
                 print("🛒 Attempting to load products from App Store...")
                 print("🛒 Product IDs: \(productIds)")
@@ -98,10 +100,10 @@ class SubscriptionManager: ObservableObject {
     }
 
     // MARK: - Development Mode
+    #if DEBUG
     private func createMockProducts() async {
         // Create a mock product for development/testing
         // This simulates what would happen with real StoreKit products
-        print("🛒 Development mode: Creating mock products")
 
         // In a real implementation, you'd create mock Product objects
         // For now, we'll just set a flag that products are "loaded"
@@ -112,8 +114,8 @@ class SubscriptionManager: ObservableObject {
 
         // Set products to indicate they're loaded (even if empty, UI will handle it)
         self.products = []
-        print("🛒 Mock products created for development")
     }
+    #endif
 
     // MARK: - Purchase Flow
     func purchase(_ product: Product) async -> Bool {

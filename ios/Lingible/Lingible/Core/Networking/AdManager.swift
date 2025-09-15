@@ -51,57 +51,48 @@ final class AdManager: ObservableObject {
     func checkAndShowInterstitialAdForNewTranslation() {
         // Always use backend data as single source of truth
         guard let userUsage = userService.userUsage else {
-            print("⚠️ AdManager: No user usage data available for new translation ad check")
             return
         }
 
         let currentTranslationCount = userUsage.dailyUsed
-        print("📊 AdManager: Checking ad for new translation - current count: \(currentTranslationCount)")
 
         // Check if we should show an interstitial ad
         if let interstitialManager = interstitialAdManager {
             let shouldShow = interstitialManager.shouldShowAd(translationCount: currentTranslationCount)
             let isReady = interstitialManager.isAdReady
-            print("📊 AdManager: New translation ad check - shouldShow: \(shouldShow), isReady: \(isReady)")
 
             // Actually show the ad if conditions are met
             if shouldShow && isReady {
-                print("📺 AdManager: Showing interstitial ad for new translation")
-                let success = interstitialManager.showAd()
-                print("📺 AdManager: Ad show result: \(success)")
+                _ = interstitialManager.showAd()
             } else if shouldShow && !isReady {
-                print("⚠️ AdManager: Should show ad but not ready - loading ad...")
                 interstitialManager.loadAd()
             }
         }
     }
 
+    #if DEBUG
     /// Force show interstitial ad (for testing)
     func forceShowInterstitialAd() -> Bool {
         guard let interstitialManager = interstitialAdManager else {
-            print("⚠️ AdManager: No interstitial manager available")
             return false
         }
 
         if interstitialManager.isAdReady {
-            print("📺 AdManager: Force showing interstitial ad")
             return interstitialManager.showAd()
         } else {
-            print("⚠️ AdManager: Interstitial ad not ready")
             return false
         }
     }
+    #endif
 
     /// Update ad visibility based on user tier and translation count
     func updateAdVisibility() {
         // Always use backend data as single source of truth
         guard let userUsage = userService.userUsage else {
-            print("⚠️ AdManager: No user usage data available")
             return
         }
 
-        let actualTranslationCount = userUsage.dailyUsed
-        print("📊 AdManager: Using backend dailyUsed: \(actualTranslationCount)")
+        _ = userUsage.dailyUsed
 
         // Update banner ad visibility based on user tier
         updateBannerAdVisibility()
@@ -114,7 +105,6 @@ final class AdManager: ObservableObject {
     func resetTranslationCount() {
         translationCount = 0
         updateAdVisibility()
-        print("🔄 AdManager: Translation count reset")
     }
 
     private func updateBannerAdVisibility() {
@@ -125,7 +115,6 @@ final class AdManager: ObservableObject {
             // Show banner ads for free users (regardless of daily usage)
             shouldShowBanner = (tier == .free)
 
-            print("📊 AdManager: Banner visibility - tier: \(tier), show: \(shouldShowBanner)")
         }
     }
 
@@ -166,22 +155,21 @@ final class AdManager: ObservableObject {
     }
 
     private func handleATTStatusChange(_ status: ATTrackingManager.AuthorizationStatus) {
-        print("📱 AdManager: ATT status changed to \(status.rawValue)")
 
         switch status {
         case .authorized:
-            print("📱 AdManager: Tracking authorized, configuring for personalized ads")
             AdMobConfig.configureForPersonalizedAds()
 
         case .denied, .restricted:
-            print("📱 AdManager: Tracking denied/restricted, configuring for non-personalized ads")
             AdMobConfig.configureForNonPersonalizedAds()
 
         case .notDetermined:
-            print("📱 AdManager: ATT not determined, using default configuration")
+            // User hasn't made a decision yet, use non-personalized ads as default
+            AdMobConfig.configureForNonPersonalizedAds()
 
         @unknown default:
-            print("📱 AdManager: Unknown ATT status: \(status.rawValue)")
+            // Fallback to non-personalized ads for unknown cases
+            AdMobConfig.configureForNonPersonalizedAds()
         }
 
         // Reload ads with new configuration
@@ -189,14 +177,12 @@ final class AdManager: ObservableObject {
     }
 
     private func handleDailyRollover() {
-        print("🔄 AdManager: Daily rollover detected, resetting translation count")
         resetTranslationCount()
     }
 
     private func reloadAdsWithNewConfiguration() {
         // Reload banner ads with new ATT configuration
         if shouldShowBanner {
-            print("🔄 AdManager: Reloading banner ads with new ATT configuration")
             // The banner will reload automatically when the view updates
         }
 

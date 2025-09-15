@@ -7,9 +7,9 @@ struct EnhancedHeader: View {
     let actionButton: HeaderActionButton?
     let userTier: UsageResponse.Tier?
     let onUpgradeTap: (() -> Void)?
-    
+
     @State private var isUpgradeButtonPressed = false
-    
+
     init(
         title: String? = nil,
         actionButton: HeaderActionButton? = nil,
@@ -21,7 +21,7 @@ struct EnhancedHeader: View {
         self.userTier = userTier
         self.onUpgradeTap = onUpgradeTap
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Main header content
@@ -32,22 +32,22 @@ struct EnhancedHeader: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 60, height: 60)
-                    
+
                     Image("WordmarkMedium")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(height: 35)
                 }
-                
+
                 Spacer()
-                
+
                 // Right side buttons
                 HStack(spacing: 12) {
                     // Upgrade button (only for free users)
                     if userTier == .free {
                         upgradeButton
                     }
-                    
+
                     // Action button (if provided)
                     if let actionButton = actionButton {
                         Button(action: actionButton.action) {
@@ -63,7 +63,7 @@ struct EnhancedHeader: View {
             .padding(.bottom, 16)
         }
     }
-    
+
     // MARK: - Upgrade Button
     private var upgradeButton: some View {
         Button(action: {
@@ -73,7 +73,7 @@ struct EnhancedHeader: View {
                 Image(systemName: "star.fill")
                     .font(.caption)
                     .foregroundColor(.white)
-                
+
                 Text("Upgrade")
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -129,7 +129,7 @@ extension EnhancedHeader {
     static func logoOnly(userTier: UsageResponse.Tier? = nil, onUpgradeTap: (() -> Void)? = nil) -> EnhancedHeader {
         EnhancedHeader(userTier: userTier, onUpgradeTap: onUpgradeTap)
     }
-    
+
     /// Creates a header with a refresh button
     static func withRefresh(
         isLoading: Bool,
@@ -146,7 +146,7 @@ extension EnhancedHeader {
             onUpgradeTap: onUpgradeTap
         )
     }
-    
+
     /// Creates a header with a new/plus button
     static func withNewButton(
         userTier: UsageResponse.Tier? = nil,
@@ -162,7 +162,7 @@ extension EnhancedHeader {
             onUpgradeTap: onUpgradeTap
         )
     }
-    
+
     /// Creates a header with a custom action button
     static func withCustomButton(
         iconName: String,
@@ -187,28 +187,28 @@ extension EnhancedHeader {
         // Free user with upgrade button
         EnhancedHeader.logoOnly(
             userTier: .free,
-            onUpgradeTap: { print("Upgrade tapped") }
+            onUpgradeTap: { }
         )
-        
+
         // Premium user (no upgrade button)
         EnhancedHeader.logoOnly(
             userTier: .premium,
-            onUpgradeTap: { print("Upgrade tapped") }
+            onUpgradeTap: { }
         )
-        
+
         // With refresh button
         EnhancedHeader.withRefresh(
             isLoading: false,
             userTier: .free,
-            onRefresh: { print("Refresh tapped") },
-            onUpgradeTap: { print("Upgrade tapped") }
+            onRefresh: { },
+            onUpgradeTap: { }
         )
-        
+
         // With new button
         EnhancedHeader.withNewButton(
             userTier: .free,
             onNew: { print("New tapped") },
-            onUpgradeTap: { print("Upgrade tapped") }
+            onUpgradeTap: { }
         )
     }
     .background(Color.lingibleBackground)

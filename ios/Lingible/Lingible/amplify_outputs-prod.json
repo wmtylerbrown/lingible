@@ -5,7 +5,7 @@
     "user_pool_client_id": "7d14opgvr8vrut332547paf9pn",
     "aws_region": "us-east-1",
     "oauth": {
-      "domain": "lingible-prod.auth.us-east-1.amazoncognito.com",
+      "domain": "auth.lingible.com",
       "scopes": ["email", "openid", "profile"],
       "redirect_sign_in_uri": [
         "com.lingible.lingible://auth/callback"

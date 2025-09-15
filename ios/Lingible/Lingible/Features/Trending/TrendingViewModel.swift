@@ -88,7 +88,6 @@ final class TrendingViewModel: ObservableObject {
 
         // Check cache first
         if let cachedResponse = getCachedData(for: category) {
-            print("✅ TrendingViewModel: Using cached data for category: \(category?.displayName ?? "all")")
             trendingTerms = cachedResponse.terms ?? []
             totalCount = cachedResponse.totalCount ?? 0
             lastUpdated = cachedResponse.lastUpdated
@@ -114,7 +113,6 @@ final class TrendingViewModel: ObservableObject {
             lastUpdated = response.lastUpdated
             selectedCategory = category
 
-            print("📥 TrendingViewModel: Fetched fresh data for category: \(category?.displayName ?? "all")")
 
         } catch {
             handleError(error)
@@ -145,7 +143,6 @@ final class TrendingViewModel: ObservableObject {
         lastCacheUpdate = nil
         userDefaults.removeObject(forKey: cacheKey)
         userDefaults.removeObject(forKey: cacheTimestampKey)
-        print("🗑️ TrendingViewModel: Cache cleared")
     }
 
     // MARK: - Private Methods
@@ -202,9 +199,9 @@ final class TrendingViewModel: ObservableObject {
             let cacheData = try JSONEncoder().encode(cachedTrendingData)
             userDefaults.set(cacheData, forKey: cacheKey)
             userDefaults.set(lastCacheUpdate, forKey: cacheTimestampKey)
-            print("💾 TrendingViewModel: Cache saved to UserDefaults")
         } catch {
-            print("❌ TrendingViewModel: Failed to save cache to UserDefaults: \(error)")
+            // Log error but continue with empty cache
+            print("Failed to save cache: \(error.localizedDescription)")
         }
     }
 
@@ -216,13 +213,11 @@ final class TrendingViewModel: ObservableObject {
 
         // Check if cache is still valid
         guard isCacheValid else {
-            print("⏰ TrendingViewModel: Cache expired, not loading from UserDefaults")
             return
         }
 
         // Load cache data
         guard let cacheData = userDefaults.data(forKey: cacheKey) else {
-            print("📭 TrendingViewModel: No cache data found in UserDefaults")
             return
         }
 
@@ -230,9 +225,7 @@ final class TrendingViewModel: ObservableObject {
             // Decode cache data from JSON
             let decodedCache = try JSONDecoder().decode([TrendingTermResponse.Category?: TrendingListResponse].self, from: cacheData)
             cachedTrendingData = decodedCache
-            print("📥 TrendingViewModel: Cache loaded from UserDefaults")
         } catch {
-            print("❌ TrendingViewModel: Failed to load cache from UserDefaults: \(error)")
             // Clear invalid cache
             userDefaults.removeObject(forKey: cacheKey)
             userDefaults.removeObject(forKey: cacheTimestampKey)

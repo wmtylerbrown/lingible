@@ -15,6 +15,7 @@ struct ProfileView: View {
     @State private var showingClearCacheAlert = false
     @State private var showingSubscriptionWarning = false
     @State private var showingTrackingSettingsAlert = false
+    @State private var errorMessage = ""
 
     var body: some View {
         NavigationView {
@@ -234,11 +235,8 @@ struct ProfileView: View {
             Text("To change your tracking permission, you'll need to go to your device's Privacy & Security settings. This will open the Settings app where you can manage App Tracking permissions.")
         }
         .onAppear {
-            print("🔥 ProfileView onAppear called!")
             Task {
-                print("🔥 About to call loadUserData")
                 await appCoordinator.userService.loadUserData(forceRefresh: false)
-                print("🔥 loadUserData completed")
             }
         }
     }
@@ -372,21 +370,16 @@ struct ProfileView: View {
     // MARK: - Open Links
     private func contactSupport() {
         let email = AppConfiguration.supportEmail
-        print("📧 ProfileView: Attempting to open email to: \(email)")
 
         if let url = URL(string: "mailto:\(email)") {
-            print("📧 ProfileView: Created mailto URL: \(url)")
             if UIApplication.shared.canOpenURL(url) {
-                print("📧 ProfileView: Can open URL, opening...")
                 UIApplication.shared.open(url)
             } else {
-                print("❌ ProfileView: Cannot open mailto URL - no email app configured")
                 // Fallback: Copy email to clipboard
                 UIPasteboard.general.string = email
                 // You could show an alert here saying "Email copied to clipboard"
             }
         } else {
-            print("❌ ProfileView: Failed to create mailto URL for: \(email)")
         }
     }
 
@@ -429,7 +422,6 @@ struct ProfileView: View {
                     }
                 }
             } catch {
-                print("❌ Failed to open subscription management: \(error)")
                 // Fallback to App Store URL
                 if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                     await UIApplication.shared.open(url)
@@ -450,20 +442,17 @@ struct ProfileView: View {
         // UserDefaults.standard.removeObject(forKey: "user_profile_cache")
         // UserDefaults.standard.removeObject(forKey: "user_usage_cache")
 
-        print("🗑️ All cache cleared successfully")
     }
 
     // MARK: - Account Deletion
     private func deleteAccount() async {
         guard deleteConfirmationText == "DELETE" else {
-            print("❌ Account deletion cancelled: confirmation text mismatch")
             return
         }
 
         isDeletingAccount = true
 
         do {
-            print("🗑️ Starting account deletion process...")
 
             // Create the account deletion request
             let request = AccountDeletionRequest(
@@ -489,7 +478,6 @@ struct ProfileView: View {
             }
 
             if response.success == true {
-                print("✅ Account deleted successfully")
 
                 // Clear local data
                 clearAllCache()
@@ -499,23 +487,19 @@ struct ProfileView: View {
                     appCoordinator.signOut()
                 }
             } else {
-                print("❌ Account deletion failed: \(response.message)")
                 // Show error to user
                 await MainActor.run {
                     // You could show an error alert here
-                    print("❌ Failed to delete account: \(response.message)")
                 }
             }
 
         } catch {
-            print("❌ Account deletion error: \(error)")
             await MainActor.run {
                 // Handle specific error cases
                 if let apiError = error as? ErrorResponse {
                     handleAccountDeletionError(apiError)
                 } else {
                     // Generic error handling
-                    print("❌ Account deletion failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -529,8 +513,7 @@ struct ProfileView: View {
     // MARK: - Error Handling
     private func handleAccountDeletionError(_ error: ErrorResponse) {
         switch error {
-        case .error(let statusCode, let data, _, _):
-            print("❌ Account deletion failed with status code: \(statusCode)")
+        case .error(_, let data, _, _):
 
             // Try to parse the response data as ModelErrorResponse for structured error handling
             if let data = data {
@@ -542,17 +525,15 @@ struct ProfileView: View {
                         showingSubscriptionWarning = true
                     case "INVALID_CONFIRMATION":
                         // Show confirmation error
-                        print("❌ Invalid confirmation text. Please type 'DELETE' exactly.")
+                        errorMessage = "Invalid confirmation code. Please try again."
                     default:
                         // Generic error handling
-                        print("❌ Account deletion failed: \(errorResponse.message)")
+                        errorMessage = "An error occurred. Please try again."
                     }
                 } catch {
                     // If we can't parse as ModelErrorResponse, show generic error
-                    print("❌ Account deletion failed: Could not parse error response")
                 }
             } else {
-                print("❌ Account deletion failed: No error data available")
             }
         }
     }

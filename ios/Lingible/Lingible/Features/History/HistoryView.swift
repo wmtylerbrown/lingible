@@ -172,7 +172,8 @@ struct HistoryView: View {
 
                 switch result {
                 case .success(let response):
-                    self.translations = response.translations
+                    // Sort translations by created date (most recent first)
+                    self.translations = response.translations.sorted { $0.createdAt > $1.createdAt }
                     self.hasMore = response.hasMore
                 case .failure(let error):
                     self.errorMessage = "Failed to load history: \(error.localizedDescription)"
@@ -193,7 +194,9 @@ struct HistoryView: View {
 
                 switch result {
                 case .success(let response):
+                    // Append new translations and sort by created date (most recent first)
                     self.translations.append(contentsOf: response.translations)
+                    self.translations = self.translations.sorted { $0.createdAt > $1.createdAt }
                     self.hasMore = response.hasMore
                 case .failure(let error):
                     self.errorMessage = "Failed to load more history: \(error.localizedDescription)"
@@ -212,7 +215,8 @@ struct HistoryView: View {
 
                 switch result {
                 case .success(let response):
-                    self.translations = response.translations
+                    // Sort translations by created date (most recent first)
+                    self.translations = response.translations.sorted { $0.createdAt > $1.createdAt }
                     self.hasMore = response.hasMore
                 case .failure(let error):
                     self.errorMessage = "Failed to refresh history: \(error.localizedDescription)"

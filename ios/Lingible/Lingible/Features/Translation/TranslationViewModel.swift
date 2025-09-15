@@ -63,7 +63,6 @@ final class TranslationViewModel: ObservableObject {
 
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Translation failed: \(error)")
         }
 
         isLoading = false
@@ -85,7 +84,8 @@ final class TranslationViewModel: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
             translationHistory = try decoder.decode([TranslationHistoryItem].self, from: data)
         } catch {
-            print("❌ Failed to load cached translations: \(error)")
+            // Log error but continue without cached data
+            print("Failed to load cached translations: \(error.localizedDescription)")
         }
     }
 
@@ -96,7 +96,8 @@ final class TranslationViewModel: ObservableObject {
             let data = try encoder.encode(translationHistory)
             UserDefaults.standard.set(data, forKey: "cached_translations")
         } catch {
-            print("❌ Failed to save cached translations: \(error)")
+            // Log error but continue without caching
+            print("Failed to save cached translations: \(error.localizedDescription)")
         }
     }
 }

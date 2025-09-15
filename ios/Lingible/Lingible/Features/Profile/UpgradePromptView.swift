@@ -268,8 +268,8 @@ struct UpgradePromptView: View {
 #Preview {
     UpgradePromptView(
         translationCount: 3,
-        onUpgrade: { print("Upgrade tapped") },
-        onDismiss: { print("Dismiss tapped") },
+        onUpgrade: { },
+        onDismiss: { },
         userUsage: nil
     )
 }

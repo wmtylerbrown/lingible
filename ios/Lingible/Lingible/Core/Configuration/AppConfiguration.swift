@@ -121,6 +121,5 @@ struct AppConfiguration {
     /// Configure the API client with the correct base URL for the current environment
     static func configureAPI() {
         LingibleAPIAPI.basePath = apiBaseURL
-        print("🔧 AppConfiguration: Configured API base path to \(apiBaseURL) for \(currentEnvironment.displayName) environment")
     }
 }

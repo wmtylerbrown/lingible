@@ -128,6 +128,7 @@ final class AuthenticationService: NSObject, ObservableObject, AuthenticationSer
             print("🔧 Calling Amplify.Auth.signInWithWebUI for Apple...")
 
             // Get the proper presentation anchor - use a more reliable method
+            #if DEBUG
             print("🔍 Debugging window hierarchy...")
             print("  - Connected scenes count: \(UIApplication.shared.connectedScenes.count)")
             for (index, scene) in UIApplication.shared.connectedScenes.enumerated() {
@@ -139,6 +140,7 @@ final class AuthenticationService: NSObject, ObservableObject, AuthenticationSer
                     }
                 }
             }
+            #endif
 
             let presentationAnchor: UIWindow
             if let windowScene = UIApplication.shared.connectedScenes

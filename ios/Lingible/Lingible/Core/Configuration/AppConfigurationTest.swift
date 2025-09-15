@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// Test file to verify AppConfiguration is working correctly
@@ -15,3 +16,4 @@ struct AppConfigurationTest {
         print("✅ AppConfiguration test complete!")
     }
 }
+#endif

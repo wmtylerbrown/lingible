@@ -50,25 +50,18 @@ final class UserService: UserServiceProtocol {
 
     // MARK: - Public Methods
     func loadUserData(forceRefresh: Bool = false) async {
-        print("🔄 UserService: loadUserData called (forceRefresh: \(forceRefresh))")
 
         // Check if we're already loading
         if isLoading {
-            print("⏳ UserService: Already loading, skipping")
             return
         }
 
         // Check cache validity
         let profileCacheValid = isProfileCacheValid
         let usageCacheValid = isUsageCacheValid
-        print("📊 UserService: Cache status - Profile: \(profileCacheValid), Usage: \(usageCacheValid)")
-
         if !forceRefresh && profileCacheValid && usageCacheValid {
-            print("✅ UserService: Using cached data")
             return
         }
-
-        print("🌐 UserService: Loading fresh data from API")
         isLoading = true
         defer { isLoading = false }
 
@@ -90,10 +83,10 @@ final class UserService: UserServiceProtocol {
             userProfile = profile
             userUsage = usage
 
-            print("✅ UserService: Successfully loaded user data")
 
         } catch {
-            print("❌ UserService: Failed to load user data: \(error)")
+            // Log error but continue without user data
+            print("Failed to load user data: \(error.localizedDescription)")
         }
     }
 
@@ -107,14 +100,12 @@ final class UserService: UserServiceProtocol {
             userUsage = nil
             lastProfileUpdate = nil
             lastUsageUpdate = nil
-            print("🗑️ UserService: Cache cleared")
         }
     }
 
     /// Reset local translation count (called on daily rollover)
     nonisolated func resetLocalTranslationCount() {
         Task { @MainActor in
-            print("🔄 UserService: Resetting local translation count due to daily rollover")
             // Notify AdManager to reset its local count
             NotificationCenter.default.post(name: .dailyRolloverDetected, object: nil)
         }
@@ -123,14 +114,12 @@ final class UserService: UserServiceProtocol {
     nonisolated func updateUsageFromTranslation(dailyUsed: Int, dailyLimit: Int, tier: UserTier) {
         Task { @MainActor in
             guard var currentUsage = userUsage else {
-                print("⚠️ UserService: Cannot update usage - no current usage data")
                 return
             }
 
             // Check for daily rollover - if backend dailyUsed is less than our local count, reset occurred
             let previousDailyUsed = currentUsage.dailyUsed
             if dailyUsed < previousDailyUsed {
-                print("🔄 UserService: Daily rollover detected - backend reset dailyUsed from \(previousDailyUsed) to \(dailyUsed)")
                 resetLocalTranslationCount()
             }
 
@@ -146,12 +135,10 @@ final class UserService: UserServiceProtocol {
             userUsage = currentUsage
             lastUsageUpdate = Date()
 
-            print("✅ UserService: Updated usage from translation - dailyUsed: \(dailyUsed), dailyLimit: \(dailyLimit), dailyRemaining: \(currentUsage.dailyRemaining), tier: \(tier)")
         }
     }
 
     func forceReloadData() async {
-        print("🔄 UserService: Force reloading all data")
         clearCache()
         await loadUserData(forceRefresh: true)
     }
@@ -161,21 +148,18 @@ final class UserService: UserServiceProtocol {
         if let lastUpdate = lastUsageUpdate {
             let calendar = Calendar.current
             if !calendar.isDate(lastUpdate, inSameDayAs: Date()) {
-                print("🔄 UserService: New day detected on app launch, resetting local translation count")
                 resetLocalTranslationCount()
             }
         }
 
         // Also check if backend usage is 0 but we have a non-zero local count
         if usage.dailyUsed == 0 {
-            print("🔄 UserService: Backend usage is 0, ensuring local count is reset")
             resetLocalTranslationCount()
         }
     }
 
     // MARK: - Subscription Upgrade
     func upgradeUser(_ request: UserUpgradeRequest) async -> Bool {
-        print("🔄 UserService: upgradeUser called")
 
         do {
             // Get auth token
@@ -201,7 +185,6 @@ final class UserService: UserServiceProtocol {
                 }
             }
 
-            print("✅ UserService: Upgrade successful")
 
             // Clear cache to force refresh of user data
             clearCache()
@@ -212,7 +195,6 @@ final class UserService: UserServiceProtocol {
             return true
 
         } catch {
-            print("❌ UserService: Upgrade failed: \(error)")
             return false
         }
     }
@@ -236,15 +218,12 @@ final class UserService: UserServiceProtocol {
     }
 
     private func loadUserProfile(forceRefresh: Bool) async throws -> UserProfileResponse {
-        print("👤 UserService: Loading user profile (forceRefresh: \(forceRefresh))")
 
         // Check cache first
         if !forceRefresh && isProfileCacheValid, let profile = userProfile {
-            print("📦 UserService: Using cached profile data")
             return profile
         }
 
-        print("🌐 UserService: Fetching profile from API")
         let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UserProfileResponse, Error>) in
             UserAPI.userProfileGet() { data, error in
                 if let error = error {
@@ -256,22 +235,18 @@ final class UserService: UserServiceProtocol {
                 }
             }
         }
-        print("✅ UserService: Profile loaded successfully")
 
         lastProfileUpdate = Date()
         return response
     }
 
     private func loadUserUsage(forceRefresh: Bool) async throws -> UsageResponse {
-        print("📊 UserService: Loading user usage (forceRefresh: \(forceRefresh))")
 
         // Check cache first
         if !forceRefresh && isUsageCacheValid, let usage = userUsage {
-            print("📦 UserService: Using cached usage data")
             return usage
         }
 
-        print("🌐 UserService: Fetching usage from API")
         let response = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UsageResponse, Error>) in
             UserAPI.userUsageGet() { data, error in
                 if let error = error {
@@ -283,7 +258,6 @@ final class UserService: UserServiceProtocol {
                 }
             }
         }
-        print("✅ UserService: Usage loaded successfully")
 
         lastUsageUpdate = Date()
         return response
