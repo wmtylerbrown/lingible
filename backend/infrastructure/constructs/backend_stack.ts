@@ -38,6 +38,7 @@ export class BackendStack extends Construct {
 
   // Lambda functions
   public translateLambda!: lambda.Function;
+  public translateAlias?: lambda.CfnAlias;
   public userProfileLambda!: lambda.Function;
   public userUsageLambda!: lambda.Function;
   public userUpgradeLambda!: lambda.Function;
@@ -527,6 +528,24 @@ export class BackendStack extends Construct {
       memorySize: 512,
       timeout: Duration.seconds(30),
     });
+
+    // Add provisioned concurrency for production translate function
+    // Note: Temporarily disabled due to account concurrent execution limits
+    // TODO: Re-enable when account limits are increased
+    if (false && environment === 'prod') {
+      // Create a new version of the function (required for provisioned concurrency)
+      const translateVersion = this.translateLambda.currentVersion;
+
+      // Create an alias for the function with provisioned concurrency
+      this.translateAlias = new lambda.CfnAlias(this, 'TranslateAliasWithProvisionedConcurrency', {
+        functionName: this.translateLambda.functionName,
+        functionVersion: translateVersion.version,
+        name: 'live',
+        provisionedConcurrencyConfig: {
+          provisionedConcurrentExecutions: 1,
+        },
+      });
+    }
     lambdaPolicyStatements.forEach(statement => this.translateLambda.addToRolePolicy(statement));
 
     // Add Bedrock permissions for translation Lambda
@@ -975,7 +994,15 @@ export class BackendStack extends Construct {
 
     // Translate endpoint
     const translate = this.api.root.addResource('translate');
-    translate.addMethod('POST', new apigateway.LambdaIntegration(this.translateLambda), {
+      // Use alias for production (with provisioned concurrency) or function for dev
+      const translateIntegration = this.translateAlias
+        ? new apigateway.LambdaIntegration(
+            lambda.Function.fromFunctionArn(this, 'TranslateAliasFunction',
+              `${this.translateLambda.functionArn}:${this.translateAlias.name}`)
+          )
+        : new apigateway.LambdaIntegration(this.translateLambda);
+
+    translate.addMethod('POST', translateIntegration, {
       authorizer: cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [

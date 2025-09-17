@@ -135,7 +135,7 @@ create_archive() {
         print_status "Archive size: $archive_size"
 
         # Verify production configuration
-        if grep -q "lingible-prod" "$archives_dir/$archive_name/Products/Applications/Lingible.app/amplify_outputs.json"; then
+        if grep -q "auth.lingible.com" "$archives_dir/$archive_name/Products/Applications/Lingible.app/amplify_outputs.json"; then
             print_success "✅ Production configuration verified in archive"
         else
             print_error "❌ Archive does not contain production configuration!"

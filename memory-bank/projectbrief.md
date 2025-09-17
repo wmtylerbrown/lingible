@@ -174,4 +174,18 @@
 
 ---
 
+## 📱 **iOS Development & Build System**
+
+### **Build System:**
+- **Automated Build Scripts**: Comprehensive build automation for dev and prod environments
+- **Environment Validation**: Robust validation logic to ensure correct configuration deployment
+- **Archive Generation**: Production-ready archive creation for App Store submission
+- **Configuration Management**: Separate dev and prod configurations with proper validation
+
+### **Development Workflow:**
+- **Swift/SwiftUI**: Modern iOS development with SwiftUI framework
+- **Apple Sign-In Integration**: Native authentication with Cognito backend
+- **API Client**: Generated Swift client SDK with automatic token management
+- **Build Validation**: Automated checks to prevent incorrect environment deployments
+
 **Current Status**: App Store submission in progress with production archive built and legal compliance established. Currently working through Apple privacy questionnaire and planning Google AdMob integration for free tier users. Ready for final App Store submission once AdMob integration is complete. The platform is positioned for rapid growth and scaling in the GenZ translation market.
