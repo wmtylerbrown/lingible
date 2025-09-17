@@ -8,9 +8,28 @@ const { execSync } = require('child_process');
 // Configuration
 const SRC_DIR = '../lambda/src';
 const LAMBDA_LAYER_DIR = 'lambda-layer';
-const LAMBDA_DEPENDENCIES_LAYER_DIR = 'lambda-dependencies-layer';
 const LAMBDA_PACKAGES_DIR = 'lambda-packages';
 const HASH_FILE = 'lambda-hashes.json';
+
+// Layer configurations
+const LAYER_CONFIGS = {
+  'core': {
+    name: 'Core Dependencies',
+    description: 'Core dependencies for most Lambda functions',
+    groups: ['main'],
+    handlers: [
+      'translate_api', 'get_translation_history', 'trending_api', 'trending_job',
+      'user_profile_api', 'user_usage_api', 'health_api',
+      'delete_translation', 'delete_translations', 'cognito_post_confirmation'
+    ]
+  },
+  'receipt-validation': {
+    name: 'Receipt Validation Dependencies',
+    description: 'Dependencies for Apple/Google receipt validation',
+    groups: ['main', 'receipt-validation'],
+    handlers: ['user_upgrade_api', 'apple_webhook', 'user_account_deletion', 'user_data_cleanup',]
+  }
+};
 
 // Patterns to exclude from builds
 const EXCLUDE_PATTERNS = [
@@ -37,18 +56,13 @@ function shouldExclude(filePath) {
   const relativePath = path.relative(SRC_DIR, filePath);
   return EXCLUDE_PATTERNS.some(pattern => {
     if (pattern.includes('*')) {
-      // Convert glob pattern to proper regex
-      // For simple patterns like *.ext, just check the file extension
       if (pattern.startsWith('*.')) {
-        const extension = pattern.substring(1); // Remove the *
+        const extension = pattern.substring(1);
         return relativePath.endsWith(extension) || path.basename(relativePath).endsWith(extension);
       }
-
-      // For more complex patterns, convert to regex properly
       const escapedPattern = pattern
-        .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-        .replace(/\\\*/g, '.*'); // Convert escaped * back to .*
-
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\\\*/g, '.*');
       const regex = new RegExp('^' + escapedPattern + '$');
       return regex.test(path.basename(relativePath)) || regex.test(relativePath);
     }
@@ -83,8 +97,6 @@ function calculateDirectoryHash(dirPath) {
   }
 
   walkDirectory(dirPath);
-
-  // Sort files for consistent hashing
   files.sort();
 
   for (const file of files) {
@@ -137,87 +149,56 @@ function saveHashes(hashes) {
   fs.writeFileSync(HASH_FILE, JSON.stringify(hashes, null, 2));
 }
 
-function buildDependenciesLayer() {
-  console.log('📦 Building dependencies Lambda layer...');
+function buildDependencyLayer(layerName, config) {
+  console.log(`📦 Building ${config.name} layer...`);
 
-  const layerDir = LAMBDA_DEPENDENCIES_LAYER_DIR;
-  const layerHashKey = 'dependencies-layer';
+  const layerDir = `lambda-${layerName}-layer`;
+  const layerHashKey = `${layerName}-layer`;
 
-  // Calculate hash for requirements.txt (check if it exists in layer or generate temp copy)
-  let requirementsHash = '';
-  const requirementsPath = path.join(layerDir, 'requirements.txt');
-
-  // If requirements.txt doesn't exist in layer, generate a temp copy for hash calculation
-  let tempRequirementsPath = null;
-  if (!fs.existsSync(requirementsPath)) {
-    console.log('📦 Generating temporary requirements.txt for hash calculation...');
-    try {
-      const lambdaDir = path.join(__dirname, '..', '..', 'lambda');
-      const venvPath = path.join(__dirname, '..', '..', '..', '.venv', 'bin', 'activate');
-      tempRequirementsPath = path.join(__dirname, 'temp-requirements.txt');
-
-      execSync(`cd "${lambdaDir}" && source "${venvPath}" && poetry export --format=requirements.txt --output="${tempRequirementsPath}" --without-hashes --without dev`, {
-        stdio: 'inherit',
-        shell: true
-      });
-
-      const content = fs.readFileSync(tempRequirementsPath);
-      requirementsHash = crypto.createHash('sha256').update(content).digest('hex');
-    } catch (error) {
-      console.error('❌ Failed to generate requirements.txt from poetry:', error.message);
-      return;
-    }
-  } else {
-    const content = fs.readFileSync(requirementsPath);
-    requirementsHash = crypto.createHash('sha256').update(content).digest('hex');
+  // Create layer directory first
+  if (fs.existsSync(layerDir)) {
+    fs.rmSync(layerDir, { recursive: true, force: true });
   }
+  fs.mkdirSync(layerDir, { recursive: true });
+
+  // Generate requirements.txt for this layer
+  console.log(`📦 Generating requirements.txt for ${layerName} layer...`);
+  try {
+    const lambdaDir = path.join(__dirname, '..', '..', 'lambda');
+    const venvPath = path.join(__dirname, '..', '..', '..', '.venv', 'bin', 'activate');
+    const requirementsPath = path.join(layerDir, 'requirements.txt');
+
+    // Build poetry export command with specific groups
+    const groupsArg = config.groups.map(group => `--with ${group}`).join(' ');
+    const exportCmd = `cd "${lambdaDir}" && source "${venvPath}" && poetry export ${groupsArg} --format=requirements.txt --output="${path.resolve(requirementsPath)}" --without-hashes`;
+
+    execSync(exportCmd, {
+      stdio: 'inherit',
+      shell: true
+    });
+
+    console.log(`✅ Generated requirements.txt for ${layerName} layer`);
+  } catch (error) {
+    console.error(`❌ Failed to generate requirements.txt for ${layerName} layer:`, error.message);
+    return;
+  }
+
+  // Calculate hash for requirements.txt
+  const requirementsPath = path.join(layerDir, 'requirements.txt');
+  const content = fs.readFileSync(requirementsPath);
+  const requirementsHash = crypto.createHash('sha256').update(content).digest('hex');
 
   const hashes = loadHashes();
 
   if (hashes[layerHashKey] === requirementsHash) {
-    console.log('✅ Dependencies layer unchanged, skipping rebuild');
-    // Clean up temp file if it exists
-    if (tempRequirementsPath && fs.existsSync(tempRequirementsPath)) {
-      fs.unlinkSync(tempRequirementsPath);
-    }
+    console.log(`✅ ${config.name} layer unchanged, skipping rebuild`);
     return;
   }
-
-  // Clean and rebuild layer
-  if (fs.existsSync(layerDir)) {
-    fs.rmSync(layerDir, { recursive: true, force: true });
-  }
-
-  fs.mkdirSync(layerDir, { recursive: true });
-
-  // Generate requirements.txt in the layer directory
-  console.log('📦 Generating requirements.txt from poetry...');
-  try {
-    const lambdaDir = path.join(__dirname, '..', '..', 'lambda');
-    const venvPath = path.join(__dirname, '..', '..', '..', '.venv', 'bin', 'activate');
-
-    execSync(`cd "${lambdaDir}" && source "${venvPath}" && poetry export --format=requirements.txt --output="${path.resolve(requirementsPath)}" --without-hashes --without dev`, {
-      stdio: 'inherit',
-      shell: true
-    });
-    console.log('✅ Generated requirements.txt from poetry');
-  } catch (error) {
-    console.error('❌ Failed to generate requirements.txt from poetry:', error.message);
-    return;
-  }
-
-  // Clean up temp file if it exists
-  if (tempRequirementsPath && fs.existsSync(tempRequirementsPath)) {
-    fs.unlinkSync(tempRequirementsPath);
-  }
-
-  // Note: Python packages will be installed by CDK Docker bundling
-  // This ensures platform-compatible packages for AWS Lambda
 
   hashes[layerHashKey] = requirementsHash;
   saveHashes(hashes);
 
-  console.log('✅ Dependencies layer built successfully');
+  console.log(`✅ ${config.name} layer built successfully`);
 }
 
 function buildSharedLayer() {
@@ -318,7 +299,7 @@ function buildHandlerPackages() {
 }
 
 function main() {
-  console.log('🚀 Building Lambda packages with smart change detection');
+  console.log('🚀 Building Lambda packages with optimized dependencies');
   console.log('='.repeat(60));
 
   // Check if we're in the right directory
@@ -338,8 +319,10 @@ function main() {
     fs.mkdirSync(LAMBDA_PACKAGES_DIR, { recursive: true });
   }
 
-  // Build dependencies layer first
-  buildDependenciesLayer();
+  // Build dependency layers
+  for (const [layerName, config] of Object.entries(LAYER_CONFIGS)) {
+    buildDependencyLayer(layerName, config);
+  }
 
   // Build shared code layer
   buildSharedLayer();
@@ -349,10 +332,17 @@ function main() {
 
   console.log('\n🎉 Lambda package build completed successfully!');
   console.log('\n📁 Generated artifacts:');
-  console.log(`   - Dependencies layer: ${LAMBDA_DEPENDENCIES_LAYER_DIR}/`);
+  for (const [layerName, config] of Object.entries(LAYER_CONFIGS)) {
+    console.log(`   - ${config.name}: lambda-${layerName}-layer/`);
+  }
   console.log(`   - Shared code layer: ${LAMBDA_LAYER_DIR}/`);
   console.log(`   - Handler packages: ${LAMBDA_PACKAGES_DIR}/`);
   console.log(`   - Build hashes: ${HASH_FILE}`);
+
+  console.log('\n📊 Layer Usage:');
+  for (const [layerName, config] of Object.entries(LAYER_CONFIGS)) {
+    console.log(`   - ${config.name}: ${config.handlers.join(', ')}`);
+  }
 }
 
 main();

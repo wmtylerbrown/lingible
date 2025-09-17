@@ -1,4 +1,5 @@
-"""Lambda handler for user profile endpoint."""
+"""Lambda handler for user profile endpoint.
+   Updated for SnapStart optimization."""
 
 from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext

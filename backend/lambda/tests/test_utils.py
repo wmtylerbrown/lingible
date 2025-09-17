@@ -14,7 +14,7 @@ from src.utils.exceptions import (
     SystemError,
     ErrorCode
 )
-from src.utils.response import create_success_response, create_error_response
+from src.utils.response import create_model_response, create_error_response
 from src.utils.envelopes import (
     AuthenticatedAPIGatewayEnvelope,
     TranslationEnvelope,
@@ -84,7 +84,7 @@ class TestResponseUtils:
         """Test creating success response."""
         data = {"message": "Success", "user_id": "test_123"}
 
-        response = create_success_response(data)
+        response = create_model_response(data)
 
         assert response["statusCode"] == 200
         assert response["headers"]["Content-Type"] == "application/json"
@@ -95,7 +95,7 @@ class TestResponseUtils:
         """Test creating success response with custom status code."""
         data = {"created": True}
 
-        response = create_success_response(data, status_code=201)
+        response = create_model_response(data, status_code=201)
 
         assert response["statusCode"] == 201
         assert json.loads(response["body"])["success"] is True
@@ -130,8 +130,15 @@ class TestEnvelopes:
         event = {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -142,7 +149,6 @@ class TestEnvelopes:
         parsed_event = envelope.parse(event)
 
         assert parsed_event.user_id == "test_user_123"
-        assert parsed_event.username == "testuser"
         assert parsed_event.request_id == "req_123"
 
     def test_translation_envelope(self):
@@ -150,8 +156,15 @@ class TestEnvelopes:
         event = {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -170,8 +183,15 @@ class TestEnvelopes:
         event = {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -193,8 +213,15 @@ class TestEnvelopes:
         event = {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             }
@@ -204,15 +231,21 @@ class TestEnvelopes:
         parsed_event = envelope.parse(event)
 
         assert parsed_event.user_id == "test_user_123"
-        assert parsed_event.username == "testuser"
 
     def test_path_parameter_envelope(self):
         """Test PathParameterEnvelope."""
         event = {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -245,7 +278,15 @@ class TestEnvelopes:
         event = {
             "requestContext": {
                 "authorizer": {
-                    "username": "testuser"
+                    "claims": {
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                        # Missing required 'sub' field
+                    }
                 },
                 "requestId": "req_123"
             }

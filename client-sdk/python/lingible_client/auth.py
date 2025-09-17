@@ -195,23 +195,23 @@ class CognitoAuthenticator:
         Get a valid JWT token, refreshing if necessary.
 
         Returns:
-            Valid JWT token (access token)
+            Valid JWT token (ID token for API Gateway Cognito authorizer)
 
         Raises:
             CognitoAuthError: If no valid token can be obtained
         """
         # Check if we have a token and if it's still valid
-        if self._access_token and self._token_expires_at:
+        if self._id_token and self._token_expires_at:
             # Add 5 minute buffer to avoid edge cases
             buffer_time = datetime.utcnow() + timedelta(minutes=5)
             if self._token_expires_at > buffer_time:
-                return self._access_token
+                return self._id_token
 
         # Token is expired or doesn't exist, try to refresh
         if self._refresh_token:
             try:
                 self.refresh_tokens()
-                return self._access_token
+                return self._id_token
             except (TokenExpiredError, CognitoAuthError):
                 # Refresh failed, need to re-authenticate
                 pass
@@ -219,7 +219,7 @@ class CognitoAuthenticator:
         # No valid token available, need to re-authenticate
         if self.username and self.password:
             self.authenticate()
-            return self._access_token
+            return self._id_token
         else:
             raise CognitoAuthError("No valid token available and no credentials for re-authentication")
 

@@ -15,7 +15,7 @@ protocol AuthTokenProvider {
 /// Implementation of AuthTokenProvider using Amplify Gen 2
 class AmplifyAuthTokenProvider: AuthTokenProvider {
 
-    /// Get the current JWT access token from Amplify
+    /// Get the current JWT ID token from Amplify (for Cognito authorizer)
     /// - Returns: The JWT token string
     /// - Throws: AuthTokenError if token cannot be extracted
     func getAuthToken() async throws -> String {
@@ -43,8 +43,8 @@ class AmplifyAuthTokenProvider: AuthTokenProvider {
                                 for tokenChild in tokensMirror.children {
                                     if let tokenLabel = tokenChild.label {
 
-                                        // Look for the accessToken
-                                        if tokenLabel == "accessToken" {
+                                        // Look for the idToken (Cognito authorizer expects ID token)
+                                        if tokenLabel == "idToken" {
                                             if let token = tokenChild.value as? String {
 
                                                 // Validate the token format
@@ -67,7 +67,7 @@ class AmplifyAuthTokenProvider: AuthTokenProvider {
             }
         }
 
-        throw AuthTokenError.tokenNotFound("Could not extract JWT token from session. Available properties: \(mirror.children.map { $0.label ?? "nil" }.joined(separator: ", "))")
+        throw AuthTokenError.tokenNotFound("Could not extract JWT ID token from session. Available properties: \(mirror.children.map { $0.label ?? "nil" }.joined(separator: ", "))")
     }
 
     /// Check if the current token is still valid

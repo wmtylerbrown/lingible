@@ -44,12 +44,14 @@
 - **Framework**: AWS Lambda (serverless)
 - **Type Safety**: Comprehensive type hints with mypy
 - **Code Quality**: Black (formatting), flake8 (linting)
+- **Performance**: SnapStart optimization for production
 
 ### **Infrastructure:**
 - **IaC**: AWS CDK with TypeScript
 - **Environment**: Separate dev/prod environments
 - **Resource Naming**: `lingible-{service}-{environment}` pattern
 - **Deployment**: Automated deployment scripts
+- **Lambda Layers**: Unified dependencies layer architecture
 
 ### **Database:**
 - **Primary**: DynamoDB with single-table design
@@ -61,7 +63,8 @@
 ### **Authentication & Security:**
 - **Identity Provider**: AWS Cognito
 - **External Auth**: Apple Identity Provider
-- **API Security**: JWT-based authentication
+- **API Security**: JWT-based authentication with dual authorizer strategy
+- **Authorization**: Custom JWT authorizer + Native Cognito authorizer
 - **Secrets**: AWS Secrets Manager for sensitive data
 
 ### **AI/ML Services:**
@@ -97,8 +100,9 @@ backend/
 
 ### **Handler Organization:**
 - **Independent Deployment**: Each handler in its own directory
-- **Shared Dependencies**: Common requirements at handler level
+- **Unified Dependencies**: Single dependencies layer for all handlers
 - **Modular Design**: Easy to deploy and maintain individually
+- **Performance**: SnapStart optimization for production handlers
 
 ## 🧪 **Testing Architecture**
 
@@ -151,7 +155,8 @@ tests/
 - **Auto-scaling**: Lambda functions scale automatically
 - **Cost Efficiency**: Pay-per-use pricing model
 - **High Availability**: Multi-AZ deployment
-- **Cold Start Optimization**: Efficient function design
+- **Cold Start Optimization**: SnapStart for production, efficient function design
+- **Performance**: Unified dependencies layer reduces package size
 
 ### **Database Optimization:**
 - **Single-Table Design**: Efficient DynamoDB access patterns
@@ -161,8 +166,9 @@ tests/
 
 ### **Caching Strategy:**
 - **DynamoDB DAX**: Read performance optimization
-- **Lambda Layer Caching**: Shared dependency caching
+- **Lambda Layer Caching**: Unified dependencies layer caching
 - **API Gateway Caching**: Response caching for static data
+- **SnapStart**: Production cold start optimization
 
 ## 🔄 **Data Flow**
 
@@ -469,18 +475,19 @@ ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/
 - **Testing**: Comprehensive test suite with TDD workflow
 - **Infrastructure**: CDK infrastructure with environment separation
 - **Monitoring**: CloudWatch integration and alerting
+- **Lambda Optimization**: Unified dependencies layer and SnapStart configuration
+- **Dual Authorization**: Custom JWT + Native Cognito authorizer implementation
 
 ### **🔄 In Progress:**
-- **Infrastructure Deployment**: Dev environment deployment
-- **Integration Testing**: End-to-end testing validation
-- **Performance Optimization**: Load testing and optimization
+- **Performance Testing**: SnapStart optimization validation
+- **Integration Testing**: End-to-end testing with new architecture
 
 ### **📋 Next Steps:**
-- **Production Deployment**: Deploy to production environment
-- **Monitoring Setup**: Complete monitoring and alerting
-- **Documentation**: API documentation and deployment guides
+- **Production Deployment**: Deploy optimized architecture to production
+- **Performance Monitoring**: Monitor SnapStart effectiveness
+- **Documentation**: Update architecture documentation
 - **Team Onboarding**: Developer setup and training
 
 ---
 
-**Technical Status**: Ready for infrastructure deployment and production readiness phase. All core functionality implemented with comprehensive test coverage and TDD workflow established.
+**Technical Status**: Lambda architecture optimized with unified dependencies layer and SnapStart configuration. Dual authorization strategy implemented. Ready for production deployment with enhanced performance and simplified architecture.

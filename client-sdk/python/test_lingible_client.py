@@ -34,7 +34,7 @@ def test_health_check(client):
     try:
         health = client.health_check()
         logger.info(f"Health check successful: {health.status}")
-        logger.info(f"Service: {health.service}, Version: {health.version}")
+        logger.info(f"Status: {health.status}")
         return True
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
@@ -120,7 +120,7 @@ def main():
     logger.info("Starting Lingible API Client SDK tests...")
 
     # Test credentials (you can override these with environment variables)
-    username = os.getenv('LINGIBLE_USERNAME', '341834f8-8091-70b1-576e-ba1e9eb8e7e6')
+    username = os.getenv('LINGIBLE_USERNAME', '84180458-f0d1-70a5-8a86-512f494da7ac')
     password = os.getenv('LINGIBLE_PASSWORD', 'TestPassword123!')
 
     if not username or not password:

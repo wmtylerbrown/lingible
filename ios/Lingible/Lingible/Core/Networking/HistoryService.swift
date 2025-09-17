@@ -19,7 +19,7 @@ class HistoryService: ObservableObject {
         // Check authentication
         Task {
             do {
-                guard let user = await authenticationService.getCurrentUserValue() else {
+                guard await authenticationService.getCurrentUserValue() != nil else {
                     DispatchQueue.main.async {
                         completion(.failure(HistoryError.notAuthenticated))
                     }

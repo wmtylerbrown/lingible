@@ -12,7 +12,7 @@
 - **Database**: DynamoDB with single-table design
 - **Authentication**: AWS Cognito with Apple Identity Provider
 - **AI/ML**: AWS Bedrock for translation services
-- **API Gateway**: REST API with Lambda authorizer
+- **API Gateway**: REST API with native Cognito authorizer
 - **Monitoring**: CloudWatch metrics, logging, and alerting
 
 ### **Development Tools:**
@@ -46,7 +46,8 @@
 
 ### **Authentication & Authorization:**
 - **JWT-based Authentication**: Secure token-based authentication
-- **API Gateway Authorizer**: Separate Lambda function for JWT validation
+- **Native Cognito Authorizer**: API Gateway native authorizer for JWT validation
+- **Multi-Provider Support**: Both Cognito and Apple Sign-In users
 - **User Context Injection**: Secure user context in Lambda functions
 - **Apple Identity Provider**: External authentication integration
 

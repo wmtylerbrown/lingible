@@ -10,9 +10,9 @@ Lingible uses a **simplified architecture** where **all requests go through API 
 graph TD
     A[Mobile App] --> B[Apple Sign-In]
     B --> C[Cognito User Pool]
-    C --> D[JWT Token]
+    C --> D[JWT ID Token]
     D --> E[API Gateway]
-    E --> F[Lambda Authorizer]
+    E --> F[Native Cognito Authorizer]
     F --> G[Lambda Functions]
     G --> H[DynamoDB]
     G --> I[AWS Bedrock]
@@ -25,7 +25,7 @@ graph TD
 ```javascript
 // Mobile app authenticates with Apple Sign-In
 const user = await Auth.signIn('APPLE');
-const token = user.signInUserSession.idToken.jwtToken;
+const idToken = user.signInUserSession.idToken.jwtToken; // Use ID token for API calls
 ```
 
 ### **2. API Requests**

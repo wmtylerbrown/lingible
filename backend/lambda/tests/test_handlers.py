@@ -25,8 +25,15 @@ class TestTranslateAPIHandler:
         return {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -72,8 +79,15 @@ class TestTranslateAPIHandler:
         event = {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -142,8 +156,15 @@ class TestUserProfileAPIHandler:
         return {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             }
@@ -199,8 +220,15 @@ class TestUserUsageAPIHandler:
         return {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "test_user_123",
-                    "username": "testuser"
+                    "claims": {
+                        "sub": "test_user_123",
+                        "email": "test@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             }
@@ -242,8 +270,15 @@ class TestTranslationHistoryAPIHandler:
         return {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "premium_user_456",
-                    "username": "premiumuser"
+                    "claims": {
+                        "sub": "premium_user_456",
+                        "email": "premium@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -286,7 +321,7 @@ class TestTranslationHistoryAPIHandler:
     def test_get_translation_history_free_user(self, handler, sample_event, mock_config):
         """Test translation history retrieval for free user (should fail)."""
         # Change user_id to indicate free user
-        sample_event["requestContext"]["authorizer"]["user_id"] = "free_user_123"
+        sample_event["requestContext"]["authorizer"]["claims"]["sub"] = "free_user_123"
 
         with patch('src.handlers.translation_history_api.get_translation_history.TranslationService') as mock_service_class:
             mock_service = Mock()
@@ -340,8 +375,15 @@ class TestDeleteTranslationHandler:
         return {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "premium_user_456",
-                    "username": "premiumuser"
+                    "claims": {
+                        "sub": "premium_user_456",
+                        "email": "premium@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             },
@@ -408,8 +450,15 @@ class TestDeleteAllTranslationsHandler:
         return {
             "requestContext": {
                 "authorizer": {
-                    "user_id": "premium_user_456",
-                    "username": "premiumuser"
+                    "claims": {
+                        "sub": "premium_user_456",
+                        "email": "premium@example.com",
+                        "aud": "test_client",
+                        "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_test",
+                        "exp": 1234567890,
+                        "iat": 1234567890,
+                        "jti": "test_jti"
+                    }
                 },
                 "requestId": "req_123"
             }
@@ -432,7 +481,7 @@ class TestDeleteAllTranslationsHandler:
     def test_delete_all_translations_free_user(self, handler, sample_event, mock_config):
         """Test deleting all translations for free user (should fail)."""
         # Change user_id to indicate free user
-        sample_event["requestContext"]["authorizer"]["user_id"] = "free_user_123"
+        sample_event["requestContext"]["authorizer"]["claims"]["sub"] = "free_user_123"
 
         with patch('src.handlers.translation_history_api.delete_all_translations.TranslationService') as mock_service_class:
             mock_service = Mock()

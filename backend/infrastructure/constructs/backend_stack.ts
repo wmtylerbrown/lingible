@@ -33,10 +33,10 @@ export class BackendStack extends Construct {
 
   // Lambda layers
   public sharedLayer!: lambda.LayerVersion;
-  public dependenciesLayer!: lambda.LayerVersion;
+  public coreLayer!: lambda.LayerVersion;
+  public receiptValidationLayer!: lambda.LayerVersion;
 
   // Lambda functions
-  public authorizerLambda!: lambda.Function;
   public translateLambda!: lambda.Function;
   public userProfileLambda!: lambda.Function;
   public userUsageLambda!: lambda.Function;
@@ -91,11 +91,12 @@ export class BackendStack extends Construct {
     const backendConfig = this.configLoader.loadBackendConfig(environment);
 
     // Create Lambda layers
-    this.dependenciesLayer = this.createDependenciesLayer(environment);
+    this.coreLayer = this.createCoreLayer(environment);
+    this.receiptValidationLayer = this.createReceiptValidationLayer(environment);
     this.sharedLayer = this.createSharedLayer(environment);
 
     // Create DynamoDB tables
-    this.createDatabaseTables(environment,
+    this.createDatabaseTables(
       { name: config.tables.users_table.name, read_capacity: 5, write_capacity: 5 },
       { name: config.tables.translations_table.name, read_capacity: 5, write_capacity: 5 },
       { name: config.tables.trending_table.name, read_capacity: 5, write_capacity: 5 }
@@ -188,8 +189,6 @@ export class BackendStack extends Construct {
     // Create API Gateway
     this.createApiGateway(environment, hostedZone);
 
-
-
     // Create scheduled jobs
     this.createScheduledJobs(environment, backendConfig);
 
@@ -207,7 +206,6 @@ export class BackendStack extends Construct {
   }
 
   private createDatabaseTables(
-    environment: string,
     usersTableConfig: { name: string; read_capacity: number; write_capacity: number },
     translationsTableConfig: { name: string; read_capacity: number; write_capacity: number },
     trendingTableConfig: { name: string; read_capacity: number; write_capacity: number }
@@ -419,10 +417,10 @@ export class BackendStack extends Construct {
     // Prod: Manual CNAME record required in Squarespace DNS pointing to CloudFront domain
   }
 
-  private createDependenciesLayer(environment: string): lambda.LayerVersion {
-    return new lambda.LayerVersion(this, 'DependenciesLayer', {
-      layerVersionName: `lingible-dependencies-layer-${environment}`,
-      code: lambda.Code.fromAsset('../lambda', {
+  private createCoreLayer(environment: string): lambda.LayerVersion {
+    return new lambda.LayerVersion(this, 'CoreLayer', {
+      layerVersionName: `lingible-core-layer-${environment}`,
+      code: lambda.Code.fromAsset('./lambda-core-layer', {
         bundling: {
           image: lambda.Runtime.PYTHON_3_13.bundlingImage,
           platform: 'linux/arm64',
@@ -431,22 +429,27 @@ export class BackendStack extends Construct {
             'rm -rf /asset-output/python && pip install --platform manylinux2014_aarch64 --implementation cp --python-version 3.13 --only-binary=:all: --upgrade --target /asset-output/python -r requirements.txt'
           ],
         },
-        // Only redeploy requirements layer when requirements.txt changes
-        assetHashType: cdk.AssetHashType.SOURCE,
-        exclude: [
-          '**/*',
-          '!requirements.txt',
-          '**/__pycache__/**',
-          '**/*.pyc',
-          '**/*.pyo',
-          '**/*.pyd',
-          '**/.pytest_cache/**',
-          '**/.coverage',
-          '**/.mypy_cache/**'
-        ]
       }),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
-      description: 'Python dependencies for Lingible Lambda functions',
+      description: 'Core dependencies for Lingible Lambda functions',
+    });
+  }
+
+  private createReceiptValidationLayer(environment: string): lambda.LayerVersion {
+    return new lambda.LayerVersion(this, 'ReceiptValidationLayer', {
+      layerVersionName: `lingible-receipt-validation-layer-${environment}`,
+      code: lambda.Code.fromAsset('./lambda-receipt-validation-layer', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+          platform: 'linux/arm64',
+          command: [
+            'bash', '-c',
+            'rm -rf /asset-output/python && pip install --platform manylinux2014_aarch64 --implementation cp --python-version 3.13 --only-binary=:all: --upgrade --target /asset-output/python -r requirements.txt'
+          ],
+        },
+      }),
+      compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
+      description: 'Receipt validation dependencies for Lingible Lambda functions',
     });
   }
 
@@ -501,41 +504,6 @@ export class BackendStack extends Construct {
     });
   }
 
-
-
-
-  private getEnvironmentVariables(environment: string, config: any, backendConfig: any): { [key: string]: string } {
-    return {
-      // Environment
-      ENVIRONMENT: environment,
-
-      // AWS Resources
-      USERS_TABLE: config.tables.users_table.name,
-      TRANSLATIONS_TABLE: config.tables.translations_table.name,
-      TRENDING_TABLE: config.tables.trending_table.name,
-
-      // Bedrock Config
-      BEDROCK_MODEL: backendConfig.bedrock.model,
-      BEDROCK_MAX_TOKENS: backendConfig.bedrock.max_tokens.toString(),
-      BEDROCK_TEMPERATURE: backendConfig.bedrock.temperature.toString(),
-
-      // Usage Limits
-      FREE_DAILY_TRANSLATIONS: backendConfig.limits.free_daily_translations.toString(),
-      PREMIUM_DAILY_TRANSLATIONS: backendConfig.limits.premium_daily_translations.toString(),
-      FREE_MAX_TEXT_LENGTH: backendConfig.limits.free_max_text_length.toString(),
-      PREMIUM_MAX_TEXT_LENGTH: backendConfig.limits.premium_max_text_length.toString(),
-      FREE_HISTORY_RETENTION_DAYS: backendConfig.limits.free_history_retention_days.toString(),
-      PREMIUM_HISTORY_RETENTION_DAYS: backendConfig.limits.premium_history_retention_days.toString(),
-
-      // Security Config
-      SENSITIVE_FIELD_PATTERNS: JSON.stringify(backendConfig.security.sensitive_field_patterns),
-
-      // Observability Config
-      LOG_LEVEL: backendConfig.observability.log_level,
-      ENABLE_TRACING: backendConfig.observability.enable_tracing.toString(),
-    };
-  }
-
   private createLambdaFunctions(
     environment: string,
     lambdaConfig: any,
@@ -546,25 +514,6 @@ export class BackendStack extends Construct {
     const config = this.configLoader.getMergedConfig(environment);
     const backendConfig = this.configLoader.loadBackendConfig(environment);
 
-    this.authorizerLambda = new lambda.Function(this, 'AuthorizerLambda', {
-      functionName: `lingible-authorizer-${environment}`,
-      handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.authorizer.authorizer'),
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'lingible-authorizer',
-        ...baseEnvironmentVariables,
-        COGNITO_USER_POOL_ID: this.userPool.userPoolId,
-        COGNITO_USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
-        COGNITO_USER_POOL_REGION: config.aws.region,
-        API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
-      },
-      layers: [this.dependenciesLayer, this.sharedLayer],
-      ...lambdaConfig,
-      memorySize: 384,
-      timeout: Duration.seconds(30),
-    });
-    lambdaPolicyStatements.forEach(statement => this.authorizerLambda.addToRolePolicy(statement));
-
     this.translateLambda = new lambda.Function(this, 'TranslateLambda', {
       functionName: `lingible-translate-${environment}`,
       handler: 'handler.handler',
@@ -573,7 +522,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-translate',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
       ...lambdaConfig,
       memorySize: 512,
       timeout: Duration.seconds(30),
@@ -599,7 +548,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-profile',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -615,7 +564,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-usage',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -631,7 +580,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-upgrade',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.receiptValidationLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 384,
@@ -663,7 +612,7 @@ export class BackendStack extends Construct {
         COGNITO_USER_POOL_REGION: config.aws.region,
         API_GATEWAY_ARN: `arn:aws:execute-api:${config.aws.region}:${Stack.of(this).account}:*/*`,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.receiptValidationLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 384,
@@ -702,7 +651,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-translation-history',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -718,7 +667,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-delete-translation',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -734,7 +683,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-delete-all-translations',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -750,7 +699,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-health',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 128,
@@ -766,7 +715,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-trending',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -783,7 +732,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-apple-webhook',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.receiptValidationLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 384,
@@ -812,7 +761,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-post-confirmation',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -831,7 +780,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-data-cleanup',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.receiptValidationLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -859,7 +808,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-trending-job',
         ...baseEnvironmentVariables,
       },
-      layers: [this.dependenciesLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -875,15 +824,11 @@ export class BackendStack extends Construct {
       this.postConfirmationLambda,
     );
 
-
-
     // Grant Cognito permission to invoke Lambda functions
     this.postConfirmationLambda.addPermission('CognitoPostConfirmation', {
       principal: new iam.ServicePrincipal('cognito-idp.amazonaws.com'),
       sourceArn: this.userPool.userPoolArn,
     });
-
-
   }
 
   private grantApiGatewayPermissions(): void {
@@ -962,9 +907,10 @@ export class BackendStack extends Construct {
       },
     });
 
-    // Create custom authorizer
-    const authorizer = new apigateway.TokenAuthorizer(this, 'CognitoAuthorizer', {
-      handler: this.authorizerLambda,
+    // Create native Cognito authorizer
+    const cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'NativeCognitoAuthorizer', {
+      cognitoUserPools: [this.userPool],
+      authorizerName: 'NativeCognitoAuthorizer',
       identitySource: 'method.request.header.Authorization',
     });
 
@@ -994,7 +940,7 @@ export class BackendStack extends Construct {
     });
 
     // Create API resources and methods
-    this.createApiResources(authorizer, errorModel, successModel);
+    this.createApiResources(cognitoAuthorizer, errorModel, successModel);
 
     // Grant API Gateway permission to invoke Lambda functions
     this.grantApiGatewayPermissions();
@@ -1010,7 +956,7 @@ export class BackendStack extends Construct {
   }
 
   private createApiResources(
-    authorizer: apigateway.TokenAuthorizer,
+    cognitoAuthorizer: apigateway.CognitoUserPoolsAuthorizer,
     errorModel: apigateway.Model,
     successModel: apigateway.Model
   ): void {
@@ -1030,7 +976,8 @@ export class BackendStack extends Construct {
     // Translate endpoint
     const translate = this.api.root.addResource('translate');
     translate.addMethod('POST', new apigateway.LambdaIntegration(this.translateLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1051,7 +998,8 @@ export class BackendStack extends Construct {
     const user = this.api.root.addResource('user');
     const profile = user.addResource('profile');
     profile.addMethod('GET', new apigateway.LambdaIntegration(this.userProfileLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1071,7 +1019,8 @@ export class BackendStack extends Construct {
     // User usage endpoint
     const usage = user.addResource('usage');
     usage.addMethod('GET', new apigateway.LambdaIntegration(this.userUsageLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1091,7 +1040,8 @@ export class BackendStack extends Construct {
     // User upgrade endpoint
     const upgrade = user.addResource('upgrade');
     upgrade.addMethod('POST', new apigateway.LambdaIntegration(this.userUpgradeLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1111,7 +1061,8 @@ export class BackendStack extends Construct {
     // User account deletion endpoint
     const account = user.addResource('account');
     account.addMethod('DELETE', new apigateway.LambdaIntegration(this.userAccountDeletionLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1143,7 +1094,8 @@ export class BackendStack extends Construct {
     // Translation history endpoints
     const translations = this.api.root.addResource('translations');
     translations.addMethod('GET', new apigateway.LambdaIntegration(this.translationHistoryLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1162,7 +1114,8 @@ export class BackendStack extends Construct {
 
     const translationId = translations.addResource('{translationId}');
     translationId.addMethod('DELETE', new apigateway.LambdaIntegration(this.deleteTranslationLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1182,7 +1135,8 @@ export class BackendStack extends Construct {
     // Delete all translations endpoint
     const deleteAll = translations.addResource('delete-all');
     deleteAll.addMethod('DELETE', new apigateway.LambdaIntegration(this.deleteAllTranslationsLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',
@@ -1202,7 +1156,8 @@ export class BackendStack extends Construct {
     // Trending terms endpoint
     const trending = this.api.root.addResource('trending');
     trending.addMethod('GET', new apigateway.LambdaIntegration(this.trendingLambda), {
-      authorizer: authorizer,
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
         {
           statusCode: '200',

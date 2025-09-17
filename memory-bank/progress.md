@@ -148,15 +148,16 @@
 - **API Endpoints**: 6/6 complete (100%)
 - **Core Services**: 4/4 complete (100%)
 - **Data Models**: 6/6 complete (100%)
-- **Infrastructure**: 95% complete (TypeScript CDK)
+- **Infrastructure**: 100% complete (TypeScript CDK with optimized Lambda architecture)
 - **Documentation**: 85% complete (comprehensive guides)
 - **Mobile Integration**: 100% complete (iOS app with dynamic API integration, caching, Swift 6 compatibility, StoreKit 2 integration, TestFlight ready, and App Store submission preparation)
+- **Lambda Optimization**: 100% complete (unified dependencies layer, SnapStart configuration, dual authorization)
 
 ## Next Actions
 
-1. **Immediate**: Resubmit app to App Store with ATT compliance fixes
-2. **Short-term**: Monitor App Store review process and respond to any feedback
-3. **Medium-term**: Launch app and monitor user adoption and ATT permission rates
+1. **Immediate**: Deploy optimized Lambda architecture to production environment
+2. **Short-term**: Monitor SnapStart performance improvements and cold start optimization
+3. **Medium-term**: Test dual authorization strategy and migrate to native Cognito authorizer
 4. **Long-term**: Monitor app performance, user feedback, and ad revenue after App Store launch
 
 ## Critical Issues
@@ -348,3 +349,38 @@
 - **Pagination Support**: Added last_evaluated_key field for proper pagination in translation history
 - **Type Safety**: Maintained strong typing throughout the refactor with proper model inheritance
 - **Build Success**: Both backend and iOS app build successfully with simplified, cleaner architecture
+
+### ✅ **Native Cognito Authorizer Integration & Model Cleanup (2024-12-19)**
+- **Native Cognito Authorizer**: Successfully integrated native Cognito authorizer alongside custom Lambda authorizer
+- **API Gateway Configuration**: Added CognitoUserPoolsAuthorizer to CDK stack with proper IAM permissions
+- **Test Endpoint**: Created /me endpoint for testing native Cognito authorizer functionality
+- **Claims Extraction**: Implemented proper JWT claims parsing with timestamp handling for Cognito date formats
+- **Model Architecture**: Updated envelope and event models to incorporate Cognito authorizer types
+- **Username Field Cleanup**: Removed unused username fields from envelope models since handlers only use user_id
+- **LingibleBaseModel Integration**: Updated CognitoClaims model to inherit from LingibleBaseModel for consistent serialization
+- **Type Safety**: Maintained strong typing throughout with proper Pydantic model validation
+- **Cost Optimization**: Native Cognito authorizer eliminates need for custom Lambda authorizer, reducing costs
+- **Migration Strategy**: Incremental approach allows testing native authorizer before full migration
+
+### ✅ **Lambda Architecture Simplification & Performance Optimization (2024-12-19)**
+- **Unified Dependencies Layer**: Consolidated from 3 separate layers (core, authorizer, receipt-validation) to single `dependenciesLayer`
+- **Simplified Build Process**: Removed complex Poetry groups and handler-specific layer assignment logic
+- **Direct Requirements.txt**: Dependencies layer now uses `../lambda/requirements.txt` directly instead of generated files
+- **SnapStart Configuration**: Added conditional SnapStart support (enabled only in production environment)
+- **Alias Management**: Removed SnapStart aliases from dev environment while maintaining them for production
+- **Performance Focus**: Optimized for faster cold starts and reduced deployment complexity
+- **New /me Endpoint**: Added native Cognito authorizer endpoint for testing authentication flows
+- **Dual Authorization Strategy**: Implemented both custom JWT authorizer and native Cognito authorizer
+- **API Gateway Integration**: Properly configured with `authorizationType: apigateway.AuthorizationType.COGNITO`
+- **Lambda Function**: Created `meLambda` function with minimal memory (128MB) and short timeout (10s)
+
+### ✅ **Complete Migration to Native Cognito Authorizer (2024-12-19)**
+- **Full Migration**: Successfully migrated all API endpoints from custom Lambda authorizer to native Cognito authorizer
+- **Multi-Provider Support**: Updated Pydantic models to handle both Cognito and Apple Sign-In users with optional fields
+- **Token Type Fix**: Updated both Python client SDK and iOS app to use ID tokens instead of Access tokens
+- **Model Flexibility**: Made Cognito-specific fields optional to support Apple users who don't have all Cognito claims
+- **Test Updates**: Updated all test files to use native Cognito authorizer structure with proper claims format
+- **Documentation Updates**: Updated authorization guide and architecture docs to reflect native Cognito authorizer
+- **Cost Optimization**: Eliminated custom authorizer Lambda function, reducing costs and complexity
+- **Cleanup Complete**: Removed all remnants of custom authorizer code and updated documentation
+- **Production Ready**: Both client SDK and iOS app working with native Cognito authorizer

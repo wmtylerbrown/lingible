@@ -2,17 +2,19 @@
 
 ## Overview
 
-This guide explains the comprehensive authorization system for the GenZ Slang Translation App, including API Gateway authorizers, Lambda-based authorization, and tier-based access control.
+This guide explains the comprehensive authorization system for the Lingible Translation App, using AWS API Gateway's native Cognito authorizer for secure, scalable authentication.
 
 ## Architecture
 
-### 1. API Gateway Authorizer (Lambda Function)
-- **File**: `backend/src/handlers/authorizer.py`
+### 1. Native Cognito Authorizer
+- **Type**: API Gateway Cognito User Pools Authorizer
 - **Purpose**: Validates JWT tokens from Cognito at the API Gateway level
 - **Benefits**:
   - Prevents unauthorized requests from reaching Lambda functions
   - Reduces Lambda invocations for invalid tokens
   - Provides user context to Lambda functions
+  - No custom Lambda function needed for authorization
+  - Lower cost and complexity
 
 ### 2. Lambda-Level Authorization (Simplified)
 - **Purpose**: Business logic authorization using authorizer context
@@ -33,11 +35,12 @@ def public_handler(event, context):
 
 ### Protected Endpoints
 ```python
-# API Gateway authorizer validates token
+# API Gateway Cognito authorizer validates token
 def protected_handler(event, context):
     # User data available from authorizer context
-    user_id = event.requestContext.authorizer.user_id
-    user_tier = event.requestContext.authorizer.user_tier
+    user_id = event.requestContext.authorizer.claims.sub
+    email = event.requestContext.authorizer.claims.email
+    user_tier = event.requestContext.authorizer.claims.get('custom:user_tier', 'free')
     pass
 ```
 
@@ -45,248 +48,191 @@ def protected_handler(event, context):
 ```python
 def premium_feature_handler(event, context):
     # Check user tier from authorizer context
-    user_tier = event.requestContext.authorizer.user_tier
+    user_tier = event.requestContext.authorizer.claims.get('custom:user_tier', 'free')
     if user_tier not in ["premium", "admin"]:
         return create_forbidden_response("Premium tier required")
     pass
 ```
 
-## Usage Examples
+## Token Types
 
-### Basic Authentication
+### ID Token (Primary)
+- **Used for**: API Gateway authentication
+- **Contains**: User identity claims (sub, email, etc.)
+- **Validation**: Handled by native Cognito authorizer
+
+### Access Token
+- **Used for**: AWS service calls (if needed)
+- **Contains**: AWS service permissions
+- **Validation**: Not used for API Gateway authentication
+
+## Multi-Provider Support
+
+### Cognito User Pool Users
+- **Authentication**: Direct Cognito authentication
+- **Claims**: Full Cognito claims including `event_id`, `origin_jti`, etc.
+- **Token**: ID token with standard Cognito structure
+
+### Apple Sign-In Users
+- **Authentication**: Apple OAuth → Cognito
+- **Claims**: Apple-specific claims including `at_hash`
+- **Token**: ID token with Apple-specific structure
+- **Missing Claims**: Some Cognito-specific fields (handled gracefully)
+
+## Implementation
+
+### 1. API Gateway Configuration
+```typescript
+// CDK Configuration
+const cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'NativeCognitoAuthorizer', {
+  cognitoUserPools: [this.userPool],
+  authorizerName: 'NativeCognitoAuthorizer',
+  identitySource: 'method.request.header.Authorization',
+});
+```
+
+### 2. Lambda Function Integration
+```typescript
+// Apply to API methods
+translate.addMethod('POST', new apigateway.LambdaIntegration(this.translateLambda), {
+  authorizer: cognitoAuthorizer,
+  authorizationType: apigateway.AuthorizationType.COGNITO,
+  methodResponses: [
+    {
+      statusCode: '200',
+      responseModels: {
+        'application/json': successModel,
+      },
+    },
+    {
+      statusCode: '401',
+      responseModels: {
+        'application/json': errorModel,
+      },
+    },
+  ],
+});
+```
+
+### 3. Client Authentication
 ```python
-from src.utils.authorization import require_auth, AuthorizationLevel
-
-@require_auth(level=AuthorizationLevel.AUTHENTICATED)
-def my_handler(event, context):
-    # Only authenticated users can access
-    pass
+# Python Client SDK
+def get_auth_headers(self) -> Dict[str, str]:
+    token = self.get_valid_token()  # Returns ID token
+    return {
+        'Authorization': f'Bearer {token}'
+    }
 ```
 
-### Tier-Based Access
-```python
-@require_auth(required_tiers=["premium", "admin"])
-def premium_feature_handler(event, context):
-    # Only premium and admin users can access
-    pass
-```
-
-### Attribute-Based Authorization
-```python
-@require_auth(
-    level=AuthorizationLevel.AUTHENTICATED,
-    required_attributes={"email_verified": "true"}
-)
-def verified_user_handler(event, context):
-    # Only users with verified email can access
-    pass
-```
-
-### Combined Authorization
-```python
-@require_auth(
-    level=AuthorizationLevel.PREMIUM,
-    required_attributes={"email_verified": "true", "custom:subscription_active": "true"}
-)
-def premium_verified_handler(event, context):
-    # Premium users with verified email and active subscription
-    pass
-```
-
-## User Tiers
-
-### Free Tier
-- Basic translation limits
-- Standard features
-- Rate limiting
-
-### Premium Tier
-- Higher translation limits
-- Advanced features
-- Priority processing
-
-### Admin Tier
-- Full system access
-- User management
-- System configuration
-
-## API Gateway Configuration
-
-### Authorizer Setup
-1. **Create Lambda Authorizer**:
-   ```bash
-   # Deploy the authorizer function
-   aws lambda create-function \
-     --function-name genz-translation-authorizer \
-     --runtime python3.13 \
-     --handler authorizer.lambda_handler \
-     --role arn:aws:iam::account:role/lambda-execution-role \
-     --zip-file fileb://authorizer.zip
-   ```
-
-2. **Configure API Gateway**:
-   ```bash
-   # Create authorizer in API Gateway
-   aws apigateway create-authorizer \
-     --rest-api-id your-api-id \
-     --name cognito-authorizer \
-     --type TOKEN \
-     --authorizer-uri arn:aws:apigateway:region:lambda:path/2015-03-31/functions/arn:aws:lambda:region:account:function:genz-translation-authorizer/invocations \
-     --authorizer-result-ttl-in-seconds 300
-   ```
-
-3. **Apply to Resources**:
-   ```bash
-   # Apply authorizer to specific methods
-   aws apigateway update-method \
-     --rest-api-id your-api-id \
-     --resource-id your-resource-id \
-     --http-method POST \
-     --patch-operations op=replace,path=/authorizationType,value=CUSTOM
-   ```
-
-## Environment Variables
-
-### Required for Authorizer
-```bash
-USER_POOL_ID=us-east-1_xxxxxxxxx
-USER_POOL_REGION=us-east-1
-API_GATEWAY_ARN=arn:aws:execute-api:us-east-1:account:api-id/stage
-```
-
-### Required for Lambda Functions
-```bash
-USER_POOL_ID=us-east-1_xxxxxxxxx
-USER_POOL_REGION=us-east-1
-```
-
-## Security Best Practices
-
-### 1. Token Validation
-- Always validate JWT tokens using Cognito's public keys
-- Check token expiration
-- Verify issuer and audience claims
-
-### 2. Rate Limiting
-- Implement rate limiting per user
-- Different limits for different tiers
-- Monitor and alert on abuse
-
-### 3. Error Handling
-- Don't expose sensitive information in error messages
-- Log security events for monitoring
-- Use appropriate HTTP status codes
-
-### 4. CORS Configuration
-```python
-# Example CORS headers
-headers = {
-    "Access-Control-Allow-Origin": "https://your-app-domain.com",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
-    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Credentials": "true"
+```swift
+// iOS App
+func getAuthToken() async throws -> String {
+    // Extract ID token from Cognito session
+    return id_token  // Not access_token
 }
 ```
 
-## Monitoring and Logging
+## Claims Structure
 
-### Security Events
-- Authentication failures
-- Authorization denials
-- Token validation errors
-- Rate limit violations
+### Standard JWT Claims (Always Present)
+- `sub`: Subject - unique user identifier
+- `aud`: Audience - client ID
+- `iss`: Issuer - Cognito User Pool URL
+- `exp`: Expiration time (Unix timestamp)
+- `iat`: Issued at time (Unix timestamp)
+- `jti`: JWT ID - unique token identifier
+- `email`: User email address
 
-### Metrics
-- Authentication success/failure rates
-- Authorization decision distribution
-- Token validation performance
-- User tier distribution
+### Cognito-Specific Claims (Optional)
+- `token_use`: Token use type (id, access, refresh)
+- `auth_time`: Authentication time (Unix timestamp)
+- `cognito:username`: Cognito username
+- `event_id`: Event ID for this authentication
+- `origin_jti`: Original JWT ID
 
-### Alerts
-- High authentication failure rates
-- Unusual authorization patterns
-- Token validation errors
-- Rate limit violations
+### Apple-Specific Claims (Optional)
+- `at_hash`: Apple OAuth access token hash
 
-## Testing
+### Custom Claims (Optional)
+- `custom:user_tier`: User tier (free, premium)
+- `custom:role`: User role
+- `email_verified`: Email verification status
+- `phone_number`: User phone number
 
-### Unit Tests
-```python
-def test_authorization_decorator():
-    # Test different authorization levels
-    pass
+## Error Handling
 
-def test_user_tier_validation():
-    # Test tier-based access control
-    pass
+### 401 Unauthorized
+- **Cause**: Invalid or expired token
+- **Response**: Clear error message
+- **Action**: Client should refresh token or re-authenticate
 
-def test_attribute_validation():
-    # Test attribute-based authorization
-    pass
-```
+### 403 Forbidden
+- **Cause**: Valid token but insufficient permissions
+- **Response**: Specific permission error
+- **Action**: Client should check user tier/role
 
-### Integration Tests
-```python
-def test_api_gateway_authorizer():
-    # Test authorizer with valid/invalid tokens
-    pass
+## Security Considerations
 
-def test_lambda_authorization():
-    # Test decorators with real events
-    pass
-```
+### Token Validation
+- **Automatic**: Handled by API Gateway
+- **No Custom Code**: No need for manual JWT validation
+- **Performance**: Optimized by AWS infrastructure
+
+### User Context
+- **Injection**: Automatic user context injection
+- **Validation**: Pre-validated by API Gateway
+- **Security**: No risk of token manipulation
+
+### Multi-Provider Support
+- **Flexible**: Handles both Cognito and Apple users
+- **Graceful**: Missing claims handled gracefully
+- **Consistent**: Same API for all authentication types
+
+## Migration from Custom Authorizer
+
+### Benefits of Native Authorizer
+- **Cost Reduction**: No custom Lambda function needed
+- **Simplified Architecture**: Fewer moving parts
+- **Better Performance**: AWS-optimized validation
+- **Easier Maintenance**: No custom authorization code
+
+### Migration Steps
+1. **Update CDK**: Replace custom authorizer with native Cognito authorizer
+2. **Update Models**: Make Cognito-specific claims optional
+3. **Update Clients**: Use ID token instead of Access token
+4. **Test**: Verify both Cognito and Apple users work
+5. **Deploy**: Remove custom authorizer Lambda function
 
 ## Troubleshooting
 
 ### Common Issues
+1. **401 Errors**: Check token type (ID vs Access)
+2. **Missing Claims**: Verify user authentication method
+3. **Validation Errors**: Check Pydantic model flexibility
 
-1. **Token Validation Failures**
-   - Check USER_POOL_ID and USER_POOL_REGION
-   - Verify JWT token format
-   - Check token expiration
+### Debugging
+1. **CloudWatch Logs**: Check Lambda function logs
+2. **API Gateway Logs**: Check authorizer logs
+3. **Token Inspection**: Decode JWT to verify claims
 
-2. **Authorization Denials**
-   - Verify user tier in Cognito attributes
-   - Check required attributes
-   - Review authorization level requirements
+## Best Practices
 
-3. **Performance Issues**
-   - Monitor JWKS cache hit rates
-   - Check authorizer execution time
-   - Optimize token validation
+### Token Management
+- **Use ID Token**: For API Gateway authentication
+- **Handle Refresh**: Implement token refresh logic
+- **Error Handling**: Graceful handling of expired tokens
 
-### Debug Mode
-```python
-# Enable debug logging
-import logging
-logging.getLogger('src.utils.authorization').setLevel(logging.DEBUG)
-```
+### User Context
+- **Extract Claims**: Use `event.requestContext.authorizer.claims`
+- **Handle Missing Fields**: Use optional fields gracefully
+- **Validate Business Logic**: Check user tier/role as needed
 
-## Migration Guide
+### Security
+- **Least Privilege**: Only request necessary claims
+- **Token Storage**: Secure token storage in clients
+- **Error Messages**: Don't expose sensitive information
 
-### From Simple Token Validation
-1. Replace direct token validation with authorizer decorators
-2. Update environment variables
-3. Configure API Gateway authorizer
-4. Test all endpoints
+---
 
-### From No Authorization
-1. Add authentication requirements gradually
-2. Start with public endpoints
-3. Add authentication to critical endpoints
-4. Implement tier-based access control
-
-## Future Enhancements
-
-### Planned Features
-- Role-based access control (RBAC)
-- Dynamic permission management
-- Multi-factor authentication (MFA)
-- Session management
-- Audit logging
-
-### Integration Opportunities
-- AWS IAM integration
-- Third-party identity providers
-- Single sign-on (SSO)
-- Enterprise authentication
+**Last Updated**: December 2024
+**Version**: 2.0 (Native Cognito Authorizer)

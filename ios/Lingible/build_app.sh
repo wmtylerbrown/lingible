@@ -214,21 +214,10 @@ fi
 echo ""
 print_success "Build(s) completed successfully!"
 
-# Restore appropriate configuration based on what was built
-if [[ "$BUILD_TARGET" == "archive" ]]; then
-    # Keep prod config in place for archive
-    print_status "Keeping production configuration active for archive..."
-    print_success "Production configuration is ready for archive"
-elif [[ "$BUILD_TARGET" == "dev" ]]; then
-    # Keep dev config in place
-    print_status "Keeping development configuration active..."
-    print_success "Development configuration is ready for testing"
-else
-    print_status "Restoring development configuration for testing..."
-    rm -f "Lingible/amplify_outputs.json"
-    cp "Lingible/amplify_outputs-dev.json" "Lingible/amplify_outputs.json"
-    print_success "Development configuration restored"
-fi
+print_status "Restoring development configuration for testing..."
+rm -f "Lingible/amplify_outputs.json"
+cp "Lingible/amplify_outputs-dev.json" "Lingible/amplify_outputs.json"
+print_success "Development configuration restored"
 
 echo ""
 echo "📋 Build Summary:"

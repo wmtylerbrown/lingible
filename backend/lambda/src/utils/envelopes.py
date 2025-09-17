@@ -39,16 +39,6 @@ class APIGatewayEnvelope(BaseEnvelope):
 
     def _extract_common_data(self, event: CustomAPIGatewayProxyEventModel) -> Dict[str, Any]:
         """Extract common data from API Gateway event."""
-        # Extract user info from authorizer context (set by API Gateway authorizer)
-        user_id = None
-        username = None
-
-        if event.requestContext and event.requestContext.authorizer:
-            authorizer_context = event.requestContext.authorizer
-            # Access authorizer context as a dictionary
-            user_id = getattr(authorizer_context, "user_id", None)
-            username = getattr(authorizer_context, "username", None)
-
         # Get request metadata (API Gateway always provides requestContext)
         if not event.requestContext:
             raise ValidationError("Invalid API Gateway event: missing requestContext")
@@ -59,8 +49,6 @@ class APIGatewayEnvelope(BaseEnvelope):
 
         return {
             "event": event.model_dump(),
-            "user_id": user_id,
-            "username": username,
             "request_id": request_id,
         }
 
@@ -81,23 +69,15 @@ class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
         """Extract common data from API Gateway event with authentication validation."""
         # Extract user info from authorizer context (set by API Gateway authorizer)
         user_id = None
-        username = None
 
-        if event.requestContext and event.requestContext.authorizer:
-            authorizer_context = event.requestContext.authorizer
-            # Access authorizer context as a dictionary
-            user_id = getattr(authorizer_context, "user_id", None)
-            username = getattr(authorizer_context, "username", None)
+        if event.requestContext.authorizer:
+            user_id = event.requestContext.authorizer.claims.sub
 
         # Validate authentication for protected endpoints
         if not user_id:
             raise AuthenticationError(
                 "Valid authentication token is required for this endpoint"
             )
-
-        # Ensure username is provided (fallback to user_id if not available)
-        if not username:
-            username = user_id
 
         # Get request metadata (API Gateway always provides requestContext)
         if not event.requestContext:
@@ -110,7 +90,6 @@ class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
         return {
             "event": event.model_dump(),
             "user_id": user_id,
-            "username": username,
             "request_id": request_id,
         }
 

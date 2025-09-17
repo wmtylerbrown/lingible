@@ -11,13 +11,7 @@ python = "^3.13"
 boto3 = "^1.40.20"
 pydantic = "^2.11.7"
 pydantic-core = "^2.33.2"
-python-jose = {extras = ["cryptography"], version = "^3.5.0"}
-requests = "^2.32.5"
-cryptography = "^45.0.0"
-aws-lambda-powertools = {extras = ["all"], version = "^3.19.0"}
-google-api-python-client = "^2.0.0"
-google-auth = "^2.0.0"
-pytz = "^2024.2"
+aws-lambda-powertools = {extras = ["parser", "logger", "tracer", "parameters"], version = "^3.19.0"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
@@ -29,6 +23,12 @@ mypy = "^1.17.1"
 types-python-jose = "^3.5.0"
 types-pyasn1 = "^0.6.0"
 pre-commit = "^4.0.1"
+
+[tool.poetry.group.receipt-validation.dependencies]
+google-api-python-client = "^2.0.0"
+google-auth = "^2.0.0"
+googleapis-common-protos = "^1.70.0"
+requests = "^2.32.5"
 
 [build-system]
 requires = ["poetry-core"]

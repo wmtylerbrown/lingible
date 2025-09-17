@@ -1,7 +1,8 @@
 """Typed event models for Lambda handlers."""
 
 from typing import Dict, Any, Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
 from aws_lambda_powertools.utilities.parser.models import APIGatewayEventRequestContext, APIGatewayProxyEventModel
 
 from .translations import TranslationRequest
@@ -20,9 +21,6 @@ class TranslationEvent(BaseModel):
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
-    )
 
     # Request metadata
     request_id: str = Field(
@@ -38,9 +36,6 @@ class UserProfileEvent(BaseModel):
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
-    )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
     )
@@ -52,9 +47,6 @@ class UserUsageEvent(BaseModel):
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
-    )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
     )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
@@ -68,9 +60,6 @@ class SimpleAuthenticatedEvent(BaseModel):
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
-    )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
     )
@@ -82,9 +71,6 @@ class PathParameterEvent(BaseModel):
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
-    )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
     )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
@@ -111,9 +97,6 @@ class TranslationHistoryEvent(BaseModel):
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
-    )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
     )
@@ -132,9 +115,6 @@ class SubscriptionEvent(BaseModel):
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
-    )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
     )
@@ -148,9 +128,6 @@ class UserUpgradeEvent(BaseModel):
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
-    )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
     )
@@ -163,9 +140,6 @@ class AccountDeletionEvent(BaseModel):
     request_body: "AccountDeletionRequest" = Field(..., description="Parsed request body")
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
-    )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
     )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
@@ -282,9 +256,6 @@ class TrendingEvent(BaseModel):
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )
-    username: str = Field(
-        ..., description="Username from Cognito token (guaranteed by envelope)"
-    )
     request_id: str = Field(
         ..., description="Request ID for tracing (guaranteed by envelope)"
     )
@@ -297,29 +268,68 @@ class TrendingEvent(BaseModel):
     active_only: Optional[bool] = Field(True, description="Show only active trending terms")
 
 
-# Custom API Gateway Event Models for Authorizer Context
-class CustomAuthorizerContext(BaseModel):
-    """Custom authorizer context model for our Cognito authorizer."""
-    token_issued_at: str | None = None
-    token_expires_at: str | None = None
-    user_id: str | None = None
-    principalId: str | None = None
-    user_tier: str | None = None
-    integrationLatency: int | None = None
-    email: str | None = None
-    username: str | None = None
+class CustomCognitoAuthorizerContext(BaseModel):
+    # Standard JWT claims (always present)
+    sub: str = Field(description="Subject - unique user identifier")
+    aud: str = Field(description="Audience - client ID")
+    iss: str = Field(description="Issuer - Cognito User Pool URL")
+    exp: int = Field(description="Expiration time (Unix timestamp)")
+    iat: int = Field(description="Issued at time (Unix timestamp)")
+    jti: str = Field(description="JWT ID - unique token identifier")
 
+    # User info (always present)
+    email: str = Field(description="User email")
+
+    # Cognito-specific claims (optional - Apple users won't have these)
+    token_use: Optional[str] = Field(None, description="Token use type (id, access, refresh)")
+    auth_time: Optional[int] = Field(None, description="Authentication time (Unix timestamp)")
+    cognito_username: Optional[str] = Field(None, alias="cognito:username", description="Cognito username")
+    event_id: Optional[str] = Field(None, description="Event ID for this authentication")
+    origin_jti: Optional[str] = Field(None, description="Original JWT ID")
+
+    # Apple-specific claims (optional - only for Apple users)
+    at_hash: Optional[str] = Field(None, description="Apple OAuth access token hash")
+
+    # Other optional claims
+    email_verified: Optional[bool] = Field(None, description="Email verification status")
+    phone_number: Optional[str] = Field(None, description="User phone number")
+    user_tier: Optional[str] = Field(None, alias="custom:user_tier", description="User tier (free, premium)")
+    role: Optional[str] = Field(None, alias="custom:role", description="User role")
+
+    @field_validator('exp', 'iat', 'auth_time', mode='before')
+    @classmethod
+    def parse_timestamp(cls, v):
+        """Parse timestamp from string or int."""
+        if v is None:
+            return None
+        if isinstance(v, int):
+            return v
+        if isinstance(v, str):
+            try:
+                # Try to parse as Unix timestamp first
+                return int(v)
+            except ValueError:
+                # If that fails, try to parse as datetime string
+                try:
+                    dt = datetime.strptime(v, '%a %b %d %H:%M:%S UTC %Y')
+                    return int(dt.timestamp())
+                except ValueError:
+                    # If all else fails, return 0
+                    return 0
+        return 0
+
+
+class CustomAPIGatewayEventAuthorizer(BaseModel):
+    """Custom API Gateway event authorizer model for our Cognito authorizer."""
+    claims: CustomCognitoAuthorizerContext = Field(description="Cognito claims")
 
 class CustomRequestContext(APIGatewayEventRequestContext):
     """Custom request context that extends the base one with our custom authorizer."""
-
-    authorizer: Optional[CustomAuthorizerContext] = Field(
-        None, description="Custom authorizer context"
-    )  # type: ignore[assignment]
+    authorizer: Optional[CustomAPIGatewayEventAuthorizer] = Field(None, description="Custom authorizer context")  # type: ignore[assignment]
 
 
 class CustomAPIGatewayProxyEventModel(APIGatewayProxyEventModel):
     """API Gateway event with Lingible-specific validation."""
 
     # Override the request context to use our custom one
-    requestContext: Optional[CustomRequestContext] = Field(None, description="Request context with custom authorizer")  # type: ignore[assignment]
+    requestContext: CustomRequestContext = Field(description="Request context with custom authorizer")

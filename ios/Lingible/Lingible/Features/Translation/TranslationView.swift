@@ -443,7 +443,7 @@ struct TranslationView: View {
 
         do {
             // Get current user from the shared authentication service
-            guard let user = try await getCurrentUser() else {
+            guard try await getCurrentUser() != nil else {
                 errorMessage = "You need to sign in to translate text"
                 isLoading = false
                 return
@@ -517,7 +517,7 @@ struct TranslationView: View {
         } catch {
 
             // Check if it's an ErrorResponse from the generated API client
-            if case let ErrorResponse.error(statusCode, data, response, underlyingError) = error {
+            if case let ErrorResponse.error(_, data, _, _) = error {
                 if let data = data {
                     // Try to parse as ModelErrorResponse to get structured error info
                     do {

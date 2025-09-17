@@ -117,54 +117,84 @@ class SubscriptionService:
             logger.log_error(e, {"operation": "validate_and_create_subscription", "user_id": user_id})
             raise
 
-    @tracer.trace_method("handle_apple_webhook")
-    def handle_apple_webhook(
-        self, notification_type: AppleNotificationType, transaction_id: str, receipt_data: str
-    ) -> bool:
-        """Handle Apple subscription webhook."""
+    @tracer.trace_method("handle_renewal_webhook")
+    def handle_renewal_webhook(self, transaction_id: str, receipt_data: str) -> bool:
+        """Handle Apple subscription renewal webhook."""
         logger.log_business_event(
-            "apple_webhook_received",
-            {"notification_type": notification_type, "transaction_id": transaction_id},
+            "apple_renewal_webhook_received",
+            {"transaction_id": transaction_id},
         )
 
         try:
             # Find user ID by transaction ID
-            user_id = self._find_user_id_by_transaction_id(transaction_id)
+            user_id = self.find_user_id_by_transaction_id(transaction_id)
             if not user_id:
                 logger.log_error(
                     ValueError(f"User not found for transaction: {transaction_id}"),
-                    {
-                        "operation": "handle_apple_webhook",
-                        "transaction_id": transaction_id,
-                    },
+                    {"operation": "handle_renewal_webhook", "transaction_id": transaction_id},
                 )
                 return False
 
-            # Handle different notification types
-            if notification_type == "RENEWAL":
-                return self._handle_renewal(user_id, receipt_data, transaction_id)
-            elif notification_type == "CANCEL":
-                return self._handle_cancellation(user_id)
-            elif notification_type == "FAILED_PAYMENT":
-                return self._handle_failed_payment(user_id)
-            else:
-                logger.log_business_event(
-                    "unknown_webhook_type",
-                    {
-                        "notification_type": notification_type,
-                        "transaction_id": transaction_id,
-                    },
-                )
-                return True
+            return self._handle_renewal(user_id, receipt_data, transaction_id)
 
         except Exception as e:
             logger.log_error(
                 e,
-                {
-                    "operation": "handle_apple_webhook",
-                    "notification_type": notification_type,
-                    "transaction_id": transaction_id,
-                },
+                {"operation": "handle_renewal_webhook", "transaction_id": transaction_id},
+            )
+            return False
+
+    @tracer.trace_method("handle_cancellation_webhook")
+    def handle_cancellation_webhook(self, transaction_id: str) -> bool:
+        """Handle Apple subscription cancellation webhook."""
+        logger.log_business_event(
+            "apple_cancellation_webhook_received",
+            {"transaction_id": transaction_id},
+        )
+
+        try:
+            # Find user ID by transaction ID
+            user_id = self.find_user_id_by_transaction_id(transaction_id)
+            if not user_id:
+                logger.log_error(
+                    ValueError(f"User not found for transaction: {transaction_id}"),
+                    {"operation": "handle_cancellation_webhook", "transaction_id": transaction_id},
+                )
+                return False
+
+            return self._handle_cancellation(user_id)
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "handle_cancellation_webhook", "transaction_id": transaction_id},
+            )
+            return False
+
+    @tracer.trace_method("handle_failed_payment_webhook")
+    def handle_failed_payment_webhook(self, transaction_id: str) -> bool:
+        """Handle Apple subscription failed payment webhook."""
+        logger.log_business_event(
+            "apple_failed_payment_webhook_received",
+            {"transaction_id": transaction_id},
+        )
+
+        try:
+            # Find user ID by transaction ID
+            user_id = self.find_user_id_by_transaction_id(transaction_id)
+            if not user_id:
+                logger.log_error(
+                    ValueError(f"User not found for transaction: {transaction_id}"),
+                    {"operation": "handle_failed_payment_webhook", "transaction_id": transaction_id},
+                )
+                return False
+
+            return self._handle_failed_payment(user_id)
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "handle_failed_payment_webhook", "transaction_id": transaction_id},
             )
             return False
 
@@ -176,7 +206,7 @@ class SubscriptionService:
         # For now, set to 1 month from now
         return datetime.now(timezone.utc).replace(day=28) + timedelta(days=30)
 
-    def _find_user_id_by_transaction_id(self, transaction_id: str) -> Optional[str]:
+    def find_user_id_by_transaction_id(self, transaction_id: str) -> Optional[str]:
         """Find user ID by transaction ID."""
         # Find subscription by transaction ID
         subscription = self.subscription_repository.find_by_transaction_id(
