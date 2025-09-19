@@ -142,7 +142,7 @@ export class BackendStack extends Construct {
         ENABLE_TRACING: backendConfig.observability.enable_tracing.toString(),
 
         // Apple Config (for App Store Server API)
-        APPLE_KEY_ID: config.apple.key_id,
+        APPLE_KEY_ID: config.apple.in_app_purchase_key_id,
         APPLE_TEAM_ID: config.apple.team_id,
         APPLE_BUNDLE_ID: config.apple.bundle_id,
   };
@@ -619,7 +619,7 @@ export class BackendStack extends Construct {
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
@@ -651,7 +651,7 @@ export class BackendStack extends Construct {
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
@@ -771,7 +771,7 @@ export class BackendStack extends Construct {
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
@@ -819,7 +819,7 @@ export class BackendStack extends Construct {
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));

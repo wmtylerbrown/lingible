@@ -92,7 +92,7 @@ class TranslationService:
                     {
                         "original_text": request.text,
                         "translated_text": translated_text,
-                        "direction": request.direction.value,
+                        "direction": request.direction,
                     }
                 )
                 # For now, we'll still return it but log the issue

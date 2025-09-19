@@ -99,6 +99,9 @@ class ReceiptValidationService:
             if not transaction_data.product_id:
                 raise ValidationError("Missing product_id in StoreKit 2 transaction")
 
+            # Validate Apple configuration before making API calls
+            self._validate_apple_config()
+
             # Get JWT token for Apple API authentication
             jwt_token = self._get_apple_jwt_token()
             if not jwt_token:
@@ -168,20 +171,26 @@ class ReceiptValidationService:
                 "typ": "JWT"
             }
 
-            # JWT payload
+            # JWT payload - using proper Apple App Store Server API format
             now = datetime.utcnow()
             payload = {
                 "iss": self.apple_config.team_id,
-                "iat": now,
-                "exp": now + timedelta(minutes=20),  # Token expires in 20 minutes
+                "iat": int(now.timestamp()),
+                "exp": int((now + timedelta(minutes=20)).timestamp()),  # Token expires in 20 minutes
                 "aud": "appstoreconnect-v1",
                 "bid": self.apple_config.bundle_id
             }
 
+            # Ensure private key is properly formatted
+            private_key = self.apple_config.private_key
+            if not private_key.startswith("-----BEGIN PRIVATE KEY-----"):
+                # If the private key doesn't have proper headers, add them
+                private_key = f"-----BEGIN PRIVATE KEY-----\n{private_key}\n-----END PRIVATE KEY-----"
+
             # Generate JWT token using the private key
             token = jwt.encode(
                 payload,
-                self.apple_config.private_key,
+                private_key,
                 algorithm="ES256",
                 headers=header
             )
@@ -192,7 +201,12 @@ class ReceiptValidationService:
                     "key_id": self.apple_config.key_id,
                     "team_id": self.apple_config.team_id,
                     "bundle_id": self.apple_config.bundle_id,
-                    "expires_at": (now + timedelta(minutes=20)).isoformat()
+                    "expires_at": (now + timedelta(minutes=20)).isoformat(),
+                    "token_length": len(token),
+                    "private_key_has_headers": private_key.startswith("-----BEGIN PRIVATE KEY-----"),
+                    "private_key_length": len(private_key),
+                    "jwt_header": header,
+                    "jwt_payload": payload
                 }
             )
 
@@ -201,6 +215,38 @@ class ReceiptValidationService:
         except Exception as e:
             logger.log_error(e, {"operation": "_get_apple_jwt_token"})
             return ""
+
+    def _validate_apple_config(self) -> None:
+        """Validate Apple configuration before making API calls."""
+        try:
+            # Check if all required Apple configuration is present
+            if not self.apple_config.private_key:
+                raise ValidationError("Apple private key is missing")
+
+            if not self.apple_config.key_id:
+                raise ValidationError("Apple Key ID is missing")
+
+            if not self.apple_config.team_id:
+                raise ValidationError("Apple Team ID is missing")
+
+            if not self.apple_config.bundle_id:
+                raise ValidationError("Apple Bundle ID is missing")
+
+            # Log configuration validation (without sensitive data)
+            logger.log_business_event(
+                "apple_config_validated",
+                {
+                    "key_id": self.apple_config.key_id,
+                    "team_id": self.apple_config.team_id,
+                    "bundle_id": self.apple_config.bundle_id,
+                    "private_key_length": len(self.apple_config.private_key),
+                    "private_key_has_headers": self.apple_config.private_key.startswith("-----BEGIN PRIVATE KEY-----")
+                }
+            )
+
+        except Exception as e:
+            logger.log_error(e, {"operation": "_validate_apple_config"})
+            raise ValidationError(f"Apple configuration validation failed: {str(e)}")
 
     def _validate_with_apple_api(self, transaction_id: str, jwt_token: str, environment: StoreEnvironment) -> Optional[Dict[str, Any]]:
         """
@@ -216,6 +262,7 @@ class ReceiptValidationService:
         """
         try:
             # Determine the correct API endpoint based on environment
+            # Using official Apple App Store Server API endpoints from documentation
             if environment == StoreEnvironment.SANDBOX:
                 api_url = "https://api.storekit-sandbox.itunes.apple.com/inApps/v1/transactions"
             else:
@@ -227,25 +274,81 @@ class ReceiptValidationService:
                 "Content-Type": "application/json",
             }
 
+            # Log the request details for debugging
+            logger.log_business_event(
+                "apple_api_request_started",
+                {
+                    "transaction_id": transaction_id,
+                    "environment": environment,
+                    "api_url": api_url,
+                    "full_url": f"{api_url}/{transaction_id}",
+                    "jwt_token_length": len(jwt_token),
+                    "jwt_token_preview": jwt_token[:50] + "..." if len(jwt_token) > 50 else jwt_token,
+                    "authorization_header": f"Bearer {jwt_token[:20]}..." if len(jwt_token) > 20 else f"Bearer {jwt_token}"
+                }
+            )
+
             # Make request to Apple's API
+            # Using the correct App Store Server API endpoint format
+            full_url = f"{api_url}/{transaction_id}"
             response = requests.get(
-                f"{api_url}/{transaction_id}",
+                full_url,
                 headers=headers,
                 timeout=30
             )
 
+            # Log response details for debugging
+            logger.log_business_event(
+                "apple_api_response_received",
+                {
+                    "transaction_id": transaction_id,
+                    "status_code": response.status_code,
+                    "response_length": len(response.text) if response.text else 0
+                }
+            )
+
             if response.status_code == 200:
-                return response.json()
+                response_data = response.json()
+                logger.log_business_event(
+                    "apple_api_validation_success",
+                    {
+                        "transaction_id": transaction_id,
+                        "response_keys": list(response_data.keys()) if isinstance(response_data, dict) else []
+                    }
+                )
+                return response_data
             elif response.status_code == 404:
                 logger.log_error(
                     ValueError("Transaction not found"),
-                    {"operation": "_validate_with_apple_api", "transaction_id": transaction_id}
+                    {
+                        "operation": "_validate_with_apple_api",
+                        "transaction_id": transaction_id,
+                        "response_text": response.text
+                    }
+                )
+                return None
+            elif response.status_code == 401:
+                # Log detailed 401 error information
+                logger.log_error(
+                    ValueError(f"Apple API authentication failed: {response.status_code}"),
+                    {
+                        "operation": "_validate_with_apple_api",
+                        "transaction_id": transaction_id,
+                        "status_code": response.status_code,
+                        "response_text": response.text,
+                        "response_headers": dict(response.headers)
+                    }
                 )
                 return None
             else:
                 logger.log_error(
                     ValueError(f"Apple API error: {response.status_code}"),
-                    {"operation": "_validate_with_apple_api", "transaction_id": transaction_id, "status_code": response.status_code}
+                    {
+                        "operation": "_validate_with_apple_api",
+                        "transaction_id": transaction_id,
+                        "status_code": response.status_code,
+                        "response_text": response.text
+                    }
                 )
                 return None
 
@@ -293,7 +396,7 @@ class ReceiptValidationService:
             # Extract validated data from Apple's response
             apple_transaction_id = transaction_info.get("transactionId", original_data.transaction_id)
             apple_product_id = transaction_info.get("productId", original_data.product_id)
-            apple_environment = transaction_info.get("environment", original_data.environment.value)
+            apple_environment = transaction_info.get("environment", original_data.environment)
 
             # Parse dates from Apple's response
             apple_purchase_date = self._parse_apple_date(

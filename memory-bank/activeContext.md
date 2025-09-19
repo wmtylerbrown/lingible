@@ -347,4 +347,14 @@
 - **Lambda Function**: Created `meLambda` function with minimal memory (128MB) and short timeout (10s)
 - **Permission Management**: Added proper IAM permissions for API Gateway to invoke the me endpoint
 
-**Current Status**: ✅ **LAMBDA ARCHITECTURE OPTIMIZED** - Successfully simplified Lambda layer architecture from complex multi-layer system to unified dependencies layer. SnapStart configured for production-only optimization. Native Cognito authorizer implemented for testing. All Lambda functions now use consistent layer structure with improved performance and simplified deployment process.
+### ✅ **COMPLETED: Apple In-App Purchase API Integration & Bug Fixes (2024-12-19)**
+- **In-App Purchase API Setup**: Added separate private key configuration for Apple In-App Purchase API (Key ID: DM2M9NP42M)
+- **Secret Management**: Updated manage-apple-secret script to support `iap-private-key` secret type with proper JSON formatting
+- **Configuration Updates**: Added `in_app_purchase_key_id` to shared config and updated CDK to pass Apple IAP credentials
+- **IAM Permissions**: Updated Lambda functions to access `lingible-apple-iap-private-key-${environment}` secrets
+- **Enum Bug Fixes**: Fixed `AttributeError: 'str' object has no attribute 'value'` errors across multiple services
+- **String Enum Handling**: Corrected `.value` usage on string enums (StoreEnvironment, SubscriptionProvider, TranslationDirection, LogLevel)
+- **Enhanced Logging**: Added detailed JWT token and Apple API request logging for debugging authentication issues
+- **Deployment**: Successfully deployed fixes to both dev and prod environments
+
+**Current Status**: ✅ **APPLE IAP API INTEGRATION COMPLETE** - Successfully integrated Apple In-App Purchase API with separate private key configuration. Fixed all enum-related bugs and deployed enhanced logging for debugging Apple API authentication. Ready for In-App Purchase private key secret creation and testing.

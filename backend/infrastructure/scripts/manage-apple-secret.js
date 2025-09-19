@@ -85,13 +85,18 @@ async function createOrUpdateSecret(secretName, privateKey, region) {
 
     // Secret exists, update it
     console.log(`🔄 Updating existing secret: ${secretName}`);
-    execSync(`aws secretsmanager update-secret --secret-id ${secretName} --secret-string '{"privateKey":"${privateKey.replace(/"/g, '\\"')}"}' --region ${region}`, { stdio: 'inherit' });
+    const secretJson = JSON.stringify({ privateKey });
+    execSync(`aws secretsmanager update-secret --secret-id ${secretName} --secret-string '${secretJson}' --region ${region}`, { stdio: 'inherit' });
     console.log('✅ Secret updated successfully!');
   } catch (error) {
     if (error.status === 254) { // AWS CLI returns 254 for ResourceNotFoundException
       // Secret doesn't exist, create it
       console.log(`🆕 Creating new secret: ${secretName}`);
-      execSync(`aws secretsmanager create-secret --name ${secretName} --description "Apple Sign-In private key for Lingible Cognito" --secret-string '{"privateKey":"${privateKey.replace(/"/g, '\\"')}"}' --region ${region}`, { stdio: 'inherit' });
+      const secretJson = JSON.stringify({ privateKey });
+      const description = secretName.includes('iap')
+        ? "Apple In-App Purchase private key for Lingible App Store Server API"
+        : "Apple Sign-In private key for Lingible Cognito";
+      execSync(`aws secretsmanager create-secret --name ${secretName} --description "${description}" --secret-string '${secretJson}' --region ${region}`, { stdio: 'inherit' });
       console.log('✅ Secret created successfully!');
     } else {
       throw error;
@@ -173,19 +178,21 @@ async function main() {
     console.log('Secret Types:');
     console.log('  private-key  - Apple private key (for Cognito Apple Sign-In)');
     console.log('  shared-secret - Apple shared secret (for App Store receipt validation)');
+    console.log('  iap-private-key - Apple In-App Purchase private key (for App Store Server API)');
     console.log('');
     console.log('Environment: dev or prod');
     console.log('');
     console.log('Examples:');
     console.log('  npm run apple-secret create private-key dev');
     console.log('  npm run apple-secret create shared-secret dev');
+    console.log('  npm run apple-secret create iap-private-key dev');
     console.log('  npm run apple-secret update private-key prod');
     console.log('  npm run apple-secret info private-key dev');
     process.exit(1);
   }
 
-  if (!secretType || !['private-key', 'shared-secret'].includes(secretType)) {
-    console.error('❌ Secret type must be "private-key" or "shared-secret"');
+  if (!secretType || !['private-key', 'shared-secret', 'iap-private-key'].includes(secretType)) {
+    console.error('❌ Secret type must be "private-key", "shared-secret", or "iap-private-key"');
     process.exit(1);
   }
 
@@ -195,14 +202,28 @@ async function main() {
   }
 
   const region = process.env.CDK_DEFAULT_REGION || 'us-east-1';
-  const secretName = secretType === 'private-key'
-    ? `lingible-apple-private-key-${environment}`
-    : `lingible-apple-shared-secret-${environment}`;
+  let secretName;
+  if (secretType === 'private-key') {
+    secretName = `lingible-apple-private-key-${environment}`;
+  } else if (secretType === 'shared-secret') {
+    secretName = `lingible-apple-shared-secret-${environment}`;
+  } else if (secretType === 'iap-private-key') {
+    secretName = `lingible-apple-iap-private-key-${environment}`;
+  }
 
   try {
     console.log('🔐 Apple Secret Manager');
     console.log('========================\n');
-    console.log(`Secret Type: ${secretType === 'private-key' ? 'Private Key (Cognito)' : 'Shared Secret (App Store)'}`);
+    let secretTypeDescription;
+    if (secretType === 'private-key') {
+      secretTypeDescription = 'Private Key (Cognito)';
+    } else if (secretType === 'shared-secret') {
+      secretTypeDescription = 'Shared Secret (App Store)';
+    } else if (secretType === 'iap-private-key') {
+      secretTypeDescription = 'In-App Purchase Private Key (App Store Server API)';
+    }
+
+    console.log(`Secret Type: ${secretTypeDescription}`);
     console.log(`Environment: ${environment}`);
     console.log(`Secret Name: ${secretName}\n`);
 
@@ -211,7 +232,7 @@ async function main() {
       case 'update': {
         let secretValue;
 
-        if (secretType === 'private-key') {
+        if (secretType === 'private-key' || secretType === 'iap-private-key') {
           secretValue = await getApplePrivateKey();
         } else {
           secretValue = await getAppleSharedSecret();
@@ -223,6 +244,8 @@ async function main() {
 
         if (secretType === 'private-key') {
           console.log('💡 Remember to configure Client ID, Team ID, and Key ID separately.');
+        } else if (secretType === 'iap-private-key') {
+          console.log('💡 Remember to configure Key ID, Team ID, and Bundle ID separately.');
         } else {
           console.log('💡 The shared secret is now stored securely in AWS Secrets Manager.');
         }

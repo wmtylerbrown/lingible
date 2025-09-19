@@ -17,7 +17,7 @@ class SmartLogger:
         """Initialize smart logger."""
         observability_config = config_service.get_config(ObservabilityConfig)
         self.environment = config_service.environment
-        self.is_debug = observability_config.log_level.value == "DEBUG"
+        self.is_debug = observability_config.log_level == "DEBUG"
 
         # Use POWERTOOLS_SERVICE_NAME environment variable (set per Lambda function)
         self.logger = Logger(

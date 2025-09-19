@@ -172,7 +172,7 @@ class SubscriptionRepository:
                 "PK": f"USER#{user_id}",
                 "SK": f"SUBSCRIPTION#HISTORY#{current_subscription.transaction_id}",
                 "user_id": user_id,
-                "provider": current_subscription.provider.value,
+                "provider": current_subscription.provider,
                 "transaction_id": current_subscription.transaction_id,
                 "status": "cancelled",
                 "start_date": current_subscription.start_date.isoformat(),
@@ -206,7 +206,7 @@ class SubscriptionRepository:
                 "subscription_cancelled",
                 {
                                     "user_id": user_id,
-                "provider": current_subscription.provider.value,
+                "provider": current_subscription.provider,
                     "transaction_id": current_subscription.transaction_id,
                 },
             )

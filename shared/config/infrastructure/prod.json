@@ -22,7 +22,7 @@
     "team_id": "PH33VX3MUL",
     "key_id": "P5H6AH9K77",
     "bundle_id": "com.lingible.lingible",
-    "environment": "production"
+    "in_app_purchase_key_id": "DM2M9NP42M"
   },
   "google": {
     "package_name": "com.lingible.lingible"

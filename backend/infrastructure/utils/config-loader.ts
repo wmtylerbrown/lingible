@@ -44,8 +44,8 @@ export interface InfrastructureConfig {
     client_id: string;
     team_id: string;
     key_id: string;
+    in_app_purchase_key_id: string;
     bundle_id: string;
-    environment: 'sandbox' | 'production';
   };
   google: {
     package_name: string;

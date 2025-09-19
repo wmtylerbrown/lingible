@@ -390,3 +390,13 @@
 - **Robust Validation**: Updated validation to check for `auth.lingible.com` (prod) vs `auth.dev.lingible.com` (dev)
 - **Production Archive**: Successfully created production-ready archive for App Store submission
 - **Build Script Enhancement**: Improved build script reliability and error detection
+
+### ✅ **Apple In-App Purchase API Integration & Bug Fixes (2024-12-19)**
+- **In-App Purchase API Setup**: Added separate private key configuration for Apple In-App Purchase API (Key ID: DM2M9NP42M)
+- **Secret Management**: Updated manage-apple-secret script to support `iap-private-key` secret type with proper JSON formatting
+- **Configuration Updates**: Added `in_app_purchase_key_id` to shared config and updated CDK to pass Apple IAP credentials
+- **IAM Permissions**: Updated Lambda functions to access `lingible-apple-iap-private-key-${environment}` secrets
+- **Enum Bug Fixes**: Fixed `AttributeError: 'str' object has no attribute 'value'` errors across multiple services
+- **String Enum Handling**: Corrected `.value` usage on string enums (StoreEnvironment, SubscriptionProvider, TranslationDirection, LogLevel)
+- **Enhanced Logging**: Added detailed JWT token and Apple API request logging for debugging authentication issues
+- **Deployment**: Successfully deployed fixes to both dev and prod environments

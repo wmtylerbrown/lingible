@@ -123,8 +123,8 @@ class ConfigService:
                 enable_tracing=self._get_env_var('ENABLE_TRACING').lower() == 'true'
             )  # type: ignore
         elif config_type == AppleConfig:
-            # Load Apple credentials from Secrets Manager
-            private_key_name = f"lingible-apple-private-key-{self.environment}"
+            # Load Apple In-App Purchase credentials from Secrets Manager
+            private_key_name = f"lingible-apple-iap-private-key-{self.environment}"
 
             private_key = self._get_secrets_manager_secret(private_key_name, "privateKey")
 
