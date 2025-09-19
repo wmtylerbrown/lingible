@@ -612,14 +612,14 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.userUpgradeLambda.addToRolePolicy(statement));
 
-    // Add secrets permissions for receipt validation
+    // Add secrets permissions for StoreKit 2 validation
     this.userUpgradeLambda.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-shared-secret-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
@@ -644,14 +644,14 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.userAccountDeletionLambda.addToRolePolicy(statement));
 
-    // Add secrets permissions for receipt validation
+    // Add secrets permissions for StoreKit 2 validation
     this.userAccountDeletionLambda.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-shared-secret-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
@@ -764,14 +764,14 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.appleWebhookLambda.addToRolePolicy(statement));
 
-    // Add secrets permissions for receipt validation
+    // Add secrets permissions for StoreKit 2 validation
     this.appleWebhookLambda.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-shared-secret-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
@@ -812,14 +812,14 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.userDataCleanupLambda.addToRolePolicy(statement));
 
-    // Add secrets permissions for receipt validation
+    // Add secrets permissions for StoreKit 2 validation
     this.userDataCleanupLambda.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         'secretsmanager:GetSecretValue',
       ],
       resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-apple-shared-secret-${environment}*`,
+        `arn:aws:secretsmanager:*:*:secret:lingible-apple-private-key-${environment}*`,
         `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
