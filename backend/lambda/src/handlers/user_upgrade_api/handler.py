@@ -24,9 +24,6 @@ user_service = UserService()
 def handler(event: UserUpgradeEvent, context: LambdaContext) -> UserResponse:
     """Upgrade user subscription after validating purchase."""
     # Extract upgrade data from validated request body
-    provider = event.request_body.provider
-    receipt_data = event.request_body.receipt_data
-    transaction_id = event.request_body.transaction_id
     user_id = event.user_id
 
     # Step 1: Validate user exists
@@ -35,12 +32,12 @@ def handler(event: UserUpgradeEvent, context: LambdaContext) -> UserResponse:
         raise ValidationError("User not found", error_code="USER_NOT_FOUND")
 
     # Step 2: Create subscription via subscription service
+    transaction_data = event.request_body.to_transaction_data()
     subscription_created = subscription_service.validate_and_create_subscription(
         user_id=user_id,
-        provider=provider,
-        receipt_data=receipt_data,
-        transaction_id=transaction_id
+        transaction_data=transaction_data
     )
+
     if not subscription_created:
         raise SystemError("Failed to create subscription")
 

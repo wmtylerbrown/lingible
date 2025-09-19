@@ -5,25 +5,43 @@
 # with the correct amplify_outputs.json files
 #
 # Usage:
-#   ./build_app.sh [dev|prod|both|archive]
+#   ./build_app.sh [dev|prod|both|archive] [--clean]
 #   - dev:     Build only development (Debug configuration)
 #   - prod:    Build only production (Release configuration)
 #   - both:    Build both environments (default if no parameter)
 #   - archive: Create production archive for App Store submission
+#   - --clean: Optional clean step before building (slower but ensures fresh build)
+#
+# Examples:
+#   ./build_app.sh dev          # Quick dev build (no clean)
+#   ./build_app.sh dev --clean  # Clean dev build (slower)
+#   ./build_app.sh --clean dev  # Same as above
+#   ./build_app.sh both         # Build both dev and prod (no clean)
+#   ./build_app.sh archive      # Create archive (always cleans)
 
 set -e  # Exit on any error
 
 # Parse command line arguments
 BUILD_TARGET=${1:-both}  # Default to 'both' if no parameter provided
+CLEAN_BUILD=false
+
+# Check for clean flag
+if [[ "$1" == "--clean" ]]; then
+    CLEAN_BUILD=true
+    BUILD_TARGET=${2:-both}  # Get the actual build target from second parameter
+elif [[ "$2" == "--clean" ]]; then
+    CLEAN_BUILD=true
+fi
 
 # Validate parameter
 if [[ "$BUILD_TARGET" != "dev" && "$BUILD_TARGET" != "prod" && "$BUILD_TARGET" != "both" && "$BUILD_TARGET" != "archive" ]]; then
     echo "❌ Invalid parameter: $BUILD_TARGET"
-    echo "Usage: $0 [dev|prod|both|archive]"
+    echo "Usage: $0 [dev|prod|both|archive] [--clean]"
     echo "  dev:     Build only development (Debug configuration)"
     echo "  prod:    Build only production (Release configuration)"
     echo "  both:    Build both environments (default)"
     echo "  archive: Create production archive for App Store submission"
+    echo "  --clean: Optional clean step before building (slower but ensures fresh build)"
     exit 1
 fi
 
@@ -37,6 +55,14 @@ NC='\033[0m' # No Color
 # Function to print colored output
 print_status() {
     echo -e "${BLUE}🔧 $1${NC}"
+}
+
+# Function to clean build artifacts
+clean_build() {
+    print_status "Cleaning previous builds..."
+    rm -rf ./DerivedData
+    xcodebuild clean -project Lingible.xcodeproj -scheme Lingible
+    print_success "Clean completed"
 }
 
 print_success() {
@@ -96,6 +122,11 @@ build_app() {
 # Function to create archive for App Store submission
 create_archive() {
     print_status "Creating production archive for App Store submission..."
+
+    # Clean previous builds for archive (ensures clean App Store submission)
+    print_status "Cleaning previous builds for archive..."
+    rm -rf ./DerivedData
+    xcodebuild clean -project Lingible.xcodeproj -scheme Lingible
 
     # Copy the production amplify_outputs file
     print_status "Setting up amplify_outputs.json for production..."
@@ -180,10 +211,13 @@ if [ ! -f "Lingible/amplify_outputs-prod.json" ]; then
     exit 1
 fi
 
-# Clean previous builds
-print_status "Cleaning previous builds..."
-rm -rf ./DerivedData
-xcodebuild clean -project Lingible.xcodeproj -scheme Lingible
+# Optional clean step
+if [[ "$CLEAN_BUILD" == "true" ]]; then
+    echo ""
+    echo "🧹 Optional Clean Build"
+    echo "======================"
+    clean_build
+fi
 
 # Track what was built for summary
 BUILT_ENVIRONMENTS=()
@@ -222,6 +256,9 @@ print_success "Development configuration restored"
 echo ""
 echo "📋 Build Summary:"
 echo "=================="
+if [[ "$CLEAN_BUILD" == "true" ]]; then
+    echo "• Clean build: Previous artifacts removed before building"
+fi
 for env in "${BUILT_ENVIRONMENTS[@]}"; do
     if [[ "$env" == "Development" ]]; then
         echo "• Development build: Debug configuration with dev amplify_outputs"

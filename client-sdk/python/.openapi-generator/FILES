@@ -10,7 +10,6 @@ docs/AppleWebhookRequest.md
 docs/ErrorResponse.md
 docs/HealthResponse.md
 docs/PaginationInfo.md
-docs/ReceiptValidationResponse.md
 docs/SuccessResponse.md
 docs/SystemApi.md
 docs/TranslationApi.md
@@ -50,7 +49,6 @@ lingible_client/models/apple_webhook_request.py
 lingible_client/models/error_response.py
 lingible_client/models/health_response.py
 lingible_client/models/pagination_info.py
-lingible_client/models/receipt_validation_response.py
 lingible_client/models/success_response.py
 lingible_client/models/translation_history.py
 lingible_client/models/translation_history_service_result.py
@@ -71,6 +69,4 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
-test/test_translation_history.py
-test/test_translation_history_service_result.py
 tox.ini

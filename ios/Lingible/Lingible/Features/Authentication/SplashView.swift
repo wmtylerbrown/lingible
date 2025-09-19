@@ -143,13 +143,59 @@ struct SplashView: View {
         let screenWidth = UIScreen.main.bounds.width
         let screenHeight = UIScreen.main.bounds.height
 
+        // Define safe zones to avoid (reduced for better distribution)
+        let statusBarHeight: CGFloat = 50 // Status bar area
+        let centerZoneHeight: CGFloat = 200 // Center area with logo (reduced)
+        let centerZoneY: CGFloat = (screenHeight - centerZoneHeight) / 2 // Center the zone vertically
+        let centerZoneWidth: CGFloat = 180 // Center area width (reduced)
+        let centerZoneX: CGFloat = (screenWidth - centerZoneWidth) / 2 // Center the zone horizontally
+
+        // Generate position avoiding the center zone and status bar
+        var position: CGPoint
+        var attempts = 0
+        let maxAttempts = 15
+
+        repeat {
+            // Create different zones for better distribution
+            let zone = Int.random(in: 0...3)
+            let x: CGFloat
+            let y: CGFloat
+
+            switch zone {
+            case 0: // Top left area
+                x = CGFloat.random(in: 20...(centerZoneX - 10))
+                y = CGFloat.random(in: (statusBarHeight + 20)...(centerZoneY - 10))
+            case 1: // Top right area
+                x = CGFloat.random(in: (centerZoneX + centerZoneWidth + 10)...(screenWidth - 20))
+                y = CGFloat.random(in: (statusBarHeight + 20)...(centerZoneY - 10))
+            case 2: // Bottom left area
+                x = CGFloat.random(in: 20...(centerZoneX - 10))
+                y = CGFloat.random(in: (centerZoneY + centerZoneHeight + 10)...(screenHeight - 80))
+            case 3: // Bottom right area
+                x = CGFloat.random(in: (centerZoneX + centerZoneWidth + 10)...(screenWidth - 20))
+                y = CGFloat.random(in: (centerZoneY + centerZoneHeight + 10)...(screenHeight - 80))
+            default:
+                x = CGFloat.random(in: 20...(screenWidth - 20))
+                y = CGFloat.random(in: (statusBarHeight + 20)...(screenHeight - 80))
+            }
+
+            position = CGPoint(x: x, y: y)
+            attempts += 1
+
+            // Double-check if position is in the center exclusion zone
+            let isInCenterZone = x >= centerZoneX && x <= (centerZoneX + centerZoneWidth) &&
+                                y >= centerZoneY && y <= (centerZoneY + centerZoneHeight)
+
+            // If not in center zone or max attempts reached, use this position
+            if !isInCenterZone || attempts >= maxAttempts {
+                break
+            }
+        } while attempts < maxAttempts
+
         let newAnimatedTerm = AnimatedTerm(
             id: UUID(),
             text: term,
-            position: CGPoint(
-                x: CGFloat.random(in: 50...(screenWidth - 50)),
-                y: CGFloat.random(in: 150...(screenHeight - 250)) // Avoid logo area
-            ),
+            position: position,
             fontSize: CGFloat.random(in: 16...28),
             color: [.lingiblePrimary, .lingibleSecondary, .orange, .purple, .pink].randomElement() ?? .lingiblePrimary,
             opacity: 0.0,

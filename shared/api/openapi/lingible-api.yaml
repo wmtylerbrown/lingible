@@ -694,22 +694,39 @@ components:
       type: object
       required:
         - platform
-        - receipt_data
         - transaction_id
+        - product_id
+        - purchase_date
+        - environment
       properties:
         platform:
           type: string
           enum: [apple, google]
           description: App store platform
           example: "apple"
-        receipt_data:
-          type: string
-          description: Receipt data from app store
-          example: "base64_encoded_receipt_data"
         transaction_id:
           type: string
           description: Provider transaction ID
           example: "1000000123456789"
+        product_id:
+          type: string
+          description: Product ID from the app store
+          example: "com.lingible.lingible.premium.monthly"
+        purchase_date:
+          type: string
+          format: date-time
+          description: Purchase date in ISO format
+          example: "2024-01-15T10:30:00Z"
+        expiration_date:
+          type: string
+          format: date-time
+          description: Expiration date in ISO format (for subscriptions)
+          example: "2024-02-15T10:30:00Z"
+        environment:
+          type: string
+          enum: [sandbox, production]
+          description: App Store environment
+          example: "sandbox"
 
     UpgradeResponse:
       type: object
@@ -875,54 +892,6 @@ components:
           description: "Record creation date"
           example: "2024-12-01T00:00:00Z"
 
-    ReceiptValidationResponse:
-      type: object
-      required:
-        - valid
-        - transaction_id
-        - product_id
-        - purchase_date
-      properties:
-        is_valid:
-          type: boolean
-          description: Whether receipt is valid
-          example: true
-        status:
-          type: string
-          enum: [valid, invalid, expired, already_used, environment_mismatch, retryable_error]
-          description: Validation status
-          example: "valid"
-        transaction_id:
-          type: string
-          description: Transaction ID
-          example: "1000000123456789"
-        product_id:
-          type: string
-          description: Product ID from receipt
-          example: "com.lingible.premium.monthly"
-        purchase_date:
-          type: string
-          format: date-time
-          description: "Purchase date"
-          example: "2024-12-01T00:00:00Z"
-        expiration_date:
-          type: string
-          format: date-time
-          description: "Expiration date"
-          example: "2025-01-01T00:00:00Z"
-        environment:
-          type: string
-          enum: [sandbox, production]
-          description: Environment
-          example: "production"
-        error_message:
-          type: string
-          description: Error message if validation failed
-          example: "Receipt validation failed"
-        retry_after:
-          type: integer
-          description: Seconds to wait before retry
-          example: 60
 
     TrendingTermResponse:
       type: object

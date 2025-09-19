@@ -140,6 +140,11 @@ export class BackendStack extends Construct {
         // Observability Config
         LOG_LEVEL: backendConfig.observability.log_level,
         ENABLE_TRACING: backendConfig.observability.enable_tracing.toString(),
+
+        // Apple Config (for App Store Server API)
+        APPLE_KEY_ID: config.apple.key_id,
+        APPLE_TEAM_ID: config.apple.team_id,
+        APPLE_BUNDLE_ID: config.apple.bundle_id,
   };
 
 

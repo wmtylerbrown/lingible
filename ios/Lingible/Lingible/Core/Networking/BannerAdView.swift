@@ -7,6 +7,9 @@ struct BannerAdView: UIViewRepresentable {
     @Binding var isLoaded: Bool
 
     func makeUIView(context: Context) -> BannerView {
+        print("🟡 AdMob Banner: Creating banner view with unit ID: \(adUnitID)")
+
+        // Use standard banner size initially, then switch to adaptive after layout
         let bannerView = BannerView(adSize: AdSizeBanner)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
@@ -16,9 +19,13 @@ struct BannerAdView: UIViewRepresentable {
            let window = windowScene.windows.first,
            let rootViewController = window.rootViewController {
             bannerView.rootViewController = rootViewController
+            print("🟡 AdMob Banner: Root view controller set successfully")
+        } else {
+            print("🔴 AdMob Banner: Failed to get root view controller")
         }
 
         // Load the ad with ATT-aware configuration
+        print("🟡 AdMob Banner: Loading ad with unit ID: \(adUnitID)")
         let request = AdMobConfig.createGADRequest()
         bannerView.load(request)
 
@@ -26,7 +33,13 @@ struct BannerAdView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: BannerView, context: Context) {
-        // Update if needed
+        // Update banner size to adaptive after layout
+        DispatchQueue.main.async {
+            let screenWidth = UIScreen.main.bounds.width
+            let adSize = currentOrientationAnchoredAdaptiveBanner(width: screenWidth - 40) // Account for padding
+            uiView.adSize = adSize
+            print("🟡 AdMob Banner: Updated to adaptive size with width: \(screenWidth - 40)")
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -41,12 +54,15 @@ struct BannerAdView: UIViewRepresentable {
         }
 
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+            print("🟢 AdMob Banner: Ad loaded successfully")
             DispatchQueue.main.async {
                 self.parent.isLoaded = true
             }
         }
 
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+            print("🔴 AdMob Banner: Failed to load ad - \(error.localizedDescription)")
+            print("🔴 AdMob Banner: Error details: \(error)")
             DispatchQueue.main.async {
                 self.parent.isLoaded = false
             }
@@ -76,35 +92,40 @@ struct SwiftUIBannerAd: View {
     var body: some View {
         if showAd {
             VStack {
-                if isLoaded {
-                    BannerAdView(adUnitID: adUnitID, isLoaded: $isLoaded)
-                        .frame(height: 50) // Standard banner height
-                        .transition(.opacity)
-                } else {
-                    // Placeholder while ad loads
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(height: 50)
-                        .overlay(
-                            HStack {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Loading ad...")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                BannerAdView(adUnitID: adUnitID, isLoaded: $isLoaded)
+                    .frame(height: 50) // Standard banner height initially
+                    .opacity(isLoaded ? 1.0 : 0.3) // Show with reduced opacity while loading
+                    .overlay(
+                        // Show loading indicator when not loaded
+                        Group {
+                            if !isLoaded {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Loading ad...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .background(Color.white.opacity(0.8))
+                                .cornerRadius(4)
                             }
-                        )
-                }
+                        }
+                    )
+                    .transition(.opacity)
             }
             .onAppear {
+                print("🟡 AdMob Banner: SwiftUIBannerAd appeared, hasAppeared: \(hasAppeared)")
                 if !hasAppeared {
                     hasAppeared = true
-                    // Small delay to ensure the view controller is ready
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showAd = true
-                    }
+                    print("🟡 AdMob Banner: Banner view created and ready")
                 }
             }
+        } else {
+            Text("Banner not showing")
+                .foregroundColor(.red)
+                .onAppear {
+                    print("🔴 AdMob Banner: Banner not showing - showAd: \(showAd)")
+                }
         }
     }
 }

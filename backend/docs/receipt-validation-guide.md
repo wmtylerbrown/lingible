@@ -1,302 +1,186 @@
-# Receipt Validation Guide - Lingible
+# StoreKit 2 Validation Guide - Lingible
 
 ## Overview
 
-This guide covers the implementation of secure receipt validation for Apple Store and Google Play Store subscriptions in our Lingible app. Receipt validation is critical for preventing fraud and ensuring only legitimate payments grant premium access.
+This guide covers the implementation of secure StoreKit 2 transaction validation for Apple subscriptions in our Lingible app. StoreKit 2 validation is the modern, secure approach for validating Apple subscriptions and is critical for preventing fraud and ensuring only legitimate payments grant premium access.
 
 ## Architecture
 
-### **Receipt Validation Flow**
+### **StoreKit 2 Validation Flow**
 
 ```mermaid
 graph TD
-    A[Mobile App Purchase] --> B[Send Receipt to Backend]
-    B --> C[ReceiptValidationService]
-    C --> D{Check Cache}
-    D -->|Hit| E[Return Cached Result]
-    D -->|Miss| F[Validate with Provider]
-    F --> G{Provider}
-    G -->|Apple| H[Apple Store API]
-    G -->|Google| I[Google Play API]
-    H --> J[Parse Response]
-    I --> J
-    J --> K[Cache Result]
-    K --> L[Return Validation Result]
-    L --> M[Create/Update Subscription]
+    A[iOS App Purchase] --> B[StoreKit 2 Transaction]
+    B --> C[Send Transaction Data to Backend]
+    C --> D[ReceiptValidationService]
+    D --> E[Generate JWT Token]
+    E --> F[Apple App Store Server API]
+    F --> G[Validate Transaction]
+    G --> H[Parse Apple Response]
+    H --> I[Create/Update Subscription]
 ```
 
 ### **Security Layers**
 
-1. **Provider Validation**: Direct API calls to Apple/Google
-2. **Transaction Deduplication**: Prevent replay attacks
-3. **Environment Validation**: Ensure correct sandbox/production
-4. **Caching**: Reduce API calls and improve performance
+1. **Apple App Store Server API**: Direct validation with Apple's official API
+2. **JWT Authentication**: Secure token-based authentication with Apple
+3. **Transaction Deduplication**: Prevent replay attacks
+4. **Environment Validation**: Ensure correct sandbox/production
 5. **Audit Trail**: Complete logging of all validation attempts
 
 ## Apple Store Integration
 
 ### **Configuration**
 
-Add to your SSM Parameter Store:
+Apple credentials are stored in AWS Secrets Manager and injected via environment variables:
 
 ```json
 {
-  "/lingible-backend/production/apple_store": {
-    "environment": "production",
-    "shared_secret": "your_app_specific_shared_secret",
-    "bundle_id": "com.lingible.lingible",
-    "verify_url": "https://buy.itunes.apple.com/verifyReceipt",
-    "sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt"
+  "lingible-apple-private-key-dev": {
+    "privateKey": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+    "keyId": "ABC123DEF4",
+    "teamId": "FJZKRUXQ93",
+    "bundleId": "com.lingible.lingible"
   }
 }
 ```
 
-### **Apple Store Receipt Validation**
+### **StoreKit 2 Transaction Validation**
 
 ```python
-# Example usage in subscription service
-validation_result = self.receipt_validator.validate_receipt(
-    provider="apple",
-    receipt_data=receipt_data,
-    transaction_id=transaction_id,
-    user_id=user_id
+from services.receipt_validation_service import ReceiptValidationService
+from models.subscriptions import ReceiptValidationRequest, TransactionData, StoreEnvironment
+
+# Initialize service
+validation_service = ReceiptValidationService()
+
+# Create StoreKit 2 transaction data
+transaction_data = TransactionData(
+    provider=SubscriptionProvider.APPLE,
+    transaction_id="1000000123456789",
+    product_id="com.lingible.lingible.premium.monthly",
+    purchase_date=datetime.now(timezone.utc),
+    expiration_date=datetime.now(timezone.utc) + timedelta(days=30),
+    environment=StoreEnvironment.SANDBOX
 )
 
-if validation_result.is_valid:
-    # Process subscription
-    pass
+# Create validation request
+request = ReceiptValidationRequest(
+    transaction_data=transaction_data,
+    user_id="user_123"
+)
+
+# Validate transaction with Apple's App Store Server API
+result = validation_service.validate_storekit2_transaction(request)
+
+if result.is_valid:
+    print(f"Valid transaction: {result.transaction_data.transaction_id}")
+    print(f"Product: {result.transaction_data.product_id}")
+    print(f"Expires: {result.transaction_data.expiration_date}")
 else:
-    # Handle validation failure
-    raise ValidationError(validation_result.error_message)
+    print(f"Invalid transaction: {result.error_message}")
 ```
 
-### **Apple Status Codes**
+### **JWT Token Generation**
 
-| Status Code | Meaning | Action |
-|-------------|---------|--------|
-| 0 | Valid | Process subscription |
-| 21000 | Invalid JSON | Reject receipt |
-| 21002 | Invalid receipt data | Reject receipt |
-| 21003 | Receipt not authenticated | Reject receipt |
-| 21004 | Shared secret mismatch | Check configuration |
-| 21005 | Server unavailable | Retry later |
-| 21006 | Receipt valid but expired | Reject subscription |
-| 21007 | Sandbox receipt sent to production | Switch to sandbox URL |
-| 21008 | Production receipt sent to sandbox | Switch to production URL |
+The service automatically generates JWT tokens for Apple API authentication:
 
-### **Apple Receipt Structure**
-
-```json
-{
-  "status": 0,
-  "environment": "Production",
-  "receipt": {
-    "receipt_type": "ProductionSandbox",
-    "bundle_id": "com.yourapp.genztranslator",
-    "application_version": "1.0",
-    "in_app": [
-      {
-        "quantity": "1",
-        "product_id": "premium_monthly",
-        "transaction_id": "1000000123456789",
-        "original_transaction_id": "1000000123456789",
-        "purchase_date": "2024-01-15 10:30:00 Etc/GMT",
-        "purchase_date_ms": "1705312200000",
-        "expires_date": "2024-02-15 10:30:00 Etc/GMT",
-        "expires_date_ms": "1707990600000"
-      }
-    ]
-  },
-  "latest_receipt_info": [
-    {
-      "quantity": "1",
-      "product_id": "premium_monthly",
-      "transaction_id": "1000000123456790",
-      "original_transaction_id": "1000000123456789",
-      "purchase_date": "2024-02-15 10:30:00 Etc/GMT",
-      "purchase_date_ms": "1707990600000",
-      "expires_date": "2024-03-15 10:30:00 Etc/GMT",
-      "expires_date_ms": "1710587400000"
+```python
+def _get_apple_jwt_token(self) -> str:
+    """Generate JWT token for Apple App Store Server API authentication."""
+    header = {
+        "alg": "ES256",
+        "kid": self.apple_config.key_id,
+        "typ": "JWT"
     }
-  ]
-}
+
+    payload = {
+        "iss": self.apple_config.team_id,
+        "iat": datetime.utcnow(),
+        "exp": datetime.utcnow() + timedelta(minutes=20),
+        "aud": "appstoreconnect-v1",
+        "bid": self.apple_config.bundle_id
+    }
+
+    return jwt.encode(payload, self.apple_config.private_key, algorithm="ES256", headers=header)
 ```
 
-## Google Play Store Integration
+### **Apple API Endpoints**
+
+- **Production**: `https://api.storekit.itunes.apple.com/inApps/v1/transactions/{transaction_id}`
+- **Sandbox**: `https://api.storekit-sandbox.itunes.apple.com/inApps/v1/transactions/{transaction_id}`
+
+### **Transaction Data Model**
+
+```python
+class TransactionData(LingibleBaseModel):
+    """Core transaction data model - used throughout the system."""
+
+    provider: SubscriptionProvider = Field(..., description="Subscription provider")
+    transaction_id: str = Field(..., min_length=1, description="Provider transaction ID")
+    product_id: str = Field(..., min_length=1, description="Product ID from the app store")
+    purchase_date: datetime = Field(..., description="Purchase date in ISO format")
+    expiration_date: Optional[datetime] = Field(
+        None, description="Expiration date in ISO format (for subscriptions)"
+    )
+    environment: StoreEnvironment = Field(..., description="App Store environment")
+```
+
+## Google Play Integration
 
 ### **Configuration**
 
-Add to your SSM Parameter Store:
+Google Play credentials are stored in AWS Secrets Manager:
 
 ```json
 {
-  "/lingible-backend/production/google_play": {
-    "package_name": "com.lingible.lingible",
-    "service_account_key": "path/to/service-account-key.json",
-    "api_timeout": 10
+  "lingible-google-service-account-dev": {
+    "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+    "client_email": "service-account@project.iam.gserviceaccount.com",
+    "project_id": "your-project-id"
   }
 }
 ```
 
-### **Google Play Receipt Validation**
+### **Google Play Validation**
 
 ```python
-# Example usage
+# Google Play validation (legacy approach - still supported)
 validation_result = self.receipt_validator.validate_receipt(
     provider="google",
-    receipt_data=receipt_data,
-    transaction_id=transaction_id,
+    receipt_data=purchase_token,
+    transaction_id=order_id,
     user_id=user_id
 )
-```
-
-### **Google Play Receipt Structure**
-
-```json
-{
-  "orderId": "GPA.1234-5678-9012-34567",
-          "packageName": "com.lingible.lingible",
-  "productId": "premium_monthly",
-  "purchaseTime": 1705312200000,
-  "purchaseState": 0,
-  "purchaseToken": "abc123def456...",
-  "acknowledged": false
-}
-```
-
-## Database Schema
-
-### **Receipts Table**
-
-```sql
-CREATE TABLE receipts (
-  transaction_id STRING PRIMARY KEY,
-  is_valid BOOLEAN,
-  status STRING,
-  provider STRING,
-  product_id STRING,
-  purchase_date TIMESTAMP,
-  expiration_date TIMESTAMP,
-  environment STRING,
-  error_message STRING,
-  cached_at TIMESTAMP,
-  used_for_subscription BOOLEAN,
-  user_id STRING,
-  used_at TIMESTAMP,
-  ttl TIMESTAMP
-);
-```
-
-### **DynamoDB Structure**
-
-```json
-{
-  "transaction_id": "1000000123456789",
-  "is_valid": true,
-  "status": "valid",
-  "provider": "apple",
-  "product_id": "premium_monthly",
-  "purchase_date": "2024-01-15T10:30:00Z",
-  "expiration_date": "2024-02-15T10:30:00Z",
-  "environment": "production",
-  "cached_at": 1705312200,
-  "used_for_subscription": true,
-  "user_id": "user123",
-  "used_at": 1705312200,
-  "ttl": 1705398600
-}
-```
-
-## Security Considerations
-
-### **1. Shared Secret Management**
-
-- Store Apple shared secret in SSM Parameter Store
-- Use IAM roles to restrict access
-- Rotate secrets regularly
-- Never log or expose secrets
-
-### **2. Transaction Deduplication**
-
-```python
-# Check for duplicate transactions
-if self.receipt_validator.check_duplicate_transaction(transaction_id):
-    raise ValidationError("Transaction already processed")
-```
-
-### **3. Environment Validation**
-
-```python
-# Ensure correct environment
-if validation_result.status == ReceiptStatus.ENVIRONMENT_MISMATCH:
-    raise ValidationError("Environment mismatch")
-```
-
-### **4. Rate Limiting**
-
-- Implement rate limiting on validation endpoints
-- Use caching to reduce API calls
-- Monitor for suspicious patterns
-
-### **5. Audit Logging**
-
-```python
-# Log all validation attempts
-logger.log_business_event("receipt_validation_attempt", {
-    "transaction_id": transaction_id,
-    "provider": provider,
-    "user_id": user_id,
-    "ip_address": request_ip,
-    "user_agent": user_agent
-})
 ```
 
 ## Error Handling
 
-### **Retry Logic**
+### **Validation Status Codes**
 
 ```python
-# Handle retryable errors
-if validation_result.status == ReceiptStatus.RETRYABLE_ERROR:
-    # Queue for retry
-    retry_after = validation_result.retry_after or 60
-    # Implement retry mechanism
+class ReceiptValidationStatus(str, Enum):
+    """Receipt validation status codes."""
+    VALID = "valid"
+    INVALID = "invalid"
+    EXPIRED = "expired"
+    ALREADY_USED = "already_used"
+    ENVIRONMENT_MISMATCH = "environment_mismatch"
+    RETRYABLE_ERROR = "retryable_error"
+    NON_RETRYABLE_ERROR = "non_retryable_error"
 ```
 
-### **Graceful Degradation**
+### **Error Response Structure**
 
 ```python
-# Fallback for provider outages
-try:
-    result = validate_with_provider()
-except ProviderUnavailableError:
-    # Use cached result or implement fallback
-    result = get_cached_validation()
-```
+class ReceiptValidationResult(LingibleBaseModel):
+    """Result of receipt validation."""
 
-## Monitoring and Alerting
-
-### **Key Metrics**
-
-1. **Validation Success Rate**: Track successful vs failed validations
-2. **Provider Response Time**: Monitor API performance
-3. **Cache Hit Rate**: Optimize caching strategy
-4. **Error Rates**: Alert on high error rates
-5. **Duplicate Attempts**: Detect potential fraud
-
-### **CloudWatch Alarms**
-
-```yaml
-ReceiptValidationErrorRate:
-  Type: AWS::CloudWatch::Alarm
-  Properties:
-    MetricName: ReceiptValidationErrors
-    Namespace: Lingible/ReceiptValidation
-    Statistic: Sum
-    Period: 300
-    EvaluationPeriods: 2
-    Threshold: 10
-    ComparisonOperator: GreaterThanThreshold
+    is_valid: bool = Field(..., description="Whether the receipt is valid")
+    status: ReceiptValidationStatus = Field(..., description="Validation status")
+    transaction_data: Optional[TransactionData] = Field(None, description="Validated transaction data")
+    error_message: Optional[str] = Field(None, description="Error message if validation failed")
+    retry_after: Optional[int] = Field(None, description="Seconds to wait before retry")
 ```
 
 ## Testing
@@ -304,131 +188,117 @@ ReceiptValidationErrorRate:
 ### **Unit Tests**
 
 ```python
-def test_apple_receipt_validation():
-    # Test valid receipt
-    result = validator.validate_receipt("apple", valid_receipt, "txn123")
-    assert result.is_valid == True
-    assert result.status == ReceiptStatus.VALID
+def test_storekit2_validation():
+    """Test StoreKit 2 transaction validation."""
+    # Mock Apple API response
+    mock_response = {
+        "signedTransactionInfo": "base64_encoded_transaction_info"
+    }
 
-def test_duplicate_transaction():
-    # Test duplicate prevention
-    validator.mark_transaction_used("txn123", "user123")
-    assert validator.check_duplicate_transaction("txn123") == True
+    # Test validation
+    result = validation_service.validate_storekit2_transaction(request)
+
+    assert result.is_valid == True
+    assert result.transaction_data.transaction_id == "1000000123456789"
 ```
 
 ### **Integration Tests**
 
 ```python
-def test_end_to_end_subscription_flow():
-    # Test complete subscription flow
-    receipt_data = get_test_receipt()
-    result = subscription_service.upgrade_user(
-        user_id="user123",
-        provider="apple",
-        receipt_data=receipt_data,
-        transaction_id="txn123"
-    )
-    assert result.tier == UserTier.PREMIUM
+def test_end_to_end_subscription():
+    """Test complete subscription flow."""
+    # 1. Create subscription request
+    # 2. Validate with Apple
+    # 3. Create subscription record
+    # 4. Update user tier
+    pass
 ```
 
-### **Load Testing**
+## Security Best Practices
 
-```python
-def test_concurrent_validations():
-    # Test concurrent validation requests
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [
-            executor.submit(validate_receipt, receipt_data, f"txn{i}")
-            for i in range(100)
-        ]
-        results = [future.result() for future in futures]
-        assert all(result.is_valid for result in results)
-```
+1. **Never store private keys in code**: Use AWS Secrets Manager
+2. **Validate environment**: Ensure sandbox/production consistency
+3. **Implement retry logic**: Handle temporary Apple API failures
+4. **Log all attempts**: Maintain audit trail for security
+5. **Rate limiting**: Prevent abuse of validation endpoints
+6. **Transaction deduplication**: Prevent replay attacks
 
-## Deployment Checklist
+## Monitoring
 
-### **Pre-Deployment**
+### **CloudWatch Metrics**
 
-- [ ] Configure Apple shared secret in SSM
-- [ ] Set up Google Play service account
-- [ ] Create receipts DynamoDB table
-- [ ] Configure CloudWatch alarms
-- [ ] Set up monitoring dashboards
+- `ReceiptValidationSuccess`: Successful validations
+- `ReceiptValidationFailure`: Failed validations
+- `ReceiptValidationLatency`: Validation response time
+- `AppleAPIErrors`: Apple API error rates
 
-### **Deployment**
+### **Alerts**
 
-- [ ] Deploy receipt validation service
-- [ ] Update subscription service
-- [ ] Test with sandbox receipts
-- [ ] Verify error handling
-- [ ] Check monitoring alerts
-
-### **Post-Deployment**
-
-- [ ] Monitor validation success rates
-- [ ] Check cache performance
-- [ ] Verify audit logging
-- [ ] Test error scenarios
-- [ ] Document any issues
+- High validation failure rate (>5%)
+- Apple API timeout rate (>1%)
+- JWT token generation failures
+- Unusual validation patterns
 
 ## Troubleshooting
 
 ### **Common Issues**
 
-1. **Invalid Shared Secret**
-   - Check SSM parameter configuration
-   - Verify Apple App Store Connect settings
-   - Ensure correct app bundle ID
+1. **JWT Token Invalid**: Check private key format and key ID
+2. **Transaction Not Found**: Verify transaction ID and environment
+3. **Environment Mismatch**: Ensure sandbox/production consistency
+4. **Rate Limiting**: Implement exponential backoff
 
-2. **Environment Mismatch**
-   - Check environment configuration
-   - Verify sandbox vs production URLs
-   - Ensure test receipts use sandbox
+### **Debug Logging**
 
-3. **Network Timeouts**
-   - Check Lambda timeout settings
-   - Verify VPC configuration
-   - Monitor provider API status
+Enable debug logging to troubleshoot validation issues:
 
-4. **Duplicate Transactions**
-   - Check DynamoDB table permissions
-   - Verify transaction ID uniqueness
-   - Review concurrent request handling
-
-### **Debug Commands**
-
-```bash
-# Check SSM parameters
-aws ssm get-parameter --name "/mobile-app-backend/production/apple_store"
-
-# Check DynamoDB table
-aws dynamodb scan --table-name mobile-app-backend-receipts-production
-
-# Check CloudWatch logs
-aws logs filter-log-events --log-group-name "/aws/lambda/receipt-validation"
+```python
+logger.log_business_event(
+    "storekit2_transaction_validation_started",
+    {
+        "provider": request.transaction_data.provider,
+        "transaction_id": request.transaction_data.transaction_id,
+        "user_id": request.user_id,
+    },
+)
 ```
 
-## Best Practices
+## Migration from Legacy Receipt Validation
 
-1. **Always validate receipts server-side**
-2. **Implement proper error handling**
-3. **Use caching to reduce API calls**
-4. **Monitor and alert on failures**
-5. **Keep secrets secure**
-6. **Test with sandbox receipts first**
-7. **Implement retry logic for transient failures**
-8. **Log all validation attempts for audit**
-9. **Use environment-specific configurations**
-10. **Regularly review and update security measures**
+### **Key Changes**
 
-## Conclusion
+1. **No more receipt data**: Use transaction data directly
+2. **JWT authentication**: Replace shared secret with JWT tokens
+3. **Apple App Store Server API**: Use modern API endpoints
+4. **Transaction model**: Use `TransactionData` instead of receipt strings
 
-Proper receipt validation is essential for maintaining the integrity of your subscription system. This implementation provides:
+### **Backward Compatibility**
 
-- **Security**: Prevents fraud and replay attacks
-- **Reliability**: Handles provider outages gracefully
-- **Performance**: Uses caching to reduce API calls
-- **Monitoring**: Comprehensive logging and alerting
-- **Scalability**: Designed for high-volume validation
+The system maintains backward compatibility with legacy receipt validation for Google Play while using StoreKit 2 for Apple subscriptions.
 
-Follow this guide to implement a robust, production-ready receipt validation system for your GenZ slang translation app.
+## Production Deployment
+
+### **Prerequisites**
+
+1. Apple Developer account with App Store Connect access
+2. Private key (.p8 file) from App Store Connect
+3. Key ID and Team ID from Apple Developer account
+4. AWS Secrets Manager configured with Apple credentials
+
+### **Deployment Steps**
+
+1. Store Apple credentials in AWS Secrets Manager
+2. Deploy backend with StoreKit 2 validation
+3. Update iOS app to use StoreKit 2 transaction data
+4. Test with sandbox environment
+5. Deploy to production
+
+## Support
+
+For issues with StoreKit 2 validation:
+
+1. Check CloudWatch logs for detailed error messages
+2. Verify Apple credentials in AWS Secrets Manager
+3. Test with sandbox environment first
+4. Review Apple's App Store Server API documentation
+5. Contact Apple Developer Support for API issues

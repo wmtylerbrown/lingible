@@ -49,7 +49,6 @@ Class | Method | HTTP request | Description
  - [HealthResponse](docs/HealthResponse.md)
  - [ModelErrorResponse](docs/ModelErrorResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
- - [ReceiptValidationResponse](docs/ReceiptValidationResponse.md)
  - [SuccessResponse](docs/SuccessResponse.md)
  - [TranslationHistory](docs/TranslationHistory.md)
  - [TranslationHistoryServiceResult](docs/TranslationHistoryServiceResult.md)

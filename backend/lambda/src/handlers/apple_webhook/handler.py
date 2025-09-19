@@ -26,13 +26,12 @@ def handler(
     # Extract webhook data from validated request body
     notification_type = event.request_body.notification_type
     transaction_id = event.request_body.transaction_id
-    receipt_data = event.request_body.receipt_data
 
     success = False
 
     # Handle different webhook types with focused methods
     if notification_type == "RENEWAL":
-        success = subscription_service.handle_renewal_webhook(transaction_id, receipt_data)
+        success = subscription_service.handle_renewal_webhook(transaction_id)
 
     elif notification_type == "CANCEL":
         # Step 1: Cancel subscription

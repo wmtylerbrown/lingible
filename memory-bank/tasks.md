@@ -965,7 +965,7 @@ Successfully redesigned and implemented a completely new configuration managemen
 {
   "app": { "name": "Lingible", "description": "AI-powered translation" },
   "translation": { "type": "ai_assisted", "context": "formal" },
-  "limits": { "free_daily_translations": 10, "premium_daily_translations": 1000 },
+  "limits": { "free_daily_translations": 10, "premium_daily_translations": 100 },
   "security": { "jwt_expiration_hours": 24 }
 }
 

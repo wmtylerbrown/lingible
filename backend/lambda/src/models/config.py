@@ -48,8 +48,11 @@ class ObservabilityConfig(BaseModel):
 
 
 class AppleConfig(BaseModel):
-    """Apple configuration - only fields used in Python code."""
-    shared_secret: str = Field(description="Apple shared secret for receipt validation")
+    """Apple configuration for App Store Server API."""
+    private_key: str = Field(description="Apple private key (P8 file content)")
+    key_id: str = Field(description="Apple Key ID from App Store Connect")
+    team_id: str = Field(description="Apple Developer Team ID")
+    bundle_id: str = Field(description="App bundle identifier")
 
 
 class GoogleConfig(BaseModel):

@@ -9,7 +9,8 @@ from models.subscriptions import (
     SubscriptionStatus,
     ReceiptValidationRequest,
     ReceiptValidationStatus,
-    AppleNotificationType,
+    TransactionData,
+    StoreEnvironment,
 )
 from services.receipt_validation_service import ReceiptValidationService
 from repositories.subscription_repository import SubscriptionRepository
@@ -32,41 +33,40 @@ class SubscriptionService:
 
     @tracer.trace_method("validate_and_create_subscription")
     def validate_and_create_subscription(
-        self, user_id: str, provider: SubscriptionProvider, receipt_data: str, transaction_id: str
+        self, user_id: str, transaction_data: TransactionData
     ) -> bool:
-        """Validate receipt and create subscription record (domain operation only)."""
+        """Validate StoreKit 2 transaction and create subscription record (domain operation only)."""
         logger.log_business_event(
-            "subscription_creation_attempt",
+            "storekit2_subscription_creation_attempt",
             {
                 "user_id": user_id,
-                "provider": provider,
-                "transaction_id": transaction_id,
+                "provider": transaction_data.provider,
+                "transaction_id": transaction_data.transaction_id,
+                "product_id": transaction_data.product_id,
+                "environment": transaction_data.environment,
             },
         )
 
         try:
-
-            # Create receipt validation request
+            # StoreKit 2 validation
             validation_request = ReceiptValidationRequest(
-                provider=SubscriptionProvider(provider),
-                receipt_data=receipt_data,
-                transaction_id=transaction_id,
+                transaction_data=transaction_data,
                 user_id=user_id,
             )
 
-            # Validate receipt with provider
-            validation_result = self.receipt_validator.validate_receipt(
+            # Validate transaction with StoreKit 2 method
+            validation_result = self.receipt_validator.validate_storekit2_transaction(
                 validation_request
             )
 
             if not validation_result.is_valid:
                 if validation_result.status == ReceiptValidationStatus.ALREADY_USED:
                     raise ValidationError(
-                        "Receipt already used", error_code="RECEIPT_ALREADY_USED"
+                        "Transaction already used", error_code="TRANSACTION_ALREADY_USED"
                     )
                 elif validation_result.status == ReceiptValidationStatus.EXPIRED:
                     raise ValidationError(
-                        "Receipt expired", error_code="RECEIPT_EXPIRED"
+                        "Transaction expired", error_code="TRANSACTION_EXPIRED"
                     )
                 elif (
                     validation_result.status
@@ -77,18 +77,18 @@ class SubscriptionService:
                     )
                 else:
                     raise ValidationError(
-                        f"Invalid receipt: {validation_result.error_message}",
-                        error_code="INVALID_RECEIPT",
+                        f"Invalid transaction: {validation_result.error_message}",
+                        error_code="INVALID_TRANSACTION",
                     )
 
-            # Create subscription record
+            # Create subscription record using validated data
             subscription = UserSubscription(
                 user_id=user_id,
-                provider=SubscriptionProvider(provider),
-                transaction_id=transaction_id,
+                provider=validation_result.transaction_data.provider,
+                transaction_id=validation_result.transaction_data.transaction_id,
                 status=SubscriptionStatus.ACTIVE,
-                start_date=datetime.now(timezone.utc),
-                end_date=self._calculate_end_date(provider, receipt_data),
+                start_date=validation_result.transaction_data.purchase_date,
+                end_date=validation_result.transaction_data.expiration_date,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
@@ -102,10 +102,11 @@ class SubscriptionService:
                 )
 
             logger.log_business_event(
-                "subscription_created_successfully",
+                "storekit2_subscription_created_successfully",
                 {
                     "user_id": user_id,
-                    "transaction_id": transaction_id,
+                    "transaction_id": transaction_data.transaction_id,
+                    "product_id": transaction_data.product_id,
                 },
             )
 
@@ -117,9 +118,10 @@ class SubscriptionService:
             logger.log_error(e, {"operation": "validate_and_create_subscription", "user_id": user_id})
             raise
 
+
     @tracer.trace_method("handle_renewal_webhook")
-    def handle_renewal_webhook(self, transaction_id: str, receipt_data: str) -> bool:
-        """Handle Apple subscription renewal webhook."""
+    def handle_renewal_webhook(self, transaction_id: str) -> bool:
+        """Handle Apple subscription renewal webhook using StoreKit 2 validation."""
         logger.log_business_event(
             "apple_renewal_webhook_received",
             {"transaction_id": transaction_id},
@@ -135,7 +137,8 @@ class SubscriptionService:
                 )
                 return False
 
-            return self._handle_renewal(user_id, receipt_data, transaction_id)
+            # Validate the renewal transaction with Apple's API to get real expiration date
+            return self._handle_renewal_with_validation(user_id, transaction_id)
 
         except Exception as e:
             logger.log_error(
@@ -199,11 +202,11 @@ class SubscriptionService:
             return False
 
     def _calculate_end_date(
-        self, provider: SubscriptionProvider, receipt_data: str
+        self, provider: SubscriptionProvider
     ) -> Optional[datetime]:
-        """Calculate subscription end date from receipt data."""
-        # TODO: Parse actual end date from receipt data
-        # For now, set to 1 month from now
+        """Calculate subscription end date (legacy method - just extends by 30 days)."""
+        # Legacy method - just extend by 30 days
+        # In production, this should be replaced with Apple API validation
         return datetime.now(timezone.utc).replace(day=28) + timedelta(days=30)
 
     def find_user_id_by_transaction_id(self, transaction_id: str) -> Optional[str]:
@@ -267,10 +270,70 @@ class SubscriptionService:
             )
             return False
 
+    def _handle_renewal_with_validation(self, user_id: str, transaction_id: str) -> bool:
+        """Handle subscription renewal with StoreKit 2 validation."""
+        try:
+            # Get current subscription
+            subscription = self.subscription_repository.get_active_subscription(user_id)
+            if not subscription:
+                logger.log_error(
+                    ValueError(f"No active subscription found for user: {user_id}"),
+                    {"operation": "_handle_renewal_with_validation", "user_id": user_id},
+                )
+                return False
+
+            # Create a mock TransactionData for validation (we only have transaction_id from webhook)
+            # In a real implementation, you might want to fetch more details from Apple's API
+            mock_transaction_data = TransactionData(
+                provider=SubscriptionProvider.APPLE,
+                transaction_id=transaction_id,
+                product_id=subscription.transaction_id,  # Use existing product_id as fallback
+                purchase_date=datetime.now(timezone.utc),  # Current time as fallback
+                expiration_date=None,  # Will be determined by Apple validation
+                environment=StoreEnvironment.PRODUCTION,  # Webhooks are typically production
+            )
+
+            # Validate the renewal transaction with Apple
+            validation_request = ReceiptValidationRequest(
+                transaction_data=mock_transaction_data,
+                user_id=user_id,
+            )
+
+            validation_result = self.receipt_validator.validate_storekit2_transaction(validation_request)
+
+            if not validation_result.is_valid:
+                logger.log_error(
+                    ValueError(f"Renewal transaction validation failed: {validation_result.error_message}"),
+                    {"operation": "_handle_renewal_with_validation", "user_id": user_id, "transaction_id": transaction_id},
+                )
+                return False
+
+            # Update subscription with validated data from Apple
+            subscription.end_date = validation_result.transaction_data.expiration_date
+            subscription.transaction_id = transaction_id
+            subscription.status = SubscriptionStatus.ACTIVE
+            subscription.updated_at = datetime.now(timezone.utc)
+
+            success = self.subscription_repository.update_subscription(subscription)
+            if success:
+                logger.log_business_event(
+                    "subscription_renewed_with_validation",
+                    {
+                        "user_id": user_id,
+                        "transaction_id": transaction_id,
+                        "expiration_date": validation_result.transaction_data.expiration_date.isoformat() if validation_result.transaction_data.expiration_date else None,
+                    },
+                )
+            return success
+
+        except Exception as e:
+            logger.log_error(e, {"operation": "_handle_renewal_with_validation", "user_id": user_id})
+            return False
+
     def _handle_renewal(
-        self, user_id: str, receipt_data: str, transaction_id: str
+        self, user_id: str, transaction_id: str
     ) -> bool:
-        """Handle subscription renewal."""
+        """Handle subscription renewal (legacy method - kept for backward compatibility)."""
         # Get current subscription
         subscription = self.subscription_repository.get_active_subscription(
             user_id
@@ -282,8 +345,8 @@ class SubscriptionService:
             )
             return False
 
-        # Update subscription
-        subscription.end_date = self._calculate_end_date(SubscriptionProvider.APPLE, receipt_data)
+        # Update subscription (legacy approach - just extend by 30 days)
+        subscription.end_date = self._calculate_end_date(SubscriptionProvider.APPLE)
         subscription.transaction_id = transaction_id
         subscription.status = SubscriptionStatus.ACTIVE
         subscription.updated_at = datetime.now(timezone.utc)
@@ -291,7 +354,7 @@ class SubscriptionService:
         success = self.subscription_repository.update_subscription(subscription)
         if success:
             logger.log_business_event(
-                "subscription_renewed",
+                "subscription_renewed_legacy",
                 {"user_id": user_id, "transaction_id": transaction_id},
             )
         return success

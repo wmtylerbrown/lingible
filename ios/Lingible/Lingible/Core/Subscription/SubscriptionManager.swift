@@ -15,22 +15,10 @@ class SubscriptionManager: ObservableObject {
     @Published var errorMessage: String?
 
     // MARK: - Private Properties
-    private let productIds: [String] = {
-        // Use different product IDs for development vs production
-        let bundleId = Bundle.main.bundleIdentifier ?? ""
-        if bundleId.contains(".dev") {
-            // Development product ID
-            return ["com.lingible.lingible.dev.premium.monthly"]
-        } else {
-            // Production product ID
-            return ["com.lingible.lingible.premium.monthly"]
-        }
-    }()
+    private let productIds: [String] = ["com.lingible.lingible.premium.monthly"]
     private var updateListenerTask: Task<Void, Error>? = nil
 
-    // Development mode - set to false to use real StoreKit products
-    // For testing, we'll use real StoreKit even in dev mode
-    private let isDevelopmentMode: Bool = false
+    // Always use real StoreKit products (no development mode)
 
     // MARK: - Subscription Status
     enum SubscriptionStatus {
@@ -62,33 +50,33 @@ class SubscriptionManager: ObservableObject {
             isLoading = true
             errorMessage = nil
 
-            if isDevelopmentMode {
-                // In development mode, create mock products for testing
-                #if DEBUG
-                await createMockProducts()
-                #endif
-            } else {
-                print("🛒 Attempting to load products from App Store...")
-                print("🛒 Product IDs: \(productIds)")
-                print("🛒 Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
+            print("🛒 Attempting to load products from App Store...")
+            print("🛒 Product IDs: \(productIds)")
+            print("🛒 Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
+            print("🛒 App Store Environment: \(Transaction.currentEntitlements)")
 
-                let storeProducts = try await Product.products(for: productIds)
+            // Check if we're in sandbox mode
+            if let receiptURL = Bundle.main.appStoreReceiptURL {
+                print("🛒 Receipt URL: \(receiptURL)")
+                print("🛒 Sandbox Mode: \(receiptURL.lastPathComponent == "sandboxReceipt")")
+            }
 
-                // Sort products by price (cheapest first)
-                self.products = storeProducts.sorted { $0.price < $1.price }
+            let storeProducts = try await Product.products(for: productIds)
 
-                print("🛒 Loaded \(products.count) subscription products")
-                for product in products {
-                    print("  - \(product.displayName): \(product.displayPrice)")
-                }
+            // Sort products by price (cheapest first)
+            self.products = storeProducts.sorted { $0.price < $1.price }
 
-                if products.isEmpty {
-                    print("❌ No products found - this could mean:")
-                    print("  1. Product doesn't exist in App Store Connect")
-                    print("  2. Product exists but isn't approved/available")
-                    print("  3. Bundle ID mismatch")
-                    print("  4. App not properly configured for In-App Purchases")
-                }
+            print("🛒 Loaded \(products.count) subscription products")
+            for product in products {
+                print("  - \(product.displayName): \(product.displayPrice)")
+            }
+
+            if products.isEmpty {
+                print("❌ No products found - this could mean:")
+                print("  1. Product doesn't exist in App Store Connect")
+                print("  2. Product exists but isn't approved/available")
+                print("  3. Bundle ID mismatch")
+                print("  4. App not properly configured for In-App Purchases")
             }
 
         } catch {
@@ -99,23 +87,6 @@ class SubscriptionManager: ObservableObject {
         isLoading = false
     }
 
-    // MARK: - Development Mode
-    #if DEBUG
-    private func createMockProducts() async {
-        // Create a mock product for development/testing
-        // This simulates what would happen with real StoreKit products
-
-        // In a real implementation, you'd create mock Product objects
-        // For now, we'll just set a flag that products are "loaded"
-        // The UI will show the purchase button instead of "Retry Loading"
-
-        // Simulate loading delay
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-        // Set products to indicate they're loaded (even if empty, UI will handle it)
-        self.products = []
-    }
-    #endif
 
     // MARK: - Purchase Flow
     func purchase(_ product: Product) async -> Bool {
@@ -267,14 +238,26 @@ class SubscriptionManager: ObservableObject {
     private func syncSubscriptionWithBackend(transaction: StoreKit.Transaction) async {
         print("🔄 Syncing subscription with backend...")
 
-        // Get receipt data for backend validation
-        let receiptData = await getReceiptData()
+        // For StoreKit 2, we send transaction data directly instead of receipt
+        let productId = transaction.productID
+        let purchaseDate = transaction.purchaseDate
+        let expirationDate = transaction.expirationDate
+        let environment = transaction.environment == .sandbox ? "sandbox" : "production"
 
-        // Create upgrade request
+        print("🔄 StoreKit 2 data:")
+        print("🔄 Product ID: \(productId)")
+        print("🔄 Purchase Date: \(purchaseDate)")
+        print("🔄 Expiration Date: \(expirationDate?.description ?? "none")")
+        print("🔄 Environment: \(environment)")
+
+        // Create StoreKit 2 upgrade request
         let upgradeRequest = UserUpgradeRequest(
             provider: .apple,
-            receiptData: receiptData,
-            transactionId: String(transaction.id)
+            transactionId: String(transaction.id),
+            productId: productId,
+            purchaseDate: purchaseDate,
+            expirationDate: expirationDate,
+            environment: environment
         )
 
         // Call backend upgrade API
@@ -300,25 +283,40 @@ class SubscriptionManager: ObservableObject {
                 return "no_receipt_url"
             }
 
+            print("🛒 Attempting to read receipt from: \(receiptURL)")
+
+            // Check if the receipt file exists
+            guard FileManager.default.fileExists(atPath: receiptURL.path) else {
+                print("❌ Receipt file does not exist at: \(receiptURL.path)")
+                // For sandbox testing, create a mock receipt
+                return createMockReceiptData()
+            }
+
             let receiptData = try Data(contentsOf: receiptURL)
+            print("✅ Successfully read receipt data (\(receiptData.count) bytes)")
             return receiptData.base64EncodedString()
         } catch {
             print("❌ Error getting receipt data: \(error)")
             // Fallback: create a receipt-like structure for testing
-            let receiptInfo = [
-                "bundle_id": Bundle.main.bundleIdentifier ?? "",
-                "application_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
-                "receipt_type": "ProductionSandbox",
-                "in_app": []
-            ] as [String: Any]
-
-            if let jsonData = try? JSONSerialization.data(withJSONObject: receiptInfo),
-               let jsonString = String(data: jsonData, encoding: .utf8) {
-                return jsonString.data(using: .utf8)?.base64EncodedString() ?? "fallback_receipt_data"
-            }
-
-            return "fallback_receipt_data"
+            return createMockReceiptData()
         }
+    }
+
+    private func createMockReceiptData() -> String {
+        print("🛒 Creating mock receipt data for sandbox testing")
+        let receiptInfo = [
+            "bundle_id": Bundle.main.bundleIdentifier ?? "",
+            "application_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
+            "receipt_type": "ProductionSandbox",
+            "in_app": []
+        ] as [String: Any]
+
+        if let jsonData = try? JSONSerialization.data(withJSONObject: receiptInfo),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            return jsonString.data(using: .utf8)?.base64EncodedString() ?? "fallback_receipt_data"
+        }
+
+        return "fallback_receipt_data"
     }
 
     // MARK: - Transaction Listener
@@ -373,12 +371,25 @@ enum StoreError: Error, LocalizedError {
     }
 }
 
-// MARK: - User Upgrade Request Model
-struct UserUpgradeRequest {
-    let provider: SubscriptionProvider
-    let receiptData: String
-    let transactionId: String
-}
+    // MARK: - User Upgrade Request Model
+    struct UserUpgradeRequest {
+        let provider: SubscriptionProvider
+        let transactionId: String
+        let productId: String
+        let purchaseDate: Date
+        let expirationDate: Date?
+        let environment: String
+
+        // StoreKit 2 initializer
+        init(provider: SubscriptionProvider, transactionId: String, productId: String, purchaseDate: Date, expirationDate: Date? = nil, environment: String) {
+            self.provider = provider
+            self.transactionId = transactionId
+            self.productId = productId
+            self.purchaseDate = purchaseDate
+            self.expirationDate = expirationDate
+            self.environment = environment
+        }
+    }
 
 enum SubscriptionProvider: String, CaseIterable {
     case apple = "apple"

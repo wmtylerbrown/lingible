@@ -5,9 +5,12 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**platform** | **str** | App store platform | 
-**receipt_data** | **str** | Receipt data from app store | 
-**transaction_id** | **str** | Provider transaction ID | 
+**platform** | **str** | App store platform |
+**transaction_id** | **str** | Provider transaction ID |
+**product_id** | **str** | Product ID from the app store |
+**purchase_date** | **datetime** | Purchase date in ISO format |
+**expiration_date** | **datetime** | Expiration date in ISO format (for subscriptions) | [optional]
+**environment** | **str** | App Store environment |
 
 ## Example
 
@@ -27,5 +30,3 @@ upgrade_request_dict = upgrade_request_instance.to_dict()
 upgrade_request_from_dict = UpgradeRequest.from_dict(upgrade_request_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

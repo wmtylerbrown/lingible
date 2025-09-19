@@ -8,8 +8,8 @@ struct AdMobConfig {
     // MARK: - Ad Unit IDs from Build Configuration
     static var bannerAdUnitID: String {
         guard let adUnitID = Bundle.main.object(forInfoDictionaryKey: "GAD_BANNER_AD_UNIT_ID") as? String else {
-            // Fallback to test ad unit ID if not configured
-            return "ca-app-pub-3940256099942544/2934735716"
+            // Fallback to test ad unit ID if not configured - using adaptive banner test ID
+            return "ca-app-pub-3940256099942544/2435281174"
         }
         return adUnitID
     }
@@ -30,9 +30,16 @@ struct AdMobConfig {
 
     // MARK: - AdMob Initialization
     static func initialize() {
+        print("🟡 AdMob: Starting initialization...")
+        print("🟡 AdMob: Banner Ad Unit ID: \(bannerAdUnitID)")
+        print("🟡 AdMob: Interstitial Ad Unit ID: \(interstitialAdUnitID)")
+        print("🟡 AdMob: Using Test Ads: \(isUsingTestAds)")
+
         MobileAds.shared.start { status in
+            print("🟡 AdMob: Initialization completed")
+            print("🟡 AdMob: Status: \(status)")
             if isUsingTestAds {
-                // Test ads initialized
+                print("🟡 AdMob: Test ads initialized")
             }
         }
     }

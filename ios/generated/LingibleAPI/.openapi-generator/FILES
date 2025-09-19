@@ -23,7 +23,6 @@ LingibleAPI/Classes/OpenAPIs/Models/AppleWebhookRequest.swift
 LingibleAPI/Classes/OpenAPIs/Models/HealthResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/ModelErrorResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/PaginationInfo.swift
-LingibleAPI/Classes/OpenAPIs/Models/ReceiptValidationResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/SuccessResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/TranslationHistory.swift
 LingibleAPI/Classes/OpenAPIs/Models/TranslationHistoryServiceResult.swift
@@ -51,7 +50,6 @@ docs/AppleWebhookRequest.md
 docs/HealthResponse.md
 docs/ModelErrorResponse.md
 docs/PaginationInfo.md
-docs/ReceiptValidationResponse.md
 docs/SuccessResponse.md
 docs/SystemAPI.md
 docs/TranslationAPI.md

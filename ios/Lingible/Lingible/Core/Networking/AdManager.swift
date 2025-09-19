@@ -37,6 +37,9 @@ final class AdManager: ObservableObject {
 
         // Set up daily rollover observation
         setupDailyRolloverObservation()
+
+        // Initialize banner visibility immediately
+        updateBannerAdVisibility()
     }
 
     // MARK: - Public Methods
@@ -89,6 +92,8 @@ final class AdManager: ObservableObject {
     func updateAdVisibility() {
         // Always use backend data as single source of truth
         guard let userUsage = userService.userUsage else {
+            // Even if no user data, still update banner visibility
+            updateBannerAdVisibility()
             return
         }
 
@@ -101,6 +106,11 @@ final class AdManager: ObservableObject {
         // This ensures ads show before starting new translations, not after completing them
     }
 
+    /// Update banner visibility when user data becomes available
+    func updateBannerVisibilityWhenUserDataAvailable() {
+        updateBannerAdVisibility()
+    }
+
     /// Reset translation count (called daily)
     func resetTranslationCount() {
         translationCount = 0
@@ -111,10 +121,16 @@ final class AdManager: ObservableObject {
         // Update banner ad visibility based on user tier only
         if let userUsage = userService.userUsage {
             let tier = userUsage.tier
+            print("🟡 AdMob Banner: User tier: \(tier), shouldShowBanner: \(tier == .free)")
 
             // Show banner ads for free users (regardless of daily usage)
             shouldShowBanner = (tier == .free)
-
+            print("🟡 AdMob Banner: Updated shouldShowBanner to: \(shouldShowBanner)")
+        } else {
+            print("🔴 AdMob Banner: No user usage data available - defaulting to show banner for free users")
+            // Default to showing banner for free users when data isn't available yet
+            // This ensures the banner appears immediately for free users
+            shouldShowBanner = true
         }
     }
 

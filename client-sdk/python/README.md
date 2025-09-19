@@ -116,7 +116,6 @@ Class | Method | HTTP request | Description
  - [ErrorResponse](docs/ErrorResponse.md)
  - [HealthResponse](docs/HealthResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
- - [ReceiptValidationResponse](docs/ReceiptValidationResponse.md)
  - [SuccessResponse](docs/SuccessResponse.md)
  - [TranslationHistory](docs/TranslationHistory.md)
  - [TranslationHistoryServiceResult](docs/TranslationHistoryServiceResult.md)

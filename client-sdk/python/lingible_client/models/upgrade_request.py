@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,15 +28,25 @@ class UpgradeRequest(BaseModel):
     UpgradeRequest
     """ # noqa: E501
     platform: StrictStr = Field(description="App store platform")
-    receipt_data: StrictStr = Field(description="Receipt data from app store")
     transaction_id: StrictStr = Field(description="Provider transaction ID")
-    __properties: ClassVar[List[str]] = ["platform", "receipt_data", "transaction_id"]
+    product_id: StrictStr = Field(description="Product ID from the app store")
+    purchase_date: datetime = Field(description="Purchase date in ISO format")
+    expiration_date: Optional[datetime] = Field(default=None, description="Expiration date in ISO format (for subscriptions)")
+    environment: StrictStr = Field(description="App Store environment")
+    __properties: ClassVar[List[str]] = ["platform", "transaction_id", "product_id", "purchase_date", "expiration_date", "environment"]
 
     @field_validator('platform')
     def platform_validate_enum(cls, value):
         """Validates the enum"""
         if value not in set(['apple', 'google']):
             raise ValueError("must be one of enum values ('apple', 'google')")
+        return value
+
+    @field_validator('environment')
+    def environment_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['sandbox', 'production']):
+            raise ValueError("must be one of enum values ('sandbox', 'production')")
         return value
 
     model_config = ConfigDict(
@@ -90,9 +101,10 @@ class UpgradeRequest(BaseModel):
 
         _obj = cls.model_validate({
             "platform": obj.get("platform"),
-            "receipt_data": obj.get("receipt_data"),
-            "transaction_id": obj.get("transaction_id")
+            "transaction_id": obj.get("transaction_id"),
+            "product_id": obj.get("product_id"),
+            "purchase_date": obj.get("purchase_date"),
+            "expiration_date": obj.get("expiration_date"),
+            "environment": obj.get("environment")
         })
         return _obj
-
-

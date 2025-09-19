@@ -244,9 +244,9 @@ def mock_config():
         }
         mock_config.get_apple_store_config.return_value = {
             "bundle_id": "com.lingible.lingible",
-            "shared_secret": "test_secret",
-            "sandbox_url": "https://sandbox.itunes.apple.com/verifyReceipt",
-            "verify_url": "https://buy.itunes.apple.com/verifyReceipt"
+            "private_key": "test_private_key",
+            "key_id": "test_key_id",
+            "team_id": "test_team_id"
         }
         mock_config.get_google_play_config.return_value = {
             "package_name": "com.lingible.lingible",

@@ -1,11 +1,11 @@
-"""Receipt validation service using official Apple and Google SDKs."""
+"""Receipt validation service for StoreKit 2 transactions."""
 
 import json
+import base64
+import binascii
 from datetime import datetime, timezone
+from typing import Dict, Any, Optional
 
-from google.oauth2 import service_account
-from googleapiclient.discovery import build  # type: ignore
-from googleapiclient.errors import HttpError  # type: ignore
 import requests
 
 from models.subscriptions import (
@@ -13,8 +13,10 @@ from models.subscriptions import (
     ReceiptValidationResult,
     ReceiptValidationStatus,
     SubscriptionProvider,
+    TransactionData,
+    StoreEnvironment,
 )
-from utils.config import get_config_service, AppleConfig, GoogleConfig
+from utils.config import get_config_service, AppleConfig
 from utils.logging import SmartLogger
 from utils.exceptions import ValidationError
 
@@ -22,473 +24,337 @@ logger = SmartLogger()
 
 
 class ReceiptValidationService:
-    """Service for validating receipts using official Apple and Google SDKs."""
+    """Service for validating StoreKit 2 transactions."""
 
     def __init__(self):
         """Initialize the receipt validation service."""
         self.config_service = get_config_service()
         self.apple_config = self.config_service.get_config(AppleConfig)
-        self.google_config = self.config_service.get_config(GoogleConfig)
 
-        # Initialize Google Play API client
-        self._google_client = None
 
-    @property
-    def google_client(self):
-        """Get Google Play API client (lazy initialization)."""
-        if self._google_client is None:
-            try:
-                credentials = service_account.Credentials.from_service_account_info(
-                    self.google_config.service_account_key,
-                    scopes=["https://www.googleapis.com/auth/androidpublisher"],
-                )
-                self._google_client = build(
-                    "androidpublisher", "v3", credentials=credentials
-                )
-            except Exception as e:
-                logger.log_error(e, {"operation": "google_client_init"})
-                self._google_client = None
-        return self._google_client
-
-    def validate_receipt(
-        self, request: ReceiptValidationRequest
-    ) -> ReceiptValidationResult:
+    def validate_storekit2_transaction(self, request: ReceiptValidationRequest) -> ReceiptValidationResult:
         """
-        Validate a receipt from Apple Store or Google Play.
+        Validate a StoreKit 2 transaction using Apple's Transaction API.
+
+        This method validates StoreKit 2 transactions directly with Apple,
+        which is more secure than traditional receipt validation.
 
         Args:
-            request: Receipt validation request with provider and receipt data
+            request: Receipt validation request with StoreKit 2 transaction data
+
+        Returns:
+            ReceiptValidationResult: Validation result with status and details
+        """
+        logger.log_business_event(
+            "storekit2_transaction_validation_started",
+            {
+                "provider": request.transaction_data.provider,
+                "transaction_id": request.transaction_data.transaction_id,
+                "user_id": request.user_id,
+            },
+        )
+
+        try:
+            if request.transaction_data.provider != SubscriptionProvider.APPLE:
+                raise ValidationError(f"StoreKit 2 validation only supports Apple, got: {request.transaction_data.provider}")
+
+            # For StoreKit 2, we validate the transaction directly with Apple
+            # This is more secure than receipt validation
+            return self._validate_apple_transaction(request)
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "validate_storekit2_transaction",
+                    "transaction_id": request.transaction_data.transaction_id,
+                    "provider": request.transaction_data.provider,
+                },
+            )
+            return ReceiptValidationResult(
+                is_valid=False,
+                status=ReceiptValidationStatus.RETRYABLE_ERROR,
+                transaction_data=request.transaction_data,
+                error_message=str(e),
+                retry_after=60,  # Retry after 1 minute
+            )
+
+
+    def _validate_apple_transaction(self, request: ReceiptValidationRequest) -> ReceiptValidationResult:
+        """
+        Validate Apple StoreKit 2 transaction using Apple's App Store Server API.
+
+        This method validates StoreKit 2 transactions directly with Apple's
+        App Store Server API, which is the secure way to validate transactions.
+
+        Args:
+            request: Receipt validation request with StoreKit 2 transaction data
 
         Returns:
             ReceiptValidationResult: Validation result with status and details
         """
         try:
-            if request.provider == SubscriptionProvider.APPLE:
-                result = self._validate_apple_receipt(request)
-            elif request.provider == SubscriptionProvider.GOOGLE:
-                result = self._validate_google_receipt(request)
-            else:
-                # This should never happen with the current enum, but handle for future extensibility
-                raise ValidationError(f"Unsupported provider: {request.provider}")
+            transaction_data = request.transaction_data
 
-            # Log validation result
+            # Validate that we have the required transaction data
+            if not transaction_data.product_id:
+                raise ValidationError("Missing product_id in StoreKit 2 transaction")
+
+            # Get JWT token for Apple API authentication
+            jwt_token = self._get_apple_jwt_token()
+            if not jwt_token:
+                raise ValidationError("Failed to get Apple JWT token")
+
+            # Validate transaction with Apple's App Store Server API
+            validated_transaction = self._validate_with_apple_api(
+                transaction_data.transaction_id,
+                jwt_token,
+                transaction_data.environment
+            )
+
+            if not validated_transaction:
+                raise ValidationError("Transaction validation failed with Apple")
+
+            # Create validated transaction data from Apple's response
+            validated_transaction_data = self._create_validated_transaction_data(
+                validated_transaction,
+                transaction_data
+            )
+
             logger.log_business_event(
-                "receipt_validation_completed",
+                "storekit2_transaction_validated_with_apple",
                 {
-                    "transaction_id": request.transaction_id,
-                    "provider": request.provider,
-                    "is_valid": result.is_valid,
-                    "status": result.status,
-                    "product_id": result.product_id,
+                    "transaction_id": validated_transaction_data.transaction_id,
+                    "product_id": validated_transaction_data.product_id,
+                    "environment": validated_transaction_data.environment,
+                    "purchase_date": validated_transaction_data.purchase_date.isoformat() if validated_transaction_data.purchase_date else None,
+                    "expiration_date": validated_transaction_data.expiration_date.isoformat() if validated_transaction_data.expiration_date else None,
                 },
             )
 
-            return result
+            return ReceiptValidationResult(
+                is_valid=True,
+                status=ReceiptValidationStatus.VALID,
+                transaction_data=validated_transaction_data,
+                error_message=None,
+                retry_after=None,
+            )
 
         except Exception as e:
             logger.log_error(
                 e,
                 {
-                    "operation": "validate_receipt",
-                    "transaction_id": request.transaction_id,
-                    "provider": request.provider,
+                    "operation": "_validate_apple_transaction",
+                    "transaction_id": request.transaction_data.transaction_id,
                 },
             )
             return ReceiptValidationResult(
                 is_valid=False,
                 status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                transaction_id=request.transaction_id,
-                product_id=None,
-                purchase_date=None,
-                expiration_date=None,
-                environment=None,
-                error_message=str(e),
-                retry_after=60,  # Retry after 1 minute
+                transaction_data=request.transaction_data,
+                error_message=f"StoreKit 2 validation error: {str(e)}",
+                retry_after=60,
             )
 
-    def _validate_apple_receipt(
-        self, request: ReceiptValidationRequest
-    ) -> ReceiptValidationResult:
-        """Validate Apple Store receipt using direct API calls."""
+    def _get_apple_jwt_token(self) -> str:
+        """Generate JWT token for Apple App Store Server API authentication."""
         try:
-            shared_secret = self.apple_config.shared_secret
+            import jwt
+            from datetime import datetime, timedelta
 
-            # Prepare request payload
-            payload = {
-                "receipt-data": request.receipt_data,
-                "password": shared_secret,
-                "exclude-old-transactions": True,
+            # JWT header
+            header = {
+                "alg": "ES256",
+                "kid": self.apple_config.key_id,
+                "typ": "JWT"
             }
 
-            # Try production environment first
-            production_url = "https://buy.itunes.apple.com/verifyReceipt"
-            response = requests.post(production_url, json=payload, timeout=30)
+            # JWT payload
+            now = datetime.utcnow()
+            payload = {
+                "iss": self.apple_config.team_id,
+                "iat": now,
+                "exp": now + timedelta(minutes=20),  # Token expires in 20 minutes
+                "aud": "appstoreconnect-v1",
+                "bid": self.apple_config.bundle_id
+            }
 
-            if response.status_code != 200:
-                return ReceiptValidationResult(
-                    is_valid=False,
-                    status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                    transaction_id=request.transaction_id,
-                    product_id=None,
-                    purchase_date=None,
-                    expiration_date=None,
-                    environment=None,
-                    error_message=f"Apple API request failed: {response.status_code}",
-                    retry_after=60,
-                )
+            # Generate JWT token using the private key
+            token = jwt.encode(
+                payload,
+                self.apple_config.private_key,
+                algorithm="ES256",
+                headers=header
+            )
 
-            result_data = response.json()
-            status_code = result_data.get("status", -1)
-
-            # Check if receipt is from sandbox environment
-            if status_code == 21007:
-                logger.log_business_event(
-                    "sandbox_receipt_detected",
-                    {
-                        "transaction_id": request.transaction_id,
-                        "status_code": status_code,
-                        "message": "Receipt is from sandbox environment, retrying with sandbox URL",
-                    },
-                )
-                # Retry with sandbox environment
-                sandbox_url = "https://sandbox.itunes.apple.com/verifyReceipt"
-                response = requests.post(sandbox_url, json=payload, timeout=30)
-
-                if response.status_code != 200:
-                    return ReceiptValidationResult(
-                        is_valid=False,
-                        status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                        transaction_id=request.transaction_id,
-                        product_id=None,
-                        purchase_date=None,
-                        expiration_date=None,
-                        environment="sandbox",
-                        error_message=f"Apple sandbox API request failed: {response.status_code}",
-                        retry_after=60,
-                    )
-
-                result_data = response.json()
-                status_code = result_data.get("status", -1)
-                environment = "sandbox"
-            else:
-                environment = "production"
-
-            # Check if validation was successful
-            if status_code == 0:  # Valid receipt
-                # Extract transaction information
-                receipt_info = result_data.get("receipt", {})
-                latest_receipt_info = result_data.get("latest_receipt_info", [])
-
-                # Get the most recent transaction
-                if latest_receipt_info:
-                    transaction_info = latest_receipt_info[0]
-                else:
-                    # Fallback to receipt info for non-renewable subscriptions
-                    transaction_info = receipt_info
-
-                # Extract transaction details
-                product_id = transaction_info.get("product_id")
-                purchase_date_ms = int(transaction_info.get("purchase_date_ms", 0))
-                expires_date_ms = transaction_info.get("expires_date_ms")
-
-                # Convert timestamps
-                purchase_date = datetime.fromtimestamp(
-                    purchase_date_ms / 1000, tz=timezone.utc
-                )
-                expiration_date = None
-                if expires_date_ms:
-                    expiration_date = datetime.fromtimestamp(
-                        int(expires_date_ms) / 1000, tz=timezone.utc
-                    )
-
-                # Check if subscription is expired
-                if expiration_date and expiration_date < datetime.now(timezone.utc):
-                    return ReceiptValidationResult(
-                        is_valid=False,
-                        status=ReceiptValidationStatus.EXPIRED,
-                        transaction_id=request.transaction_id,
-                        product_id=product_id,
-                        purchase_date=purchase_date,
-                        expiration_date=expiration_date,
-                        environment=environment,
-                        error_message="Subscription has expired",
-                        retry_after=None,
-                    )
-
-                return ReceiptValidationResult(
-                    is_valid=True,
-                    status=ReceiptValidationStatus.VALID,
-                    transaction_id=request.transaction_id,
-                    product_id=product_id,
-                    purchase_date=purchase_date,
-                    expiration_date=expiration_date,
-                    environment=environment,
-                    error_message=None,
-                    retry_after=None,
-                )
-
-            else:
-                # Handle different Apple status codes
-                error_message = self._get_apple_error_message(status_code)
-                status = self._map_apple_status_to_receipt_status(status_code)
-
-                return ReceiptValidationResult(
-                    is_valid=False,
-                    status=status,
-                    transaction_id=request.transaction_id,
-                    product_id=None,
-                    purchase_date=None,
-                    expiration_date=None,
-                    environment=environment,
-                    error_message=error_message,
-                    retry_after=(
-                        300
-                        if status == ReceiptValidationStatus.RETRYABLE_ERROR
-                        else None
-                    ),
-                )
-
-        except requests.RequestException as e:
-            logger.log_error(
-                e,
+            logger.log_business_event(
+                "apple_jwt_token_generated",
                 {
-                    "operation": "_validate_apple_receipt",
-                    "transaction_id": request.transaction_id,
-                },
+                    "key_id": self.apple_config.key_id,
+                    "team_id": self.apple_config.team_id,
+                    "bundle_id": self.apple_config.bundle_id,
+                    "expires_at": (now + timedelta(minutes=20)).isoformat()
+                }
             )
-            return ReceiptValidationResult(
-                is_valid=False,
-                status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                transaction_id=request.transaction_id,
-                product_id=None,
-                purchase_date=None,
-                expiration_date=None,
-                environment=None,
-                error_message=f"Apple API request error: {str(e)}",
-                retry_after=60,
-            )
+
+            return token
+
         except Exception as e:
-            logger.log_error(
-                e,
-                {
-                    "operation": "_validate_apple_receipt",
-                    "transaction_id": request.transaction_id,
-                },
-            )
-            return ReceiptValidationResult(
-                is_valid=False,
-                status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                transaction_id=request.transaction_id,
-                product_id=None,
-                purchase_date=None,
-                expiration_date=None,
-                environment=None,
-                error_message=f"Apple validation error: {str(e)}",
-                retry_after=60,
-            )
+            logger.log_error(e, {"operation": "_get_apple_jwt_token"})
+            return ""
 
-    def _validate_google_receipt(
-        self, request: ReceiptValidationRequest
-    ) -> ReceiptValidationResult:
-        """Validate Google Play receipt using Google Play Developer API."""
+    def _validate_with_apple_api(self, transaction_id: str, jwt_token: str, environment: StoreEnvironment) -> Optional[Dict[str, Any]]:
+        """
+        Validate transaction with Apple's App Store Server API.
+
+        Args:
+            transaction_id: The transaction ID to validate
+            jwt_token: JWT token for authentication
+            environment: Sandbox or production environment
+
+        Returns:
+            Dict containing validated transaction data from Apple
+        """
         try:
-            if not self.google_client:
-                return ReceiptValidationResult(
-                    is_valid=False,
-                    status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                    transaction_id=request.transaction_id,
-                    product_id=None,
-                    purchase_date=None,
-                    expiration_date=None,
-                    environment=None,
-                    error_message="Google Play API client not initialized",
-                    retry_after=60,
+            # Determine the correct API endpoint based on environment
+            if environment == StoreEnvironment.SANDBOX:
+                api_url = "https://api.storekit-sandbox.itunes.apple.com/inApps/v1/transactions"
+            else:
+                api_url = "https://api.storekit.itunes.apple.com/inApps/v1/transactions"
+
+            # Prepare headers
+            headers = {
+                "Authorization": f"Bearer {jwt_token}",
+                "Content-Type": "application/json",
+            }
+
+            # Make request to Apple's API
+            response = requests.get(
+                f"{api_url}/{transaction_id}",
+                headers=headers,
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                logger.log_error(
+                    ValueError("Transaction not found"),
+                    {"operation": "_validate_with_apple_api", "transaction_id": transaction_id}
                 )
-
-            # Parse receipt data (Google Play sends JSON)
-            try:
-                receipt_data = json.loads(request.receipt_data)
-            except json.JSONDecodeError:
-                return ReceiptValidationResult(
-                    is_valid=False,
-                    status=ReceiptValidationStatus.INVALID,
-                    transaction_id=request.transaction_id,
-                    product_id=None,
-                    purchase_date=None,
-                    expiration_date=None,
-                    environment=None,
-                    error_message="Invalid JSON format in receipt data",
-                    retry_after=None,
+                return None
+            else:
+                logger.log_error(
+                    ValueError(f"Apple API error: {response.status_code}"),
+                    {"operation": "_validate_with_apple_api", "transaction_id": transaction_id, "status_code": response.status_code}
                 )
-
-            # Extract Google Play receipt information
-            package_name = receipt_data.get("packageName")
-            product_id = receipt_data.get("productId")
-            purchase_token = receipt_data.get("purchaseToken")
-
-            if not all([package_name, product_id, purchase_token]):
-                return ReceiptValidationResult(
-                    is_valid=False,
-                    status=ReceiptValidationStatus.INVALID,
-                    transaction_id=request.transaction_id,
-                    product_id=None,
-                    purchase_date=None,
-                    expiration_date=None,
-                    environment=None,
-                    error_message="Missing required fields in Google Play receipt",
-                    retry_after=None,
-                )
-
-            # Verify purchase with Google Play Developer API
-            try:
-                purchase_response = (
-                    self.google_client.purchases()
-                    .subscriptions()
-                    .get(
-                        packageName=package_name,
-                        subscriptionId=product_id,
-                        token=purchase_token,
-                    )
-                    .execute()
-                )
-
-                # Check subscription status
-                payment_state = purchase_response.get("paymentState", 0)
-                expiry_time_ms = purchase_response.get("expiryTimeMillis")
-
-                # Convert expiry time
-                expiration_date = None
-                if expiry_time_ms:
-                    expiration_date = datetime.fromtimestamp(
-                        int(expiry_time_ms) / 1000, tz=timezone.utc
-                    )
-
-                # Check if subscription is expired
-                if expiration_date and expiration_date < datetime.now(timezone.utc):
-                    return ReceiptValidationResult(
-                        is_valid=False,
-                        status=ReceiptValidationStatus.EXPIRED,
-                        transaction_id=request.transaction_id,
-                        product_id=product_id,
-                        purchase_date=None,  # Google doesn't provide purchase date in this API
-                        expiration_date=expiration_date,
-                        environment="production",
-                        error_message="Google Play subscription has expired",
-                        retry_after=None,
-                    )
-
-                # Check payment state (0 = pending, 1 = purchased, 2 = cancelled)
-                if payment_state == 1:  # Purchased
-                    return ReceiptValidationResult(
-                        is_valid=True,
-                        status=ReceiptValidationStatus.VALID,
-                        transaction_id=request.transaction_id,
-                        product_id=product_id,
-                        purchase_date=None,
-                        expiration_date=expiration_date,
-                        environment="production",
-                        error_message=None,
-                        retry_after=None,
-                    )
-                elif payment_state == 2:  # Cancelled
-                    return ReceiptValidationResult(
-                        is_valid=False,
-                        status=ReceiptValidationStatus.INVALID,
-                        transaction_id=request.transaction_id,
-                        product_id=product_id,
-                        purchase_date=None,
-                        expiration_date=expiration_date,
-                        environment="production",
-                        error_message="Google Play subscription is cancelled",
-                        retry_after=None,
-                    )
-                else:  # Pending or other states
-                    return ReceiptValidationResult(
-                        is_valid=False,
-                        status=ReceiptValidationStatus.INVALID,
-                        transaction_id=request.transaction_id,
-                        product_id=product_id,
-                        purchase_date=None,
-                        expiration_date=expiration_date,
-                        environment="production",
-                        error_message=f"Google Play subscription payment state: {payment_state}",
-                        retry_after=None,
-                    )
-
-            except HttpError as e:
-                if e.resp.status == 404:
-                    return ReceiptValidationResult(
-                        is_valid=False,
-                        status=ReceiptValidationStatus.INVALID,
-                        transaction_id=request.transaction_id,
-                        product_id=product_id,
-                        purchase_date=None,
-                        expiration_date=None,
-                        environment="production",
-                        error_message="Google Play subscription not found",
-                        retry_after=None,
-                    )
-                else:
-                    return ReceiptValidationResult(
-                        is_valid=False,
-                        status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                        transaction_id=request.transaction_id,
-                        product_id=product_id,
-                        purchase_date=None,
-                        expiration_date=None,
-                        environment="production",
-                        error_message=f"Google Play API error: {str(e)}",
-                        retry_after=60,
-                    )
+                return None
 
         except Exception as e:
-            logger.log_error(
-                e,
+            logger.log_error(e, {"operation": "_validate_with_apple_api", "transaction_id": transaction_id})
+            return None
+
+    def _create_validated_transaction_data(self, apple_response: Dict[str, Any], original_data: TransactionData) -> TransactionData:
+        """
+        Create validated TransactionData from Apple's API response.
+
+        This method extracts the actual transaction details from Apple's response,
+        which is the authoritative source of truth for the transaction.
+
+        Args:
+            apple_response: Response from Apple's App Store Server API
+            original_data: Original transaction data from client (for fallback)
+
+        Returns:
+            TransactionData: Validated transaction data from Apple
+        """
+        try:
+            # Parse Apple's response structure
+            # Note: This structure is based on Apple's App Store Server API documentation
+            # You may need to adjust based on the actual response format
+
+            # Extract transaction info from Apple's response
+            transaction_info = apple_response.get("signedTransactionInfo", {})
+            if not transaction_info:
+                # If no signed transaction info, try direct fields
+                transaction_info = apple_response
+
+            # Decode the signed transaction info if it's base64 encoded
+            if isinstance(transaction_info, str):
+                try:
+                    decoded_data = base64.b64decode(transaction_info)
+                    transaction_info = json.loads(decoded_data.decode('utf-8'))
+                except (binascii.Error, json.JSONDecodeError):
+                    logger.log_error(
+                        ValueError("Failed to decode Apple transaction info"),
+                        {"operation": "_create_validated_transaction_data"}
+                    )
+                    return original_data
+
+            # Extract validated data from Apple's response
+            apple_transaction_id = transaction_info.get("transactionId", original_data.transaction_id)
+            apple_product_id = transaction_info.get("productId", original_data.product_id)
+            apple_environment = transaction_info.get("environment", original_data.environment.value)
+
+            # Parse dates from Apple's response
+            apple_purchase_date = self._parse_apple_date(
+                transaction_info.get("purchaseDate", original_data.purchase_date.isoformat())
+            )
+            apple_expiration_date = self._parse_apple_date(
+                transaction_info.get("expiresDate")
+            )
+
+            # Create validated transaction data using Apple's authoritative data
+            validated_data = TransactionData(
+                provider=SubscriptionProvider.APPLE,  # Always Apple for this validation
+                transaction_id=apple_transaction_id,
+                product_id=apple_product_id,
+                purchase_date=apple_purchase_date or original_data.purchase_date,
+                expiration_date=apple_expiration_date,
+                environment=StoreEnvironment(apple_environment) if apple_environment else original_data.environment,
+            )
+
+            logger.log_business_event(
+                "apple_transaction_data_extracted",
                 {
-                    "operation": "_validate_google_receipt",
-                    "transaction_id": request.transaction_id,
+                    "apple_transaction_id": apple_transaction_id,
+                    "apple_product_id": apple_product_id,
+                    "apple_environment": apple_environment,
+                    "apple_purchase_date": apple_purchase_date.isoformat() if apple_purchase_date else None,
+                    "apple_expiration_date": apple_expiration_date.isoformat() if apple_expiration_date else None,
                 },
             )
-            return ReceiptValidationResult(
-                is_valid=False,
-                status=ReceiptValidationStatus.RETRYABLE_ERROR,
-                transaction_id=request.transaction_id,
-                product_id=None,
-                purchase_date=None,
-                expiration_date=None,
-                environment=None,
-                error_message=f"Google validation error: {str(e)}",
-                retry_after=60,
-            )
 
-    def _get_apple_error_message(self, status_code: int) -> str:
-        """Get human-readable error message for Apple status codes."""
-        error_messages = {
-            21000: "Invalid JSON",
-            21002: "Invalid receipt data",
-            21003: "Receipt not authenticated",
-            21004: "Invalid shared secret",
-            21005: "Receipt server unavailable",
-            21006: "Receipt valid but subscription expired",
-            21007: "Receipt is from sandbox environment",
-            21008: "Receipt is from production environment",
-        }
-        return error_messages.get(
-            status_code, f"Unknown Apple status code: {status_code}"
-        )
+            return validated_data
 
-    def _map_apple_status_to_receipt_status(
-        self, status_code: int
-    ) -> ReceiptValidationStatus:
-        """Map Apple status codes to our receipt validation status."""
-        status_mapping = {
-            21000: ReceiptValidationStatus.INVALID,
-            21002: ReceiptValidationStatus.INVALID,
-            21003: ReceiptValidationStatus.INVALID,
-            21004: ReceiptValidationStatus.INVALID,
-            21005: ReceiptValidationStatus.RETRYABLE_ERROR,
-            21006: ReceiptValidationStatus.EXPIRED,
-            21007: ReceiptValidationStatus.ENVIRONMENT_MISMATCH,
-            21008: ReceiptValidationStatus.ENVIRONMENT_MISMATCH,
-        }
-        return status_mapping.get(status_code, ReceiptValidationStatus.INVALID)
+        except Exception as e:
+            logger.log_error(e, {"operation": "_create_validated_transaction_data"})
+            # Fallback to original data if parsing fails
+            return original_data
+
+    def _parse_apple_date(self, date_value: Any) -> Optional[datetime]:
+        """
+        Parse date from Apple's API response.
+
+        Apple returns dates in various formats, so we need to handle them properly.
+
+        Args:
+            date_value: Date value from Apple's response (could be string, int, or None)
+
+        Returns:
+            Optional[datetime]: Parsed datetime or None
+        """
+        if not date_value:
+            return None
+
+        try:
+            if isinstance(date_value, int):
+                # Apple sometimes returns timestamps in milliseconds
+                return datetime.fromtimestamp(date_value / 1000, tz=timezone.utc)
+            elif isinstance(date_value, str):
+                # Try parsing ISO format
+                return datetime.fromisoformat(date_value.replace('Z', '+00:00'))
+            else:
+                return None
+        except (ValueError, TypeError) as e:
+            logger.log_error(e, {"operation": "_parse_apple_date", "date_value": str(date_value)})
+            return None

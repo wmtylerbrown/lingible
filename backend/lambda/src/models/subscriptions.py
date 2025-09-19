@@ -44,6 +44,19 @@ class ReceiptValidationStatus(str, Enum):
     RETRYABLE_ERROR = "retryable_error"
 
 
+class TransactionData(LingibleBaseModel):
+    """Core transaction data model - used throughout the system."""
+
+    provider: SubscriptionProvider = Field(..., description="Subscription provider")
+    transaction_id: str = Field(..., min_length=1, description="Provider transaction ID")
+    product_id: str = Field(..., min_length=1, description="Product ID from the app store")
+    purchase_date: datetime = Field(..., description="Purchase date in ISO format")
+    expiration_date: Optional[datetime] = Field(
+        None, description="Expiration date in ISO format (for subscriptions)"
+    )
+    environment: StoreEnvironment = Field(..., description="App Store environment")
+
+
 class UserSubscription(LingibleBaseModel):
     """User subscription domain model (database storage)."""
 
@@ -95,71 +108,47 @@ class UserUpgradeRequest(LingibleBaseModel):
     provider: SubscriptionProvider = Field(
         SubscriptionProvider.APPLE, description="Subscription provider"
     )
-    receipt_data: str = Field(
-        ..., min_length=1, description="Base64 encoded receipt data"
-    )
     transaction_id: str = Field(
         ..., min_length=1, description="Provider transaction ID"
     )
-
-
-class ReceiptValidationRequest(LingibleBaseModel):
-    """Request model for receipt validation."""
-
-    provider: SubscriptionProvider = Field(..., description="Receipt provider")
-    receipt_data: str = Field(
-        ..., min_length=1, description="Receipt data from app store"
+    product_id: str = Field(
+        ..., min_length=1, description="Product ID from the app store"
     )
-    transaction_id: str = Field(..., min_length=1, description="Transaction ID")
-    user_id: Optional[str] = Field(None, description="User ID for audit logging")
-
-
-class ReceiptValidationResult(LingibleBaseModel):
-    """Result of receipt validation."""
-
-    is_valid: bool = Field(..., description="Whether receipt is valid")
-    status: ReceiptValidationStatus = Field(..., description="Validation status")
-    transaction_id: str = Field(..., description="Transaction ID")
-    product_id: Optional[str] = Field(None, description="Product ID from receipt")
-    purchase_date: Optional[datetime] = Field(None, description="Purchase date")
-    expiration_date: Optional[datetime] = Field(None, description="Expiration date")
-    environment: Optional[str] = Field(
-        None, description="Environment (sandbox/production)"
+    purchase_date: datetime = Field(
+        ..., description="Purchase date in ISO format"
     )
-    error_message: Optional[str] = Field(
-        None, description="Error message if validation failed"
+    expiration_date: Optional[datetime] = Field(
+        None, description="Expiration date in ISO format (for subscriptions)"
     )
-    retry_after: Optional[int] = Field(None, description="Seconds to wait before retry")
+    environment: StoreEnvironment = Field(
+        ..., description="App Store environment"
+    )
 
-    def to_api_response(self) -> "ReceiptValidationResponse":
-        """Convert to API response model."""
-        return ReceiptValidationResponse(
-            is_valid=self.is_valid,
-            status=self.status,
+    def to_transaction_data(self) -> TransactionData:
+        """Convert to TransactionData object."""
+        return TransactionData(
+            provider=self.provider,
             transaction_id=self.transaction_id,
             product_id=self.product_id,
             purchase_date=self.purchase_date,
             expiration_date=self.expiration_date,
-            environment=self.environment,
-            error_message=self.error_message,
-            retry_after=self.retry_after,
+            environment=self.environment
         )
 
 
-class ReceiptValidationResponse(LingibleBaseModel):
-    """API response model for receipt validation."""
+class ReceiptValidationRequest(LingibleBaseModel):
+    """Request model for receipt validation - simplified for StoreKit 2."""
+
+    transaction_data: TransactionData = Field(..., description="Transaction data to validate")
+    user_id: Optional[str] = Field(None, description="User ID for audit logging")
+
+
+class ReceiptValidationResult(LingibleBaseModel):
+    """Result of receipt validation - simplified for internal use only."""
 
     is_valid: bool = Field(..., description="Whether receipt is valid")
     status: ReceiptValidationStatus = Field(..., description="Validation status")
-    transaction_id: str = Field(..., description="Transaction ID")
-    product_id: Optional[str] = Field(None, description="Product ID from receipt")
-    purchase_date: Optional[datetime] = Field(None, description="Purchase date")
-    expiration_date: Optional[datetime] = Field(
-        None, description="Expiration date"
-    )
-    environment: Optional[str] = Field(
-        None, description="Environment (sandbox/production)"
-    )
+    transaction_data: TransactionData = Field(..., description="Validated transaction data")
     error_message: Optional[str] = Field(
         None, description="Error message if validation failed"
     )
@@ -185,9 +174,6 @@ class AppleWebhookRequest(LingibleBaseModel):
         ..., description="Type of notification"
     )
     transaction_id: str = Field(..., min_length=1, description="Apple transaction ID")
-    receipt_data: str = Field(
-        ..., min_length=1, description="Base64 encoded receipt data"
-    )
     environment: StoreEnvironment = Field(StoreEnvironment.PRODUCTION, description="Environment")
 
 

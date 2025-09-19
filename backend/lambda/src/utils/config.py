@@ -123,12 +123,21 @@ class ConfigService:
                 enable_tracing=self._get_env_var('ENABLE_TRACING').lower() == 'true'
             )  # type: ignore
         elif config_type == AppleConfig:
-            # Load shared secret from Secrets Manager
-            secret_name = f"lingible-apple-shared-secret-{self.environment}"
-            shared_secret = self._get_secrets_manager_secret(secret_name, "sharedSecret")
+            # Load Apple credentials from Secrets Manager
+            private_key_name = f"lingible-apple-private-key-{self.environment}"
+
+            private_key = self._get_secrets_manager_secret(private_key_name, "privateKey")
+
+            # Get Apple credentials from environment variables (set by CDK)
+            key_id = self._get_env_var('APPLE_KEY_ID')
+            team_id = self._get_env_var('APPLE_TEAM_ID')
+            bundle_id = self._get_env_var('APPLE_BUNDLE_ID')
 
             return AppleConfig(
-                shared_secret=shared_secret
+                private_key=private_key,
+                key_id=key_id,
+                team_id=team_id,
+                bundle_id=bundle_id
             )  # type: ignore
         elif config_type == GoogleConfig:
             # Load service account key from Secrets Manager

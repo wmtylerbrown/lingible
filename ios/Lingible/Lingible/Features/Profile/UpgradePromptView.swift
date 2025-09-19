@@ -47,6 +47,7 @@ struct UpgradePromptView: View {
                     benefitRow(icon: "number.circle", title: "\(premiumDailyLimit) Daily Translations", description: "\(premiumMultiplier)x more translations than free plan")
                     benefitRow(icon: "textformat.size", title: "Longer Text Support", description: "Translate up to \(premiumMaxLength) characters")
                     benefitRow(icon: "clock.arrow.circlepath", title: "Translation History", description: "Access your translation history for 30 days")
+                    benefitRow(icon: "xmark.rectangle", title: "Ad-Free Experience", description: "Remove all ads")
                 }
                 .padding(.horizontal, 20)
 

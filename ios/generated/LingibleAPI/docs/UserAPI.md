@@ -120,7 +120,7 @@ Upgrade user to premium subscription
 // The following code samples are still beta. For any issue, please report via http://github.com/OpenAPITools/openapi-generator/issues/new
 import LingibleAPI
 
-let upgradeRequest = UpgradeRequest(platform: "platform_example", receiptData: "receiptData_example", transactionId: "transactionId_example") // UpgradeRequest |
+let upgradeRequest = UpgradeRequest(platform: "platform_example", transactionId: "transactionId_example", productId: "productId_example", purchaseDate: Date(), expirationDate: Date(), environment: "environment_example") // UpgradeRequest |
 
 // Upgrade user subscription
 UserAPI.userUpgradePost(upgradeRequest: upgradeRequest) { (response, error) in

@@ -20,7 +20,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "com.lingible.lingible.dev.premium.monthly",
+      "productID" : "com.lingible.lingible.premium.monthly",
       "recurringSubscriptionPeriod" : "P1M",
       "referenceName" : "Premium Monthly",
       "subscriptionGroupID" : "21482456",
@@ -28,7 +28,7 @@
     }
   ],
   "settings" : {
-    "_applicationInternalID" : "com.lingible.lingible.dev",
+    "_applicationInternalID" : "com.lingible.lingible",
     "_developerTeamID" : "FJZKRUXQ93",
     "_failTransactionsEnabled" : false,
     "_lastSynchronizedDate" : 737712000.0,
@@ -113,7 +113,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.lingible.lingible.dev.premium.monthly",
+          "productID" : "com.lingible.lingible.premium.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Premium Monthly",
           "subscriptionGroupID" : "21482456",

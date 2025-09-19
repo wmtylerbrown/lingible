@@ -168,8 +168,11 @@ final class UserService: UserServiceProtocol {
             // Create upgrade request body
             let upgradeRequest = UpgradeRequest(
                 platform: request.provider == .apple ? .apple : .google,
-                receiptData: request.receiptData,
-                transactionId: request.transactionId
+                transactionId: request.transactionId,
+                productId: request.productId,
+                purchaseDate: request.purchaseDate,
+                expirationDate: request.expirationDate,
+                environment: request.environment == "sandbox" ? .sandbox : .production
             )
 
             // Call the upgrade API

@@ -16,23 +16,39 @@ public struct UpgradeRequest: Codable, JSONEncodable, Hashable {
         case apple = "apple"
         case google = "google"
     }
+    public enum Environment: String, Codable, CaseIterable {
+        case sandbox = "sandbox"
+        case production = "production"
+    }
     /** App store platform */
     public var platform: Platform
-    /** Receipt data from app store */
-    public var receiptData: String
     /** Provider transaction ID */
     public var transactionId: String
+    /** Product ID from the app store */
+    public var productId: String
+    /** Purchase date in ISO format */
+    public var purchaseDate: Date
+    /** Expiration date in ISO format (for subscriptions) */
+    public var expirationDate: Date?
+    /** App Store environment */
+    public var environment: Environment
 
-    public init(platform: Platform, receiptData: String, transactionId: String) {
+    public init(platform: Platform, transactionId: String, productId: String, purchaseDate: Date, expirationDate: Date? = nil, environment: Environment) {
         self.platform = platform
-        self.receiptData = receiptData
         self.transactionId = transactionId
+        self.productId = productId
+        self.purchaseDate = purchaseDate
+        self.expirationDate = expirationDate
+        self.environment = environment
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case platform
-        case receiptData = "receipt_data"
         case transactionId = "transaction_id"
+        case productId = "product_id"
+        case purchaseDate = "purchase_date"
+        case expirationDate = "expiration_date"
+        case environment
     }
 
     // Encodable protocol methods
@@ -40,8 +56,10 @@ public struct UpgradeRequest: Codable, JSONEncodable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(platform, forKey: .platform)
-        try container.encode(receiptData, forKey: .receiptData)
         try container.encode(transactionId, forKey: .transactionId)
+        try container.encode(productId, forKey: .productId)
+        try container.encode(purchaseDate, forKey: .purchaseDate)
+        try container.encodeIfPresent(expirationDate, forKey: .expirationDate)
+        try container.encode(environment, forKey: .environment)
     }
 }
-
