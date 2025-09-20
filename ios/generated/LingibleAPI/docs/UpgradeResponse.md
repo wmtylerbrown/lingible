@@ -4,6 +4,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **success** | **Bool** |  |
+**message** | **String** |  |
 **tier** | **String** |  | [optional]
 **expiresAt** | **Date** | Subscription expiration date | [optional]
 

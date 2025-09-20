@@ -3,13 +3,14 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from models.users import User, UserTier, UserStatus
+from models.users import User, UserTier
 from models.translations import UsageLimit
 from utils.logging import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
 from utils.config import get_config_service
 from utils.timezone_utils import get_central_midnight_tomorrow, get_central_midnight_today
+from utils.exceptions import SystemError
 
 
 class UserRepository:
@@ -22,19 +23,14 @@ class UserRepository:
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "users")
-    def create_user(self, user: User) -> bool:
+    def create_user(self, user: User) -> None:
         """Create a new user record."""
         try:
+            # Convert User object to DynamoDB item format
             item = {
                 "PK": f"USER#{user.user_id}",
                 "SK": "PROFILE",
-                "user_id": user.user_id,
-                "username": user.username,
-                "email": user.email,
-                "tier": user.tier,
-                "status": user.status,
-                "created_at": user.created_at.isoformat(),
-                "updated_at": user.updated_at.isoformat(),
+                **user.model_dump(mode='json'),  # Serialize the User object to dict
                 "ttl": int(
                     datetime.now(timezone.utc).timestamp() + (365 * 24 * 60 * 60)
                 ),  # 1 year TTL
@@ -42,7 +38,6 @@ class UserRepository:
 
             self.table.put_item(Item=item)
             # Don't log every user creation - it's a routine operation
-            return True
 
         except Exception as e:
             logger.log_error(
@@ -52,7 +47,7 @@ class UserRepository:
                     "user_id": user.user_id,
                 },
             )
-            return False
+            raise SystemError(f"Failed to create user {user.user_id}")
 
     @tracer.trace_database_operation("get", "users")
     def get_user(self, user_id: str) -> Optional[User]:
@@ -69,15 +64,7 @@ class UserRepository:
                 return None
 
             item = response["Item"]
-            return User(
-                user_id=item["user_id"],
-                username=item["username"],
-                email=item.get("email"),
-                tier=UserTier(item["tier"]),
-                status=UserStatus(item["status"]),
-                created_at=datetime.fromisoformat(item["created_at"]),
-                updated_at=datetime.fromisoformat(item["updated_at"]),
-            )
+            return User(**item)
 
         except Exception as e:
             logger.log_error(
@@ -90,23 +77,24 @@ class UserRepository:
             return None
 
     @tracer.trace_database_operation("update", "users")
-    def update_user(self, user: User) -> bool:
+    def update_user(self, user: User) -> None:
         """Update user record."""
         try:
+            # Update the updated_at timestamp
+            user.updated_at = datetime.now(timezone.utc)
+
+            # Convert User object to DynamoDB item format
             item = {
                 "PK": f"USER#{user.user_id}",
                 "SK": "PROFILE",
-                "user_id": user.user_id,
-                "username": user.username,
-                "email": user.email,
-                "tier": user.tier,
-                "status": user.status,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                **user.model_dump(mode='json'),  # Serialize the User object to dict
+                "ttl": int(
+                    datetime.now(timezone.utc).timestamp() + (365 * 24 * 60 * 60)
+                ),  # 1 year TTL
             }
 
             self.table.put_item(Item=item)
             # Don't log every user update - it's a routine operation
-            return True
 
         except Exception as e:
             logger.log_error(
@@ -116,10 +104,10 @@ class UserRepository:
                     "user_id": user.user_id,
                 },
             )
-            return False
+            raise SystemError(f"Failed to update user {user.user_id}")
 
     @tracer.trace_database_operation("update", "users")
-    def update_usage_limits(self, user_id: str, usage: UsageLimit) -> bool:
+    def update_usage_limits(self, user_id: str, usage: UsageLimit) -> None:
         """Update user usage limits."""
         try:
             item = {
@@ -136,7 +124,6 @@ class UserRepository:
 
             self.table.put_item(Item=item)
             # Don't log every usage limit update - it's a routine operation
-            return True
 
         except Exception as e:
             logger.log_error(
@@ -146,7 +133,7 @@ class UserRepository:
                     "user_id": user_id,
                 },
             )
-            return False
+            raise SystemError(f"Failed to update usage limits for user {user_id}")
 
     @tracer.trace_database_operation("get", "users")
     def get_usage_limits(self, user_id: str) -> Optional[UsageLimit]:
@@ -187,7 +174,7 @@ class UserRepository:
             return None
 
     @tracer.trace_database_operation("update", "users")
-    def increment_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> bool:
+    def increment_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> None:
         """Atomically increment usage counter and reset if needed."""
         try:
             now = datetime.now(timezone.utc)
@@ -214,8 +201,6 @@ class UserRepository:
                     ReturnValues="UPDATED_NEW",
                 )
 
-                return True
-
             except Exception:
                 # Condition failed means it's a new day, so reset and set to 1
                 self.table.update_item(
@@ -235,7 +220,6 @@ class UserRepository:
 
                 # Successfully reset and incremented (new day)
                 # Don't log every usage increment - it's a routine operation
-                return True
 
         except Exception as e:
             logger.log_error(
@@ -245,10 +229,10 @@ class UserRepository:
                     "user_id": user_id,
                 },
             )
-            return False
+            raise SystemError(f"Failed to increment usage for user {user_id}")
 
     @tracer.trace_database_operation("update", "users")
-    def reset_daily_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> bool:
+    def reset_daily_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> None:
         """Reset daily usage counter to 0."""
         try:
             now = datetime.now(timezone.utc)
@@ -269,7 +253,6 @@ class UserRepository:
             )
 
             # Don't log every usage reset - it's a routine operation
-            return True
 
         except Exception as e:
             logger.log_error(
@@ -279,10 +262,10 @@ class UserRepository:
                     "user_id": user_id,
                 },
             )
-            return False
+            raise SystemError(f"Failed to reset usage for user {user_id}")
 
     @tracer.trace_database_operation("delete", "users")
-    def delete_user(self, user_id: str) -> bool:
+    def delete_user(self, user_id: str) -> None:
         """Delete user and all associated data."""
         try:
             # Delete user profile
@@ -307,7 +290,6 @@ class UserRepository:
                     "user_id": user_id,
                 },
             )
-            return True
 
         except Exception as e:
             logger.log_error(
@@ -317,4 +299,4 @@ class UserRepository:
                     "user_id": user_id,
                 },
             )
-            return False
+            raise SystemError(f"Failed to delete user {user_id}")

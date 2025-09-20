@@ -737,6 +737,9 @@ components:
         success:
           type: boolean
           example: true
+        message:
+          type: string
+          example: "User successfully upgraded to premium"
         tier:
           type: string
           enum: [premium]

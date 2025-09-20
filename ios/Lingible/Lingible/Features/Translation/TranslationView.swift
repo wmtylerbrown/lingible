@@ -132,7 +132,10 @@ struct TranslationView: View {
                     translationCount: upgradePromptCount > 0 ? upgradePromptCount : (appCoordinator.userUsage?.dailyUsed ?? 0),
                     onUpgrade: {
                         showingUpgradePrompt = false
-                        // TODO: Navigate to upgrade flow
+                        // Refresh user data after successful upgrade
+                        Task {
+                            await appCoordinator.userService.refreshUserData()
+                        }
                     },
                     onDismiss: {
                         showingUpgradePrompt = false
@@ -411,11 +414,18 @@ struct TranslationView: View {
             return
         }
 
-        // Check if user has exceeded daily limit
+        // Check if user has exceeded daily limit or is near limit
         let currentUsage = appCoordinator.userUsage?.dailyUsed ?? 0
         let dailyLimit = appCoordinator.userUsage?.dailyLimit ?? 10
+        let nearLimitThreshold = Int(Double(dailyLimit) * 0.7)
+
         if userTier == .free && currentUsage >= dailyLimit {
             // Show upgrade prompt when daily limit reached
+            upgradePromptCount = currentUsage
+            showingUpgradePrompt = true
+            return
+        } else if userTier == .free && currentUsage >= nearLimitThreshold && currentUsage < dailyLimit {
+            // Show gentle upgrade prompt when approaching limit (70% usage)
             upgradePromptCount = currentUsage
             showingUpgradePrompt = true
             return

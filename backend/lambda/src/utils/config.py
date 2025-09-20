@@ -18,8 +18,8 @@ from models.config import (
     SecurityConfig,
     ObservabilityConfig,
     AppleConfig,
-    GoogleConfig,
     CognitoConfig,
+    LogLevel,
 )
 
 class ConfigurationError(Exception):
@@ -117,7 +117,6 @@ class ConfigService:
                 sensitive_field_patterns=json.loads(self._get_env_var('SENSITIVE_FIELD_PATTERNS'))
             )  # type: ignore
         elif config_type == ObservabilityConfig:
-            from models.config import LogLevel
             return ObservabilityConfig(
                 log_level=LogLevel(self._get_env_var('LOG_LEVEL')),
                 enable_tracing=self._get_env_var('ENABLE_TRACING').lower() == 'true'
@@ -130,22 +129,14 @@ class ConfigService:
 
             # Get Apple credentials from environment variables (set by CDK)
             key_id = self._get_env_var('APPLE_KEY_ID')
-            team_id = self._get_env_var('APPLE_TEAM_ID')
+            issuer_id = self._get_env_var('APPLE_ISSUER_ID')
             bundle_id = self._get_env_var('APPLE_BUNDLE_ID')
 
             return AppleConfig(
-                private_key=private_key,
+                private_key=private_key,  # type: ignore[arg-type] # Pydantic validator converts str -> bytes
                 key_id=key_id,
-                team_id=team_id,
+                issuer_id=issuer_id,
                 bundle_id=bundle_id
-            )  # type: ignore
-        elif config_type == GoogleConfig:
-            # Load service account key from Secrets Manager
-            secret_name = f"lingible-google-service-account-{self.environment}"
-            service_account_key = self._get_secrets_manager_secret(secret_name, "private_key")
-
-            return GoogleConfig(
-                service_account_key=service_account_key
             )  # type: ignore
         elif config_type == CognitoConfig:
             return CognitoConfig(

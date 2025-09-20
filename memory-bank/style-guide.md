@@ -16,7 +16,43 @@
 - **Trailing Whitespace**: No trailing whitespace
 - **File Encoding**: UTF-8
 
+### Enum Usage
+
+**🚨 CRITICAL DEVELOPMENT NOTE: PAY ATTENTION TO ENUM TYPES! 🚨**
+
+**NEVER use `.value` on enum instances when logging or converting to strings!**
+
+```python
+# ❌ WRONG - This will cause AttributeError
+logger.log_business_event("event", {"environment": environment.value})
+return {"status": status.value}
+
+# ✅ CORRECT - Use str() to convert enums
+logger.log_business_event("event", {"environment": str(environment)})
+return {"status": str(status)}
+
+# ✅ CORRECT - Direct comparison works fine
+if environment == StoreEnvironment.SANDBOX:
+    # Do something
+```
+
+**Why this matters:**
+- Pydantic enums don't have a `.value` attribute
+- Using `.value` causes `AttributeError` at runtime
+- `str(enum_instance)` correctly converts to the enum value
+- This mistake has been made multiple times and causes deployment failures
+
+**Common enum types in our codebase:**
+- `StoreEnvironment` (SANDBOX, PRODUCTION)
+- `SubscriptionProvider` (APPLE, GOOGLE)
+- `UserTier` (FREE, PREMIUM)
+- `ReceiptValidationStatus`
+- Apple SDK enums (camelCase naming)
+
 ### Import Organization
+
+**CRITICAL RULE: All imports MUST be at the top of the file. NO imports in the middle of modules.**
+
 ```python
 # Standard library imports
 import json
@@ -33,6 +69,14 @@ from src.models.users import User, UserProfile
 from src.services.user_service import UserService
 from src.utils.response import create_response
 ```
+
+**Import Rules:**
+- ✅ All imports at the top of the file
+- ✅ Group imports: standard library, third-party, local
+- ✅ Use alphabetical ordering within each group
+- ❌ NEVER put imports inside functions, methods, or conditional blocks
+- ❌ NEVER use inline imports to "avoid circular dependencies" without verification
+- ❌ NEVER scatter imports throughout the file
 
 ### Naming Conventions
 

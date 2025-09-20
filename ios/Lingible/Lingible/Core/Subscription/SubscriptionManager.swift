@@ -55,10 +55,14 @@ class SubscriptionManager: ObservableObject {
             print("🛒 Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
             print("🛒 App Store Environment: \(Transaction.currentEntitlements)")
 
-            // Check if we're in sandbox mode
-            if let receiptURL = Bundle.main.appStoreReceiptURL {
-                print("🛒 Receipt URL: \(receiptURL)")
-                print("🛒 Sandbox Mode: \(receiptURL.lastPathComponent == "sandboxReceipt")")
+            // Check if we're in sandbox mode using AppTransaction
+            do {
+                let verificationResult = try await AppTransaction.shared
+                let appTransaction = try checkVerified(verificationResult)
+                print("🛒 App Transaction Environment: \(appTransaction.environment)")
+                print("🛒 Sandbox Mode: \(appTransaction.environment == .sandbox)")
+            } catch {
+                print("🛒 Could not get AppTransaction: \(error)")
             }
 
             let storeProducts = try await Product.products(for: productIds)
@@ -108,7 +112,7 @@ class SubscriptionManager: ObservableObject {
                 await updateSubscriptionStatus()
 
                 // Sync with backend
-                await syncSubscriptionWithBackend(transaction: transaction)
+                _ = await syncSubscriptionWithBackend(transaction: transaction)
 
                 // Finish the transaction
                 await transaction.finish()
@@ -156,6 +160,10 @@ class SubscriptionManager: ObservableObject {
 
             if subscriptionStatus == .premium {
                 print("✅ Purchases restored successfully")
+
+                // Sync with backend for each active transaction
+                await syncActiveTransactionsWithBackend()
+
                 isLoading = false
                 return true
             } else {
@@ -174,6 +182,34 @@ class SubscriptionManager: ObservableObject {
     }
 
     // MARK: - Backend Integration
+    private func syncActiveTransactionsWithBackend() async {
+        print("🔄 Syncing active transactions with backend...")
+
+        // Get all active transactions and sync them with the backend
+        for await result in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerified(result)
+
+                // Check if this is a subscription product
+                if productIds.contains(transaction.productID) {
+                    // Check if subscription is still active
+                    if let expirationDate = transaction.expirationDate {
+                        if expirationDate > Date() {
+                            print("🔄 Syncing active subscription: \(transaction.productID)")
+                            _ = await syncSubscriptionWithBackend(transaction: transaction)
+                        }
+                    } else {
+                        // Non-consumable or lifetime subscription
+                        print("🔄 Syncing lifetime subscription: \(transaction.productID)")
+                        _ = await syncSubscriptionWithBackend(transaction: transaction)
+                    }
+                }
+            } catch {
+                print("❌ Failed to verify transaction during sync: \(error)")
+            }
+        }
+    }
+
     func upgradeUserWithBackend(_ request: UserUpgradeRequest) async -> Bool {
         print("🔄 SubscriptionManager: Calling backend upgrade API")
 
@@ -235,7 +271,7 @@ class SubscriptionManager: ObservableObject {
     }
 
     // MARK: - Backend Sync
-    private func syncSubscriptionWithBackend(transaction: StoreKit.Transaction) async {
+    private func syncSubscriptionWithBackend(transaction: StoreKit.Transaction) async -> Bool {
         print("🔄 Syncing subscription with backend...")
 
         // For StoreKit 2, we send transaction data directly instead of receipt
@@ -269,55 +305,18 @@ class SubscriptionManager: ObservableObject {
 
         if success {
             print("✅ Backend sync successful")
+            // Refresh user data to get updated subscription status
+            await userService.refreshUserData()
+            return true
         } else {
             print("❌ Backend sync failed")
+            return false
         }
     }
 
-    private func getReceiptData() async -> String {
-        // For StoreKit 2, we need to get the app receipt from the bundle
-        do {
-            // Get the receipt data from the app's bundle
-            guard let receiptURL = Bundle.main.appStoreReceiptURL else {
-                print("❌ No receipt URL found")
-                return "no_receipt_url"
-            }
-
-            print("🛒 Attempting to read receipt from: \(receiptURL)")
-
-            // Check if the receipt file exists
-            guard FileManager.default.fileExists(atPath: receiptURL.path) else {
-                print("❌ Receipt file does not exist at: \(receiptURL.path)")
-                // For sandbox testing, create a mock receipt
-                return createMockReceiptData()
-            }
-
-            let receiptData = try Data(contentsOf: receiptURL)
-            print("✅ Successfully read receipt data (\(receiptData.count) bytes)")
-            return receiptData.base64EncodedString()
-        } catch {
-            print("❌ Error getting receipt data: \(error)")
-            // Fallback: create a receipt-like structure for testing
-            return createMockReceiptData()
-        }
-    }
-
-    private func createMockReceiptData() -> String {
-        print("🛒 Creating mock receipt data for sandbox testing")
-        let receiptInfo = [
-            "bundle_id": Bundle.main.bundleIdentifier ?? "",
-            "application_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
-            "receipt_type": "ProductionSandbox",
-            "in_app": []
-        ] as [String: Any]
-
-        if let jsonData = try? JSONSerialization.data(withJSONObject: receiptInfo),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
-            return jsonString.data(using: .utf8)?.base64EncodedString() ?? "fallback_receipt_data"
-        }
-
-        return "fallback_receipt_data"
-    }
+    // MARK: - StoreKit 2 Notes
+    // Note: With StoreKit 2, we no longer need receipt-based validation.
+    // All purchase validation is handled through Transaction.all and AppTransaction.shared.
 
     // MARK: - Transaction Listener
     private func listenForTransactions() -> Task<Void, Error> {
@@ -334,7 +333,7 @@ class SubscriptionManager: ObservableObject {
 
                     // Sync with backend if needed
                     if transaction.revocationDate == nil {
-                        await self.syncSubscriptionWithBackend(transaction: transaction)
+                        _ = await self.syncSubscriptionWithBackend(transaction: transaction)
                     }
 
                     // Always finish the transaction

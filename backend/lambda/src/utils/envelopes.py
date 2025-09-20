@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from models.translations import TranslationRequest
 from models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
+from models.users import AccountDeletionRequest
 from models.events import CustomAPIGatewayProxyEventModel
 from .exceptions import ValidationError, AuthenticationError
 
@@ -226,9 +227,6 @@ class AccountDeletionEnvelope(AuthenticatedAPIGatewayEnvelope):
         if not event.body:
             raise ValidationError("Request body is required")
 
-        # Import here to avoid circular imports
-        from models.users import AccountDeletionRequest
-
         # Parse and validate the request body
         request_body = AccountDeletionRequest.model_validate_json(str(event.body))
 
@@ -238,8 +236,9 @@ class AccountDeletionEnvelope(AuthenticatedAPIGatewayEnvelope):
         return base_data
 
 
-class WebhookEnvelope(APIGatewayEnvelope):
-    """Envelope for webhook endpoints that parses request body."""
+
+class AppleWebhookEnvelope(APIGatewayEnvelope):
+    """Envelope for Apple webhook endpoints that handles JWS payload."""
 
     def _parse_api_gateway(
         self,
@@ -247,13 +246,16 @@ class WebhookEnvelope(APIGatewayEnvelope):
         model: type[T],
         base_data: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Parse webhook specific data."""
-        # Parse the request body
+        """Parse Apple webhook specific data."""
+        # Apple sends the webhook as a raw JWS string in the request body
         if not event.body:
             raise ValidationError("Request body is required")
 
-        # Parse and validate the request body
-        request_body = AppleWebhookRequest.model_validate_json(str(event.body))
+        # The request body is the JWS payload directly (not JSON)
+        signed_payload = str(event.body).strip()
+
+        # Create AppleWebhookRequest with the raw JWS payload
+        request_body = AppleWebhookRequest(signed_payload=signed_payload)
 
         # Add webhook-specific data
         base_data["request_body"] = request_body

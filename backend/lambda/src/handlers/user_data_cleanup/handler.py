@@ -10,12 +10,10 @@ from services.translation_service import TranslationService
 from utils.tracing import tracer
 from utils.logging import logger
 
-
 # Initialize services at module level for Lambda container reuse
 user_service = UserService()
 subscription_service = SubscriptionService()
 translation_service = TranslationService()
-
 
 
 @tracer.trace_lambda

@@ -175,8 +175,8 @@ final class UserService: UserServiceProtocol {
                 environment: request.environment == "sandbox" ? .sandbox : .production
             )
 
-            // Call the upgrade API
-            _ = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UpgradeResponse, Error>) in
+            // Call the upgrade API and get the response
+            let upgradeResponse = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UpgradeResponse, Error>) in
                 UserAPI.userUpgradePost(upgradeRequest: upgradeRequest) { data, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -188,6 +188,13 @@ final class UserService: UserServiceProtocol {
                 }
             }
 
+            // Check if upgrade was successful
+            guard upgradeResponse.success else {
+                print("❌ Upgrade failed: \(upgradeResponse.message)")
+                return false
+            }
+
+            print("✅ Upgrade successful: \(upgradeResponse.message)")
 
             // Clear cache to force refresh of user data
             clearCache()
@@ -198,6 +205,7 @@ final class UserService: UserServiceProtocol {
             return true
 
         } catch {
+            print("❌ Upgrade failed: \(error)")
             return false
         }
     }

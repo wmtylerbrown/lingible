@@ -97,7 +97,7 @@ build_app() {
     xcodebuild -project Lingible.xcodeproj \
                -scheme Lingible \
                -configuration "$configuration" \
-               -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+               -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.6' \
                -derivedDataPath "./DerivedData" \
                build
 

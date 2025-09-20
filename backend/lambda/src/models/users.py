@@ -69,6 +69,15 @@ class UserResponse(LingibleBaseModel):
     created_at: datetime = Field(..., description="Account creation date")
 
 
+class UpgradeResponse(LingibleBaseModel):
+    """Response model for user upgrade API."""
+
+    success: bool = Field(..., description="Whether the upgrade was successful")
+    message: str = Field(..., description="Success or error message")
+    tier: str = Field(default="premium", description="User tier after upgrade")
+    expires_at: datetime | None = Field(default=None, description="Subscription expiration date")
+
+
 class UserUsageResponse(LingibleBaseModel):
     """User usage API response - dynamic data, not cacheable."""
 

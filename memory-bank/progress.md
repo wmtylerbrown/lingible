@@ -308,6 +308,16 @@
 - **Deployment Rule**: Added memory bank rule to prevent future deployment issues
 - **Code Quality**: Fixed trailing whitespace and pre-commit hook issues
 
+### ✅ **Apple SDK Migration & Receipt Validation Simplification (2024-12-19)**
+- **Apple SDK Integration**: Successfully migrated from manual JWT/HTTP implementation to Apple's official App Store Server Python Library
+- **Code Simplification**: Reduced from 464 lines of complex manual code to ~100 lines using Apple's official SDK
+- **Dependency Cleanup**: Removed 6 unnecessary dependencies (Google Play, manual HTTP, PyJWT, requests, google-api-python-client, google-auth, googleapis-common-protos)
+- **Service Elimination**: Removed ReceiptValidationService entirely - no longer needed with Apple SDK
+- **Environment Detection**: Fixed environment determination to use transaction data instead of global configuration
+- **Webhook Compatibility**: All existing webhook handlers work seamlessly with new Apple SDK implementation
+- **Production Deployment**: Successfully deployed to both development and production environments
+- **Security Improvement**: Apple SDK handles all JWT generation and HTTP complexity automatically
+
 ### ✅ **App Tracking Transparency (ATT) Implementation & App Store Compliance (2024-12-19)**
 - **Apple App Store Rejection Resolution**: Fixed Guideline 5.1.2 - Legal - Privacy - Data Use and Sharing rejection
 - **ATT Framework Integration**: Complete AppTrackingTransparency framework implementation with proper permission requests
@@ -400,3 +410,27 @@
 - **String Enum Handling**: Corrected `.value` usage on string enums (StoreEnvironment, SubscriptionProvider, TranslationDirection, LogLevel)
 - **Enhanced Logging**: Added detailed JWT token and Apple API request logging for debugging authentication issues
 - **Deployment**: Successfully deployed fixes to both dev and prod environments
+
+### ✅ **Apple App Store Server Library Integration & Production Deployment (2024-12-19)**
+- **Official Apple SDK Migration**: Successfully integrated Apple's official App Store Server Python Library (v1.9.0)
+- **Service Consolidation**: Eliminated ReceiptValidationService and integrated webhook verification directly into AppleStoreKitService
+- **JWS Verification**: Implemented proper Apple JWS signature verification using SignedDataVerifier with Apple Root CA - G3 certificates
+- **Environment Detection**: Fixed environment determination to use transaction data instead of global configuration
+- **Exception Pattern Refactor**: Converted all service methods from boolean returns to exception-based error handling
+- **Pydantic Mypy Plugin**: Configured Pydantic mypy plugin for enhanced type checking and validation
+- **Private Key Validation**: Implemented robust private key validation with proper str to bytes conversion using Annotated validators
+- **User Repository Fixes**: Resolved DynamoDB data loss issues by using model_dump() and preserving TTL fields
+- **Webhook Compliance**: Updated Apple webhook handler to properly return HTTP 200 immediately and process asynchronously
+- **Production Deployment**: Successfully deployed to both dev and prod environments with all improvements
+- **Type Safety**: Enhanced type safety throughout the codebase with proper Pydantic model handling
+
+### ✅ **Upgrade Flow Architecture Refactor & iOS View Cleanup (2024-12-19)**
+- **Backend API Redesign**: Refactored `/user/upgrade` endpoint to return `UpgradeResponse` with `success`, `message`, `tier`, `expires_at` instead of full `UserResponse`
+- **OpenAPI Specification Updates**: Added `message` field to `UpgradeResponse` schema and updated endpoint documentation
+- **Client SDK Regeneration**: Regenerated both Python and iOS client SDKs with new `UpgradeResponse` model
+- **User Data Refresh Pattern**: Implemented consistent pattern where upgrade/restore flows call `/user/upgrade` then refresh user data via `/user/profile` and `/user/usage` APIs
+- **Restore Purchases Enhancement**: Fixed restore purchases flow to refresh user data after successful backend sync
+- **iOS View Cleanup**: Removed unused `UpgradePromptView` (old custom implementation) and renamed `ModernUpgradePromptView` to `UpgradePromptView`
+- **Apple Native Integration**: Current `UpgradePromptView` uses Apple's native `SubscriptionStoreView` for better UX and compliance
+- **Consistent User Experience**: Both upgrade and restore purchase flows now provide immediate UI updates with fresh backend data
+- **Clean Architecture**: Separation of concerns - upgrade API handles subscription logic, separate APIs handle user data refresh

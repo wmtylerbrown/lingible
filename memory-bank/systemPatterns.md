@@ -219,6 +219,36 @@ src/
 - **Rate Limiting**: Usage-based rate limiting
 - **Request Validation**: Comprehensive request validation
 
+## Backend Development Patterns
+
+### **CRITICAL: Virtual Environment & Deployment Rules**
+
+#### **Virtual Environment Usage:**
+- **MANDATORY**: Always activate the project virtual environment before running any Python commands
+- **Location**: Project root `.venv` directory (`/Users/tyler/mobile-app-aws-backend/.venv`)
+- **Activation**: `source .venv/bin/activate` from project root
+- **Poetry Commands**: Always run `poetry` commands from `backend/lambda/` directory with activated venv
+
+#### **Backend Deployment Process:**
+- **MANDATORY**: Always use `package.json` scripts for backend deployment, never direct CDK commands
+- **Location**: `backend/infrastructure/package.json`
+- **Commands**:
+  - `npm run deploy:dev` (development deployment)
+  - `npm run deploy:prod` (production deployment)
+  - `npm run build` (build Lambda packages)
+- **Why**: Package.json scripts handle proper build processes, environment configuration, and deployment order
+
+#### **Dependency Management:**
+- **Installation**: `cd backend/lambda && poetry lock && poetry install` (with activated venv)
+- **Virtual Environment**: Project uses `.venv` at project root, NOT nested venvs
+- **Python Path**: Always set `PYTHONPATH=backend/lambda/src` for local development
+
+### **Common Deployment Mistakes to Avoid:**
+- ❌ Running commands without activated virtual environment
+- ❌ Using direct `cdk deploy` instead of `npm run deploy:*`
+- ❌ Running Poetry commands from wrong directory
+- ❌ Forgetting to run `poetry lock` after dependency changes
+
 ## iOS Development Patterns
 
 ### Build Process

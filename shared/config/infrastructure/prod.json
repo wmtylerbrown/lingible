@@ -20,12 +20,10 @@
   "apple": {
     "client_id": "com.lingible.lingible.signin",
     "team_id": "PH33VX3MUL",
+    "issuer_id": "a1577868-7c32-48f9-b296-42bd9faadef3",
     "key_id": "P5H6AH9K77",
     "bundle_id": "com.lingible.lingible",
     "in_app_purchase_key_id": "DM2M9NP42M"
-  },
-  "google": {
-    "package_name": "com.lingible.lingible"
   },
   "api": {
     "base_url": "https://api.lingible.com",

@@ -312,7 +312,7 @@ class TestUserService:
 
         with patch('src.services.subscription_service.UserService') as MockUserService:
             with patch('src.services.subscription_service.SubscriptionRepository') as MockSubRepo:
-                with patch('src.services.subscription_service.ReceiptValidationService') as MockReceiptService:
+                with patch('src.services.subscription_service.AppleStoreKitService') as MockAppleService:
 
                     # Setup mocks
                     mock_user_service = MockUserService.return_value
@@ -322,10 +322,10 @@ class TestUserService:
                     mock_sub_repo = MockSubRepo.return_value
                     mock_sub_repo.create_subscription.return_value = True
 
-                    mock_receipt_service = MockReceiptService.return_value
+                    mock_apple_service = MockAppleService.return_value
                     mock_validation_result = Mock()
                     mock_validation_result.is_valid = True
-                    mock_receipt_service.validate_receipt.return_value = mock_validation_result
+                    mock_apple_service.validate_transaction.return_value = mock_validation_result
 
                     # Test the subscription upgrade flow
                     subscription_service = SubscriptionService()

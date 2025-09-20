@@ -53,57 +53,38 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
             error_code="ACTIVE_SUBSCRIPTION_EXISTS"
         )
 
-    try:
-        cleanup_summary = {
-            "translations_deleted": 0,
-            "data_retention_period": "30 days for billing records"
+    cleanup_summary = {
+        "translations_deleted": 0,
+        "data_retention_period": "30 days for billing records"
+    }
+
+    # Step 1: Delete all user translations
+    translations_deleted = 0
+    translations_deleted = translation_service.delete_user_translations(user_id, is_account_deletion=True)
+    logger.log_business_event(
+        "translations_deleted_during_account_deletion",
+        {"user_id": user_id, "deleted_count": translations_deleted}
+    )
+
+    cleanup_summary["translations_deleted"] = translations_deleted
+
+    # Step 2: Delete user account and all associated data
+    user_service.delete_user(user_id)
+
+    # Log successful deletion
+    logger.log_business_event(
+        "account_deletion_completed",
+        {
+            "user_id": user_id,
+            "translations_deleted": translations_deleted,
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
+    )
 
-        # Step 1: Delete all user translations
-        translations_deleted = 0
-        try:
-            translations_deleted = translation_service.delete_user_translations(user_id, is_account_deletion=True)
-            logger.log_business_event(
-                "translations_deleted_during_account_deletion",
-                {"user_id": user_id, "deleted_count": translations_deleted}
-            )
-        except Exception as e:
-            logger.log_error(e, {"operation": "delete_translations_during_deletion", "user_id": user_id})
-            # Continue with deletion even if translation deletion fails
-
-        cleanup_summary["translations_deleted"] = translations_deleted
-
-        # Step 2: Delete user account and all associated data
-        deletion_success = user_service.delete_user(user_id)
-
-        if not deletion_success:
-            raise SystemError(f"Failed to delete user account for user {user_id}")
-
-        # Log successful deletion
-        logger.log_business_event(
-            "account_deletion_completed",
-            {
-                "user_id": user_id,
-                "translations_deleted": translations_deleted,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-        )
-
-        # Return success response
-        return AccountDeletionResponse(
-            success=True,
-            message="Your account and all associated data have been permanently deleted.",
-            deleted_at=datetime.now(timezone.utc),
-            cleanup_summary=cleanup_summary
-        )
-
-    except Exception as e:
-        logger.log_error(
-            e,
-            {
-                "operation": "account_deletion_handler",
-                "user_id": user_id,
-                "reason": event.reason
-            }
-        )
-        raise
+    # Return success response
+    return AccountDeletionResponse(
+        success=True,
+        message="Your account and all associated data have been permanently deleted.",
+        deleted_at=datetime.now(timezone.utc),
+        cleanup_summary=cleanup_summary
+    )

@@ -28,9 +28,10 @@ class UpgradeResponse(BaseModel):
     UpgradeResponse
     """ # noqa: E501
     success: StrictBool
+    message: StrictStr
     tier: Optional[StrictStr] = None
     expires_at: Optional[datetime] = Field(default=None, description="Subscription expiration date")
-    __properties: ClassVar[List[str]] = ["success", "tier", "expires_at"]
+    __properties: ClassVar[List[str]] = ["success", "message", "tier", "expires_at"]
 
     @field_validator('tier')
     def tier_validate_enum(cls, value):
@@ -94,6 +95,7 @@ class UpgradeResponse(BaseModel):
 
         _obj = cls.model_validate({
             "success": obj.get("success"),
+            "message": obj.get("message"),
             "tier": obj.get("tier"),
             "expires_at": obj.get("expires_at")
         })

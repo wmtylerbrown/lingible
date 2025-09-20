@@ -16,18 +16,21 @@ public struct UpgradeResponse: Codable, JSONEncodable, Hashable {
         case premium = "premium"
     }
     public var success: Bool
+    public var message: String
     public var tier: Tier?
     /** Subscription expiration date */
     public var expiresAt: Date?
 
-    public init(success: Bool, tier: Tier? = nil, expiresAt: Date? = nil) {
+    public init(success: Bool, message: String, tier: Tier? = nil, expiresAt: Date? = nil) {
         self.success = success
+        self.message = message
         self.tier = tier
         self.expiresAt = expiresAt
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case success
+        case message
         case tier
         case expiresAt = "expires_at"
     }
@@ -37,6 +40,7 @@ public struct UpgradeResponse: Codable, JSONEncodable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(success, forKey: .success)
+        try container.encode(message, forKey: .message)
         try container.encodeIfPresent(tier, forKey: .tier)
         try container.encodeIfPresent(expiresAt, forKey: .expiresAt)
     }

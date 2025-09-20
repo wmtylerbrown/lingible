@@ -5,7 +5,7 @@ from aws_lambda_powertools.utilities.parser import event_parser
 
 from utils.envelopes import UserUpgradeEnvelope
 from models.events import UserUpgradeEvent
-from models.users import UserResponse, UserTier
+from models.users import UpgradeResponse, UserTier
 from services.subscription_service import SubscriptionService
 from services.user_service import UserService
 from utils.decorators import api_handler, extract_user_from_parsed_data
@@ -21,7 +21,7 @@ user_service = UserService()
 @tracer.trace_lambda
 @event_parser(model=UserUpgradeEvent, envelope=UserUpgradeEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
-def handler(event: UserUpgradeEvent, context: LambdaContext) -> UserResponse:
+def handler(event: UserUpgradeEvent, context: LambdaContext) -> UpgradeResponse:
     """Upgrade user subscription after validating purchase."""
     # Extract upgrade data from validated request body
     user_id = event.user_id
@@ -33,22 +33,21 @@ def handler(event: UserUpgradeEvent, context: LambdaContext) -> UserResponse:
 
     # Step 2: Create subscription via subscription service
     transaction_data = event.request_body.to_transaction_data()
-    subscription_created = subscription_service.validate_and_create_subscription(
+    subscription_service.validate_and_create_subscription(
         user_id=user_id,
         transaction_data=transaction_data
     )
 
-    if not subscription_created:
-        raise SystemError("Failed to create subscription")
-
     # Step 3: Upgrade user tier via user service
-    tier_updated = user_service.upgrade_user_tier(user_id, UserTier.PREMIUM)
-    if not tier_updated:
-        raise SystemError("Failed to upgrade user tier")
+    user_service.upgrade_user_tier(user_id, UserTier.PREMIUM)
 
-    # Return updated user
-    updated_user = user_service.get_user(user_id)
-    if not updated_user:
-        raise SystemError("User not found after tier update")
+    # Get subscription expiration date from the transaction data
+    expires_at = transaction_data.expiration_date
 
-    return updated_user.to_api_response()
+    # Return upgrade response
+    return UpgradeResponse(
+        success=True,
+        message="User successfully upgraded to premium",
+        tier="premium",
+        expires_at=expires_at
+    )

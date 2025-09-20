@@ -15,6 +15,7 @@ struct ProfileView: View {
     @State private var showingClearCacheAlert = false
     @State private var showingSubscriptionWarning = false
     @State private var showingTrackingSettingsAlert = false
+    @State private var showingManageSubscriptions = false
     @State private var errorMessage = ""
 
     var body: some View {
@@ -25,14 +26,44 @@ struct ProfileView: View {
                     userInfoView
                 }
 
+                // Subscription Status Section
+                Section {
+                    SubscriptionStatusView(
+                        onManageAction: { manageSubscriptions() },
+                        onUpgradeAction: { showingUpgradeSheet = true }
+                    )
+                }
+
                 // Usage & Limits Section
-                Section(header: Text("Usage & Limits")) {
+                Section(header: Text("Daily Usage")) {
                     if let usage = appCoordinator.userUsage {
-                        usageRow(title: "Daily Translations", value: "\(usage.dailyUsed)/\(usage.dailyLimit)")
+                        UsageProgressView(
+                            currentUsage: usage.dailyUsed,
+                            dailyLimit: usage.dailyLimit
+                        )
+
+                        // Additional usage details
                         usageRow(title: "Text Length Limit", value: "\(usage.currentMaxTextLength) characters")
                         usageRow(title: "Account Tier", value: tierDisplayName(usage.tier))
-
                         usageRow(title: "Next Reset", value: usage.resetDate)
+
+                        // Show upgrade prompt when usage > 70%
+                        if usage.dailyUsed >= Int(Double(usage.dailyLimit) * 0.7) && usage.tier == .free {
+                            Button(action: { showingUpgradeSheet = true }) {
+                                HStack {
+                                    Image(systemName: "star.fill")
+                                        .foregroundColor(.yellow)
+                                    Text("Upgrade for 100 daily translations")
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                }
+                                .foregroundColor(.primary)
+                                .padding(.vertical, 4)
+                            }
+                        }
                     } else {
                         HStack {
                             ProgressView()
@@ -118,6 +149,7 @@ struct ProfileView: View {
                     }
                 }
 
+
                 // Support Section
                 Section(header: Text("Support")) {
                     settingsRow(icon: "envelope", title: "Contact Support", action: { contactSupport() })
@@ -171,6 +203,77 @@ struct ProfileView: View {
                 },
                 userUsage: appCoordinator.userUsage
             )
+        }
+        .sheet(isPresented: $showingManageSubscriptions) {
+            NavigationView {
+                VStack(spacing: 24) {
+                    // Header
+                    VStack(spacing: 16) {
+                        Image(systemName: "creditcard.circle.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.lingiblePrimary)
+
+                        Text("Manage Subscription")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+
+                        Text("To manage your subscription, billing, or payment methods, please visit the App Store.")
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                    }
+
+                    // Action buttons
+                    VStack(spacing: 12) {
+                        Button(action: {
+                            if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                                UIApplication.shared.open(url)
+                            }
+                            showingManageSubscriptions = false
+                        }) {
+                            HStack {
+                                Image(systemName: "external-link")
+                                Text("Open App Store")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.lingiblePrimary)
+                            .cornerRadius(12)
+                        }
+
+                        Button(action: {
+                            showingManageSubscriptions = false
+                        }) {
+                            Text("Cancel")
+                                .font(.headline)
+                                .foregroundColor(.lingiblePrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    Spacer()
+                }
+                .padding()
+                .navigationTitle("Subscription")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            showingManageSubscriptions = false
+                        }
+                        .foregroundColor(.lingiblePrimary)
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
         .alert("Sign Out", isPresented: $showingSignOutAlert) {
             Button("Cancel", role: .cancel) { }
@@ -408,26 +511,8 @@ struct ProfileView: View {
     }
 
     private func manageSubscriptions() {
-        Task {
-            do {
-                // Use AppStore.showManageSubscriptions for iOS 15+
-                if #available(iOS 15.0, *) {
-                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                        try await AppStore.showManageSubscriptions(in: windowScene)
-                    }
-                } else {
-                    // Fallback for older iOS versions - open App Store
-                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                        await UIApplication.shared.open(url)
-                    }
-                }
-            } catch {
-                // Fallback to App Store URL
-                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                    await UIApplication.shared.open(url)
-                }
-            }
-        }
+        // Use native ManageSubscriptionsSheet for better UX
+        showingManageSubscriptions = true
     }
 
     private func clearAllCache() {

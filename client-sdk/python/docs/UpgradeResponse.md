@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **success** | **bool** |  |
+**message** | **str** |  |
 **tier** | **str** |  | [optional]
 **expires_at** | **datetime** | Subscription expiration date | [optional]
 

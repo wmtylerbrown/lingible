@@ -38,6 +38,7 @@ class ReceiptValidationStatus(str, Enum):
 
     VALID = "valid"
     INVALID = "invalid"
+    INVALID_TRANSACTION = "invalid_transaction"
     EXPIRED = "expired"
     ALREADY_USED = "already_used"
     ENVIRONMENT_MISMATCH = "environment_mismatch"
@@ -168,13 +169,10 @@ class AppleNotificationType(str, Enum):
 
 
 class AppleWebhookRequest(LingibleBaseModel):
-    """Request model for Apple webhook endpoint."""
+    """Request model for Apple webhook endpoint - handles JWS payload."""
 
-    notification_type: AppleNotificationType = Field(
-        ..., description="Type of notification"
-    )
-    transaction_id: str = Field(..., min_length=1, description="Apple transaction ID")
-    environment: StoreEnvironment = Field(StoreEnvironment.PRODUCTION, description="Environment")
+    # Apple sends the entire payload as a signed JWS
+    signed_payload: str = Field(..., description="Signed JWS payload from Apple")
 
 
 class WebhookResponse(LingibleBaseModel):

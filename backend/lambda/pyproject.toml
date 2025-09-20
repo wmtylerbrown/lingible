@@ -26,12 +26,7 @@ types-requests = "^2.32.4"
 pre-commit = "^4.0.1"
 
 [tool.poetry.group.receipt-validation.dependencies]
-google-api-python-client = "^2.0.0"
-google-auth = "^2.0.0"
-googleapis-common-protos = "^1.70.0"
-requests = "^2.32.5"
-PyJWT = "^2.10.1"
-cryptography = "^43.0.0"
+app-store-server-library = "^1.9.0"
 
 [build-system]
 requires = ["poetry-core"]

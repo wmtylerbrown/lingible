@@ -157,7 +157,7 @@ class AccountDeletionEvent(BaseModel):
         return self.request_body.reason
 
 
-class WebhookEvent(BaseModel):
+class AppleWebhookEvent(BaseModel):
     """Typed event for webhook handlers."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		2F92D16B2E674E2F00281549 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 2F92D16A2E674E2F00281549 /* AWSCognitoAuthPlugin */; };
 		2F92D1F92E67544100281549 /* LingibleAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 2F92D1F82E67544100281549 /* LingibleAPI */; };
+		2F96F3CB2E7F07BF006E233B /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F96F3CA2E7F07BF006E233B /* StoreKit.framework */; };
 		2FCCCFCA2E6CA6F800B4AC6C /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 2FCCCFC92E6CA6F800B4AC6C /* GoogleMobileAds */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +34,7 @@
 		2F92D1312E674BAB00281549 /* Lingible.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lingible.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F92D13E2E674BAC00281549 /* LingibleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LingibleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F92D1482E674BAC00281549 /* LingibleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LingibleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F96F3CA2E7F07BF006E233B /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -74,6 +76,7 @@
 				2FCCCFCA2E6CA6F800B4AC6C /* GoogleMobileAds in Frameworks */,
 				2F92D16B2E674E2F00281549 /* AWSCognitoAuthPlugin in Frameworks */,
 				2F92D1F92E67544100281549 /* LingibleAPI in Frameworks */,
+				2F96F3CB2E7F07BF006E233B /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +121,7 @@
 		2FCCCFC82E6CA6F800B4AC6C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2F96F3CA2E7F07BF006E233B /* StoreKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -478,7 +482,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -527,7 +531,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

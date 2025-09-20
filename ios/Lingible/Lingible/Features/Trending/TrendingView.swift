@@ -66,12 +66,29 @@ struct TrendingView: View {
             .onAppear {
                 Task {
                     await viewModel.loadTrendingTerms()
+
+                    // Check if user is near usage limit and show gentle upgrade prompt
+                    if let usage = appCoordinator.userUsage {
+                        let currentUsage = usage.dailyUsed
+                        let dailyLimit = usage.dailyLimit
+                        let nearLimitThreshold = Int(Double(dailyLimit) * 0.7)
+
+                        if usage.tier == .free && currentUsage >= nearLimitThreshold && currentUsage < dailyLimit {
+                            showingUpgradePrompt = true
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showingUpgradePrompt) {
                 UpgradePromptView(
                     translationCount: appCoordinator.userUsage?.dailyUsed ?? 0,
-                    onUpgrade: { showingUpgradePrompt = false },
+                    onUpgrade: {
+                        showingUpgradePrompt = false
+                        // Refresh user data after successful upgrade
+                        Task {
+                            await appCoordinator.userService.refreshUserData()
+                        }
+                    },
                     onDismiss: { showingUpgradePrompt = false },
                     userUsage: appCoordinator.userUsage
                 )
