@@ -65,13 +65,16 @@ struct TranslationView: View {
                     EnhancedHeader.logoOnly(
                         userTier: userTier,
                         onUpgradeTap: {
-                            showingUpgradePrompt = true
+                            // Only show upgrade prompt for free users
+                            if userTier == .free {
+                                showingUpgradePrompt = true
+                            }
                         }
                     )
 
                     // Banner Ad (for free users only)
-                    if appCoordinator.adManager.shouldShowBanner {
-                        appCoordinator.adManager.createBannerAdView()
+                    if let adManager = appCoordinator.adManager, adManager.shouldShowBanner {
+                        adManager.createBannerAdView()
                             .padding(.horizontal, 20)
                             .padding(.bottom, 10)
                     }
@@ -380,8 +383,8 @@ struct TranslationView: View {
     // MARK: - Actions
     private func handleNewButtonTap() {
         // Check if we should show an interstitial ad when opening new translation
-        if userTier == .free {
-            appCoordinator.adManager.checkAndShowInterstitialAdForNewTranslation()
+        if userTier == .free, let adManager = appCoordinator.adManager {
+            adManager.checkAndShowInterstitialAdForNewTranslation()
         }
 
         // If we have a current result, move it to history
@@ -440,11 +443,9 @@ struct TranslationView: View {
     }
 
     private func showUpgradePrompt() {
-        if let premiumLimit = appCoordinator.userUsage?.premiumTierMaxLength {
-            errorMessage = "Text exceeds free tier limit. Upgrade to Premium to translate longer texts (up to \(premiumLimit) characters)."
-        } else {
-            errorMessage = "Text exceeds free tier limit. Upgrade to Premium to translate longer texts."
-        }
+        // Show upgrade prompt instead of error message
+        upgradePromptCount = appCoordinator.userUsage?.dailyUsed ?? 0
+        showingUpgradePrompt = true
     }
 
     private func performTranslation(text: String) async {
@@ -507,8 +508,10 @@ struct TranslationView: View {
                 tier: response.tier.toAppTier()
             )
 
-            // Update AdManager with new translation count
-            appCoordinator.adManager.updateAdVisibility()
+            // Update AdManager with new translation count (only for free users)
+            if let adManager = appCoordinator.adManager {
+                adManager.updateAdVisibility()
+            }
 
             DispatchQueue.main.async {
                 // Make sure we're still in the authenticated state

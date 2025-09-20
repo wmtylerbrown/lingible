@@ -434,3 +434,14 @@
 - **Apple Native Integration**: Current `UpgradePromptView` uses Apple's native `SubscriptionStoreView` for better UX and compliance
 - **Consistent User Experience**: Both upgrade and restore purchase flows now provide immediate UI updates with fresh backend data
 - **Clean Architecture**: Separation of concerns - upgrade API handles subscription logic, separate APIs handle user data refresh
+
+### ✅ **Ad Hiding Logic Fix & Conditional Ad Initialization (2024-12-19)**
+- **Root Cause Analysis**: Identified that AdManager was initializing before user data was loaded, causing ads to show for upgraded users
+- **Lazy AdManager Initialization**: Implemented conditional AdManager creation - only created for free users after user data is loaded
+- **Architectural Improvement**: Premium users now have zero ad-related overhead - no AdMob initialization, observers, or ad code execution
+- **UserService Callback System**: Added `onUserDataUpdated` callback to ensure AdManager gets updated when user data changes
+- **Multiple Update Triggers**: Implemented direct callback, observer pattern, and explicit updates for robust ad visibility management
+- **Performance Optimization**: Premium users get completely ad-free experience with no unnecessary ad-related processing
+- **Code Quality**: Updated all references to handle optional AdManager throughout the iOS app
+- **Debugging Enhancement**: Added comprehensive logging to track ad visibility updates and user tier changes
+- **Clean Architecture**: AdManager only initializes when needed, eliminating race conditions and premature ad loading

@@ -38,7 +38,8 @@ final class AdManager: ObservableObject {
         // Set up daily rollover observation
         setupDailyRolloverObservation()
 
-        // Initialize banner visibility immediately
+        // Initialize banner visibility now that user data is available
+        print("🟡 AdMob Banner: AdManager created, initializing with user data...")
         updateBannerAdVisibility()
     }
 
@@ -111,6 +112,12 @@ final class AdManager: ObservableObject {
         updateBannerAdVisibility()
     }
 
+    /// Force update ad visibility (useful after user data refresh)
+    func forceUpdateAdVisibility() {
+        print("🟡 AdMob Banner: Force updating ad visibility...")
+        updateBannerAdVisibility()
+    }
+
     /// Reset translation count (called daily)
     func resetTranslationCount() {
         translationCount = 0
@@ -121,11 +128,17 @@ final class AdManager: ObservableObject {
         // Update banner ad visibility based on user tier only
         if let userUsage = userService.userUsage {
             let tier = userUsage.tier
+            let previousShouldShow = shouldShowBanner
             print("🟡 AdMob Banner: User tier: \(tier), shouldShowBanner: \(tier == .free)")
+            print("🟡 AdMob Banner: User usage data - dailyUsed: \(userUsage.dailyUsed), dailyLimit: \(userUsage.dailyLimit)")
 
             // Show banner ads for free users (regardless of daily usage)
             shouldShowBanner = (tier == .free)
-            print("🟡 AdMob Banner: Updated shouldShowBanner to: \(shouldShowBanner)")
+            print("🟡 AdMob Banner: Updated shouldShowBanner from \(previousShouldShow) to: \(shouldShowBanner)")
+
+            if previousShouldShow != shouldShowBanner {
+                print("🟡 AdMob Banner: ⚡ AD VISIBILITY CHANGED! Tier: \(tier), Showing ads: \(shouldShowBanner)")
+            }
         } else {
             print("🔴 AdMob Banner: No user usage data available - defaulting to show banner for free users")
             // Default to showing banner for free users when data isn't available yet
@@ -148,8 +161,16 @@ final class AdManager: ObservableObject {
     // MARK: - Private Methods
 
     private func setupUserTierObservation() {
-        // Since userService is a protocol, we'll update ad visibility when translation count changes
-        // The user tier will be checked in updateBannerAdVisibility()
+        // Observe userService.userUsage changes to update ad visibility when tier changes
+        if let userService = userService as? UserService {
+            userService.$userUsage
+                .sink { [weak self] userUsage in
+                    print("🟡 AdMob Banner: Observer triggered, userUsage: \(userUsage?.tier ?? .free)")
+                    // Update ad visibility when user usage data changes
+                    self?.updateBannerAdVisibility()
+                }
+                .store(in: &cancellables)
+        }
     }
 
     private func setupATTStatusObservation() {

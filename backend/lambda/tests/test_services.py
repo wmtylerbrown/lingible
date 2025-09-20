@@ -69,7 +69,7 @@ class TestTranslationService:
 
     def test_translate_with_long_text(self, translation_service, sample_user):
         """Test translation with text exceeding limit raises error."""
-        long_text = "x" * 1001  # Exceeds 1000 character limit
+        long_text = "x" * 101  # Exceeds 100 character limit for premium
         request = TranslationRequest(
             text=long_text,
             direction=TranslationDirection.ENGLISH_TO_GENZ

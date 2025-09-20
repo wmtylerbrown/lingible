@@ -118,6 +118,38 @@ struct AppConfiguration {
         }
     }
 
+    /// Subscription group ID based on environment
+    static var subscriptionGroupID: String {
+        // Try to get from build configuration first
+        if let configGroupID = Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_GROUP_ID") as? String {
+            return configGroupID
+        }
+
+        // Fallback to environment-based logic
+        switch currentEnvironment {
+        case .development:
+            return "21773870"
+        case .production:
+            return "21773870"
+        }
+    }
+
+    /// Subscription product ID based on environment
+    static var subscriptionProductID: String {
+        // Try to get from build configuration first
+        if let configProductID = Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_PRODUCT_ID") as? String {
+            return configProductID
+        }
+
+        // Fallback to environment-based logic
+        switch currentEnvironment {
+        case .development:
+            return "com.lingible.lingible.premium.monthly"
+        case .production:
+            return "com.lingible.lingible.premium.monthly"
+        }
+    }
+
     /// Configure the API client with the correct base URL for the current environment
     static func configureAPI() {
         LingibleAPIAPI.basePath = apiBaseURL

@@ -224,12 +224,13 @@ def mock_config():
             elif config_type == LimitsModel:
                 return LimitsModel(
                     free_daily_limit=10,
-                    premium_daily_limit=1000,
-                    max_text_length=1000
+                    premium_daily_limit=100,
+                    free_max_text_length=50,
+                    premium_max_text_length=100
                 )
             elif config_type == TranslationModel:
                 return TranslationModel(
-                    max_text_length=1000,
+                    max_text_length=100,
                     claude_model="anthropic.claude-3-sonnet-20240229-v1:0"
                 )
             return Mock()

@@ -15,8 +15,22 @@ final class AppCoordinator: ObservableObject {
     // MARK: - Dependencies
     let authenticationService: AuthenticationServiceProtocol
     let userService: any UserServiceProtocol
-    let adManager: AdManager
+    private var _adManager: AdManager?
     let attManager: AppTrackingTransparencyManager
+
+    // MARK: - Lazy AdManager (only for free users)
+    var adManager: AdManager? {
+        // Only create AdManager for free users
+        guard let userUsage = userService.userUsage, userUsage.tier == .free else {
+            return nil
+        }
+
+        if _adManager == nil {
+            print("🟡 AdMob Banner: Creating AdManager for free user...")
+            _adManager = AdManager(userService: userService, attManager: attManager)
+        }
+        return _adManager
+    }
 
     // MARK: - Published User Service Properties (for UI observation)
     var userProfile: UserProfileResponse? { userService.userProfile }
@@ -33,7 +47,19 @@ final class AppCoordinator: ObservableObject {
         self.authenticationService = authenticationService
         self.userService = userService
         self.attManager = attManager
-        self.adManager = AdManager(userService: userService, attManager: attManager)
+
+        // Set up AdManager update callback (AdManager will be created lazily for free users only)
+        if let userService = userService as? UserService {
+            userService.onUserDataUpdated = { [weak self] in
+                print("🟡 AdMob Banner: User data updated, checking if AdManager needed...")
+                if let adManager = self?.adManager {
+                    adManager.forceUpdateAdVisibility()
+                } else {
+                    print("🟡 AdMob Banner: Premium user - no AdManager needed")
+                }
+            }
+        }
+
         setupBindings()
     }
 
@@ -75,6 +101,14 @@ final class AppCoordinator: ObservableObject {
 
         // Wait for user data to be loaded
         await waitForUserDataLoading()
+
+        // Create AdManager now that user data is loaded (only for free users)
+        print("🟡 AdMob Banner: Apple authentication complete, checking if AdManager needed...")
+        if let _ = adManager {
+            print("🟡 AdMob Banner: AdManager created for free user")
+        } else {
+            print("🟡 AdMob Banner: Premium user - no AdManager needed")
+        }
 
         // Now show the main UI with all data loaded
         currentState = .authenticated
@@ -139,6 +173,14 @@ final class AppCoordinator: ObservableObject {
 
             // Wait for user data to be loaded
             await waitForUserDataLoading()
+
+            // Create AdManager now that user data is loaded (only for free users)
+            print("🟡 AdMob Banner: Authentication complete, checking if AdManager needed...")
+            if let _ = adManager {
+                print("🟡 AdMob Banner: AdManager created for free user")
+            } else {
+                print("🟡 AdMob Banner: Premium user - no AdManager needed")
+            }
 
             // Now show the main UI with all data loaded
             currentState = .authenticated

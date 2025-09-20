@@ -96,8 +96,8 @@ npm run deploy:prod        # Deploy to production
 - **Translation history** for premium users
 
 ### User Management
-- **Free Tier**: 10 daily translations with ads
-- **Premium Tier**: Unlimited translations, ad-free
+- **Free Tier**: 10 daily translations, 50 character limit, no history, with ads
+- **Premium Tier**: 100 daily translations, 100 character limit, 30-day history, ad-free
 - **Daily Reset**: Midnight Central Time
 - **Usage Tracking**: Real-time usage monitoring
 

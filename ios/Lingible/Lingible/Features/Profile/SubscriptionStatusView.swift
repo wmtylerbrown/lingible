@@ -4,12 +4,13 @@ import LingibleAPI
 
 struct SubscriptionStatusView: View {
     @StateObject private var subscriptionManager = SubscriptionManager()
+    let userUsage: UsageResponse?
     var onManageAction: (() -> Void)?
     var onUpgradeAction: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 16) {
-            if subscriptionManager.subscriptionStatus == .premium {
+            if userUsage?.tier == .premium {
                 // Premium user status
                 HStack(spacing: 12) {
                     Image(systemName: "crown.fill")
@@ -77,6 +78,6 @@ struct SubscriptionStatusView: View {
 }
 
 #Preview {
-    SubscriptionStatusView()
+    SubscriptionStatusView(userUsage: nil)
         .padding()
 }

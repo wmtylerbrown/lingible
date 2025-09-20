@@ -15,8 +15,9 @@ class SubscriptionManager: ObservableObject {
     @Published var errorMessage: String?
 
     // MARK: - Private Properties
-    private let productIds: [String] = ["com.lingible.lingible.premium.monthly"]
+    private let productIds: [String] = [AppConfiguration.subscriptionProductID]
     private var updateListenerTask: Task<Void, Error>? = nil
+    private let onUserDataRefresh: (() async -> Void)?
 
     // Always use real StoreKit products (no development mode)
 
@@ -29,7 +30,9 @@ class SubscriptionManager: ObservableObject {
     }
 
     // MARK: - Initialization
-    init() {
+    init(onUserDataRefresh: (() async -> Void)? = nil) {
+        self.onUserDataRefresh = onUserDataRefresh
+
         // Start listening for transaction updates
         updateListenerTask = listenForTransactions()
 
@@ -73,7 +76,17 @@ class SubscriptionManager: ObservableObject {
             print("🛒 Loaded \(products.count) subscription products")
             for product in products {
                 print("  - \(product.displayName): \(product.displayPrice)")
+                print("  - Product ID: \(product.id)")
+                print("  - Type: \(product.type)")
+                print("  - Subscription Group: \(product.subscription?.subscriptionGroupID ?? "none")")
             }
+
+            // Debug: Check if we're in simulator and StoreKit config should be available
+            #if targetEnvironment(simulator)
+            print("🛒 Running in iOS Simulator - StoreKit configuration should be available")
+            #else
+            print("🛒 Running on device - using real App Store products")
+            #endif
 
             if products.isEmpty {
                 print("❌ No products found - this could mean:")
@@ -111,8 +124,14 @@ class SubscriptionManager: ObservableObject {
                 // Update subscription status
                 await updateSubscriptionStatus()
 
-                // Sync with backend
-                _ = await syncSubscriptionWithBackend(transaction: transaction)
+                // Sync with backend - this is critical for the app to work properly
+                let backendSyncSuccess = await syncSubscriptionWithBackend(transaction: transaction)
+
+                if !backendSyncSuccess {
+                    print("⚠️ Purchase succeeded but backend sync failed - user may need to refresh")
+                    // Don't return false here - the purchase was successful, just the backend sync failed
+                    // The user can refresh manually or the app can retry later
+                }
 
                 // Finish the transaction
                 await transaction.finish()
@@ -268,6 +287,12 @@ class SubscriptionManager: ObservableObject {
 
         subscriptionStatus = status
         print("📊 Subscription status updated: \(status)")
+
+        // Debug: Print detailed status info
+        print("📊 Current subscription status details:")
+        print("📊 Status: \(status)")
+        print("📊 Products loaded: \(products.count)")
+        print("📊 Purchased subscriptions: \(purchasedSubscriptions.count)")
     }
 
     // MARK: - Backend Sync
@@ -296,17 +321,17 @@ class SubscriptionManager: ObservableObject {
             environment: environment
         )
 
-        // Call backend upgrade API
-        // Note: In a real app, you'd inject the UserService dependency
-        // For now, we'll create a temporary instance
+        // Call backend upgrade API using a temporary UserService instance
         let authService = AuthenticationService()
         let userService = UserService(authenticationService: authService)
         let success = await userService.upgradeUser(upgradeRequest)
 
         if success {
             print("✅ Backend sync successful")
-            // Refresh user data to get updated subscription status
-            await userService.refreshUserData()
+            // Use the callback to refresh the main UserService instance
+            if let refreshCallback = onUserDataRefresh {
+                await refreshCallback()
+            }
             return true
         } else {
             print("❌ Backend sync failed")
@@ -331,9 +356,18 @@ class SubscriptionManager: ObservableObject {
                     // Update subscription status
                     await self.updateSubscriptionStatus()
 
-                    // Sync with backend if needed
-                    if transaction.revocationDate == nil {
+                    // Only sync with backend for new, active purchases
+                    let fiveMinutesAgo = Date().addingTimeInterval(-300)
+                    let isRecent = transaction.purchaseDate > fiveMinutesAgo
+                    let isActive = transaction.expirationDate == nil || transaction.expirationDate! > Date()
+                    let isNotRevoked = transaction.revocationDate == nil
+
+                    if isRecent && isActive && isNotRevoked {
+                        print("🔄 New active transaction detected - syncing with backend")
                         _ = await self.syncSubscriptionWithBackend(transaction: transaction)
+                    } else {
+                        print("🔄 Existing/expired transaction detected - skipping backend sync")
+                        print("🔄   Recent: \(isRecent), Active: \(isActive), Not Revoked: \(isNotRevoked)")
                     }
 
                     // Always finish the transaction

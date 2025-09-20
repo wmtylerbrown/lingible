@@ -15,7 +15,7 @@
       "introductoryOffer" : null,
       "localizations" : [
         {
-          "description" : "Unlimited translations and premium features",
+          "description" : "100 daily translations, longer text support, and translation history",
           "displayName" : "Premium Monthly",
           "locale" : "en_US"
         }
@@ -23,7 +23,7 @@
       "productID" : "com.lingible.lingible.premium.monthly",
       "recurringSubscriptionPeriod" : "P1M",
       "referenceName" : "Premium Monthly",
-      "subscriptionGroupID" : "21482456",
+      "subscriptionGroupID" : "21773870",
       "type" : "RecurringSubscription"
     }
   ],
@@ -84,10 +84,10 @@
   },
   "subscriptionGroups" : [
     {
-      "id" : "21482456",
+      "id" : "21773870",
       "localizations" : [
         {
-          "description" : "Premium subscription for unlimited translations",
+          "description" : "Premium subscription with 100 daily translations and 30-day history",
           "displayName" : "Premium",
           "locale" : "en_US"
         }
@@ -108,7 +108,7 @@
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Unlimited translations and premium features",
+              "description" : "100 daily translations, longer text support, and translation history",
               "displayName" : "Premium Monthly",
               "locale" : "en_US"
             }
@@ -116,7 +116,7 @@
           "productID" : "com.lingible.lingible.premium.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Premium Monthly",
-          "subscriptionGroupID" : "21482456",
+          "subscriptionGroupID" : "21773870",
           "type" : "RecurringSubscription"
         }
       ]

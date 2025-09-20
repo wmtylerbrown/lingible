@@ -35,6 +35,9 @@ final class UserService: UserServiceProtocol {
     @Published var lastProfileUpdate: Date?
     @Published var lastUsageUpdate: Date?
 
+    // MARK: - AdManager Update Callback
+    var onUserDataUpdated: (() -> Void)?
+
     // MARK: - Private Properties
     private let authenticationService: AuthenticationServiceProtocol
     private var refreshTask: Task<Void, Never>?
@@ -82,6 +85,10 @@ final class UserService: UserServiceProtocol {
             // Update state
             userProfile = profile
             userUsage = usage
+
+            // Notify AdManager of user data update
+            print("🟡 UserService: Notifying AdManager of user data update...")
+            onUserDataUpdated?()
 
 
         } catch {
@@ -134,6 +141,10 @@ final class UserService: UserServiceProtocol {
             // Update the local state
             userUsage = currentUsage
             lastUsageUpdate = Date()
+
+            // Notify AdManager of user data update
+            print("🟡 UserService: Notifying AdManager of usage update...")
+            onUserDataUpdated?()
 
         }
     }

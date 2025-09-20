@@ -27,7 +27,7 @@
 - **Real-time Translation**: English ↔ GenZ language patterns
 - **AI-Powered**: AWS Bedrock integration for high-quality translations
 - **Premium Features**: Translation history storage for premium users
-- **Usage Limits**: Tiered usage limits (free: 5/day, premium: 20/day)
+- **Usage Limits**: Tiered usage limits (free: 10/day, premium: 100/day)
 
 ### **User Management:**
 - **Authentication**: Apple Sign-In integration via Cognito

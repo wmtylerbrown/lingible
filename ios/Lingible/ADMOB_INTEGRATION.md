@@ -84,7 +84,7 @@ Interstitial: "ca-app-pub-3940256099942544/4411468910"
 ### **Translation Flow (Example with 10 daily limit)**
 1. **Translations 1-3**: Normal flow, banner ad visible
 2. **Translation 4**: Show interstitial ad, then result
-3. **Translations 5-7**: Normal flow, banner ad visible  
+3. **Translations 5-7**: Normal flow, banner ad visible
 4. **Translation 8**: Show interstitial ad, then result
 5. **Translations 9-10**: Normal flow, banner ad visible
 6. **Translation 10**: Show upgrade prompt when daily limit reached
@@ -98,7 +98,7 @@ appCoordinator.adManager.incrementTranslationCount()
 func incrementTranslationCount() {
     translationCount += 1
     updateAdVisibility()
-    
+
     // Check if we should show interstitial ad
     if let interstitialManager = interstitialAdManager {
         let adShown = interstitialManager.showAdIfNeeded(translationCount: translationCount)
@@ -120,7 +120,7 @@ func incrementTranslationCount() {
 ### **Premium Users**
 - **No ads whatsoever**
 - No upgrade button in header
-- Unlimited daily translations
+- 100 daily translations (vs 10 free)
 - All premium features
 
 ### **Tier Detection**

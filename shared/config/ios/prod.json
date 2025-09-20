@@ -9,5 +9,9 @@
     "application_identifier": "ca-app-pub-3940256099942544~1458002511",
     "banner_ad_unit_id": "ca-app-pub-3940256099942544/2934735716",
     "interstitial_ad_unit_id": "ca-app-pub-3940256099942544/4411468910"
+  },
+  "subscription": {
+    "group_id": "21773870",
+    "product_id": "com.lingible.lingible.premium.monthly"
   }
 }

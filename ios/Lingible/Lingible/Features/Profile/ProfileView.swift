@@ -29,6 +29,7 @@ struct ProfileView: View {
                 // Subscription Status Section
                 Section {
                     SubscriptionStatusView(
+                        userUsage: appCoordinator.userUsage,
                         onManageAction: { manageSubscriptions() },
                         onUpgradeAction: { showingUpgradeSheet = true }
                     )
@@ -500,7 +501,10 @@ struct ProfileView: View {
 
     private func restorePurchases() {
         Task {
-            let subscriptionManager = SubscriptionManager()
+            let subscriptionManager = SubscriptionManager(onUserDataRefresh: {
+                // Refresh user data after restore
+                await appCoordinator.userService.refreshUserData()
+            })
             let success = await subscriptionManager.restorePurchases()
 
             if success {

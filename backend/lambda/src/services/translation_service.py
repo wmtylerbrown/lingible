@@ -54,11 +54,12 @@ class TranslationService:
         translation_id = self.translation_repository.generate_translation_id()
 
         try:
-            # Validate request
-            self._validate_translation_request(request)
-
-            # Check usage limits first
+            # Check usage limits first to get user's text length limit
             usage_response = self.user_service.get_user_usage(user_id)
+
+            # Validate request with user's tier-specific limits
+            self._validate_translation_request(request, usage_response.current_max_text_length)
+
             if usage_response.daily_remaining <= 0:
                 raise UsageLimitExceededError(
                     "daily",
@@ -137,14 +138,14 @@ class TranslationService:
             raise
 
     def _validate_translation_request(
-        self, request: TranslationRequestInternal
+        self, request: TranslationRequestInternal, max_text_length: int
     ) -> None:
         """Validate translation request."""
         if not request.text or not request.text.strip():
             raise ValidationError("Text cannot be empty")
 
-        if len(request.text) > 1000:
-            raise ValidationError("Text exceeds maximum length of 1000 characters")
+        if len(request.text) > max_text_length:
+            raise ValidationError(f"Text exceeds maximum length of {max_text_length} characters")
 
     def _generate_bedrock_prompt(self, request: TranslationRequestInternal) -> str:
         """Generate prompt for Bedrock API (Messages API format)."""
