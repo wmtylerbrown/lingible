@@ -46,9 +46,7 @@ export interface InfrastructureConfig {
     key_id: string;
     in_app_purchase_key_id: string;
     bundle_id: string;
-  };
-  google: {
-    package_name: string;
+    issuer_id: string;
   };
   api: {
     base_url: string;

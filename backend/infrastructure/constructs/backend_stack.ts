@@ -143,7 +143,7 @@ export class BackendStack extends Construct {
 
         // Apple Config (for App Store Server API)
         APPLE_KEY_ID: config.apple.in_app_purchase_key_id,
-        APPLE_TEAM_ID: config.apple.team_id,
+        APPLE_ISSUER_ID: config.apple.issuer_id,
         APPLE_BUNDLE_ID: config.apple.bundle_id,
   };
 
@@ -620,7 +620,6 @@ export class BackendStack extends Construct {
       ],
       resources: [
         `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
-        `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
 
@@ -652,7 +651,6 @@ export class BackendStack extends Construct {
       ],
       resources: [
         `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
-        `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
 
@@ -772,7 +770,6 @@ export class BackendStack extends Construct {
       ],
       resources: [
         `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
-        `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
 
@@ -820,7 +817,6 @@ export class BackendStack extends Construct {
       ],
       resources: [
         `arn:aws:secretsmanager:*:*:secret:lingible-apple-iap-private-key-${environment}*`,
-        `arn:aws:secretsmanager:*:*:secret:lingible-google-service-account-${environment}*`,
       ],
     }));
 

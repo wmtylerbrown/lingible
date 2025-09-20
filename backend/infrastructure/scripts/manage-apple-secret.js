@@ -78,24 +78,46 @@ function readAppleKeyFile(keyFilePath) {
   }
 }
 
-async function createOrUpdateSecret(secretName, privateKey, region) {
+async function createOrUpdateSecret(secretName, secretValue, region) {
   try {
     // Try to describe the secret to see if it exists
     execSync(`aws secretsmanager describe-secret --secret-id ${secretName} --region ${region}`, { stdio: 'pipe' });
 
     // Secret exists, update it
     console.log(`🔄 Updating existing secret: ${secretName}`);
-    const secretJson = JSON.stringify({ privateKey });
+    let secretJson;
+    if (secretName.includes('webhook')) {
+      secretJson = JSON.stringify({ webhookSecret: secretValue });
+    } else if (secretName.includes('shared')) {
+      secretJson = JSON.stringify({ sharedSecret: secretValue });
+    } else {
+      secretJson = JSON.stringify({ privateKey: secretValue });
+    }
     execSync(`aws secretsmanager update-secret --secret-id ${secretName} --secret-string '${secretJson}' --region ${region}`, { stdio: 'inherit' });
     console.log('✅ Secret updated successfully!');
   } catch (error) {
     if (error.status === 254) { // AWS CLI returns 254 for ResourceNotFoundException
       // Secret doesn't exist, create it
       console.log(`🆕 Creating new secret: ${secretName}`);
-      const secretJson = JSON.stringify({ privateKey });
-      const description = secretName.includes('iap')
-        ? "Apple In-App Purchase private key for Lingible App Store Server API"
-        : "Apple Sign-In private key for Lingible Cognito";
+      let secretJson;
+      if (secretName.includes('webhook')) {
+        secretJson = JSON.stringify({ webhookSecret: secretValue });
+      } else if (secretName.includes('shared')) {
+        secretJson = JSON.stringify({ sharedSecret: secretValue });
+      } else {
+        secretJson = JSON.stringify({ privateKey: secretValue });
+      }
+
+      let description;
+      if (secretName.includes('iap')) {
+        description = "Apple In-App Purchase private key for Lingible App Store Server API";
+      } else if (secretName.includes('webhook')) {
+        description = "Apple webhook secret for Lingible App Store Server Notifications";
+      } else if (secretName.includes('shared')) {
+        description = "Apple shared secret for Lingible App Store receipt validation";
+      } else {
+        description = "Apple Sign-In private key for Lingible Cognito";
+      }
       execSync(`aws secretsmanager create-secret --name ${secretName} --description "${description}" --secret-string '${secretJson}' --region ${region}`, { stdio: 'inherit' });
       console.log('✅ Secret created successfully!');
     } else {
@@ -161,6 +183,29 @@ async function getAppleSharedSecret() {
   return sharedSecret.trim();
 }
 
+async function getAppleWebhookSecret() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const question = (query) => {
+    return new Promise((resolve) => {
+      rl.question(query, resolve);
+    });
+  };
+
+  console.log('🔐 Apple Webhook Secret Manager');
+  console.log('===============================\n');
+  console.log('This is a custom secret for webhook signature verification.');
+  console.log('You can generate one with: openssl rand -hex 32\n');
+
+  const webhookSecret = await question('Enter your Apple Webhook Secret: ');
+  rl.close();
+
+  return webhookSecret.trim();
+}
+
 async function main() {
   const command = process.argv[2];
   const secretType = process.argv[3];
@@ -179,6 +224,7 @@ async function main() {
     console.log('  private-key  - Apple private key (for Cognito Apple Sign-In)');
     console.log('  shared-secret - Apple shared secret (for App Store receipt validation)');
     console.log('  iap-private-key - Apple In-App Purchase private key (for App Store Server API)');
+    console.log('  webhook-secret - Apple webhook secret (for webhook signature verification)');
     console.log('');
     console.log('Environment: dev or prod');
     console.log('');
@@ -186,13 +232,14 @@ async function main() {
     console.log('  npm run apple-secret create private-key dev');
     console.log('  npm run apple-secret create shared-secret dev');
     console.log('  npm run apple-secret create iap-private-key dev');
+    console.log('  npm run apple-secret create webhook-secret dev');
     console.log('  npm run apple-secret update private-key prod');
     console.log('  npm run apple-secret info private-key dev');
     process.exit(1);
   }
 
-  if (!secretType || !['private-key', 'shared-secret', 'iap-private-key'].includes(secretType)) {
-    console.error('❌ Secret type must be "private-key", "shared-secret", or "iap-private-key"');
+  if (!secretType || !['private-key', 'shared-secret', 'iap-private-key', 'webhook-secret'].includes(secretType)) {
+    console.error('❌ Secret type must be "private-key", "shared-secret", "iap-private-key", or "webhook-secret"');
     process.exit(1);
   }
 
@@ -209,6 +256,8 @@ async function main() {
     secretName = `lingible-apple-shared-secret-${environment}`;
   } else if (secretType === 'iap-private-key') {
     secretName = `lingible-apple-iap-private-key-${environment}`;
+  } else if (secretType === 'webhook-secret') {
+    secretName = `lingible-apple-webhook-secret-${environment}`;
   }
 
   try {
@@ -221,6 +270,8 @@ async function main() {
       secretTypeDescription = 'Shared Secret (App Store)';
     } else if (secretType === 'iap-private-key') {
       secretTypeDescription = 'In-App Purchase Private Key (App Store Server API)';
+    } else if (secretType === 'webhook-secret') {
+      secretTypeDescription = 'Webhook Secret (App Store Server Notifications)';
     }
 
     console.log(`Secret Type: ${secretTypeDescription}`);
@@ -234,8 +285,10 @@ async function main() {
 
         if (secretType === 'private-key' || secretType === 'iap-private-key') {
           secretValue = await getApplePrivateKey();
-        } else {
+        } else if (secretType === 'shared-secret') {
           secretValue = await getAppleSharedSecret();
+        } else if (secretType === 'webhook-secret') {
+          secretValue = await getAppleWebhookSecret();
         }
 
         await createOrUpdateSecret(secretName, secretValue, region);
@@ -246,6 +299,9 @@ async function main() {
           console.log('💡 Remember to configure Client ID, Team ID, and Key ID separately.');
         } else if (secretType === 'iap-private-key') {
           console.log('💡 Remember to configure Key ID, Team ID, and Bundle ID separately.');
+        } else if (secretType === 'webhook-secret') {
+          console.log('💡 The webhook secret is now stored securely in AWS Secrets Manager.');
+          console.log('💡 Use this same secret when configuring webhook URL in App Store Connect.');
         } else {
           console.log('💡 The shared secret is now stored securely in AWS Secrets Manager.');
         }
