@@ -17,7 +17,7 @@ from .exceptions import (
     RateLimitExceededError,
     AppException,
 )
-from .logging import logger
+from .smart_logger import logger
 
 
 def api_handler(

@@ -1,7 +1,7 @@
 """Smart logging configuration with cost optimization and enhanced debugging."""
 
 import json
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.logging import correlation_paths
 from .config import get_config_service, ObservabilityConfig, SecurityConfig
@@ -75,8 +75,19 @@ class SmartLogger:
         if self.is_debug:
             log_data["debug_info"] = {
                 "error_module": getattr(error, "__module__", "unknown"),
-                "error_file": getattr(error, "__traceback__", {}).get("tb_frame", {}).get("f_code", {}).get("co_filename", "unknown") if hasattr(error, "__traceback__") else "unknown",
-                "error_line": getattr(error, "__traceback__", {}).get("tb_lineno", "unknown") if hasattr(error, "__traceback__") else "unknown",
+                "error_file": (
+                    getattr(error, "__traceback__", {})
+                    .get("tb_frame", {})
+                    .get("f_code", {})
+                    .get("co_filename", "unknown")
+                    if hasattr(error, "__traceback__")
+                    else "unknown"
+                ),
+                "error_line": (
+                    getattr(error, "__traceback__", {}).get("tb_lineno", "unknown")
+                    if hasattr(error, "__traceback__")
+                    else "unknown"
+                ),
             }
 
         self.logger.error("Error occurred", extra=log_data)
@@ -114,12 +125,21 @@ class SmartLogger:
 
         self.logger.info(f"API Call: {operation}", extra=log_data)
 
-    def log_performance(self, operation: str, duration_ms: float, details: Optional[Dict[str, Any]] = None) -> None:
+    def log_performance(
+        self,
+        operation: str,
+        duration_ms: float,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Log performance metrics."""
         log_data = {
             "operation": operation,
             "duration_ms": duration_ms,
-            "performance_category": "fast" if duration_ms < 100 else "slow" if duration_ms < 1000 else "very_slow"
+            "performance_category": (
+                "fast"
+                if duration_ms < 100
+                else "slow" if duration_ms < 1000 else "very_slow"
+            ),
         }
 
         if details:
@@ -169,11 +189,11 @@ class SmartLogger:
                     result[key] = self._safe_serialize(value)
                 except (TypeError, ValueError):
                     # If it's not serializable, convert to string representation
-                    if hasattr(value, '__dict__'):
+                    if hasattr(value, "__dict__"):
                         # For objects with __dict__, try to serialize their attributes
                         try:
                             result[key] = self._safe_serialize(value.__dict__)
-                        except:
+                        except Exception:
                             result[key] = f"<{type(value).__name__} object>"
                     else:
                         result[key] = f"<{type(value).__name__}: {str(value)[:100]}>"
@@ -183,10 +203,10 @@ class SmartLogger:
             return [self._safe_serialize(item) for item in data]
 
         # For Pydantic models, try to get their dict representation
-        if hasattr(data, 'model_dump'):
+        if hasattr(data, "model_dump"):
             try:
                 return self._safe_serialize(data.model_dump())
-            except:
+            except Exception:
                 pass
 
         # For any other object, return a string representation
@@ -195,6 +215,7 @@ class SmartLogger:
     def _get_timestamp(self) -> str:
         """Get current timestamp for debug logging."""
         from datetime import datetime, timezone
+
         return datetime.now(timezone.utc).isoformat()
 
 

@@ -9,6 +9,7 @@ from utils.tracing import tracer
 from utils.decorators import api_handler
 from utils.envelopes import SimpleEnvelope
 
+
 # Lambda handler entry point with correct decorator order
 @tracer.trace_lambda
 @event_parser(model=HealthEvent, envelope=SimpleEnvelope)

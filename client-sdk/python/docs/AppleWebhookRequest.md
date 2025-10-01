@@ -5,9 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**notification_type** | **str** | Type of Apple subscription notification | 
-**transaction_id** | **str** | Apple transaction ID | 
-**receipt_data** | **str** | Base64 encoded receipt data from Apple | 
+**notification_type** | **str** | Type of Apple subscription notification |
+**transaction_id** | **str** | Apple transaction ID |
+**receipt_data** | **str** | Base64 encoded receipt data from Apple |
 **environment** | **str** | Store environment | [optional] [default to 'production']
 
 ## Example
@@ -28,5 +28,3 @@ apple_webhook_request_dict = apple_webhook_request_instance.to_dict()
 apple_webhook_request_from_dict = AppleWebhookRequest.from_dict(apple_webhook_request_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

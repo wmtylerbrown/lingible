@@ -1,0 +1,17 @@
+# App-ads.txt file for Lingible iOS App
+# This file is required by AdMob for app verification
+
+# Add your AdMob publisher ID here
+# Format: google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+# Replace XXXXXXXXXXXXXXXX with your actual AdMob publisher ID
+
+# Example (replace with your actual publisher ID):
+# google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0
+
+# Note: You need to:
+# 1. Get your AdMob publisher ID from your AdMob console
+# 2. Replace the example above with your actual publisher ID
+# 3. Deploy this file to your website root (lingible.com/app-ads.txt)
+# 4. Verify in AdMob console that the file is accessible
+
+google.com, pub-7364009324611772, DIRECT, f08c47fec0942fa0

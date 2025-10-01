@@ -13,22 +13,26 @@ from aws_lambda_powertools.utilities.parameters import get_secret
 from aws_lambda_powertools import Logger
 
 from models.config import (
-    BedrockConfig,
     UsageLimitsConfig,
     SecurityConfig,
     ObservabilityConfig,
     AppleConfig,
     CognitoConfig,
+    LLMConfig,
     LogLevel,
 )
+from models.slang import AgeRating, AgeFilterMode
+
 
 class ConfigurationError(Exception):
     """Raised when configuration is invalid or missing."""
+
     pass
+
 
 logger = Logger()
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ConfigService:
@@ -82,7 +86,9 @@ class ConfigService:
             return secret_data[key]
         except Exception as e:
             logger.error(f"Failed to retrieve secret '{secret_name}' key '{key}': {e}")
-            raise ConfigurationError(f"Failed to retrieve secret '{secret_name}' key '{key}': {e}")
+            raise ConfigurationError(
+                f"Failed to retrieve secret '{secret_name}' key '{key}': {e}"
+            )
 
     def get_config(self, config_type: Type[T]) -> T:
         """
@@ -97,53 +103,73 @@ class ConfigService:
         Raises:
             ConfigurationError: If configuration cannot be loaded
         """
-        if config_type == BedrockConfig:
-            return BedrockConfig(
-                model=self._get_env_var('BEDROCK_MODEL'),
-                max_tokens=int(self._get_env_var('BEDROCK_MAX_TOKENS')),
-                temperature=float(self._get_env_var('BEDROCK_TEMPERATURE'))
-            )  # type: ignore
-        elif config_type == UsageLimitsConfig:
+        if config_type == UsageLimitsConfig:
             return UsageLimitsConfig(
-                free_daily_translations=int(self._get_env_var('FREE_DAILY_TRANSLATIONS')),
-                premium_daily_translations=int(self._get_env_var('PREMIUM_DAILY_TRANSLATIONS')),
-                free_max_text_length=int(self._get_env_var('FREE_MAX_TEXT_LENGTH')),
-                premium_max_text_length=int(self._get_env_var('PREMIUM_MAX_TEXT_LENGTH')),
-                free_history_retention_days=int(self._get_env_var('FREE_HISTORY_RETENTION_DAYS')),
-                premium_history_retention_days=int(self._get_env_var('PREMIUM_HISTORY_RETENTION_DAYS'))
+                free_daily_translations=int(
+                    self._get_env_var("FREE_DAILY_TRANSLATIONS")
+                ),
+                premium_daily_translations=int(
+                    self._get_env_var("PREMIUM_DAILY_TRANSLATIONS")
+                ),
+                free_max_text_length=int(self._get_env_var("FREE_MAX_TEXT_LENGTH")),
+                premium_max_text_length=int(
+                    self._get_env_var("PREMIUM_MAX_TEXT_LENGTH")
+                ),
+                free_history_retention_days=int(
+                    self._get_env_var("FREE_HISTORY_RETENTION_DAYS")
+                ),
+                premium_history_retention_days=int(
+                    self._get_env_var("PREMIUM_HISTORY_RETENTION_DAYS")
+                ),
             )  # type: ignore
         elif config_type == SecurityConfig:
             return SecurityConfig(
-                sensitive_field_patterns=json.loads(self._get_env_var('SENSITIVE_FIELD_PATTERNS'))
+                sensitive_field_patterns=json.loads(
+                    self._get_env_var("SENSITIVE_FIELD_PATTERNS")
+                )
             )  # type: ignore
         elif config_type == ObservabilityConfig:
             return ObservabilityConfig(
-                log_level=LogLevel(self._get_env_var('LOG_LEVEL')),
-                enable_tracing=self._get_env_var('ENABLE_TRACING').lower() == 'true'
+                log_level=LogLevel(self._get_env_var("LOG_LEVEL")),
+                enable_tracing=self._get_env_var("ENABLE_TRACING").lower() == "true",
             )  # type: ignore
         elif config_type == AppleConfig:
             # Load Apple In-App Purchase credentials from Secrets Manager
             private_key_name = f"lingible-apple-iap-private-key-{self.environment}"
 
-            private_key = self._get_secrets_manager_secret(private_key_name, "privateKey")
+            private_key = self._get_secrets_manager_secret(
+                private_key_name, "privateKey"
+            )
 
             # Get Apple credentials from environment variables (set by CDK)
-            key_id = self._get_env_var('APPLE_KEY_ID')
-            issuer_id = self._get_env_var('APPLE_ISSUER_ID')
-            bundle_id = self._get_env_var('APPLE_BUNDLE_ID')
+            key_id = self._get_env_var("APPLE_KEY_ID")
+            issuer_id = self._get_env_var("APPLE_ISSUER_ID")
+            bundle_id = self._get_env_var("APPLE_BUNDLE_ID")
 
             return AppleConfig(
                 private_key=private_key,  # type: ignore[arg-type] # Pydantic validator converts str -> bytes
                 key_id=key_id,
                 issuer_id=issuer_id,
-                bundle_id=bundle_id
+                bundle_id=bundle_id,
             )  # type: ignore
         elif config_type == CognitoConfig:
             return CognitoConfig(
-                user_pool_id=self._get_env_var('COGNITO_USER_POOL_ID'),
-                user_pool_client_id=self._get_env_var('COGNITO_USER_POOL_CLIENT_ID'),
-                user_pool_region=self._get_env_var('COGNITO_USER_POOL_REGION'),
-                api_gateway_arn=self._get_env_var('API_GATEWAY_ARN')
+                user_pool_id=self._get_env_var("COGNITO_USER_POOL_ID"),
+                user_pool_client_id=self._get_env_var("COGNITO_USER_POOL_CLIENT_ID"),
+                user_pool_region=self._get_env_var("COGNITO_USER_POOL_REGION"),
+                api_gateway_arn=self._get_env_var("API_GATEWAY_ARN"),
+            )  # type: ignore
+        elif config_type == LLMConfig:
+            return LLMConfig(
+                lexicon_s3_bucket=self._get_env_var("LEXICON_S3_BUCKET"),
+                lexicon_s3_key=self._get_env_var("LEXICON_S3_KEY"),
+                lexicon_local_path=self._get_env_var("LEXICON_LOCAL_PATH"),
+                model=self._get_env_var("LLM_MODEL_ID"),
+                max_tokens=int(self._get_env_var("LLM_MAX_TOKENS")),
+                temperature=float(self._get_env_var("LLM_TEMPERATURE")),
+                top_p=float(self._get_env_var("LLM_TOP_P")),
+                age_max_rating=AgeRating(self._get_env_var("AGE_MAX_RATING")),
+                age_filter_mode=AgeFilterMode(self._get_env_var("AGE_FILTER_MODE")),
             )  # type: ignore
         else:
             raise ConfigurationError(f"Unknown configuration type: {config_type}")

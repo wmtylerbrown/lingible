@@ -10,7 +10,7 @@ from services.subscription_service import SubscriptionService
 from services.user_service import UserService
 from utils.decorators import api_handler, extract_user_from_parsed_data
 from utils.tracing import tracer
-from utils.exceptions import ValidationError, SystemError
+from utils.exceptions import ValidationError
 
 # Initialize services at module level for Lambda container reuse
 subscription_service = SubscriptionService()
@@ -34,8 +34,7 @@ def handler(event: UserUpgradeEvent, context: LambdaContext) -> UpgradeResponse:
     # Step 2: Create subscription via subscription service
     transaction_data = event.request_body.to_transaction_data()
     subscription_service.validate_and_create_subscription(
-        user_id=user_id,
-        transaction_data=transaction_data
+        user_id=user_id, transaction_data=transaction_data
     )
 
     # Step 3: Upgrade user tier via user service
@@ -49,5 +48,5 @@ def handler(event: UserUpgradeEvent, context: LambdaContext) -> UpgradeResponse:
         success=True,
         message="User successfully upgraded to premium",
         tier="premium",
-        expires_at=expires_at
+        expires_at=expires_at,
     )

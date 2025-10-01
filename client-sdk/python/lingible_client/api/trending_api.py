@@ -60,11 +60,11 @@ class TrendingApi:
     ) -> TrendingListResponse:
         """Get trending GenZ slang terms
 
-        Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options 
+        Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options
 
-        :param limit: Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms 
+        :param limit: Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms
         :type limit: int
-        :param category: Filter by trending category. - Free tier: Only 'slang' category allowed - Premium tier: All categories available 
+        :param category: Filter by trending category. - Free tier: Only 'slang' category allowed - Premium tier: All categories available
         :type category: str
         :param active_only: Show only active trending terms
         :type active_only: bool
@@ -137,11 +137,11 @@ class TrendingApi:
     ) -> ApiResponse[TrendingListResponse]:
         """Get trending GenZ slang terms
 
-        Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options 
+        Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options
 
-        :param limit: Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms 
+        :param limit: Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms
         :type limit: int
-        :param category: Filter by trending category. - Free tier: Only 'slang' category allowed - Premium tier: All categories available 
+        :param category: Filter by trending category. - Free tier: Only 'slang' category allowed - Premium tier: All categories available
         :type category: str
         :param active_only: Show only active trending terms
         :type active_only: bool
@@ -214,11 +214,11 @@ class TrendingApi:
     ) -> RESTResponseType:
         """Get trending GenZ slang terms
 
-        Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options 
+        Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options
 
-        :param limit: Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms 
+        :param limit: Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms
         :type limit: int
-        :param category: Filter by trending category. - Free tier: Only 'slang' category allowed - Premium tier: All categories available 
+        :param category: Filter by trending category. - Free tier: Only 'slang' category allowed - Premium tier: All categories available
         :type category: str
         :param active_only: Show only active trending terms
         :type active_only: bool
@@ -294,17 +294,17 @@ class TrendingApi:
         # process the path parameters
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if category is not None:
-            
+
             _query_params.append(('category', category))
-            
+
         if active_only is not None:
-            
+
             _query_params.append(('active_only', active_only))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -338,5 +338,3 @@ class TrendingApi:
             _host=_host,
             _request_auth=_request_auth
         )
-
-

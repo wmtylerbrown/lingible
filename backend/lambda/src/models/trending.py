@@ -32,7 +32,9 @@ class TrendingTerm(LingibleBaseModel):
     category: TrendingCategory = Field(..., description="Category of the trending term")
 
     # Trending metrics
-    popularity_score: Decimal = Field(..., ge=0.0, le=100.0, description="Popularity score (0-100)")
+    popularity_score: Decimal = Field(
+        ..., ge=0.0, le=100.0, description="Popularity score (0-100)"
+    )
     search_count: int = Field(..., ge=0, description="Number of times searched")
     translation_count: int = Field(..., ge=0, description="Number of times translated")
 
@@ -42,11 +44,17 @@ class TrendingTerm(LingibleBaseModel):
     is_active: bool = Field(True, description="Whether this term is currently trending")
 
     # Optional context
-    example_usage: Optional[str] = Field(None, description="Example of how the term is used")
+    example_usage: Optional[str] = Field(
+        None, description="Example of how the term is used"
+    )
     origin: Optional[str] = Field(None, description="Origin or source of the term")
-    related_terms: List[str] = Field(default_factory=list, description="Related slang terms")
+    related_terms: List[str] = Field(
+        default_factory=list, description="Related slang terms"
+    )
 
-    def to_api_response(self, user_tier: "UserTier" = UserTier.FREE) -> "TrendingTermResponse":
+    def to_api_response(
+        self, user_tier: "UserTier" = UserTier.FREE
+    ) -> "TrendingTermResponse":
         """Convert to API response model with tier-based data filtering."""
         # Free tier gets basic data
         if user_tier == UserTier.FREE:
@@ -84,10 +92,16 @@ class TrendingTerm(LingibleBaseModel):
 class TrendingListResponse(LingibleBaseModel):
     """API response model for trending terms list."""
 
-    terms: List["TrendingTermResponse"] = Field(..., description="List of trending terms")
+    terms: List["TrendingTermResponse"] = Field(
+        ..., description="List of trending terms"
+    )
     total_count: int = Field(..., description="Total number of trending terms")
-    last_updated: datetime = Field(..., description="When the trending data was last updated")
-    category_filter: Optional[TrendingCategory] = Field(None, description="Applied category filter")
+    last_updated: datetime = Field(
+        ..., description="When the trending data was last updated"
+    )
+    category_filter: Optional[TrendingCategory] = Field(
+        None, description="Applied category filter"
+    )
 
 
 class TrendingTermResponse(LingibleBaseModel):
@@ -102,7 +116,9 @@ class TrendingTermResponse(LingibleBaseModel):
     first_seen: datetime = Field(..., description="When this term was first detected")
     last_updated: datetime = Field(..., description="Last time metrics were updated")
     is_active: bool = Field(..., description="Whether this term is currently trending")
-    example_usage: Optional[str] = Field(None, description="Example of how the term is used")
+    example_usage: Optional[str] = Field(
+        None, description="Example of how the term is used"
+    )
     origin: Optional[str] = Field(None, description="Origin or source of the term")
     related_terms: List[str] = Field(..., description="Related slang terms")
 
@@ -112,7 +128,9 @@ class TrendingJobRequest(LingibleBaseModel):
 
     job_type: str = Field(..., description="Type of trending job to run")
     source: str = Field(..., description="Data source for trending analysis")
-    parameters: dict = Field(default_factory=dict, description="Job-specific parameters")
+    parameters: dict = Field(
+        default_factory=dict, description="Job-specific parameters"
+    )
     scheduled_at: Optional[datetime] = Field(None, description="When to run the job")
 
 
@@ -124,7 +142,11 @@ class TrendingJobResponse(LingibleBaseModel):
     terms_processed: int = Field(..., description="Number of terms processed")
     terms_added: int = Field(..., description="Number of new terms added")
     terms_updated: int = Field(..., description="Number of existing terms updated")
-    execution_time_seconds: Decimal = Field(..., description="Job execution time in seconds")
+    execution_time_seconds: Decimal = Field(
+        ..., description="Job execution time in seconds"
+    )
     started_at: datetime = Field(..., description="Job start time")
     completed_at: Optional[datetime] = Field(None, description="Job completion time")
-    error_message: Optional[str] = Field(None, description="Error message if job failed")
+    error_message: Optional[str] = Field(
+        None, description="Error message if job failed"
+    )

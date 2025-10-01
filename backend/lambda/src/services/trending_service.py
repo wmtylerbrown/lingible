@@ -13,10 +13,11 @@ from models.trending import (
     TrendingJobResponse,
 )
 from models.users import UserTier
-from utils.logging import logger
+from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
-from utils.config import get_config_service, BedrockConfig
+from utils.config import get_config_service
+from models.config import LLMConfig
 from utils.exceptions import ValidationError
 from repositories.trending_repository import TrendingRepository
 from services.user_service import UserService
@@ -30,7 +31,7 @@ class TrendingService:
         self.repository = TrendingRepository()
         self.config_service = get_config_service()
         self.bedrock_client = aws_services.bedrock_client
-        self.bedrock_config = self.config_service.get_config(BedrockConfig)
+        self.llm_config = self.config_service.get_config(LLMConfig)
         self.user_service = UserService()
 
     @tracer.trace_method("get_trending_terms")
@@ -51,13 +52,13 @@ class TrendingService:
                 user_tier = user.tier
                 logger.log_business_event(
                     "trending_user_tier_determined",
-                    {"user_id": user_id, "tier": user_tier}
+                    {"user_id": user_id, "tier": user_tier},
                 )
             else:
                 # User not found or error - default to FREE tier for security
                 logger.log_business_event(
                     "trending_user_not_found_defaulting_to_free",
-                    {"user_id": user_id, "reason": "user_not_found_or_error"}
+                    {"user_id": user_id, "reason": "user_not_found_or_error"},
                 )
 
             # Apply tier-based limits
@@ -67,7 +68,9 @@ class TrendingService:
                     limit = 10
                 # Free users can only access 'slang' category
                 if category and category != TrendingCategory.SLANG:
-                    raise ValidationError("Category filtering is a premium feature. Free users can only access 'slang' category.")
+                    raise ValidationError(
+                        "Category filtering is a premium feature. Free users can only access 'slang' category."
+                    )
             else:
                 # Premium users get full access
                 if limit < 1 or limit > 100:
@@ -232,7 +235,9 @@ class TrendingService:
                 existing_term.is_active = is_active
 
             if example_usage is not None:
-                existing_term.example_usage = example_usage.strip() if example_usage else None
+                existing_term.example_usage = (
+                    example_usage.strip() if example_usage else None
+                )
 
             if origin is not None:
                 existing_term.origin = origin.strip() if origin else None
@@ -383,7 +388,7 @@ class TrendingService:
                 terms_processed=terms_processed,
                 terms_added=terms_added,
                 terms_updated=terms_updated,
-                execution_time_seconds=execution_time,
+                execution_time_seconds=Decimal(str(execution_time)),
                 started_at=start_time,
                 completed_at=end_time,
                 error_message=None,
@@ -399,13 +404,21 @@ class TrendingService:
             )
 
             return TrendingJobResponse(
-                job_id=job_id if 'job_id' in locals() else "unknown",
+                job_id=job_id if "job_id" in locals() else "unknown",
                 status="failed",
-                terms_processed=terms_processed if 'terms_processed' in locals() else 0,
-                terms_added=terms_added if 'terms_added' in locals() else 0,
-                terms_updated=terms_updated if 'terms_updated' in locals() else 0,
-                execution_time_seconds=execution_time if 'execution_time' in locals() else 0.0,
-                started_at=start_time if 'start_time' in locals() else datetime.now(timezone.utc),
+                terms_processed=terms_processed if "terms_processed" in locals() else 0,
+                terms_added=terms_added if "terms_added" in locals() else 0,
+                terms_updated=terms_updated if "terms_updated" in locals() else 0,
+                execution_time_seconds=(
+                    Decimal(str(execution_time))
+                    if "execution_time" in locals()
+                    else Decimal("0.0")
+                ),
+                started_at=(
+                    start_time
+                    if "start_time" in locals()
+                    else datetime.now(timezone.utc)
+                ),
                 completed_at=None,
                 error_message=str(e),
             )
@@ -427,7 +440,7 @@ class TrendingService:
                 "bedrock_trending_generation",
                 {
                     "terms_generated": len(trending_terms),
-                    "model_used": self.bedrock_config.model,
+                    "model_used": self.llm_config.model,
                 },
             )
 
@@ -481,21 +494,16 @@ Generate 15-20 diverse trending terms across different categories. Make sure the
         try:
             # Prepare the request body for Claude 3 Haiku
             request_body = {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
+                "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 4000,
-                "anthropic_version": "bedrock-2023-05-31"
+                "anthropic_version": "bedrock-2023-05-31",
             }
 
             # Call Bedrock
             response = self.bedrock_client.invoke_model(
-                modelId=self.bedrock_config.model,
+                modelId=self.llm_config.model,
                 body=json.dumps(request_body),
-                contentType="application/json"
+                contentType="application/json",
             )
 
             # Parse the response
@@ -509,7 +517,7 @@ Generate 15-20 diverse trending terms across different categories. Make sure the
                 e,
                 {
                     "operation": "call_bedrock_for_trending_terms",
-                    "model": self.bedrock_config.model,
+                    "model": self.llm_config.model,
                 },
             )
             raise
@@ -518,8 +526,8 @@ Generate 15-20 diverse trending terms across different categories. Make sure the
         """Parse Bedrock response into trending terms list."""
         try:
             # Extract JSON from the response (handle markdown formatting)
-            json_start = response.find('[')
-            json_end = response.rfind(']') + 1
+            json_start = response.find("[")
+            json_end = response.rfind("]") + 1
 
             if json_start == -1 or json_end == 0:
                 raise ValueError("No JSON array found in response")
@@ -537,15 +545,19 @@ Generate 15-20 diverse trending terms across different categories. Make sure the
                     except ValueError:
                         category = TrendingCategory.SLANG  # Default fallback
 
-                    validated_terms.append({
-                        "term": term_data["term"].strip(),
-                        "definition": term_data["definition"].strip(),
-                        "category": category,
-                        "popularity_score": Decimal(str(term_data["popularity_score"])),
-                        "example_usage": term_data.get("example_usage", "").strip(),
-                        "origin": term_data.get("origin", "").strip(),
-                        "related_terms": term_data.get("related_terms", []),
-                    })
+                    validated_terms.append(
+                        {
+                            "term": term_data["term"].strip(),
+                            "definition": term_data["definition"].strip(),
+                            "category": category,
+                            "popularity_score": Decimal(
+                                str(term_data["popularity_score"])
+                            ),
+                            "example_usage": term_data.get("example_usage", "").strip(),
+                            "origin": term_data.get("origin", "").strip(),
+                            "related_terms": term_data.get("related_terms", []),
+                        }
+                    )
 
             return validated_terms
 
@@ -602,7 +614,11 @@ Generate 15-20 diverse trending terms across different categories. Make sure the
                 "popularity_score": 69.1,
                 "example_usage": "She's really living her main character moment",
                 "origin": "Social media/TikTok",
-                "related_terms": ["protagonist", "main energy", "main character syndrome"],
+                "related_terms": [
+                    "protagonist",
+                    "main energy",
+                    "main character syndrome",
+                ],
             },
             {
                 "term": "it's giving",

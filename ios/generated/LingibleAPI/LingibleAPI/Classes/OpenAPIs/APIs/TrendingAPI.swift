@@ -25,7 +25,7 @@ open class TrendingAPI {
 
     /**
      Get trending GenZ slang terms
-     
+
      - parameter limit: (query) Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms  (optional, default to 50)
      - parameter category: (query) Filter by trending category. - Free tier: Only &#39;slang&#39; category allowed - Premium tier: All categories available  (optional)
      - parameter activeOnly: (query) Show only active trending terms (optional, default to true)
@@ -47,14 +47,14 @@ open class TrendingAPI {
     /**
      Get trending GenZ slang terms
      - GET /trending
-     - Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options 
+     - Get a list of currently trending GenZ slang terms with popularity scores and metadata.  **Free Tier Features:** - Access to top 10 trending slang terms - Basic definitions and categories - Limited to 'slang' category only  **Premium Tier Features:** - Access to up to 100 trending terms - All categories (slang, meme, expression, hashtag, phrase) - Detailed usage examples and origins - Related terms and synonyms - Search and translation counts - Advanced filtering options
      - Bearer Token:
        - type: http
        - name: BearerAuth
      - parameter limit: (query) Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms  (optional, default to 50)
      - parameter category: (query) Filter by trending category. - Free tier: Only &#39;slang&#39; category allowed - Premium tier: All categories available  (optional)
      - parameter activeOnly: (query) Show only active trending terms (optional, default to true)
-     - returns: RequestBuilder<TrendingListResponse> 
+     - returns: RequestBuilder<TrendingListResponse>
      */
     open class func trendingGetWithRequestBuilder(limit: Int? = nil, category: Category_trendingGet? = nil, activeOnly: Bool? = nil) -> RequestBuilder<TrendingListResponse> {
         let localVariablePath = "/trending"

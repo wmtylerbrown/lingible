@@ -38,7 +38,9 @@ class APIGatewayEnvelope(BaseEnvelope):
         # Return the model instance instead of the dictionary
         return model(**result)
 
-    def _extract_common_data(self, event: CustomAPIGatewayProxyEventModel) -> Dict[str, Any]:
+    def _extract_common_data(
+        self, event: CustomAPIGatewayProxyEventModel
+    ) -> Dict[str, Any]:
         """Extract common data from API Gateway event."""
         # Get request metadata (API Gateway always provides requestContext)
         if not event.requestContext:
@@ -66,7 +68,9 @@ class APIGatewayEnvelope(BaseEnvelope):
 class AuthenticatedAPIGatewayEnvelope(APIGatewayEnvelope):
     """Base envelope for authenticated API Gateway events."""
 
-    def _extract_common_data(self, event: CustomAPIGatewayProxyEventModel) -> Dict[str, Any]:
+    def _extract_common_data(
+        self, event: CustomAPIGatewayProxyEventModel
+    ) -> Dict[str, Any]:
         """Extract common data from API Gateway event with authentication validation."""
         # Extract user info from authorizer context (set by API Gateway authorizer)
         user_id = None
@@ -234,7 +238,6 @@ class AccountDeletionEnvelope(AuthenticatedAPIGatewayEnvelope):
         base_data["request_body"] = request_body
 
         return base_data
-
 
 
 class AppleWebhookEnvelope(APIGatewayEnvelope):

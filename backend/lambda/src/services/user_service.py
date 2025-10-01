@@ -9,7 +9,7 @@ from models.users import (
     UserUsageResponse,
 )
 from models.translations import UsageLimit
-from utils.logging import logger
+from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.config import get_config_service, UsageLimitsConfig, CognitoConfig
 from utils.exceptions import ValidationError
@@ -26,7 +26,6 @@ class UserService:
         self.config_service = get_config_service()
         self.repository = UserRepository()
         self.usage_config = self.config_service.get_config(UsageLimitsConfig)
-
 
     @tracer.trace_method("create_user")
     def create_user(
@@ -96,16 +95,18 @@ class UserService:
             daily_used=usage_limits.daily_used,
             daily_remaining=daily_remaining,
             reset_date=usage_limits.reset_daily_at,
-            current_max_text_length=self.usage_config.free_max_text_length if usage_limits.tier == UserTier.FREE else self.usage_config.premium_max_text_length,
+            current_max_text_length=(
+                self.usage_config.free_max_text_length
+                if usage_limits.tier == UserTier.FREE
+                else self.usage_config.premium_max_text_length
+            ),
             free_tier_max_length=self.usage_config.free_max_text_length,
             premium_tier_max_length=self.usage_config.premium_max_text_length,
             free_daily_limit=self.usage_config.free_daily_translations,
             premium_daily_limit=self.usage_config.premium_daily_translations,
         )
 
-    def _create_default_usage_limits(
-        self, user_id: str, tier: UserTier
-    ) -> UsageLimit:
+    def _create_default_usage_limits(self, user_id: str, tier: UserTier) -> UsageLimit:
         """Create default usage limits for a user."""
         # Use Central Time midnight for reset
         tomorrow_start = get_central_midnight_tomorrow()
@@ -208,8 +209,6 @@ class UserService:
             },
         )
 
-
-
     @tracer.trace_method("delete_user")
     def delete_user(self, user_id: str) -> None:
         """Delete a user and all associated data from both DynamoDB and Cognito."""
@@ -222,8 +221,7 @@ class UserService:
             cognito_client = get_cognito_client()
 
             cognito_client.admin_delete_user(
-                UserPoolId=cognito_config.user_pool_id,
-                Username=user_id
+                UserPoolId=cognito_config.user_pool_id, Username=user_id
             )
 
             logger.log_business_event(
@@ -242,8 +240,8 @@ class UserService:
                 {
                     "operation": "delete_cognito_user",
                     "user_id": user_id,
-                    "note": "User data deleted from DynamoDB but Cognito deletion failed"
-                }
+                    "note": "User data deleted from DynamoDB but Cognito deletion failed",
+                },
             )
             # Continue - we don't want to fail the entire deletion if Cognito fails
 

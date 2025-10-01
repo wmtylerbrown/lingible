@@ -14,7 +14,7 @@ open class SystemAPI {
 
     /**
      Health check endpoint
-     
+
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -37,7 +37,7 @@ open class SystemAPI {
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - returns: RequestBuilder<HealthResponse> 
+     - returns: RequestBuilder<HealthResponse>
      */
     open class func healthGetWithRequestBuilder() -> RequestBuilder<HealthResponse> {
         let localVariablePath = "/health"

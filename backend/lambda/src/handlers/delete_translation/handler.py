@@ -44,5 +44,5 @@ def handler(event: PathParameterEvent, context: LambdaContext) -> BaseResponse:
             "translation_id": translation_id,
             "message": "Translation deleted successfully",
         },
-        timestamp=datetime.now().isoformat(),
+        timestamp=datetime.now(),
     )

@@ -146,4 +146,3 @@ When the OpenAPI specification is updated:
 5. Commit all changes together
 
 This ensures the iOS client stays in sync with the backend API implementation.
-

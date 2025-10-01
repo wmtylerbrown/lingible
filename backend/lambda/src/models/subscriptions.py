@@ -11,9 +11,11 @@ from enum import Enum
 from pydantic import Field
 from .base import LingibleBaseModel
 
+
 # Domain Models
 class StoreEnvironment(str, Enum):
     """Store environment options."""
+
     SANDBOX = "sandbox"
     PRODUCTION = "production"
 
@@ -49,8 +51,12 @@ class TransactionData(LingibleBaseModel):
     """Core transaction data model - used throughout the system."""
 
     provider: SubscriptionProvider = Field(..., description="Subscription provider")
-    transaction_id: str = Field(..., min_length=1, description="Provider transaction ID")
-    product_id: str = Field(..., min_length=1, description="Product ID from the app store")
+    transaction_id: str = Field(
+        ..., min_length=1, description="Provider transaction ID"
+    )
+    product_id: str = Field(
+        ..., min_length=1, description="Product ID from the app store"
+    )
     purchase_date: datetime = Field(..., description="Purchase date in ISO format")
     expiration_date: Optional[datetime] = Field(
         None, description="Expiration date in ISO format (for subscriptions)"
@@ -70,10 +76,12 @@ class UserSubscription(LingibleBaseModel):
     start_date: datetime = Field(..., description="Subscription start date")
     end_date: Optional[datetime] = Field(None, description="Subscription end date")
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Record creation date"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Record creation date",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Last update date"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Last update date",
     )
 
     def to_api_response(self) -> "UserSubscriptionResponse":
@@ -96,9 +104,7 @@ class UserSubscriptionResponse(LingibleBaseModel):
     transaction_id: str = Field(..., description="Provider transaction ID")
     status: SubscriptionStatus = Field(..., description="Subscription status")
     start_date: datetime = Field(..., description="Subscription start date")
-    end_date: Optional[datetime] = Field(
-        None, description="Subscription end date"
-    )
+    end_date: Optional[datetime] = Field(None, description="Subscription end date")
     created_at: datetime = Field(..., description="Record creation date")
 
 
@@ -115,15 +121,11 @@ class UserUpgradeRequest(LingibleBaseModel):
     product_id: str = Field(
         ..., min_length=1, description="Product ID from the app store"
     )
-    purchase_date: datetime = Field(
-        ..., description="Purchase date in ISO format"
-    )
+    purchase_date: datetime = Field(..., description="Purchase date in ISO format")
     expiration_date: Optional[datetime] = Field(
         None, description="Expiration date in ISO format (for subscriptions)"
     )
-    environment: StoreEnvironment = Field(
-        ..., description="App Store environment"
-    )
+    environment: StoreEnvironment = Field(..., description="App Store environment")
 
     def to_transaction_data(self) -> TransactionData:
         """Convert to TransactionData object."""
@@ -133,14 +135,16 @@ class UserUpgradeRequest(LingibleBaseModel):
             product_id=self.product_id,
             purchase_date=self.purchase_date,
             expiration_date=self.expiration_date,
-            environment=self.environment
+            environment=self.environment,
         )
 
 
 class ReceiptValidationRequest(LingibleBaseModel):
     """Request model for receipt validation - simplified for StoreKit 2."""
 
-    transaction_data: TransactionData = Field(..., description="Transaction data to validate")
+    transaction_data: TransactionData = Field(
+        ..., description="Transaction data to validate"
+    )
     user_id: Optional[str] = Field(None, description="User ID for audit logging")
 
 
@@ -149,7 +153,9 @@ class ReceiptValidationResult(LingibleBaseModel):
 
     is_valid: bool = Field(..., description="Whether receipt is valid")
     status: ReceiptValidationStatus = Field(..., description="Validation status")
-    transaction_data: TransactionData = Field(..., description="Validated transaction data")
+    transaction_data: TransactionData = Field(
+        ..., description="Validated transaction data"
+    )
     error_message: Optional[str] = Field(
         None, description="Error message if validation failed"
     )

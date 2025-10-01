@@ -45,4 +45,3 @@ public struct PaginationInfo: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(hasMore, forKey: .hasMore)
     }
 }
-

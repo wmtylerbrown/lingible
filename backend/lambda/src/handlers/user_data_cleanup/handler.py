@@ -8,7 +8,7 @@ from services.user_service import UserService
 from services.subscription_service import SubscriptionService
 from services.translation_service import TranslationService
 from utils.tracing import tracer
-from utils.logging import logger
+from utils.smart_logger import logger
 
 # Initialize services at module level for Lambda container reuse
 user_service = UserService()
@@ -18,9 +18,7 @@ translation_service = TranslationService()
 
 @tracer.trace_lambda
 @event_parser(model=UserDataCleanupEvent)
-def handler(
-    event: UserDataCleanupEvent, context: LambdaContext
-) -> dict:
+def handler(event: UserDataCleanupEvent, context: LambdaContext) -> dict:
     """Comprehensive cleanup of user data from all tables."""
     try:
         user_id = event.user_id

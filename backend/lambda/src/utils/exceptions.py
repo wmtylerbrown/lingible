@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-from .logging import logger
+from .smart_logger import logger
 from models.base import HTTPStatus, ErrorCode
 
 

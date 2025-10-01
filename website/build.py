@@ -271,6 +271,15 @@ def build_website():
     print("🧭 Copying navigation script...")
     shutil.copy2(src_dir / "navigation.js", build_dir / "navigation.js")
 
+    # Copy app-ads.txt for AdMob verification
+    print("📱 Copying app-ads.txt for AdMob verification...")
+    app_ads_file = src_dir / "app-ads.txt"
+    if app_ads_file.exists():
+        shutil.copy2(app_ads_file, build_dir / "app-ads.txt")
+        print("  ✅ Copied app-ads.txt")
+    else:
+        print("  ⚠️ app-ads.txt not found in src directory")
+
     # Copy assets from shared directory
     print("🖼️ Copying assets from shared directory...")
 

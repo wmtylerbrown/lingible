@@ -6,7 +6,7 @@ repos:
       - id: black
         language_version: python3
         args: [--line-length=88]
-        files: ^backend/src/.*\.py$
+        files: ^backend/lambda/src/.*\.py$
 
   # Flake8 - Linting
   - repo: https://github.com/pycqa/flake8
@@ -14,7 +14,8 @@ repos:
     hooks:
       - id: flake8
         args: [--max-line-length=88]
-        files: ^backend/src/.*\.py$
+        files: ^backend/lambda/src/.*\.py$
+        exclude: ^backend/lambda/src/utils/slang_words\.py$
 
   # MyPy - Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -23,7 +24,8 @@ repos:
       - id: mypy
         additional_dependencies: [types-requests]
         args: [--ignore-missing-imports]
-        files: ^backend/src/.*\.py$
+        files: ^backend/lambda/src/.*\.py$
+        exclude: ^backend/lambda/src/utils/slang_words\.py$
 
   # Trailing whitespace and end-of-file fixes
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -37,7 +37,8 @@ class User(LingibleBaseModel):
 
     # Metadata
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc), description="Account creation date"
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Account creation date",
     )
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -75,7 +76,9 @@ class UpgradeResponse(LingibleBaseModel):
     success: bool = Field(..., description="Whether the upgrade was successful")
     message: str = Field(..., description="Success or error message")
     tier: str = Field(default="premium", description="User tier after upgrade")
-    expires_at: datetime | None = Field(default=None, description="Subscription expiration date")
+    expires_at: datetime | None = Field(
+        default=None, description="Subscription expiration date"
+    )
 
 
 class UserUsageResponse(LingibleBaseModel):
@@ -88,20 +91,30 @@ class UserUsageResponse(LingibleBaseModel):
     reset_date: datetime = Field(..., description="Next daily reset date")
 
     # Limits data with clear names
-    current_max_text_length: int = Field(..., description="Maximum text length for user's current tier")
+    current_max_text_length: int = Field(
+        ..., description="Maximum text length for user's current tier"
+    )
     free_tier_max_length: int = Field(..., description="Free tier text length limit")
-    premium_tier_max_length: int = Field(..., description="Premium tier text length limit")
+    premium_tier_max_length: int = Field(
+        ..., description="Premium tier text length limit"
+    )
 
     # Daily translation limits for comparison
     free_daily_limit: int = Field(..., description="Free tier daily translation limit")
-    premium_daily_limit: int = Field(..., description="Premium tier daily translation limit")
+    premium_daily_limit: int = Field(
+        ..., description="Premium tier daily translation limit"
+    )
 
 
 class AccountDeletionRequest(LingibleBaseModel):
     """Request model for account deletion."""
 
-    confirmation_text: str = Field(..., description="User must type 'DELETE' to confirm")
-    reason: Optional[str] = Field(None, description="Optional reason for account deletion")
+    confirmation_text: str = Field(
+        ..., description="User must type 'DELETE' to confirm"
+    )
+    reason: Optional[str] = Field(
+        None, description="Optional reason for account deletion"
+    )
 
 
 class AccountDeletionResponse(LingibleBaseModel):

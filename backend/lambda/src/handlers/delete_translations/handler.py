@@ -36,5 +36,5 @@ def handler(event: SimpleAuthenticatedEvent, context: LambdaContext) -> BaseResp
             "deleted_count": deleted_count,
             "message": f"Successfully deleted {deleted_count} translations",
         },
-        timestamp=datetime.now().isoformat(),
+        timestamp=datetime.now(),
     )

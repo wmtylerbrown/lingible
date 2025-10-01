@@ -67,7 +67,7 @@ export class WebsiteStack extends cdk.Stack {
     // For production, we can't create a hosted zone since lingible.com is in Squarespace
     // We'll need to manually configure DNS in Squarespace
     let hostedZone: route53.IHostedZone | undefined;
-    
+
     if (environment !== 'prod') {
       // Only create hosted zone for non-production environments
       hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
@@ -76,16 +76,16 @@ export class WebsiteStack extends cdk.Stack {
     }
 
     // Create SSL certificate for the domain (include both apex and www for production)
-    const certificateDomains = environment === 'prod' 
-      ? [finalDomainName, `www.${finalDomainName}`] 
+    const certificateDomains = environment === 'prod'
+      ? [finalDomainName, `www.${finalDomainName}`]
       : [finalDomainName];
-    
+
     // For production, we need to use email validation since we can't use DNS validation
     // For other environments, we can use DNS validation
     const certificate = new acm.Certificate(this, 'WebsiteCertificate', {
       domainName: finalDomainName,
       subjectAlternativeNames: environment === 'prod' ? [`www.${finalDomainName}`] : undefined,
-      validation: environment === 'prod' 
+      validation: environment === 'prod'
         ? acm.CertificateValidation.fromEmail() // Email validation for production
         : acm.CertificateValidation.fromDns(hostedZone!), // DNS validation for other environments
     });

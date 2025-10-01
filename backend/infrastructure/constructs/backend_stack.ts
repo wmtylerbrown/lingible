@@ -121,10 +121,20 @@ export class BackendStack extends Construct {
         TRANSLATIONS_TABLE: config.tables.translations_table.name,
         TRENDING_TABLE: config.tables.trending_table.name,
 
-        // Bedrock Config
-        BEDROCK_MODEL: backendConfig.bedrock.model,
-        BEDROCK_MAX_TOKENS: backendConfig.bedrock.max_tokens.toString(),
-        BEDROCK_TEMPERATURE: backendConfig.bedrock.temperature.toString(),
+        // LLM Config
+        LLM_MODEL_ID: backendConfig.llm.model,
+        LLM_MAX_TOKENS: backendConfig.llm.max_tokens.toString(),
+        LLM_TEMPERATURE: backendConfig.llm.temperature.toString(),
+        LLM_TOP_P: backendConfig.llm.top_p.toString(),
+
+        // Lexicon Config
+        LEXICON_S3_BUCKET: backendConfig.lexicon.s3_bucket,
+        LEXICON_S3_KEY: backendConfig.lexicon.s3_key,
+        LEXICON_LOCAL_PATH: backendConfig.lexicon.local_path,
+
+        // Age Filtering
+        AGE_MAX_RATING: backendConfig.age_filtering.max_rating,
+        AGE_FILTER_MODE: backendConfig.age_filtering.filter_mode,
 
         // Usage Limits
         FREE_DAILY_TRANSLATIONS: backendConfig.limits.free_daily_translations.toString(),
@@ -560,7 +570,7 @@ export class BackendStack extends Construct {
         'bedrock:InvokeModel',
       ],
       resources: [
-        `arn:aws:bedrock:${config.bedrock.region}::foundation-model/${backendConfig.bedrock.model}`,
+        `arn:aws:bedrock:${config.bedrock.region}::foundation-model/${backendConfig.llm.model}`,
       ],
     }));
 
@@ -1315,7 +1325,7 @@ export class BackendStack extends Construct {
         job_type: 'gen_z_slang_analysis',
         source: 'bedrock_ai',
         parameters: {
-          model: backendConfig.bedrock.model,
+          model: backendConfig.llm.model,
           max_terms: 20,
           categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
         },
@@ -1343,7 +1353,7 @@ export class BackendStack extends Construct {
         job_type: 'gen_z_slang_analysis',
         source: 'bedrock_ai',
         parameters: {
-          model: backendConfig.bedrock.model,
+          model: backendConfig.llm.model,
           max_terms: 20,
           categories: ['slang', 'meme', 'expression', 'hashtag', 'phrase'],
         },

@@ -14,7 +14,7 @@ from models.subscriptions import (
 )
 from services.apple_storekit_service import AppleStoreKitService
 from repositories.subscription_repository import SubscriptionRepository
-from utils.logging import logger
+from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.exceptions import (
     ValidationError,
@@ -32,7 +32,11 @@ class SubscriptionService:
         self.subscription_repository = SubscriptionRepository()
         self.apple_storekit_service = AppleStoreKitService()
 
-    def verify_and_decode_apple_webhook(self, signed_payload: str, environment: StoreEnvironment = StoreEnvironment.PRODUCTION):
+    def verify_and_decode_apple_webhook(
+        self,
+        signed_payload: str,
+        environment: StoreEnvironment = StoreEnvironment.PRODUCTION,
+    ):
         """
         Verify Apple webhook JWS signature and decode the payload.
 
@@ -43,8 +47,9 @@ class SubscriptionService:
         Returns:
             ResponseBodyV2DecodedPayload if valid, None otherwise
         """
-        return self.apple_storekit_service.verify_and_decode_webhook(signed_payload, environment)
-
+        return self.apple_storekit_service.verify_and_decode_webhook(
+            signed_payload, environment
+        )
 
     @tracer.trace_method("validate_and_create_subscription")
     def validate_and_create_subscription(
@@ -83,8 +88,7 @@ class SubscriptionService:
                     "Transaction expired", error_code="TRANSACTION_EXPIRED"
                 )
             elif (
-                validation_result.status
-                == ReceiptValidationStatus.ENVIRONMENT_MISMATCH
+                validation_result.status == ReceiptValidationStatus.ENVIRONMENT_MISMATCH
             ):
                 raise ValidationError(
                     "Environment mismatch", error_code="ENVIRONMENT_MISMATCH"
@@ -123,7 +127,6 @@ class SubscriptionService:
                 "product_id": transaction_data.product_id,
             },
         )
-
 
     @tracer.trace_method("handle_renewal_webhook")
     def handle_renewal_webhook(self, transaction_id: str) -> None:
@@ -171,7 +174,6 @@ class SubscriptionService:
 
         self._handle_failed_payment(user_id)
 
-
     def find_user_id_by_transaction_id(self, transaction_id: str) -> Optional[str]:
         """Find user ID by transaction ID."""
         # Find subscription by transaction ID
@@ -183,7 +185,6 @@ class SubscriptionService:
 
         # Return user ID only
         return subscription.user_id
-
 
     @tracer.trace_method("get_active_subscription")
     def get_active_subscription(self, user_id: str) -> Optional[UserSubscription]:
@@ -205,10 +206,12 @@ class SubscriptionService:
             raise BusinessLogicError(
                 f"Failed to cancel subscription for user: {user_id}",
                 "SUBSCRIPTION_CANCELLATION_FAILED",
-                details={"user_id": user_id}
+                details={"user_id": user_id},
             )
 
-    def _handle_renewal_with_validation(self, user_id: str, transaction_id: str) -> None:
+    def _handle_renewal_with_validation(
+        self, user_id: str, transaction_id: str
+    ) -> None:
         """Handle subscription renewal with StoreKit 2 validation."""
 
         # Get current subscription
@@ -233,13 +236,15 @@ class SubscriptionService:
             user_id=user_id,
         )
 
-        validation_result = self.apple_storekit_service.validate_transaction(validation_request)
+        validation_result = self.apple_storekit_service.validate_transaction(
+            validation_request
+        )
 
         if not validation_result.is_valid:
             raise BusinessLogicError(
                 f"Renewal transaction validation failed: {validation_result.error_message}",
                 "RENEWAL_VALIDATION_FAILED",
-                details={"user_id": user_id, "transaction_id": transaction_id}
+                details={"user_id": user_id, "transaction_id": transaction_id},
             )
 
         # Update subscription with validated data from Apple
@@ -253,7 +258,7 @@ class SubscriptionService:
             raise BusinessLogicError(
                 "Failed to update subscription in database",
                 "SUBSCRIPTION_UPDATE_FAILED",
-                details={"user_id": user_id, "transaction_id": transaction_id}
+                details={"user_id": user_id, "transaction_id": transaction_id},
             )
 
         logger.log_business_event(
@@ -261,39 +266,38 @@ class SubscriptionService:
             {
                 "user_id": user_id,
                 "transaction_id": transaction_id,
-                "expiration_date": validation_result.transaction_data.expiration_date.isoformat() if validation_result.transaction_data.expiration_date else None,
+                "expiration_date": (
+                    validation_result.transaction_data.expiration_date.isoformat()
+                    if validation_result.transaction_data.expiration_date
+                    else None
+                ),
             },
         )
-
 
     def _handle_cancellation(self, user_id: str) -> None:
         """Handle subscription cancellation from Apple webhook."""
 
         logger.log_business_event(
             "subscription_cancellation_received",
-            {
-                "user_id": user_id,
-                "source": "apple_webhook"
-            }
+            {"user_id": user_id, "source": "apple_webhook"},
         )
 
         # Step 1: Cancel subscription in our database (archive it)
-        subscription_cancelled = self.subscription_repository.cancel_subscription(user_id)
+        subscription_cancelled = self.subscription_repository.cancel_subscription(
+            user_id
+        )
         if not subscription_cancelled:
             raise BusinessLogicError(
                 "Failed to cancel subscription in database",
                 "SUBSCRIPTION_CANCELLATION_FAILED",
-                details={"user_id": user_id}
+                details={"user_id": user_id},
             )
 
         # Note: User tier downgrade should be handled by UserService orchestration
 
         logger.log_business_event(
             "subscription_cancellation_completed",
-            {
-                "user_id": user_id,
-                "subscription_archived": True
-            }
+            {"user_id": user_id, "subscription_archived": True},
         )
 
     def _handle_failed_payment(self, user_id: str) -> None:
@@ -301,10 +305,7 @@ class SubscriptionService:
 
         logger.log_business_event(
             "subscription_payment_failed",
-            {
-                "user_id": user_id,
-                "source": "apple_webhook"
-            }
+            {"user_id": user_id, "source": "apple_webhook"},
         )
 
         # Get current subscription
@@ -316,20 +317,19 @@ class SubscriptionService:
         subscription.status = SubscriptionStatus.EXPIRED
         subscription.updated_at = datetime.now(timezone.utc)
 
-        subscription_updated = self.subscription_repository.update_subscription(subscription)
+        subscription_updated = self.subscription_repository.update_subscription(
+            subscription
+        )
         if not subscription_updated:
             raise BusinessLogicError(
                 "Failed to update subscription status to EXPIRED",
                 "SUBSCRIPTION_EXPIRATION_FAILED",
-                details={"user_id": user_id}
+                details={"user_id": user_id},
             )
 
         # Note: User tier downgrade should be handled by UserService orchestration
 
         logger.log_business_event(
             "subscription_payment_failure_handled",
-            {
-                "user_id": user_id,
-                "subscription_status": "EXPIRED"
-            }
+            {"user_id": user_id, "subscription_status": "EXPIRED"},
         )

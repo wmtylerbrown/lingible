@@ -106,5 +106,3 @@ class AppleWebhookRequest(BaseModel):
             "environment": obj.get("environment") if obj.get("environment") is not None else 'production'
         })
         return _obj
-
-

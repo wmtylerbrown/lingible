@@ -62,4 +62,3 @@ public struct AppleWebhookRequest: Codable, JSONEncodable, Hashable {
         try container.encodeIfPresent(environment, forKey: .environment)
     }
 }
-

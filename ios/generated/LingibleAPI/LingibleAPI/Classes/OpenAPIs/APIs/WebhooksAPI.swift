@@ -14,8 +14,8 @@ open class WebhooksAPI {
 
     /**
      Apple webhook for subscription notifications
-     
-     - parameter appleWebhookRequest: (body)  
+
+     - parameter appleWebhookRequest: (body)
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
@@ -35,8 +35,8 @@ open class WebhooksAPI {
      Apple webhook for subscription notifications
      - POST /webhook/apple
      - Webhook endpoint for Apple App Store subscription notifications
-     - parameter appleWebhookRequest: (body)  
-     - returns: RequestBuilder<WebhookResponse> 
+     - parameter appleWebhookRequest: (body)
+     - returns: RequestBuilder<WebhookResponse>
      */
     open class func webhookApplePostWithRequestBuilder(appleWebhookRequest: AppleWebhookRequest) -> RequestBuilder<WebhookResponse> {
         let localVariablePath = "/webhook/apple"

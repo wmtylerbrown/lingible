@@ -85,5 +85,3 @@ class UsageLimits(BaseModel):
             "premium_tier": obj.get("premium_tier")
         })
         return _obj
-
-

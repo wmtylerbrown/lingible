@@ -67,6 +67,7 @@ class LingibleBaseModel(BaseModel):
 
     class Config:
         """Pydantic configuration for consistent serialization."""
+
         # Use enum values instead of enum objects
         use_enum_values = True
         # Validate assignment to catch type errors early
@@ -93,10 +94,10 @@ class LingibleBaseModel(BaseModel):
             elif isinstance(field_value, list):
                 # Handle lists of Pydantic models or other objects
                 result[field_name] = [
-                    item.serialize_model() if hasattr(item, 'serialize_model') else item
+                    item.serialize_model() if hasattr(item, "serialize_model") else item
                     for item in field_value
                 ]
-            elif hasattr(field_value, 'serialize_model'):
+            elif hasattr(field_value, "serialize_model"):
                 # Handle nested Pydantic models
                 result[field_name] = field_value.serialize_model()
             else:

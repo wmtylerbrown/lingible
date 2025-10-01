@@ -6,7 +6,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from models.trending import TrendingJobRequest
 from services.trending_service import TrendingService
 from utils.tracing import tracer
-from utils.logging import logger
+from utils.smart_logger import logger
 
 
 # Initialize services at module level (Lambda container reuse)
@@ -61,8 +61,10 @@ def handler(event: dict, context: LambdaContext) -> dict:
             "headers": {
                 "Content-Type": "application/json",
             },
-            "body": json.dumps({
-                "error": "Internal server error",
-                "message": str(e),
-            }),
+            "body": json.dumps(
+                {
+                    "error": "Internal server error",
+                    "message": str(e),
+                }
+            ),
         }

@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**free_tier** | **int** | Daily translations for free tier | [optional] 
-**premium_tier** | **int** | Daily translations for premium tier | [optional] 
+**free_tier** | **int** | Daily translations for free tier | [optional]
+**premium_tier** | **int** | Daily translations for premium tier | [optional]
 
 ## Example
 
@@ -26,5 +26,3 @@ usage_limits_dict = usage_limits_instance.to_dict()
 usage_limits_from_dict = UsageLimits.from_dict(usage_limits_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

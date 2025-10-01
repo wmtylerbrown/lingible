@@ -4,10 +4,20 @@ import * as path from 'path';
 // Backend configuration (what Python Lambda uses)
 export interface BackendConfig {
   environment: string;
-  bedrock: {
+  llm: {
     model: string;
     max_tokens: number;
     temperature: number;
+    top_p: number;
+  };
+  lexicon: {
+    s3_bucket: string;
+    s3_key: string;
+    local_path: string;
+  };
+  age_filtering: {
+    max_rating: string;
+    filter_mode: string;
   };
   limits: {
     free_daily_translations: number;
@@ -114,7 +124,7 @@ export class ConfigLoader {
       ...infrastructureConfig,
       bedrock: {
         ...infrastructureConfig.bedrock,
-        model: backendConfig.bedrock.model  // Get model from backend config
+        model: backendConfig.llm.model  // Get model from backend config
       }
     };
   }

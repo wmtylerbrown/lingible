@@ -79,7 +79,7 @@ with lingible_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **limit** | **int**| Number of trending terms to return. - Free tier: Maximum 10 terms - Premium tier: Maximum 100 terms  | [optional] [default to 50]
- **category** | **str**| Filter by trending category. - Free tier: Only &#39;slang&#39; category allowed - Premium tier: All categories available  | [optional] 
+ **category** | **str**| Filter by trending category. - Free tier: Only &#39;slang&#39; category allowed - Premium tier: All categories available  | [optional]
  **active_only** | **bool**| Show only active trending terms | [optional] [default to True]
 
 ### Return type
@@ -104,4 +104,3 @@ Name | Type | Description  | Notes
 **400** | Invalid request parameters |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-

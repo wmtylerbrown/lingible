@@ -13,7 +13,7 @@ from utils.tracing import tracer
 from utils.decorators import api_handler, extract_user_from_parsed_data
 from utils.envelopes import AccountDeletionEnvelope
 from utils.exceptions import ValidationError
-from utils.logging import logger
+from utils.smart_logger import logger
 
 
 # Initialize services at module level (Lambda container reuse)
@@ -26,7 +26,9 @@ translation_service = TranslationService()
 @tracer.trace_lambda
 @event_parser(model=AccountDeletionEvent, envelope=AccountDeletionEnvelope)
 @api_handler(extract_user_id=extract_user_from_parsed_data)
-def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDeletionResponse:
+def handler(
+    event: AccountDeletionEvent, context: LambdaContext
+) -> AccountDeletionResponse:
     """Handle user account deletion requests from mobile app."""
 
     # Get user ID from the event (already validated by envelope)
@@ -41,8 +43,8 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
         {
             "user_id": user_id,
             "reason": event.reason,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     )
 
     # Check for active subscription before proceeding
@@ -50,20 +52,22 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
     if active_subscription:
         raise ValidationError(
             "Cannot delete account with active subscription. Please cancel your subscription first in the App Store or Google Play Store, then try again.",
-            error_code="ACTIVE_SUBSCRIPTION_EXISTS"
+            error_code="ACTIVE_SUBSCRIPTION_EXISTS",
         )
 
     cleanup_summary = {
         "translations_deleted": 0,
-        "data_retention_period": "30 days for billing records"
+        "data_retention_period": "30 days for billing records",
     }
 
     # Step 1: Delete all user translations
     translations_deleted = 0
-    translations_deleted = translation_service.delete_user_translations(user_id, is_account_deletion=True)
+    translations_deleted = translation_service.delete_user_translations(
+        user_id, is_account_deletion=True
+    )
     logger.log_business_event(
         "translations_deleted_during_account_deletion",
-        {"user_id": user_id, "deleted_count": translations_deleted}
+        {"user_id": user_id, "deleted_count": translations_deleted},
     )
 
     cleanup_summary["translations_deleted"] = translations_deleted
@@ -77,8 +81,8 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
         {
             "user_id": user_id,
             "translations_deleted": translations_deleted,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     )
 
     # Return success response
@@ -86,5 +90,5 @@ def handler(event: AccountDeletionEvent, context: LambdaContext) -> AccountDelet
         success=True,
         message="Your account and all associated data have been permanently deleted.",
         deleted_at=datetime.now(timezone.utc),
-        cleanup_summary=cleanup_summary
+        cleanup_summary=cleanup_summary,
     )

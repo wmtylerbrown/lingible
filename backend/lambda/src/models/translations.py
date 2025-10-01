@@ -63,10 +63,11 @@ class Translation(LingibleBaseModel):
     model_used: Optional[str] = Field(None, description="AI model used for translation")
 
     # Usage data for response
-    daily_used: int = Field(..., description="Total translations used today (after this translation)")
+    daily_used: int = Field(
+        ..., description="Total translations used today (after this translation)"
+    )
     daily_limit: int = Field(..., description="Daily translation limit")
     tier: UserTier = Field(..., description="User tier (free/premium)")
-
 
 
 class TranslationHistory(LingibleBaseModel):
@@ -87,11 +88,11 @@ class TranslationHistory(LingibleBaseModel):
 class UsageLimit(LingibleBaseModel):
     """Model for usage limits (database storage)."""
 
-    tier: UserTier = Field(..., description="User tier (free/premium) - source of truth for performance")
-    daily_used: int = Field(0, ge=0, description="Current daily usage")
-    reset_daily_at: datetime = Field(
-        ..., description="When daily limit resets"
+    tier: UserTier = Field(
+        ..., description="User tier (free/premium) - source of truth for performance"
     )
+    daily_used: int = Field(0, ge=0, description="Current daily usage")
+    reset_daily_at: datetime = Field(..., description="When daily limit resets")
 
 
 class UsageLimitResponse(LingibleBaseModel):
@@ -127,7 +128,9 @@ class BedrockRequest(LingibleBaseModel):
     temperature: Decimal = Field(
         Decimal("0.7"), ge=0.0, le=1.0, description="Temperature for generation"
     )
-    top_p: Decimal = Field(Decimal("0.9"), ge=0.0, le=1.0, description="Top-p sampling parameter")
+    top_p: Decimal = Field(
+        Decimal("0.9"), ge=0.0, le=1.0, description="Top-p sampling parameter"
+    )
 
 
 class BedrockResponse(LingibleBaseModel):
@@ -144,7 +147,11 @@ class BedrockResponse(LingibleBaseModel):
 class TranslationHistoryServiceResult(LingibleBaseModel):
     """Service return type for translation history operations."""
 
-    translations: List[TranslationHistory] = Field(..., description="List of translation history items")
+    translations: List[TranslationHistory] = Field(
+        ..., description="List of translation history items"
+    )
     total_count: int = Field(..., ge=0, description="Total number of translations")
     has_more: bool = Field(..., description="Whether there are more results available")
-    last_evaluated_key: Optional[Dict[str, Any]] = Field(None, description="Pagination key for next request")
+    last_evaluated_key: Optional[Dict[str, Any]] = Field(
+        None, description="Pagination key for next request"
+    )

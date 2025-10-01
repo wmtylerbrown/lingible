@@ -5,11 +5,14 @@ from typing import Optional
 
 from models.users import User, UserTier
 from models.translations import UsageLimit
-from utils.logging import logger
+from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
 from utils.config import get_config_service
-from utils.timezone_utils import get_central_midnight_tomorrow, get_central_midnight_today
+from utils.timezone_utils import (
+    get_central_midnight_tomorrow,
+    get_central_midnight_today,
+)
 from utils.exceptions import SystemError
 
 
@@ -19,7 +22,7 @@ class UserRepository:
     def __init__(self) -> None:
         """Initialize user repository."""
         self.config_service = get_config_service()
-        self.table_name = self.config_service._get_env_var('USERS_TABLE')
+        self.table_name = self.config_service._get_env_var("USERS_TABLE")
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "users")
@@ -30,7 +33,7 @@ class UserRepository:
             item = {
                 "PK": f"USER#{user.user_id}",
                 "SK": "PROFILE",
-                **user.model_dump(mode='json'),  # Serialize the User object to dict
+                **user.model_dump(mode="json"),  # Serialize the User object to dict
                 "ttl": int(
                     datetime.now(timezone.utc).timestamp() + (365 * 24 * 60 * 60)
                 ),  # 1 year TTL
@@ -87,7 +90,7 @@ class UserRepository:
             item = {
                 "PK": f"USER#{user.user_id}",
                 "SK": "PROFILE",
-                **user.model_dump(mode='json'),  # Serialize the User object to dict
+                **user.model_dump(mode="json"),  # Serialize the User object to dict
                 "ttl": int(
                     datetime.now(timezone.utc).timestamp() + (365 * 24 * 60 * 60)
                 ),  # 1 year TTL

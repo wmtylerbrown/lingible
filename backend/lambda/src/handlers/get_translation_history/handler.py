@@ -9,7 +9,7 @@ from services.translation_service import TranslationService
 from utils.tracing import tracer
 from utils.decorators import api_handler, extract_user_from_parsed_data
 from utils.envelopes import TranslationHistoryEnvelope
-from utils.logging import logger
+from utils.smart_logger import logger
 
 
 # Initialize service at module level (Lambda container reuse)
@@ -41,8 +41,8 @@ def handler(
             "limit": limit,
             "offset": offset,
             "last_evaluated_key": last_evaluated_key,
-            "event_type": "translation_history_request"
-        }
+            "event_type": "translation_history_request",
+        },
     )
 
     # For offset-based pagination, we need to fetch more items and slice
@@ -80,8 +80,8 @@ def handler(
             "result_count": len(result.translations),
             "total_count": result.total_count,
             "has_more": result.has_more,
-            "event_type": "translation_history_success"
-        }
+            "event_type": "translation_history_success",
+        },
     )
 
     # Return the service result directly - decorator handles the API response creation
