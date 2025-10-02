@@ -13,7 +13,6 @@ export interface BackendConfig {
   lexicon: {
     s3_bucket: string;
     s3_key: string;
-    local_path: string;
   };
   age_filtering: {
     max_rating: string;

@@ -14,6 +14,8 @@ import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as eventTargets from 'aws-cdk-lib/aws-events-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 
 import { Duration, RemovalPolicy, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
@@ -25,6 +27,9 @@ export class BackendStack extends Construct {
   public usersTable!: dynamodb.Table;
   public translationsTable!: dynamodb.Table;
   public trendingTable!: dynamodb.Table;
+
+  // S3 resources
+  public lexiconBucket!: s3.Bucket;
 
   // Cognito resources
   public userPool!: cognito.UserPool;
@@ -102,6 +107,9 @@ export class BackendStack extends Construct {
       { name: config.tables.translations_table.name, read_capacity: 5, write_capacity: 5 },
       { name: config.tables.trending_table.name, read_capacity: 5, write_capacity: 5 }
     );
+
+    // Create S3 bucket for lexicon
+    this.createLexiconBucket(backendConfig.lexicon.s3_bucket);
     const lambdaConfig = {
       runtime: lambda.Runtime.PYTHON_3_13,
       timeout: Duration.seconds(30),
@@ -130,7 +138,6 @@ export class BackendStack extends Construct {
         // Lexicon Config
         LEXICON_S3_BUCKET: backendConfig.lexicon.s3_bucket,
         LEXICON_S3_KEY: backendConfig.lexicon.s3_key,
-        LEXICON_LOCAL_PATH: backendConfig.lexicon.local_path,
 
         // Age Filtering
         AGE_MAX_RATING: backendConfig.age_filtering.max_rating,
@@ -187,6 +194,25 @@ export class BackendStack extends Construct {
           'logs:PutLogEvents',
         ],
         resources: ['*'],
+      }),
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          's3:ListBucket',
+        ],
+        resources: [
+          this.lexiconBucket.bucketArn,
+        ],
+      }),
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          's3:GetObject',
+          's3:GetObjectVersion',
+        ],
+        resources: [
+          `${this.lexiconBucket.bucketArn}/*`,
+        ],
       }),
     ];
 
@@ -300,6 +326,18 @@ export class BackendStack extends Construct {
       },
     });
 
+  }
+
+  private createLexiconBucket(bucketName: string): void {
+    // Create S3 bucket for lexicon storage
+    this.lexiconBucket = new s3.Bucket(this, 'LexiconBucket', {
+      bucketName: bucketName,
+      removalPolicy: RemovalPolicy.DESTROY, // For development
+      autoDeleteObjects: true, // Automatically delete objects when bucket is destroyed
+      versioned: false, // Lexicon files don't need versioning
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
   }
 
   private createCertificates(environment: string, hostedZone: route53.IHostedZone): void {

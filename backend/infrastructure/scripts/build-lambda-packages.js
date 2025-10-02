@@ -208,7 +208,7 @@ function buildSharedLayer() {
   const pythonDir = path.join(layerDir, 'python');
 
   // Calculate hash for shared code
-  const sharedDirs = ['models', 'repositories', 'services', 'utils'];
+  const sharedDirs = ['models', 'repositories', 'services', 'utils', 'data'];
   let sharedHash = '';
 
   for (const dirName of sharedDirs) {

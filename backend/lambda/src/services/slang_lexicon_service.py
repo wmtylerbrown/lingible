@@ -26,28 +26,18 @@ class SlangLexiconService:
             return self._lexicon
 
         try:
-            if self.config.lexicon_local_path and os.path.exists(
-                self.config.lexicon_local_path
-            ):
-                logger.log_business_event(
-                    "lexicon_loading",
-                    {"source": "local", "path": self.config.lexicon_local_path},
-                )
-                with open(self.config.lexicon_local_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            else:
-                logger.log_business_event(
-                    "lexicon_loading",
-                    {
-                        "source": "s3",
-                        "bucket": self.config.lexicon_s3_bucket,
-                        "key": self.config.lexicon_s3_key,
-                    },
-                )
-                response = aws_services.s3_client.get_object(
-                    Bucket=self.config.lexicon_s3_bucket, Key=self.config.lexicon_s3_key
-                )
-                data = json.loads(response["Body"].read().decode("utf-8"))
+            logger.log_business_event(
+                "lexicon_loading",
+                {
+                    "source": "s3",
+                    "bucket": self.config.lexicon_s3_bucket,
+                    "key": self.config.lexicon_s3_key,
+                },
+            )
+            response = aws_services.s3_client.get_object(
+                Bucket=self.config.lexicon_s3_bucket, Key=self.config.lexicon_s3_key
+            )
+            data = json.loads(response["Body"].read().decode("utf-8"))
 
             self._lexicon = SlangLexicon(**data)
             logger.log_business_event(
@@ -57,7 +47,37 @@ class SlangLexiconService:
 
         except Exception as e:
             logger.log_error(e, {"operation": "lexicon_loading"})
-            raise RuntimeError(f"Failed to load slang lexicon: {e}")
+            logger.log_business_event(
+                "lexicon_fallback",
+                {"reason": "primary_lexicon_failed", "error": str(e)},
+            )
+
+            # Fallback to default lexicon
+            try:
+                fallback_path = os.path.join(
+                    os.path.dirname(__file__),
+                    "..",
+                    "data",
+                    "lexicons",
+                    "default_lexicon.json",
+                )
+                logger.log_business_event(
+                    "lexicon_loading", {"source": "fallback", "path": fallback_path}
+                )
+                with open(fallback_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                self._lexicon = SlangLexicon(**data)
+                logger.log_business_event(
+                    "lexicon_loaded",
+                    {"term_count": self._lexicon.count, "source": "fallback"},
+                )
+                return self._lexicon
+            except Exception as fallback_error:
+                logger.log_error(fallback_error, {"operation": "lexicon_fallback"})
+                raise RuntimeError(
+                    f"Failed to load slang lexicon from both primary and fallback sources: {e}, {fallback_error}"
+                )
 
     def get_lexicon(self) -> SlangLexicon:
         """Get the loaded lexicon, loading it if necessary."""

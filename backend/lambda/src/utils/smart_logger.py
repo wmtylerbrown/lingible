@@ -73,22 +73,27 @@ class SmartLogger:
 
         # Add debug information in development
         if self.is_debug:
-            log_data["debug_info"] = {
+            debug_info = {
                 "error_module": getattr(error, "__module__", "unknown"),
-                "error_file": (
-                    getattr(error, "__traceback__", {})
-                    .get("tb_frame", {})
-                    .get("f_code", {})
-                    .get("co_filename", "unknown")
-                    if hasattr(error, "__traceback__")
-                    else "unknown"
-                ),
-                "error_line": (
-                    getattr(error, "__traceback__", {}).get("tb_lineno", "unknown")
-                    if hasattr(error, "__traceback__")
-                    else "unknown"
-                ),
+                "error_file": "unknown",
+                "error_line": "unknown",
             }
+
+            # Try to get traceback information safely
+            try:
+                tb = getattr(error, "__traceback__", None)
+                if tb is not None:
+                    # Get the most recent frame from the traceback
+                    frame = tb.tb_frame
+                    if frame is not None:
+                        code = frame.f_code
+                        debug_info["error_file"] = code.co_filename
+                        debug_info["error_line"] = frame.f_lineno
+            except Exception:
+                # If we can't get traceback info, just use the defaults
+                pass
+
+            log_data["debug_info"] = debug_info
 
         self.logger.error("Error occurred", extra=log_data)
 

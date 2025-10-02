@@ -8,8 +8,7 @@
   },
   "lexicon": {
     "s3_bucket": "lingible-lexicon-prod",
-    "s3_key": "lexicon/latest.json",
-    "local_path": ""
+    "s3_key": "lexicon/latest.json"
   },
   "age_filtering": {
     "max_rating": "M18",

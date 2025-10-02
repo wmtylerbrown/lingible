@@ -114,7 +114,6 @@ class LLMConfig(BaseModel):
     # Lexicon configuration
     lexicon_s3_bucket: str = Field(description="S3 bucket for lexicon")
     lexicon_s3_key: str = Field(description="S3 key for lexicon")
-    lexicon_local_path: str = Field(description="Local lexicon path (optional)")
 
     # LLM configuration
     model: str = Field(description="LLM model ID")

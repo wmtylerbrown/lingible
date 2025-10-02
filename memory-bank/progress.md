@@ -445,3 +445,24 @@
 - **Code Quality**: Updated all references to handle optional AdManager throughout the iOS app
 - **Debugging Enhancement**: Added comprehensive logging to track ad visibility updates and user tier changes
 - **Clean Architecture**: AdManager only initializes when needed, eliminating race conditions and premature ad loading
+
+### 🔍 **Subscription Validation Issue for Account Deletion (2024-12-19)**
+- **Issue Identified**: Users with expired subscriptions cannot delete accounts due to stale subscription data
+- **Backend Problem**: `get_active_subscription()` only checks `status: "active"` field, ignores `end_date` expiration
+- **iOS Problem**: Uses local cached StoreKit data (`Transaction.currentEntitlements`) instead of real-time Apple server queries
+- **Root Cause**: Both systems rely on cached/stale data rather than validating current subscription status
+- **Impact**: Legitimate account deletions blocked for users with expired but still "active" subscriptions
+- **Analysis Completed**:
+  - Backend validation logic analyzed in `user_account_deletion` handler
+  - iOS validation logic analyzed in `ProfileView.swift` and `SubscriptionManager.swift`
+  - Identified that `Transaction.currentEntitlements` uses local device receipt, not real-time Apple queries
+- **Solution Options Identified**:
+  1. **Backend Fix**: Add expiration date validation to `get_active_subscription()` method
+  2. **iOS Fix**: Add Apple Receipt Validation API calls for real-time validation
+  3. **Hybrid Approach**: Combine backend expiration checks with iOS Apple server validation
+  4. **Graceful Degradation**: Allow account deletion with proper warnings and fallback validation
+- **Recommended Implementation**:
+  - Phase 1: Backend expiration date validation (quick fix, low risk)
+  - Phase 2: iOS Apple receipt validation (enhanced user experience)
+  - Phase 3: Full App Store Server API integration (comprehensive solution)
+- **Status**: Analysis complete, solutions documented, ready for implementation

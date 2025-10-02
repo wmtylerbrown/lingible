@@ -73,19 +73,19 @@ class SlangLLMService:
         # Build the prompt with or without term mappings
         term_mappings_text = ""
         if term_mappings:
-            term_mappings_text = f"- Prefer these term→gloss mappings (≤3-word swaps):\n{json.dumps(term_mappings, ensure_ascii=False)}\n- If multiple gloss options exist, choose the most natural grammar.\n"
+            term_mappings_text = f"- The following term→gloss mappings are available for reference:\n{json.dumps(term_mappings, ensure_ascii=False)}\n- You can use these mappings to translate the slang terms if you do not high confidence (≥0.8) in your own translation.\n- These mappings are not exhaustive, so you may need to use your own knowledge to translate the slang terms to be the most gramatically correct.\n"
         else:
             term_mappings_text = (
                 "- Identify and translate any slang terms you recognize.\n"
             )
 
-        return f"""You are a precise, concise slang translator. Output ONLY JSON.
+        return f"""You are a precise, concise Gen Z slang translator. You excel at translating Gen Z slang to everyday English. Output ONLY valid JSON.
 
 Rules:
-- Preserve names, numbers, and punctuation.
 {term_mappings_text}- Rate your confidence from 0.0 (very uncertain) to 1.0 (completely certain).
 - If you have high confidence (≥0.8), make the translation even if it changes the text significantly.
-- Return JSON: {{"clean_text":"...","applied_terms":["..."],"confidence":0.95}}
+- Return EXACTLY this JSON format: {{"clean_text":"translated text here","applied_terms":["term1","term2"],"confidence":0.95}}
+- applied_terms must be an array of strings (slang terms that were translated)
 
 Examples:
 - "no cap" → "for real"
@@ -106,10 +106,11 @@ Text: "{text}"
 Translate:"""
 
     def _call_bedrock(self, prompt: str) -> str:
-        """Call AWS Bedrock for translation."""
+        """Call AWS Bedrock for translation using Messages API."""
         body = {
-            "prompt": prompt,
-            "max_tokens_to_sample": self.config.max_tokens,
+            "anthropic_version": "bedrock-2023-05-31",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": self.config.max_tokens,
             "temperature": self.config.temperature,
             "top_p": self.config.top_p,
         }
@@ -119,29 +120,93 @@ Translate:"""
         )
 
         data = json.loads(response["body"].read())
-        return data["completions"][0]["data"]["text"]
+        return data["content"][0]["text"]
 
     def _parse_llm_response(self, response: str) -> SlangTranslationResponse:
         """Parse structured JSON response from LLM."""
+        # Log the raw response for debugging
+        logger.log_debug("LLM Raw Response", {"response": response[:500]})
+
         try:
-            data = json.loads(response)
+            # Clean the response - remove any markdown formatting or extra text
+            cleaned_response = response.strip()
+
+            # Try to extract JSON from the response if it's wrapped in markdown
+            if "```json" in cleaned_response:
+                start = cleaned_response.find("```json") + 7
+                end = cleaned_response.find("```", start)
+                if end != -1:
+                    cleaned_response = cleaned_response[start:end].strip()
+            elif "```" in cleaned_response:
+                start = cleaned_response.find("```") + 3
+                end = cleaned_response.find("```", start)
+                if end != -1:
+                    cleaned_response = cleaned_response[start:end].strip()
+
+            # Try to parse as JSON
+            data = json.loads(cleaned_response)
+
+            # Extract fields with fallbacks
+            translated = data.get(
+                "clean_text", data.get("translated", data.get("text", ""))
+            )
+            applied_terms = data.get("applied_terms", data.get("terms", []))
             confidence = data.get("confidence", 0.5)
 
             # Validate confidence range
             if not isinstance(confidence, (int, float)) or not 0.0 <= confidence <= 1.0:
                 confidence = 0.5  # Default to medium confidence
 
+            # Validate and clean applied_terms
+            if not isinstance(applied_terms, list):
+                applied_terms = []
+            else:
+                # Clean applied_terms - ensure all items are strings
+                cleaned_terms = []
+                for term in applied_terms:
+                    if isinstance(term, str):
+                        cleaned_terms.append(term)
+                    elif isinstance(term, dict):
+                        # If it's a dict like {"hard launch": "reveal"}, extract the key
+                        cleaned_terms.extend(list(term.keys()))
+                    else:
+                        # Convert other types to strings
+                        cleaned_terms.append(str(term))
+                applied_terms = cleaned_terms
+
+            logger.log_debug(
+                "LLM Parsed Response",
+                {
+                    "translated": translated[:100],
+                    "applied_terms": applied_terms,
+                    "confidence": confidence,
+                },
+            )
+
             return SlangTranslationResponse(
-                translated=data.get("clean_text", ""),
-                applied_terms=data.get("applied_terms", []),
+                translated=translated,
+                applied_terms=applied_terms,
                 confidence=Decimal(str(confidence)),
             )
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.log_debug(
+                "LLM JSON Parse Error", {"error": str(e), "response": response[:200]}
+            )
             # Fallback to simple text extraction
             return SlangTranslationResponse(
                 translated=response.strip(),
                 applied_terms=[],
                 confidence=Decimal("0.3"),  # Low confidence for fallback
+            )
+        except Exception as e:
+            logger.log_error(
+                e, {"operation": "parse_llm_response", "response": response[:200]}
+            )
+            # Fallback to simple text extraction
+            return SlangTranslationResponse(
+                translated=response.strip(),
+                applied_terms=[],
+                confidence=Decimal("0.1"),  # Very low confidence for error fallback
             )
 
     def _fallback_translation(self, text: str, spans: List[TranslationSpan]) -> str:
@@ -159,7 +224,7 @@ Translate:"""
 
     def _create_english_to_genz_prompt(self, text: str) -> str:
         """Create prompt for English to GenZ translation."""
-        return f"""You are a precise GenZ translator. Output ONLY JSON.
+        return f"""You are a precise GenZ translator. Output ONLY valid JSON.
 
 Text: "{text}"
 
@@ -170,7 +235,8 @@ Rules:
 - Don't over-explain or be too formal
 - Rate your confidence from 0.0 (very uncertain) to 1.0 (completely certain)
 - If you have high confidence (≥0.8), make bold slang choices
-- Return JSON: {{"clean_text":"...","applied_terms":["..."],"confidence":0.95}}
+- applied_terms must be an array of strings (slang terms that were added)
+- Return EXACTLY this JSON format: {{"clean_text":"translated text here","applied_terms":["term1","term2"],"confidence":0.95}}
 
 Examples:
 - "that's really good" → "that's fire"

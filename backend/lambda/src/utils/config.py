@@ -163,7 +163,6 @@ class ConfigService:
             return LLMConfig(
                 lexicon_s3_bucket=self._get_env_var("LEXICON_S3_BUCKET"),
                 lexicon_s3_key=self._get_env_var("LEXICON_S3_KEY"),
-                lexicon_local_path=self._get_env_var("LEXICON_LOCAL_PATH"),
                 model=self._get_env_var("LLM_MODEL_ID"),
                 max_tokens=int(self._get_env_var("LLM_MAX_TOKENS")),
                 temperature=float(self._get_env_var("LLM_TEMPERATURE")),
