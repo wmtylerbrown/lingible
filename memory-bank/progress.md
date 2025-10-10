@@ -339,6 +339,20 @@
 - **iOS Client Regeneration**: Updated Swift client with non-optional fields and simplified translation models
 - **Protocol Updates**: Removed incrementTranslationCount from UserServiceProtocol, simplified ad management
 
+### ✅ **Translation Failure UX & Premium Slang Submissions (2025-10-10)**
+- **Translation Failure Detection**: Smart detection when Bedrock returns same text (ignoring punctuation differences)
+- **No Charge on Failures**: Users NOT charged when translation fails - daily limits preserved
+- **Brand-Voice Messaging**: Randomized failure messages with Gen Z voice for varied, engaging UX
+- **Configurable Messages**: Dedicated `translation_messages.py` module with 4-5 variants per failure type
+- **Configurable Threshold**: `low_confidence_threshold` in LLM config - easy to tune without code changes
+- **Premium Slang Submissions**: Complete end-to-end feature for users to submit slang with examples
+- **Submission API**: POST `/slang/submit` - rate limited (10/day), duplicate detection, premium-only
+- **Admin Notifications**: SNS topic for new submission notifications
+- **Infrastructure**: DynamoDB table, SNS topic, Lambda handler all wired with proper IAM permissions
+- **Test Coverage**: 26 tests passing - failures, randomization, submissions, repository operations
+- **Client SDKs**: Python & Swift regenerated with new endpoints
+- **Environment Variables**: All table names and SNS ARNs in base env vars for consistency
+
 ### ✅ **Shared TypeScript Types Cleanup (2024-12-19)**
 - **Outdated Types Removal**: Deleted manually maintained TypeScript types that were frequently out of sync
 - **Single Source of Truth**: OpenAPI specification now serves as the single source for all API type definitions

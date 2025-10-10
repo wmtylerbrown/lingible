@@ -9,6 +9,7 @@ export interface BackendConfig {
     max_tokens: number;
     temperature: number;
     top_p: number;
+    low_confidence_threshold: number;
   };
   lexicon: {
     s3_bucket: string;
@@ -48,6 +49,7 @@ export interface InfrastructureConfig {
     users_table: { name: string };
     translations_table: { name: string };
     trending_table: { name: string };
+    slang_submissions_table: { name: string };
   };
   apple: {
     client_id: string;

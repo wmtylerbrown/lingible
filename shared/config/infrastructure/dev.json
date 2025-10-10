@@ -15,6 +15,9 @@
     },
     "trending_table": {
       "name": "lingible-trending-dev"
+    },
+    "slang_submissions_table": {
+      "name": "lingible-slang-submissions-dev"
     }
   },
   "apple": {

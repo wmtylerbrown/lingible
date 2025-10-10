@@ -19,14 +19,26 @@ class TestTranslationService:
     """Test TranslationService."""
 
     @pytest.fixture
-    def translation_service(self, mock_bedrock_client, mock_config):
+    def translation_service(self, mock_config):
         """Create TranslationService with mocked dependencies."""
-        with patch('src.services.translation_service.aws_services') as mock_aws_services:
-            with patch('src.services.translation_service.get_config_service') as mock_get_config:
-                mock_aws_services.bedrock_runtime = mock_bedrock_client
-                mock_get_config.return_value = mock_config
-                service = TranslationService()
-                return service
+        with patch('services.translation_service.get_config_service') as mock_get_config:
+            with patch('services.translation_service.TranslationRepository') as mock_repo_class:
+                with patch('services.translation_service.UserService') as mock_user_service_class:
+                    with patch('services.translation_service.SlangService') as mock_slang_service_class:
+                        mock_get_config.return_value = mock_config
+
+                        # Create mock instances
+                        mock_repo_class.return_value = Mock()
+                        mock_user_service_class.return_value = Mock()
+
+                        # Configure slang service mock with config
+                        mock_slang_service = Mock()
+                        mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                        mock_slang_service.config.low_confidence_threshold = 0.3
+                        mock_slang_service_class.return_value = mock_slang_service
+
+                        service = TranslationService()
+                        return service
 
     def test_translate_english_to_genz(self, translation_service, sample_user):
         """Test translation from English to GenZ."""
@@ -231,6 +243,433 @@ class TestTranslationService:
 
             # Usage should NOT be incremented on failure
             mock_user_service.increment_usage.assert_not_called()
+
+    def test_translation_fails_when_returning_same_text(self, translation_service):
+        """Test that translation is marked as failed when it returns the same text."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+        from src.models.slang import SlangTranslationResponse
+        from decimal import Decimal
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Hello world",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        # Mock usage response
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=5,
+            daily_remaining=5,
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=100,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
+        )
+
+        # Mock slang service to return same text (translation failed)
+        slang_result = SlangTranslationResponse(
+            translated="Hello world",  # Same as input!
+            confidence=Decimal("0.2"),
+            applied_terms=[]
+        )
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                with patch.object(translation_service, 'translation_repository') as mock_repo:
+                    mock_user_service.get_user_usage.return_value = usage_response
+                    mock_slang_service.translate_to_genz.return_value = slang_result
+                    mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                    mock_slang_service.config.low_confidence_threshold = 0.3
+                    mock_repo.generate_translation_id.return_value = "trans_123"
+
+                    result = translation_service.translate_text(request, user_id)
+
+                    # Translation should be marked as failed
+                    from utils.translation_messages import TranslationMessages
+                    assert result.translation_failed is True
+                    assert result.failure_reason == "low_confidence"
+                    assert result.user_message is not None
+                    assert result.user_message in TranslationMessages.LOW_CONFIDENCE
+
+                    # Usage should NOT be incremented
+                    mock_user_service.increment_usage.assert_not_called()
+
+                    # Daily used should remain the same
+                    assert result.daily_used == usage_response.daily_used
+
+                    # Translation history should NOT be saved
+                    mock_repo.create_translation.assert_not_called()
+
+                    # can_submit_feedback should be False for free users
+                    assert result.can_submit_feedback is False
+
+    def test_translation_fails_with_no_translation_needed_message(self, translation_service):
+        """Test translation failure with 'no translation needed' message for higher confidence."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+        from src.models.slang import SlangTranslationResponse
+        from decimal import Decimal
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="This is already plain English",
+            direction=TranslationDirection.GENZ_TO_ENGLISH,
+            user_id=user_id
+        )
+
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=3,
+            daily_remaining=7,
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=100,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
+        )
+
+        # Mock slang service - same text but higher confidence
+        slang_result = SlangTranslationResponse(
+            translated="This is already plain English",  # Same text
+            confidence=Decimal("0.8"),  # Higher confidence
+            applied_terms=[]
+        )
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                with patch.object(translation_service, 'translation_repository') as mock_repo:
+                    mock_user_service.get_user_usage.return_value = usage_response
+                    mock_slang_service.translate_to_english.return_value = slang_result
+                    mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                    mock_slang_service.config.low_confidence_threshold = 0.3
+                    mock_repo.generate_translation_id.return_value = "trans_456"
+
+                    result = translation_service.translate_text(request, user_id)
+
+                    # Should be marked as failed
+                    from utils.translation_messages import TranslationMessages
+                    assert result.translation_failed is True
+                    assert result.failure_reason == "no_translation_needed"
+                    assert result.user_message is not None
+                    assert result.user_message in TranslationMessages.NO_TRANSLATION_GENZ_TO_ENGLISH
+
+                    # Usage should NOT be incremented
+                    mock_user_service.increment_usage.assert_not_called()
+
+    def test_premium_user_can_submit_feedback_on_failure(self, translation_service):
+        """Test that premium users get can_submit_feedback=True on translation failure."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse, User, UserStatus
+        from src.models.slang import SlangTranslationResponse
+        from decimal import Decimal
+
+        user_id = "premium_user_456"
+        request = TranslationRequestInternal(
+            text="obscure slang",
+            direction=TranslationDirection.GENZ_TO_ENGLISH,
+            user_id=user_id
+        )
+
+        usage_response = UserUsageResponse(
+            tier=UserTier.PREMIUM,
+            daily_limit=100,
+            daily_used=5,
+            daily_remaining=95,
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=500,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
+        )
+
+        # Mock slang service - translation failed
+        slang_result = SlangTranslationResponse(
+            translated="obscure slang",  # Same text
+            confidence=Decimal("0.4"),
+            applied_terms=[]
+        )
+
+        # Mock premium user
+        mock_premium_user = User(
+            user_id=user_id,
+            email="premium@test.com",
+            username="premiumuser",
+            tier=UserTier.PREMIUM,
+            status=UserStatus.ACTIVE,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                with patch.object(translation_service, 'translation_repository') as mock_repo:
+                    mock_user_service.get_user_usage.return_value = usage_response
+                    mock_user_service.get_user.return_value = mock_premium_user
+                    mock_slang_service.translate_to_english.return_value = slang_result
+                    mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                    mock_slang_service.config.low_confidence_threshold = 0.3
+                    mock_repo.generate_translation_id.return_value = "trans_premium"
+
+                    result = translation_service.translate_text(request, user_id)
+
+                    # Premium user should be able to submit feedback
+                    from utils.translation_messages import TranslationMessages
+                    assert result.translation_failed is True
+                    assert result.can_submit_feedback is True  # Premium user!
+                    assert result.user_message in TranslationMessages.NO_TRANSLATION_GENZ_TO_ENGLISH
+
+    def test_translation_succeeds_and_charges_when_text_differs(self, translation_service):
+        """Test that successful translation charges usage and saves history."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+        from src.models.slang import SlangTranslationResponse
+        from decimal import Decimal
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Hello world",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        usage_response = UserUsageResponse(
+            tier=UserTier.PREMIUM,
+            daily_limit=100,
+            daily_used=10,
+            daily_remaining=90,
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=500,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
+        )
+
+        # Mock successful translation - different text
+        slang_result = SlangTranslationResponse(
+            translated="Yo what's good world",  # Different text!
+            confidence=Decimal("0.95"),
+            applied_terms=["hello -> yo what's good"]
+        )
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                with patch.object(translation_service, 'translation_repository') as mock_repo:
+                    # Mock user service for both usage and premium check
+                    from models.users import User, UserStatus
+                    mock_user = User(
+                        user_id=user_id,
+                        email="premium@test.com",
+                        username="premiumuser",
+                        tier=UserTier.PREMIUM,
+                        status=UserStatus.ACTIVE,
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc)
+                    )
+                    mock_user_service.get_user_usage.return_value = usage_response
+                    mock_user_service.get_user.return_value = mock_user  # For premium check
+
+                    mock_slang_service.translate_to_genz.return_value = slang_result
+                    mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                    mock_repo.generate_translation_id.return_value = "trans_789"
+                    mock_repo.create_translation.return_value = True
+
+                    result = translation_service.translate_text(request, user_id)
+
+                    # Translation should succeed
+                    assert result.translation_failed is False
+                    assert result.failure_reason is None
+                    assert result.user_message is None
+                    assert result.can_submit_feedback is False  # Not a failure, so no feedback option
+
+                    # Usage SHOULD be incremented
+                    mock_user_service.increment_usage.assert_called_once_with(user_id, UserTier.PREMIUM)
+
+                    # Daily used should be incremented
+                    assert result.daily_used == usage_response.daily_used + 1
+
+                    # Translation history SHOULD be saved (premium user)
+                    mock_repo.create_translation.assert_called_once()
+
+    def test_translation_failure_punctuation_differences_ignored(self, translation_service):
+        """Test that punctuation-only differences are treated as failed translation."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+        from src.models.slang import SlangTranslationResponse
+        from decimal import Decimal
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Hello, world!",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=2,
+            daily_remaining=8,
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=100,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
+        )
+
+        # Mock translation with only punctuation differences
+        slang_result = SlangTranslationResponse(
+            translated="Hello world",  # Same but without punctuation
+            confidence=Decimal("0.5"),
+            applied_terms=[]
+        )
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                with patch.object(translation_service, 'translation_repository') as mock_repo:
+                    mock_user_service.get_user_usage.return_value = usage_response
+                    mock_slang_service.translate_to_genz.return_value = slang_result
+                    mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                    mock_slang_service.config.low_confidence_threshold = 0.3
+                    mock_repo.generate_translation_id.return_value = "trans_punc"
+
+                    result = translation_service.translate_text(request, user_id)
+
+                    # Should be treated as failed (punctuation differences ignored)
+                    assert result.translation_failed is True
+
+                    # User should NOT be charged
+                    mock_user_service.increment_usage.assert_not_called()
+                    assert result.daily_used == usage_response.daily_used
+
+    def test_message_randomization_works(self, translation_service):
+        """Test that message randomization provides variety."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+        from src.models.slang import SlangTranslationResponse
+        from decimal import Decimal
+        from utils.translation_messages import TranslationMessages
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Test text",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=1,
+            daily_remaining=9,
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=100,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
+        )
+
+        slang_result = SlangTranslationResponse(
+            translated="Test text",  # Same text
+            confidence=Decimal("0.1"),  # Low confidence
+            applied_terms=[]
+        )
+
+        messages_seen = set()
+
+        # Run translation multiple times to test randomization
+        for _ in range(20):
+            with patch.object(translation_service, 'user_service') as mock_user_service:
+                with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                    with patch.object(translation_service, 'translation_repository') as mock_repo:
+                        mock_user_service.get_user_usage.return_value = usage_response
+                        mock_slang_service.translate_to_genz.return_value = slang_result
+                        mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                        mock_slang_service.config.low_confidence_threshold = 0.3
+                        mock_repo.generate_translation_id.return_value = "trans_rand"
+
+                        result = translation_service.translate_text(request, user_id)
+                        messages_seen.add(result.user_message)
+
+        # Should see variety (at least 2 different messages out of 5 possible)
+        assert len(messages_seen) >= 2
+        # All messages should be from the correct list
+        for msg in messages_seen:
+            assert msg in TranslationMessages.LOW_CONFIDENCE
+
+    def test_configurable_confidence_threshold(self, translation_service):
+        """Test that confidence threshold can be configured."""
+        from src.models.translations import TranslationRequestInternal, TranslationDirection
+        from src.models.users import UserUsageResponse
+        from src.models.slang import SlangTranslationResponse
+        from decimal import Decimal
+
+        user_id = "test_user_123"
+        request = TranslationRequestInternal(
+            text="Test",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            user_id=user_id
+        )
+
+        usage_response = UserUsageResponse(
+            tier=UserTier.FREE,
+            daily_limit=10,
+            daily_used=1,
+            daily_remaining=9,
+            reset_date=datetime.now(timezone.utc),
+            current_max_text_length=100,
+            free_tier_max_length=100,
+            premium_tier_max_length=500,
+            free_daily_limit=10,
+            premium_daily_limit=100
+        )
+
+        # Test with confidence=0.25 (just below default threshold of 0.3)
+        slang_result = SlangTranslationResponse(
+            translated="Test",
+            confidence=Decimal("0.25"),
+            applied_terms=[]
+        )
+
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                with patch.object(translation_service, 'translation_repository') as mock_repo:
+                    mock_user_service.get_user_usage.return_value = usage_response
+                    mock_slang_service.translate_to_genz.return_value = slang_result
+                    mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                    mock_slang_service.config.low_confidence_threshold = 0.3
+                    mock_repo.generate_translation_id.return_value = "trans_thresh"
+
+                    result = translation_service.translate_text(request, user_id)
+
+                    # Should be low_confidence because 0.25 < 0.3
+                    assert result.failure_reason == "low_confidence"
+
+        # Test with higher threshold (0.5)
+        with patch.object(translation_service, 'user_service') as mock_user_service:
+            with patch.object(translation_service, 'slang_service') as mock_slang_service:
+                with patch.object(translation_service, 'translation_repository') as mock_repo:
+                    mock_user_service.get_user_usage.return_value = usage_response
+                    mock_slang_service.translate_to_genz.return_value = slang_result
+                    mock_slang_service.config.model = "anthropic.claude-3-haiku-20240307-v1:0"
+                    mock_slang_service.config.low_confidence_threshold = 0.5  # Higher threshold!
+                    mock_repo.generate_translation_id.return_value = "trans_thresh2"
+
+                    result = translation_service.translate_text(request, user_id)
+
+                    # Should still be low_confidence because 0.25 < 0.5
+                    assert result.failure_reason == "low_confidence"
 
 
 class TestUserService:

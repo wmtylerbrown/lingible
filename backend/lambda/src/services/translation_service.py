@@ -4,6 +4,7 @@ import re
 import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+from decimal import Decimal
 
 from models.translations import (
     TranslationRequestInternal,
@@ -16,6 +17,7 @@ from models.translations import (
 from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.config import get_config_service, UsageLimitsConfig
+from utils.translation_messages import TranslationMessages
 from utils.exceptions import (
     ValidationError,
     UsageLimitExceededError,
@@ -61,14 +63,6 @@ class TranslationService:
                     usage_response.daily_limit,
                 )
 
-            # Atomically increment usage (pass tier for consistency)
-            self.user_service.increment_usage(user_id, usage_response.tier)
-
-            # Calculate updated usage data for response
-            updated_daily_used = usage_response.daily_used + 1
-            updated_daily_limit = usage_response.daily_limit
-            updated_tier = usage_response.tier
-
             # Translate using slang service (handles both directions)
             if request.direction == TranslationDirection.GENZ_TO_ENGLISH:
                 # GenZ → English: Use slang service
@@ -85,21 +79,56 @@ class TranslationService:
             translated_text = slang_result.translated
             confidence_score = slang_result.confidence
 
-            # Validate that we got an actual translation, not the same text
-            if self._is_same_text(translated_text, request.text):
+            # Check if translation failed (returned same text)
+            translation_failed = self._is_same_text(translated_text, request.text)
+
+            # Only charge usage if translation succeeded
+            if not translation_failed:
+                # Atomically increment usage (pass tier for consistency)
+                self.user_service.increment_usage(user_id, usage_response.tier)
+                updated_daily_used = usage_response.daily_used + 1
+            else:
+                # Don't charge user for failed translation
+                updated_daily_used = usage_response.daily_used
                 logger.log_business_event(
-                    "model_returned_same_text",
+                    "translation_failed_no_charge",
                     {
                         "original_text": request.text,
                         "translated_text": translated_text,
-                        "direction": request.direction,
+                        "direction": str(request.direction),
+                        "confidence": str(confidence_score),
                     },
                 )
-                # For now, we'll still return it but log the issue
-                # In production, you might want to retry or use a fallback
+
+            updated_daily_limit = usage_response.daily_limit
+            updated_tier = usage_response.tier
 
             # Calculate processing time
             processing_time_ms = int((time.time() - start_time) * 1000)
+
+            # Determine user message and failure reason
+            failure_reason = None
+            user_message = None
+            if translation_failed:
+                # Provide context-aware user messages with brand voice (randomized for variety)
+                confidence_threshold = Decimal(
+                    str(self.slang_service.config.low_confidence_threshold)
+                )
+
+                if confidence_score < confidence_threshold:
+                    failure_reason = "low_confidence"
+                    user_message = TranslationMessages.get_low_confidence_message()
+                else:
+                    failure_reason = "no_translation_needed"
+                    if request.direction == TranslationDirection.GENZ_TO_ENGLISH:
+                        user_message = TranslationMessages.get_already_english_message()
+                    else:
+                        user_message = TranslationMessages.get_already_genz_message()
+
+            # Check if user can submit feedback (premium feature, only on failures)
+            can_submit_feedback = False
+            if translation_failed:
+                can_submit_feedback = self._is_premium_user(user_id)
 
             # Create response
             response = Translation(
@@ -111,16 +140,18 @@ class TranslationService:
                 created_at=datetime.now(timezone.utc),
                 processing_time_ms=processing_time_ms,
                 model_used=self.slang_service.config.model,
+                translation_failed=translation_failed,
+                failure_reason=failure_reason,
+                user_message=user_message,
+                can_submit_feedback=can_submit_feedback,
                 daily_used=updated_daily_used,
                 daily_limit=updated_daily_limit,
                 tier=updated_tier,
             )
 
-            # Save translation history
-            self._save_translation_history(response, user_id)
-
-            # Only log errors or exceptional cases, not every successful translation
-            # This reduces log volume significantly
+            # Save translation history (only if translation succeeded)
+            if not translation_failed:
+                self._save_translation_history(response, user_id)
 
             return response
 

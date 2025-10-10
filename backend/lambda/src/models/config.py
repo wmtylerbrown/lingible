@@ -120,6 +120,12 @@ class LLMConfig(BaseModel):
     max_tokens: int = Field(description="Maximum tokens for LLM requests")
     temperature: float = Field(description="Temperature for LLM requests")
     top_p: float = Field(description="Top-p for LLM requests")
+    low_confidence_threshold: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold below which translation is marked as low confidence",
+    )
 
     # Age and content filtering
     age_max_rating: AgeRating = Field(description="Maximum age rating")

@@ -16,6 +16,7 @@ class AWSServices:
         self._dynamodb_client: Optional[Any] = None
         self._bedrock_client: Optional[Any] = None
         self._s3_client: Optional[Any] = None
+        self._sns_client: Optional[Any] = None
 
     @property
     def cognito_client(self) -> Any:
@@ -53,6 +54,13 @@ class AWSServices:
         if self._s3_client is None:
             self._s3_client = boto3.client("s3")
         return self._s3_client
+
+    @property
+    def sns_client(self) -> Any:
+        """Get SNS client (lazy initialization)."""
+        if self._sns_client is None:
+            self._sns_client = boto3.client("sns")
+        return self._sns_client
 
     def get_table(self, table_name: str):
         """Get DynamoDB table instance."""

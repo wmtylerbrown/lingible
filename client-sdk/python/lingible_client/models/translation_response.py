@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from typing_extensions import Annotated
 from typing import Optional, Set
@@ -36,16 +36,30 @@ class TranslationResponse(BaseModel):
     created_at: datetime = Field(description="Translation timestamp")
     processing_time_ms: Optional[StrictInt] = Field(default=None, description="Processing time in milliseconds")
     model_used: Optional[StrictStr] = Field(default=None, description="AI model used for translation")
+    translation_failed: StrictBool = Field(description="Whether the translation failed or returned the same text")
+    failure_reason: Optional[StrictStr] = Field(default=None, description="Technical reason for translation failure")
+    user_message: Optional[StrictStr] = Field(default=None, description="User-friendly message about the translation result")
+    can_submit_feedback: Optional[StrictBool] = Field(default=None, description="Whether user can submit slang feedback (premium feature, only true when translation fails)")
     daily_used: StrictInt = Field(description="Total translations used today (after this translation)")
     daily_limit: StrictInt = Field(description="Daily translation limit")
     tier: StrictStr = Field(description="User tier (free/premium)")
-    __properties: ClassVar[List[str]] = ["translation_id", "original_text", "translated_text", "direction", "confidence_score", "created_at", "processing_time_ms", "model_used", "daily_used", "daily_limit", "tier"]
+    __properties: ClassVar[List[str]] = ["translation_id", "original_text", "translated_text", "direction", "confidence_score", "created_at", "processing_time_ms", "model_used", "translation_failed", "failure_reason", "user_message", "can_submit_feedback", "daily_used", "daily_limit", "tier"]
 
     @field_validator('direction')
     def direction_validate_enum(cls, value):
         """Validates the enum"""
         if value not in set(['english_to_genz', 'genz_to_english']):
             raise ValueError("must be one of enum values ('english_to_genz', 'genz_to_english')")
+        return value
+
+    @field_validator('failure_reason')
+    def failure_reason_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['low_confidence', 'no_translation_needed']):
+            raise ValueError("must be one of enum values ('low_confidence', 'no_translation_needed')")
         return value
 
     @field_validator('tier')
@@ -114,6 +128,10 @@ class TranslationResponse(BaseModel):
             "created_at": obj.get("created_at"),
             "processing_time_ms": obj.get("processing_time_ms"),
             "model_used": obj.get("model_used"),
+            "translation_failed": obj.get("translation_failed"),
+            "failure_reason": obj.get("failure_reason"),
+            "user_message": obj.get("user_message"),
+            "can_submit_feedback": obj.get("can_submit_feedback"),
             "daily_used": obj.get("daily_used"),
             "daily_limit": obj.get("daily_limit"),
             "tier": obj.get("tier")

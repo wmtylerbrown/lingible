@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from models.translations import TranslationRequest
 from models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
 from models.users import AccountDeletionRequest
+from models.slang import SlangSubmissionRequest
 from models.events import CustomAPIGatewayProxyEventModel
 from .exceptions import ValidationError, AuthenticationError
 
@@ -139,6 +140,28 @@ class UserUpgradeEnvelope(AuthenticatedAPIGatewayEnvelope):
         request_body = UserUpgradeRequest.model_validate_json(str(event.body))
 
         # Add upgrade-specific data
+        base_data["request_body"] = request_body
+
+        return base_data
+
+
+class SlangSubmissionEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for slang submission endpoints that parses request body."""
+
+    def _parse_api_gateway(
+        self,
+        event: CustomAPIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse slang submission-specific data."""
+        # Parse the request body
+        if not event.body:
+            raise ValidationError("Request body is required")
+
+        request_body = SlangSubmissionRequest.model_validate_json(str(event.body))
+
+        # Add submission-specific data
         base_data["request_body"] = request_body
 
         return base_data

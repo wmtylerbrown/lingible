@@ -4,6 +4,7 @@ Slang translation models following Lingible patterns.
 
 from typing import List, Dict, Optional, Any
 from decimal import Decimal
+from datetime import datetime
 from pydantic import Field, field_validator
 from enum import Enum
 from .base import LingibleBaseModel
@@ -160,3 +161,59 @@ class SlangTranslationResponse(LingibleBaseModel):
     applied_terms: List[str] = Field(
         default_factory=list, description="Terms that were applied"
     )
+
+
+class SubmissionContext(str, Enum):
+    """Context for slang submission."""
+
+    TRANSLATION_FAILURE = "translation_failure"
+    MANUAL = "manual"
+
+
+class SlangSubmission(LingibleBaseModel):
+    """User-submitted slang term for review."""
+
+    submission_id: str = Field(..., description="Unique submission identifier")
+    user_id: str = Field(..., description="Submitting user ID")
+    slang_term: str = Field(..., min_length=1, max_length=100, description="Slang term")
+    meaning: str = Field(
+        ..., min_length=1, max_length=500, description="Term meaning/definition"
+    )
+    example_usage: Optional[str] = Field(
+        None, max_length=500, description="Example usage"
+    )
+    context: SubmissionContext = Field(..., description="Submission context")
+    original_translation_id: Optional[str] = Field(
+        None, description="Original translation ID if from failed translation"
+    )
+    status: ApprovalStatus = Field(
+        default=ApprovalStatus.PENDING, description="Review status"
+    )
+    created_at: datetime = Field(..., description="Submission timestamp")
+    reviewed_at: Optional[datetime] = Field(None, description="Review timestamp")
+    reviewed_by: Optional[str] = Field(None, description="Reviewer user ID")
+
+
+class SlangSubmissionRequest(LingibleBaseModel):
+    """API request for submitting slang."""
+
+    slang_term: str = Field(..., min_length=1, max_length=100, description="Slang term")
+    meaning: str = Field(..., min_length=1, max_length=500, description="Term meaning")
+    example_usage: Optional[str] = Field(
+        None, max_length=500, description="Example usage"
+    )
+    context: SubmissionContext = Field(
+        default=SubmissionContext.MANUAL, description="Submission context"
+    )
+    translation_id: Optional[str] = Field(
+        None, description="Translation ID if from failed translation"
+    )
+
+
+class SlangSubmissionResponse(LingibleBaseModel):
+    """API response for slang submission."""
+
+    submission_id: str = Field(..., description="Created submission ID")
+    status: ApprovalStatus = Field(..., description="Submission status")
+    message: str = Field(..., description="Success message")
+    created_at: datetime = Field(..., description="Submission timestamp")

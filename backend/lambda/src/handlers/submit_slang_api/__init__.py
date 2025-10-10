@@ -1,0 +1,1 @@
+"""Submit slang API handler."""

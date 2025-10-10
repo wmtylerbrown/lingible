@@ -27,6 +27,7 @@ export class BackendStack extends Construct {
   public usersTable!: dynamodb.Table;
   public translationsTable!: dynamodb.Table;
   public trendingTable!: dynamodb.Table;
+  public slangSubmissionsTable!: dynamodb.Table;
 
   // S3 resources
   public lexiconBucket!: s3.Bucket;
@@ -56,6 +57,7 @@ export class BackendStack extends Construct {
   public postConfirmationLambda!: lambda.Function;
   public trendingLambda!: lambda.Function;
   public trendingJobLambda!: lambda.Function;
+  public submitSlangLambda!: lambda.Function;
 
   // Configuration loader
   private configLoader!: ConfigLoader;
@@ -74,6 +76,7 @@ export class BackendStack extends Construct {
   // Monitoring resources
   public dashboard!: cloudwatch.Dashboard;
   public alertTopic!: sns.Topic;
+  public slangSubmissionsTopic!: sns.Topic;
 
   constructor(
     scope: Construct,
@@ -105,11 +108,16 @@ export class BackendStack extends Construct {
     this.createDatabaseTables(
       { name: config.tables.users_table.name, read_capacity: 5, write_capacity: 5 },
       { name: config.tables.translations_table.name, read_capacity: 5, write_capacity: 5 },
-      { name: config.tables.trending_table.name, read_capacity: 5, write_capacity: 5 }
+      { name: config.tables.trending_table.name, read_capacity: 5, write_capacity: 5 },
+      { name: config.tables.slang_submissions_table.name, read_capacity: 5, write_capacity: 5 }
     );
 
     // Create S3 bucket for lexicon
     this.createLexiconBucket(backendConfig.lexicon.s3_bucket);
+
+    // Create monitoring (SNS topics need to exist before lambdas)
+    this.createMonitoring(environment);
+
     const lambdaConfig = {
       runtime: lambda.Runtime.PYTHON_3_13,
       timeout: Duration.seconds(30),
@@ -128,12 +136,14 @@ export class BackendStack extends Construct {
         USERS_TABLE: config.tables.users_table.name,
         TRANSLATIONS_TABLE: config.tables.translations_table.name,
         TRENDING_TABLE: config.tables.trending_table.name,
+        SLANG_SUBMISSIONS_TABLE: config.tables.slang_submissions_table.name,
 
         // LLM Config
         LLM_MODEL_ID: backendConfig.llm.model,
         LLM_MAX_TOKENS: backendConfig.llm.max_tokens.toString(),
         LLM_TEMPERATURE: backendConfig.llm.temperature.toString(),
         LLM_TOP_P: backendConfig.llm.top_p.toString(),
+        LLM_LOW_CONFIDENCE_THRESHOLD: backendConfig.llm.low_confidence_threshold.toString(),
 
         // Lexicon Config
         LEXICON_S3_BUCKET: backendConfig.lexicon.s3_bucket,
@@ -162,6 +172,9 @@ export class BackendStack extends Construct {
         APPLE_KEY_ID: config.apple.in_app_purchase_key_id,
         APPLE_ISSUER_ID: config.apple.issuer_id,
         APPLE_BUNDLE_ID: config.apple.bundle_id,
+
+        // SNS Topics
+        SLANG_SUBMISSIONS_TOPIC_ARN: this.slangSubmissionsTopic.topicArn,
   };
 
 
@@ -181,9 +194,11 @@ export class BackendStack extends Construct {
           this.usersTable.tableArn,
           this.translationsTable.tableArn,
           this.trendingTable.tableArn,
+          this.slangSubmissionsTable.tableArn,
           `${this.usersTable.tableArn}/index/*`,
           `${this.translationsTable.tableArn}/index/*`,
           `${this.trendingTable.tableArn}/index/*`,
+          `${this.slangSubmissionsTable.tableArn}/index/*`,
         ],
       }),
       new iam.PolicyStatement({
@@ -234,9 +249,6 @@ export class BackendStack extends Construct {
     // Create scheduled jobs
     this.createScheduledJobs(environment, backendConfig);
 
-    // Create monitoring
-    this.createMonitoring(environment);
-
     // Add tags to all resources
     cdk.Tags.of(this).add('Application', 'Lingible');
     cdk.Tags.of(this).add('Environment', environment);
@@ -250,7 +262,8 @@ export class BackendStack extends Construct {
   private createDatabaseTables(
     usersTableConfig: { name: string; read_capacity: number; write_capacity: number },
     translationsTableConfig: { name: string; read_capacity: number; write_capacity: number },
-    trendingTableConfig: { name: string; read_capacity: number; write_capacity: number }
+    trendingTableConfig: { name: string; read_capacity: number; write_capacity: number },
+    slangSubmissionsTableConfig: { name: string; read_capacity: number; write_capacity: number }
   ): void {
     // Users table
     this.usersTable = new dynamodb.Table(this, 'UsersTable', {
@@ -323,6 +336,48 @@ export class BackendStack extends Construct {
       sortKey: {
         name: 'popularity_score',
         type: dynamodb.AttributeType.NUMBER,
+      },
+    });
+
+    // Slang Submissions table
+    this.slangSubmissionsTable = new dynamodb.Table(this, 'SlangSubmissionsTable', {
+      tableName: slangSubmissionsTableConfig.name,
+      partitionKey: {
+        name: 'PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY, // For development
+      pointInTimeRecovery: true,
+    });
+
+    // Add GSI for querying submissions by status
+    this.slangSubmissionsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: {
+        name: 'GSI1PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI1SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
+    // Add GSI for querying user submissions (by SK which is USER#{user_id})
+    this.slangSubmissionsTable.addGlobalSecondaryIndex({
+      indexName: 'UserSubmissionsIndex',
+      partitionKey: {
+        name: 'SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI1SK',
+        type: dynamodb.AttributeType.STRING,
       },
     });
 
@@ -793,6 +848,25 @@ export class BackendStack extends Construct {
     });
     lambdaPolicyStatements.forEach(statement => this.trendingLambda.addToRolePolicy(statement));
 
+    this.submitSlangLambda = new lambda.Function(this, 'SubmitSlangLambda', {
+      functionName: `lingible-submit-slang-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.submit_slang_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-submit-slang',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.coreLayer, this.sharedLayer],
+
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
+    });
+    lambdaPolicyStatements.forEach(statement => this.submitSlangLambda.addToRolePolicy(statement));
+
+    // Grant SNS publish permissions for slang submissions
+    this.slangSubmissionsTopic.grantPublish(this.submitSlangLambda);
+
     // Webhook Handlers
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
       functionName: `lingible-apple-webhook-${environment}`,
@@ -1250,6 +1324,46 @@ export class BackendStack extends Construct {
       ],
     });
 
+    // Slang submission endpoint
+    const slang = this.api.root.addResource('slang');
+    const submit = slang.addResource('submit');
+    submit.addMethod('POST', new apigateway.LambdaIntegration(this.submitSlangLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': successModel,
+          },
+        },
+        {
+          statusCode: '400',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '403',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '429',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
     // Apple webhook endpoint (no auth required)
     const webhook = this.api.root.addResource('webhook');
     const apple = webhook.addResource('apple');
@@ -1270,6 +1384,12 @@ export class BackendStack extends Construct {
     this.alertTopic = new sns.Topic(this, 'AlertTopic', {
       topicName: `lingible-alerts-${environment}`,
       displayName: `Lingible ${environment} Alerts`,
+    });
+
+    // Create SNS topic for slang submissions
+    this.slangSubmissionsTopic = new sns.Topic(this, 'SlangSubmissionsTopic', {
+      topicName: `lingible-slang-submissions-${environment}`,
+      displayName: `Lingible ${environment} Slang Submissions`,
     });
 
     // Create CloudWatch Dashboard

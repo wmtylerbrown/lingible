@@ -22,12 +22,15 @@ def fake_aws_credentials():
     original_secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
     original_session_token = os.environ.get('AWS_SESSION_TOKEN')
     original_region = os.environ.get('AWS_DEFAULT_REGION')
+    original_log_level = os.environ.get('LOG_LEVEL')
 
-    # Set fake credentials
+    # Set fake credentials and test environment
     os.environ['AWS_ACCESS_KEY_ID'] = 'fake_access_key'
     os.environ['AWS_SECRET_ACCESS_KEY'] = 'fake_secret_key'
     os.environ['AWS_SESSION_TOKEN'] = 'fake_session_token'
     os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
+    os.environ['LOG_LEVEL'] = 'INFO'
+    os.environ['ENABLE_TRACING'] = 'false'
 
     yield
 
@@ -51,6 +54,11 @@ def fake_aws_credentials():
         os.environ['AWS_DEFAULT_REGION'] = original_region
     else:
         os.environ.pop('AWS_DEFAULT_REGION', None)
+
+    if original_log_level is not None:
+        os.environ['LOG_LEVEL'] = original_log_level
+    else:
+        os.environ.pop('LOG_LEVEL', None)
 
 
 @pytest.fixture
@@ -203,7 +211,8 @@ def mock_tracer():
 @pytest.fixture
 def mock_config():
     """Mock configuration for testing."""
-    from models.config import BedrockModel, TableConfigModel, LimitsModel, TranslationModel
+    from models.config import LLMConfig, UsageLimitsConfig
+    from decimal import Decimal
 
     with patch('src.utils.config.ConfigService') as mock_config_class:
         mock_config = Mock()
@@ -212,55 +221,30 @@ def mock_config():
 
         # Mock the get_config method to return actual Pydantic models
         def mock_get_config(config_type, table_name=None):
-            if config_type == BedrockModel:
-                return BedrockModel(
-                    model="anthropic.claude-3-sonnet-20240229-v1:0",
-                    region="us-east-1",
+            if config_type == LLMConfig:
+                return LLMConfig(
+                    model="anthropic.claude-3-haiku-20240307-v1:0",
                     max_tokens=1000,
-                    temperature=0.7
+                    temperature=0.7,
+                    top_p=0.9,
+                    low_confidence_threshold=0.3,
+                    lexicon_s3_bucket="test-bucket",
+                    lexicon_s3_key="test-key",
+                    age_max_rating="M18",
+                    age_filter_mode="skip"
                 )
-            elif config_type == TableConfigModel:
-                return TableConfigModel(name=f"lingible-{table_name}-test")
-            elif config_type == LimitsModel:
-                return LimitsModel(
-                    free_daily_limit=10,
-                    premium_daily_limit=100,
-                    free_max_text_length=50,
-                    premium_max_text_length=100
-                )
-            elif config_type == TranslationModel:
-                return TranslationModel(
-                    max_text_length=100,
-                    claude_model="anthropic.claude-3-sonnet-20240229-v1:0"
+            elif config_type == UsageLimitsConfig:
+                return UsageLimitsConfig(
+                    free_daily_translations=10,
+                    premium_daily_translations=100,
+                    free_max_text_length=100,
+                    premium_max_text_length=500,
+                    free_history_retention_days=7,
+                    premium_history_retention_days=90
                 )
             return Mock()
 
         mock_config.get_config.side_effect = mock_get_config
-
-        # Keep legacy methods for backward compatibility
-        mock_config.get_bedrock_config.return_value = {
-            "model": "anthropic.claude-3-sonnet-20240229-v1:0",
-            "max_tokens": 1000,
-            "temperature": 0.7,
-        }
-        mock_config.get_apple_store_config.return_value = {
-            "bundle_id": "com.lingible.lingible",
-            "private_key": "test_private_key",
-            "key_id": "test_key_id",
-            "team_id": "test_team_id"
-        }
-        mock_config.get_google_play_config.return_value = {
-            "package_name": "com.lingible.lingible",
-            "service_account_key": "test_key.json",
-            "api_timeout": 10
-        }
-        mock_config.get_database_config.return_value = {
-            "tables": {
-                "users": "lingible-users-test",
-                "translations": "lingible-translations-test",
-                "trending": "lingible-trending-test"
-            }
-        }
         mock_config_class.return_value = mock_config
         yield mock_config
 

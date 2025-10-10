@@ -62,6 +62,20 @@ class Translation(LingibleBaseModel):
     )
     model_used: Optional[str] = Field(None, description="AI model used for translation")
 
+    # Translation failure indicators
+    translation_failed: bool = Field(
+        False, description="Whether the translation failed or returned the same text"
+    )
+    failure_reason: Optional[str] = Field(
+        None, description="Technical reason for translation failure"
+    )
+    user_message: Optional[str] = Field(
+        None, description="User-friendly message about the translation result"
+    )
+    can_submit_feedback: bool = Field(
+        False, description="Whether user can submit slang feedback (premium feature)"
+    )
+
     # Usage data for response
     daily_used: int = Field(
         ..., description="Total translations used today (after this translation)"

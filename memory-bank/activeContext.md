@@ -357,6 +357,23 @@
 - **Enhanced Logging**: Added detailed JWT token and Apple API request logging for debugging authentication issues
 - **Deployment**: Successfully deployed fixes to both dev and prod environments
 
+### ✅ **COMPLETED: Translation Failure UX & Premium Slang Submissions (2025-10-10)**
+- **Translation Failure Detection**: Smart detection when Bedrock returns same text (ignoring punctuation)
+- **No Charge on Failures**: Users NOT charged when translation fails - credits preserved for actual translations
+- **Brand-Voice Messaging**: Randomized failure messages with Gen Z brand voice ("not vibing", "no cap", "Help us out?")
+- **Message Variety**: 4-5 variants per failure type for fresh, engaging UX
+- **Configurable Messages Module**: `utils/translation_messages.py` - easy to update without touching business logic
+- **Configurable Threshold**: `low_confidence_threshold` in LLM config (default 0.3) - tune per environment
+- **Premium Slang Submissions**: Complete feature for users to submit slang terms with examples
+- **Submission API**: POST `/slang/submit` with rate limiting (10/day), duplicate detection, premium-only
+- **Admin Notifications**: SNS topic notifies admins of new submissions for review
+- **DynamoDB Table**: `lingible-slang-submissions-{env}` with GSIs for admin queries and user history
+- **Submission Context**: Tracks whether submitted from translation failure or manually
+- **Infrastructure**: SNS topic, DynamoDB table, Lambda handler all fully wired and tested
+- **Test Coverage**: 26 comprehensive tests passing - translation failures, randomization, submissions
+- **Client SDKs**: Python & Swift SDKs regenerated with new endpoints and models
+- **Fixed Test Infrastructure**: Resolved broken test fixtures that were preventing tests from running
+
 ### ✅ **COMPLETED: Slang Translation System - Hybrid LLM Architecture (2025-10-01)**
 - **Unified Architecture**: Created clean service-oriented architecture for slang translation
 - **Hybrid Approach**: Lexicon-based pattern matching + LLM for intelligent translation

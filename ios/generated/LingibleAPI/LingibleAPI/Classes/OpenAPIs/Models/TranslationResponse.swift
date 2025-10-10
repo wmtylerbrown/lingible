@@ -16,6 +16,10 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         case englishToGenz = "english_to_genz"
         case genzToEnglish = "genz_to_english"
     }
+    public enum FailureReason: String, Codable, CaseIterable {
+        case lowConfidence = "low_confidence"
+        case noTranslationNeeded = "no_translation_needed"
+    }
     public enum Tier: String, Codable, CaseIterable {
         case free = "free"
         case premium = "premium"
@@ -34,6 +38,14 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
     public var processingTimeMs: Int?
     /** AI model used for translation */
     public var modelUsed: String?
+    /** Whether the translation failed or returned the same text */
+    public var translationFailed: Bool
+    /** Technical reason for translation failure */
+    public var failureReason: FailureReason?
+    /** User-friendly message about the translation result */
+    public var userMessage: String?
+    /** Whether user can submit slang feedback (premium feature, only true when translation fails) */
+    public var canSubmitFeedback: Bool?
     /** Total translations used today (after this translation) */
     public var dailyUsed: Int
     /** Daily translation limit */
@@ -41,7 +53,7 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
     /** User tier (free/premium) */
     public var tier: Tier
 
-    public init(translationId: String, originalText: String, translatedText: String, direction: Direction, confidenceScore: Double? = nil, createdAt: Date, processingTimeMs: Int? = nil, modelUsed: String? = nil, dailyUsed: Int, dailyLimit: Int, tier: Tier) {
+    public init(translationId: String, originalText: String, translatedText: String, direction: Direction, confidenceScore: Double? = nil, createdAt: Date, processingTimeMs: Int? = nil, modelUsed: String? = nil, translationFailed: Bool, failureReason: FailureReason? = nil, userMessage: String? = nil, canSubmitFeedback: Bool? = nil, dailyUsed: Int, dailyLimit: Int, tier: Tier) {
         self.translationId = translationId
         self.originalText = originalText
         self.translatedText = translatedText
@@ -50,6 +62,10 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         self.createdAt = createdAt
         self.processingTimeMs = processingTimeMs
         self.modelUsed = modelUsed
+        self.translationFailed = translationFailed
+        self.failureReason = failureReason
+        self.userMessage = userMessage
+        self.canSubmitFeedback = canSubmitFeedback
         self.dailyUsed = dailyUsed
         self.dailyLimit = dailyLimit
         self.tier = tier
@@ -64,6 +80,10 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         case createdAt = "created_at"
         case processingTimeMs = "processing_time_ms"
         case modelUsed = "model_used"
+        case translationFailed = "translation_failed"
+        case failureReason = "failure_reason"
+        case userMessage = "user_message"
+        case canSubmitFeedback = "can_submit_feedback"
         case dailyUsed = "daily_used"
         case dailyLimit = "daily_limit"
         case tier
@@ -81,6 +101,10 @@ public struct TranslationResponse: Codable, JSONEncodable, Hashable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(processingTimeMs, forKey: .processingTimeMs)
         try container.encodeIfPresent(modelUsed, forKey: .modelUsed)
+        try container.encode(translationFailed, forKey: .translationFailed)
+        try container.encodeIfPresent(failureReason, forKey: .failureReason)
+        try container.encodeIfPresent(userMessage, forKey: .userMessage)
+        try container.encodeIfPresent(canSubmitFeedback, forKey: .canSubmitFeedback)
         try container.encode(dailyUsed, forKey: .dailyUsed)
         try container.encode(dailyLimit, forKey: .dailyLimit)
         try container.encode(tier, forKey: .tier)

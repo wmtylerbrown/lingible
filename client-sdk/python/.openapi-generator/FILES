@@ -10,6 +10,9 @@ docs/AppleWebhookRequest.md
 docs/ErrorResponse.md
 docs/HealthResponse.md
 docs/PaginationInfo.md
+docs/SlangApi.md
+docs/SlangSubmissionRequest.md
+docs/SlangSubmissionResponse.md
 docs/SuccessResponse.md
 docs/SystemApi.md
 docs/TranslationApi.md
@@ -32,6 +35,7 @@ docs/WebhooksApi.md
 git_push.sh
 lingible_client/__init__.py
 lingible_client/api/__init__.py
+lingible_client/api/slang_api.py
 lingible_client/api/system_api.py
 lingible_client/api/translation_api.py
 lingible_client/api/trending_api.py
@@ -49,6 +53,8 @@ lingible_client/models/apple_webhook_request.py
 lingible_client/models/error_response.py
 lingible_client/models/health_response.py
 lingible_client/models/pagination_info.py
+lingible_client/models/slang_submission_request.py
+lingible_client/models/slang_submission_response.py
 lingible_client/models/success_response.py
 lingible_client/models/translation_history.py
 lingible_client/models/translation_history_service_result.py
@@ -69,4 +75,7 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
+test/test_slang_api.py
+test/test_slang_submission_request.py
+test/test_slang_submission_response.py
 tox.ini

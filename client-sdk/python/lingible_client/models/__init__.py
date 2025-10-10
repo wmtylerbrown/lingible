@@ -22,6 +22,8 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.error_response import ErrorResponse
     from lingible_client.models.health_response import HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo
+    from lingible_client.models.slang_submission_request import SlangSubmissionRequest
+    from lingible_client.models.slang_submission_response import SlangSubmissionResponse
     from lingible_client.models.success_response import SuccessResponse
     from lingible_client.models.translation_history import TranslationHistory
     from lingible_client.models.translation_history_service_result import TranslationHistoryServiceResult
@@ -51,6 +53,8 @@ from lingible_client.models.apple_webhook_request import AppleWebhookRequest
 from lingible_client.models.error_response import ErrorResponse
 from lingible_client.models.health_response import HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo
+from lingible_client.models.slang_submission_request import SlangSubmissionRequest
+from lingible_client.models.slang_submission_response import SlangSubmissionResponse
 from lingible_client.models.success_response import SuccessResponse
 from lingible_client.models.translation_history import TranslationHistory
 from lingible_client.models.translation_history_service_result import TranslationHistoryServiceResult

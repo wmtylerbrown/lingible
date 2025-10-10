@@ -6,9 +6,9 @@
   "website_base_url": "https://lingible.com",
   "support_email": "support@lingible.com",
   "admob": {
-    "application_identifier": "ca-app-pub-3940256099942544~1458002511",
-    "banner_ad_unit_id": "ca-app-pub-3940256099942544/2934735716",
-    "interstitial_ad_unit_id": "ca-app-pub-3940256099942544/4411468910"
+    "application_identifier": "ca-app-pub-7364009324611772~6700422443",
+    "banner_ad_unit_id": "ca-app-pub-7364009324611772/6744670389",
+    "interstitial_ad_unit_id": "ca-app-pub-7364009324611772/7723512465"
   },
   "subscription": {
     "group_id": "21773870",

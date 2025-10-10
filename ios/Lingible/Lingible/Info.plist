@@ -53,6 +53,10 @@
 	<false/>
 	<key>GADApplicationIdentifier</key>
 	<string>$(GAD_APPLICATION_IDENTIFIER)</string>
+	<key>GAD_BANNER_AD_UNIT_ID</key>
+	<string>$(GAD_BANNER_AD_UNIT_ID)</string>
+	<key>GAD_INTERSTITIAL_AD_UNIT_ID</key>
+	<string>$(GAD_INTERSTITIAL_AD_UNIT_ID)</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Lingible would like to show you personalized ads to help keep the app free. This helps us show relevant ads based on your interests and improve your ad experience. You can change this setting anytime in your device's Privacy &amp; Security settings.</string>
 	<key>SKAdNetworkItems</key>

@@ -11,6 +11,7 @@ from aws_lambda_powertools.utilities.parser.models import (
 from .translations import TranslationRequest
 from .subscriptions import UserUpgradeRequest, AppleWebhookRequest
 from .users import AccountDeletionRequest
+from .slang import SlangSubmissionRequest
 
 
 class TranslationEvent(BaseModel):
@@ -60,6 +61,19 @@ class SimpleAuthenticatedEvent(BaseModel):
     """Simple authenticated event for basic operations (GET, DELETE) that only need user info."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+
+class SlangSubmissionEvent(BaseModel):
+    """Typed event for slang submission handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_body: SlangSubmissionRequest = Field(..., description="Parsed request body")
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )

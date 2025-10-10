@@ -18,6 +18,7 @@ __version__ = "1.0.0"
 
 # Define package exports
 __all__ = [
+    "SlangApi",
     "SystemApi",
     "TranslationApi",
     "TrendingApi",
@@ -39,6 +40,8 @@ __all__ = [
     "ErrorResponse",
     "HealthResponse",
     "PaginationInfo",
+    "SlangSubmissionRequest",
+    "SlangSubmissionResponse",
     "SuccessResponse",
     "TranslationHistory",
     "TranslationHistoryServiceResult",
@@ -57,6 +60,7 @@ __all__ = [
 
 if __import__("typing").TYPE_CHECKING:
     # import apis into sdk package
+    from lingible_client.api.slang_api import SlangApi as SlangApi
     from lingible_client.api.system_api import SystemApi as SystemApi
     from lingible_client.api.translation_api import TranslationApi as TranslationApi
     from lingible_client.api.trending_api import TrendingApi as TrendingApi
@@ -82,6 +86,8 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.error_response import ErrorResponse as ErrorResponse
     from lingible_client.models.health_response import HealthResponse as HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
+    from lingible_client.models.slang_submission_request import SlangSubmissionRequest as SlangSubmissionRequest
+    from lingible_client.models.slang_submission_response import SlangSubmissionResponse as SlangSubmissionResponse
     from lingible_client.models.success_response import SuccessResponse as SuccessResponse
     from lingible_client.models.translation_history import TranslationHistory as TranslationHistory
     from lingible_client.models.translation_history_service_result import TranslationHistoryServiceResult as TranslationHistoryServiceResult
@@ -106,6 +112,7 @@ else:
             ("__version__", __version__),
             ("__all__", __all__),
             """# import apis into sdk package
+from lingible_client.api.slang_api import SlangApi as SlangApi
 from lingible_client.api.system_api import SystemApi as SystemApi
 from lingible_client.api.translation_api import TranslationApi as TranslationApi
 from lingible_client.api.trending_api import TrendingApi as TrendingApi
@@ -131,6 +138,8 @@ from lingible_client.models.apple_webhook_request import AppleWebhookRequest as 
 from lingible_client.models.error_response import ErrorResponse as ErrorResponse
 from lingible_client.models.health_response import HealthResponse as HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
+from lingible_client.models.slang_submission_request import SlangSubmissionRequest as SlangSubmissionRequest
+from lingible_client.models.slang_submission_response import SlangSubmissionResponse as SlangSubmissionResponse
 from lingible_client.models.success_response import SuccessResponse as SuccessResponse
 from lingible_client.models.translation_history import TranslationHistory as TranslationHistory
 from lingible_client.models.translation_history_service_result import TranslationHistoryServiceResult as TranslationHistoryServiceResult

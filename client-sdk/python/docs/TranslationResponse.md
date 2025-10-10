@@ -13,6 +13,10 @@ Name | Type | Description | Notes
 **created_at** | **datetime** | Translation timestamp |
 **processing_time_ms** | **int** | Processing time in milliseconds | [optional]
 **model_used** | **str** | AI model used for translation | [optional]
+**translation_failed** | **bool** | Whether the translation failed or returned the same text |
+**failure_reason** | **str** | Technical reason for translation failure | [optional]
+**user_message** | **str** | User-friendly message about the translation result | [optional]
+**can_submit_feedback** | **bool** | Whether user can submit slang feedback (premium feature, only true when translation fails) | [optional]
 **daily_used** | **int** | Total translations used today (after this translation) |
 **daily_limit** | **int** | Daily translation limit |
 **tier** | **str** | User tier (free/premium) |
