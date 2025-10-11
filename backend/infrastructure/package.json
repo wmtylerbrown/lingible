@@ -21,7 +21,7 @@
     "deploy:website:prod": "npm run build && cdk deploy --app app.js Lingible-Prod-Website --context environment=prod --require-approval any-change",
     "deploy:hosted-zones:dev": "npm run build && cdk deploy --app app.js Lingible-Dev-HostedZones --context environment=dev --context deploy-backend=false --require-approval never",
     "deploy:hosted-zones:prod": "npm run build && cdk deploy --app app.js Lingible-Prod-HostedZones --context environment=prod --context deploy-backend=false --require-approval any-change",
-    "apple-secret": "node scripts/manage-apple-secret.js",
+    "secrets": "node scripts/manage-secrets.js",
     "destroy:dev": "cdk destroy Lingible-Dev Lingible-Dev-Website --context environment=dev",
     "destroy:prod": "cdk destroy Lingible-Prod Lingible-Prod-Website --context environment=prod",
     "destroy:backend:dev": "cdk destroy Lingible-Dev --context environment=dev",

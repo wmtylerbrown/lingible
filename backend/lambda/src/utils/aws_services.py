@@ -1,7 +1,7 @@
 """AWS services manager for efficient boto3 client initialization."""
 
 import os
-import boto3
+import boto3  # type: ignore
 from typing import Optional, Any
 from functools import lru_cache
 
@@ -15,6 +15,7 @@ class AWSServices:
         self._dynamodb_resource: Optional[Any] = None
         self._dynamodb_client: Optional[Any] = None
         self._bedrock_client: Optional[Any] = None
+        self._bedrock_agent_runtime_client: Optional[Any] = None
         self._s3_client: Optional[Any] = None
         self._sns_client: Optional[Any] = None
 
@@ -47,6 +48,17 @@ class AWSServices:
             region = os.environ.get("AWS_REGION", "us-east-1")
             self._bedrock_client = boto3.client("bedrock-runtime", region_name=region)
         return self._bedrock_client
+
+    @property
+    def bedrock_agent_runtime_client(self) -> Any:
+        """Get Bedrock Agent Runtime client (lazy initialization)."""
+        if self._bedrock_agent_runtime_client is None:
+            # Bedrock Agent Runtime is only available in specific regions
+            region = os.environ.get("AWS_REGION", "us-east-1")
+            self._bedrock_agent_runtime_client = boto3.client(
+                "bedrock-agent-runtime", region_name=region
+            )
+        return self._bedrock_agent_runtime_client
 
     @property
     def s3_client(self) -> Any:

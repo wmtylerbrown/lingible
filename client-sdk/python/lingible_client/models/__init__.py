@@ -18,10 +18,13 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.account_deletion_request import AccountDeletionRequest
     from lingible_client.models.account_deletion_response import AccountDeletionResponse
     from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary
+    from lingible_client.models.admin_approval_response import AdminApprovalResponse
     from lingible_client.models.apple_webhook_request import AppleWebhookRequest
     from lingible_client.models.error_response import ErrorResponse
     from lingible_client.models.health_response import HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo
+    from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse
+    from lingible_client.models.slang_submission import SlangSubmission
     from lingible_client.models.slang_submission_request import SlangSubmissionRequest
     from lingible_client.models.slang_submission_response import SlangSubmissionResponse
     from lingible_client.models.success_response import SuccessResponse
@@ -33,6 +36,7 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.trending_term_response import TrendingTermResponse
     from lingible_client.models.upgrade_request import UpgradeRequest
     from lingible_client.models.upgrade_response import UpgradeResponse
+    from lingible_client.models.upvote_response import UpvoteResponse
     from lingible_client.models.usage_limits import UsageLimits
     from lingible_client.models.usage_response import UsageResponse
     from lingible_client.models.user_profile_response import UserProfileResponse
@@ -49,10 +53,13 @@ else:
 from lingible_client.models.account_deletion_request import AccountDeletionRequest
 from lingible_client.models.account_deletion_response import AccountDeletionResponse
 from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary
+from lingible_client.models.admin_approval_response import AdminApprovalResponse
 from lingible_client.models.apple_webhook_request import AppleWebhookRequest
 from lingible_client.models.error_response import ErrorResponse
 from lingible_client.models.health_response import HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo
+from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse
+from lingible_client.models.slang_submission import SlangSubmission
 from lingible_client.models.slang_submission_request import SlangSubmissionRequest
 from lingible_client.models.slang_submission_response import SlangSubmissionResponse
 from lingible_client.models.success_response import SuccessResponse
@@ -64,6 +71,7 @@ from lingible_client.models.trending_list_response import TrendingListResponse
 from lingible_client.models.trending_term_response import TrendingTermResponse
 from lingible_client.models.upgrade_request import UpgradeRequest
 from lingible_client.models.upgrade_response import UpgradeResponse
+from lingible_client.models.upvote_response import UpvoteResponse
 from lingible_client.models.usage_limits import UsageLimits
 from lingible_client.models.usage_response import UsageResponse
 from lingible_client.models.user_profile_response import UserProfileResponse

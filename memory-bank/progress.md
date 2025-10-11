@@ -480,3 +480,37 @@
   - Phase 2: iOS Apple receipt validation (enhanced user experience)
   - Phase 3: Full App Store Server API integration (comprehensive solution)
 - **Status**: Analysis complete, solutions documented, ready for implementation
+
+### ✅ **Slang Crowdsourcing & LLM Validation System (2025-10-11)**
+- **AI-Powered Validation**: Integrated Tavily web search + AWS Bedrock (Claude) for intelligent slang validation
+- **Auto-Approval Flow**: High-confidence submissions (≥85%, usage score ≥7) automatically approved without human review
+- **Community Voting**: Medium-confidence submissions go to community for upvoting before approval
+- **Admin Controls**: Manual approve/reject endpoints for admin oversight with notifications on all submissions
+- **Web Search Integration**: Tavily API provides real-time web evidence (Urban Dictionary, social media) to LLM for validation
+- **User Statistics**: Track `slang_submitted_count` and `slang_approved_count` on user profiles for gamification/leaderboards
+- **Cost Controls**: CloudWatch alarms for Bedrock usage, configurable auto-approval thresholds, web search result limits
+- **New API Endpoints**:
+  - `POST /slang/upvote/{submission_id}` - Community upvoting
+  - `GET /slang/pending` - Retrieve validated submissions pending approval
+  - `POST /slang/admin/approve/{submission_id}` - Admin approval
+  - `POST /slang/admin/reject/{submission_id}` - Admin rejection
+- **DynamoDB Architecture**: New GSI (`ValidationStatusIndex`) for efficient querying by validation status
+- **Lambda Layer**: New `slang-validation` layer with `tavily-python` SDK for web search
+- **Configuration System**: `SlangValidationConfig` with toggles for auto-approval, web search, and validation parameters
+- **Immediate Validation**: LLM validation triggers immediately on submission (no queue/delay)
+- **Complete Testing**: Comprehensive test suite with TDD approach
+- **Client SDKs**: Python and Swift SDKs regenerated with new endpoints and user statistics fields
+
+### ✅ **Unified Secret Management System (2025-10-11)**
+- **Single Management Script**: Consolidated `manage-apple-secret.js` and `manage-tavily-secret.js` into unified `manage-secrets.js`
+- **Simplified Interface**: One command (`npm run secrets`) to manage all secrets across environments
+- **List Command**: New `npm run secrets list <env>` command shows all secrets status at a glance
+- **Secret Type Cleanup**: Removed unused `apple-shared-secret` (legacy StoreKit 1) and `apple-webhook-secret` (never implemented)
+- **Active Secrets**: Only 3 secret types remain:
+  - `apple-private-key` - Apple Sign-In authentication (Cognito)
+  - `apple-iap-private-key` - App Store Server API (StoreKit 2 receipt validation + webhooks)
+  - `tavily-api-key` - Slang validation web search
+- **Documentation Updates**: Comprehensive README updates with new secret management workflow
+- **Consistent Commands**: Uniform interface across all secret types (create, update, info, delete, list)
+- **Better UX**: Clear indication of configured vs missing secrets for easier troubleshooting
+- **Maintenance Reduction**: Single script reduces code duplication and maintenance burden

@@ -18,6 +18,7 @@ __version__ = "1.0.0"
 
 # Define package exports
 __all__ = [
+    "AdminApi",
     "SlangApi",
     "SystemApi",
     "TranslationApi",
@@ -36,10 +37,13 @@ __all__ = [
     "AccountDeletionRequest",
     "AccountDeletionResponse",
     "AccountDeletionResponseCleanupSummary",
+    "AdminApprovalResponse",
     "AppleWebhookRequest",
     "ErrorResponse",
     "HealthResponse",
     "PaginationInfo",
+    "PendingSubmissionsResponse",
+    "SlangSubmission",
     "SlangSubmissionRequest",
     "SlangSubmissionResponse",
     "SuccessResponse",
@@ -51,6 +55,7 @@ __all__ = [
     "TrendingTermResponse",
     "UpgradeRequest",
     "UpgradeResponse",
+    "UpvoteResponse",
     "UsageLimits",
     "UsageResponse",
     "UserProfileResponse",
@@ -60,6 +65,7 @@ __all__ = [
 
 if __import__("typing").TYPE_CHECKING:
     # import apis into sdk package
+    from lingible_client.api.admin_api import AdminApi as AdminApi
     from lingible_client.api.slang_api import SlangApi as SlangApi
     from lingible_client.api.system_api import SystemApi as SystemApi
     from lingible_client.api.translation_api import TranslationApi as TranslationApi
@@ -82,10 +88,13 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.account_deletion_request import AccountDeletionRequest as AccountDeletionRequest
     from lingible_client.models.account_deletion_response import AccountDeletionResponse as AccountDeletionResponse
     from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary as AccountDeletionResponseCleanupSummary
+    from lingible_client.models.admin_approval_response import AdminApprovalResponse as AdminApprovalResponse
     from lingible_client.models.apple_webhook_request import AppleWebhookRequest as AppleWebhookRequest
     from lingible_client.models.error_response import ErrorResponse as ErrorResponse
     from lingible_client.models.health_response import HealthResponse as HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
+    from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse as PendingSubmissionsResponse
+    from lingible_client.models.slang_submission import SlangSubmission as SlangSubmission
     from lingible_client.models.slang_submission_request import SlangSubmissionRequest as SlangSubmissionRequest
     from lingible_client.models.slang_submission_response import SlangSubmissionResponse as SlangSubmissionResponse
     from lingible_client.models.success_response import SuccessResponse as SuccessResponse
@@ -97,6 +106,7 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.trending_term_response import TrendingTermResponse as TrendingTermResponse
     from lingible_client.models.upgrade_request import UpgradeRequest as UpgradeRequest
     from lingible_client.models.upgrade_response import UpgradeResponse as UpgradeResponse
+    from lingible_client.models.upvote_response import UpvoteResponse as UpvoteResponse
     from lingible_client.models.usage_limits import UsageLimits as UsageLimits
     from lingible_client.models.usage_response import UsageResponse as UsageResponse
     from lingible_client.models.user_profile_response import UserProfileResponse as UserProfileResponse
@@ -112,6 +122,7 @@ else:
             ("__version__", __version__),
             ("__all__", __all__),
             """# import apis into sdk package
+from lingible_client.api.admin_api import AdminApi as AdminApi
 from lingible_client.api.slang_api import SlangApi as SlangApi
 from lingible_client.api.system_api import SystemApi as SystemApi
 from lingible_client.api.translation_api import TranslationApi as TranslationApi
@@ -134,10 +145,13 @@ from lingible_client.exceptions import ApiException as ApiException
 from lingible_client.models.account_deletion_request import AccountDeletionRequest as AccountDeletionRequest
 from lingible_client.models.account_deletion_response import AccountDeletionResponse as AccountDeletionResponse
 from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary as AccountDeletionResponseCleanupSummary
+from lingible_client.models.admin_approval_response import AdminApprovalResponse as AdminApprovalResponse
 from lingible_client.models.apple_webhook_request import AppleWebhookRequest as AppleWebhookRequest
 from lingible_client.models.error_response import ErrorResponse as ErrorResponse
 from lingible_client.models.health_response import HealthResponse as HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
+from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse as PendingSubmissionsResponse
+from lingible_client.models.slang_submission import SlangSubmission as SlangSubmission
 from lingible_client.models.slang_submission_request import SlangSubmissionRequest as SlangSubmissionRequest
 from lingible_client.models.slang_submission_response import SlangSubmissionResponse as SlangSubmissionResponse
 from lingible_client.models.success_response import SuccessResponse as SuccessResponse
@@ -149,6 +163,7 @@ from lingible_client.models.trending_list_response import TrendingListResponse a
 from lingible_client.models.trending_term_response import TrendingTermResponse as TrendingTermResponse
 from lingible_client.models.upgrade_request import UpgradeRequest as UpgradeRequest
 from lingible_client.models.upgrade_response import UpgradeResponse as UpgradeResponse
+from lingible_client.models.upvote_response import UpvoteResponse as UpvoteResponse
 from lingible_client.models.usage_limits import UsageLimits as UsageLimits
 from lingible_client.models.usage_response import UsageResponse as UsageResponse
 from lingible_client.models.user_profile_response import UserProfileResponse as UserProfileResponse

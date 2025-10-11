@@ -12,6 +12,8 @@ Name | Type | Description | Notes
 **status** | **str** |  |
 **created_at** | **datetime** | Account creation date |
 **updated_at** | **datetime** | Last update date | [optional]
+**slang_submitted_count** | **int** | Total number of slang terms submitted by user |
+**slang_approved_count** | **int** | Total number of slang terms approved (auto or manual) |
 
 ## Example
 

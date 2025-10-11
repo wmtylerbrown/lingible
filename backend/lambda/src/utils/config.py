@@ -19,6 +19,7 @@ from models.config import (
     AppleConfig,
     CognitoConfig,
     LLMConfig,
+    SlangValidationConfig,
     LogLevel,
 )
 from models.slang import AgeRating, AgeFilterMode
@@ -169,6 +170,36 @@ class ConfigService:
                 top_p=float(self._get_env_var("LLM_TOP_P")),
                 age_max_rating=AgeRating(self._get_env_var("AGE_MAX_RATING")),
                 age_filter_mode=AgeFilterMode(self._get_env_var("AGE_FILTER_MODE")),
+                low_confidence_threshold=float(
+                    self._get_env_var("LLM_LOW_CONFIDENCE_THRESHOLD")
+                ),
+            )  # type: ignore
+        elif config_type == SlangValidationConfig:
+            # Try to get Tavily API key from Secrets Manager
+            tavily_api_key = ""
+            try:
+                secret_name = f"lingible-tavily-api-key-{self.environment}"
+                tavily_api_key = self._get_secrets_manager_secret(secret_name, "apiKey")
+            except Exception as e:
+                # Log but don't fail - validation will work without web search
+                logger.debug(f"Tavily API key not found, web search disabled: {e}")
+
+            return SlangValidationConfig(
+                auto_approval_enabled=(
+                    self._get_env_var("SLANG_VALIDATION_AUTO_APPROVAL_ENABLED").lower()
+                    == "true"
+                ),
+                auto_approval_threshold=float(
+                    self._get_env_var("SLANG_VALIDATION_AUTO_APPROVAL_THRESHOLD")
+                ),
+                web_search_enabled=(
+                    self._get_env_var("SLANG_VALIDATION_WEB_SEARCH_ENABLED").lower()
+                    == "true"
+                ),
+                max_search_results=int(
+                    self._get_env_var("SLANG_VALIDATION_MAX_SEARCH_RESULTS")
+                ),
+                tavily_api_key=tavily_api_key,
             )  # type: ignore
         else:
             raise ConfigurationError(f"Unknown configuration type: {config_type}")

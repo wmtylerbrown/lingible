@@ -121,7 +121,6 @@ class LLMConfig(BaseModel):
     temperature: float = Field(description="Temperature for LLM requests")
     top_p: float = Field(description="Top-p for LLM requests")
     low_confidence_threshold: float = Field(
-        default=0.3,
         ge=0.0,
         le=1.0,
         description="Confidence threshold below which translation is marked as low confidence",
@@ -130,3 +129,25 @@ class LLMConfig(BaseModel):
     # Age and content filtering
     age_max_rating: AgeRating = Field(description="Maximum age rating")
     age_filter_mode: AgeFilterMode = Field(description="Age filter mode")
+
+
+class SlangValidationConfig(BaseModel):
+    """Slang validation configuration for LLM-based validation with web search."""
+
+    auto_approval_enabled: bool = Field(
+        description="Whether to enable automatic approval of high-confidence submissions"
+    )
+    auto_approval_threshold: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for automatic approval",
+    )
+    web_search_enabled: bool = Field(
+        description="Whether to enable web search for validation"
+    )
+    max_search_results: int = Field(
+        ge=1, le=10, description="Maximum number of search results to analyze"
+    )
+    tavily_api_key: str = Field(
+        description="Tavily API key for web search (from Secrets Manager)"
+    )

@@ -5,6 +5,7 @@ Cartfile
 LingibleAPI.podspec
 LingibleAPI/Classes/OpenAPIs/APIHelper.swift
 LingibleAPI/Classes/OpenAPIs/APIs.swift
+LingibleAPI/Classes/OpenAPIs/APIs/AdminAPI.swift
 LingibleAPI/Classes/OpenAPIs/APIs/SlangAPI.swift
 LingibleAPI/Classes/OpenAPIs/APIs/SystemAPI.swift
 LingibleAPI/Classes/OpenAPIs/APIs/TranslationAPI.swift
@@ -20,10 +21,13 @@ LingibleAPI/Classes/OpenAPIs/Models.swift
 LingibleAPI/Classes/OpenAPIs/Models/AccountDeletionRequest.swift
 LingibleAPI/Classes/OpenAPIs/Models/AccountDeletionResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/AccountDeletionResponseCleanupSummary.swift
+LingibleAPI/Classes/OpenAPIs/Models/AdminApprovalResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/AppleWebhookRequest.swift
 LingibleAPI/Classes/OpenAPIs/Models/HealthResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/ModelErrorResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/PaginationInfo.swift
+LingibleAPI/Classes/OpenAPIs/Models/PendingSubmissionsResponse.swift
+LingibleAPI/Classes/OpenAPIs/Models/SlangSubmission.swift
 LingibleAPI/Classes/OpenAPIs/Models/SlangSubmissionRequest.swift
 LingibleAPI/Classes/OpenAPIs/Models/SlangSubmissionResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/SuccessResponse.swift
@@ -35,6 +39,7 @@ LingibleAPI/Classes/OpenAPIs/Models/TrendingListResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/TrendingTermResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/UpgradeRequest.swift
 LingibleAPI/Classes/OpenAPIs/Models/UpgradeResponse.swift
+LingibleAPI/Classes/OpenAPIs/Models/UpvoteResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/UsageLimits.swift
 LingibleAPI/Classes/OpenAPIs/Models/UsageResponse.swift
 LingibleAPI/Classes/OpenAPIs/Models/UserProfileResponse.swift
@@ -49,11 +54,15 @@ README.md
 docs/AccountDeletionRequest.md
 docs/AccountDeletionResponse.md
 docs/AccountDeletionResponseCleanupSummary.md
+docs/AdminAPI.md
+docs/AdminApprovalResponse.md
 docs/AppleWebhookRequest.md
 docs/HealthResponse.md
 docs/ModelErrorResponse.md
 docs/PaginationInfo.md
+docs/PendingSubmissionsResponse.md
 docs/SlangAPI.md
+docs/SlangSubmission.md
 docs/SlangSubmissionRequest.md
 docs/SlangSubmissionResponse.md
 docs/SuccessResponse.md
@@ -68,6 +77,7 @@ docs/TrendingListResponse.md
 docs/TrendingTermResponse.md
 docs/UpgradeRequest.md
 docs/UpgradeResponse.md
+docs/UpvoteResponse.md
 docs/UsageLimits.md
 docs/UsageResponse.md
 docs/UserAPI.md

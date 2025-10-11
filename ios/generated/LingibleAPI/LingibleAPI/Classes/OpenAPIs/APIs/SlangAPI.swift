@@ -13,6 +13,156 @@ import AnyCodable
 open class SlangAPI {
 
     /**
+     Admin approve slang submission
+
+     - parameter submissionId: (path) The submission ID to approve
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
+     */
+    @discardableResult
+    open class func slangAdminApproveSubmissionIdPost(submissionId: String, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: AdminApprovalResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return slangAdminApproveSubmissionIdPostWithRequestBuilder(submissionId: submissionId).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
+    }
+
+    /**
+     Admin approve slang submission
+     - POST /slang/admin/approve/{submission_id}
+     - Manually approve a slang submission (admin only)
+     - Bearer Token:
+       - type: http
+       - name: BearerAuth
+     - parameter submissionId: (path) The submission ID to approve
+     - returns: RequestBuilder<AdminApprovalResponse>
+     */
+    open class func slangAdminApproveSubmissionIdPostWithRequestBuilder(submissionId: String) -> RequestBuilder<AdminApprovalResponse> {
+        var localVariablePath = "/slang/admin/approve/{submission_id}"
+        let submissionIdPreEscape = "\(APIHelper.mapValueToPathItem(submissionId))"
+        let submissionIdPostEscape = submissionIdPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{submission_id}", with: submissionIdPostEscape, options: .literal, range: nil)
+        let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            :
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminApprovalResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
+     Admin reject slang submission
+
+     - parameter submissionId: (path) The submission ID to reject
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
+     */
+    @discardableResult
+    open class func slangAdminRejectSubmissionIdPost(submissionId: String, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: AdminApprovalResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return slangAdminRejectSubmissionIdPostWithRequestBuilder(submissionId: submissionId).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
+    }
+
+    /**
+     Admin reject slang submission
+     - POST /slang/admin/reject/{submission_id}
+     - Manually reject a slang submission (admin only)
+     - Bearer Token:
+       - type: http
+       - name: BearerAuth
+     - parameter submissionId: (path) The submission ID to reject
+     - returns: RequestBuilder<AdminApprovalResponse>
+     */
+    open class func slangAdminRejectSubmissionIdPostWithRequestBuilder(submissionId: String) -> RequestBuilder<AdminApprovalResponse> {
+        var localVariablePath = "/slang/admin/reject/{submission_id}"
+        let submissionIdPreEscape = "\(APIHelper.mapValueToPathItem(submissionId))"
+        let submissionIdPostEscape = submissionIdPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{submission_id}", with: submissionIdPostEscape, options: .literal, range: nil)
+        let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            :
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<AdminApprovalResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
+     Get pending slang submissions
+
+     - parameter limit: (query) Maximum number of submissions to return (optional, default to 50)
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
+     */
+    @discardableResult
+    open class func slangPendingGet(limit: Int? = nil, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: PendingSubmissionsResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return slangPendingGetWithRequestBuilder(limit: limit).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
+    }
+
+    /**
+     Get pending slang submissions
+     - GET /slang/pending
+     - Get slang submissions available for community voting (VALIDATED status)
+     - Bearer Token:
+       - type: http
+       - name: BearerAuth
+     - parameter limit: (query) Maximum number of submissions to return (optional, default to 50)
+     - returns: RequestBuilder<PendingSubmissionsResponse>
+     */
+    open class func slangPendingGetWithRequestBuilder(limit: Int? = nil) -> RequestBuilder<PendingSubmissionsResponse> {
+        let localVariablePath = "/slang/pending"
+        let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "limit": (wrappedValue: limit?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            :
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<PendingSubmissionsResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
      Submit new slang term
 
      - parameter slangSubmissionRequest: (body)
@@ -55,6 +205,56 @@ open class SlangAPI {
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
         let localVariableRequestBuilder: RequestBuilder<SlangSubmissionResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
+     Upvote a slang submission
+
+     - parameter submissionId: (path) The submission ID to upvote
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
+     */
+    @discardableResult
+    open class func slangUpvoteSubmissionIdPost(submissionId: String, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: UpvoteResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return slangUpvoteSubmissionIdPostWithRequestBuilder(submissionId: submissionId).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
+    }
+
+    /**
+     Upvote a slang submission
+     - POST /slang/upvote/{submission_id}
+     - Add an upvote to a pending slang submission (cannot upvote own submissions)
+     - Bearer Token:
+       - type: http
+       - name: BearerAuth
+     - parameter submissionId: (path) The submission ID to upvote
+     - returns: RequestBuilder<UpvoteResponse>
+     */
+    open class func slangUpvoteSubmissionIdPostWithRequestBuilder(submissionId: String) -> RequestBuilder<UpvoteResponse> {
+        var localVariablePath = "/slang/upvote/{submission_id}"
+        let submissionIdPreEscape = "\(APIHelper.mapValueToPathItem(submissionId))"
+        let submissionIdPostEscape = submissionIdPreEscape.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        localVariablePath = localVariablePath.replacingOccurrences(of: "{submission_id}", with: submissionIdPostEscape, options: .literal, range: nil)
+        let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            :
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<UpvoteResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
 
         return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
     }

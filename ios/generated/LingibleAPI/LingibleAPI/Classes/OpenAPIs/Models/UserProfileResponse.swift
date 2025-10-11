@@ -21,6 +21,8 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
         case cancelled = "cancelled"
         case suspended = "suspended"
     }
+    public static let slangSubmittedCountRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
+    public static let slangApprovedCountRule = NumericRule<Int>(minimum: 0, exclusiveMinimum: false, maximum: nil, exclusiveMaximum: false, multipleOf: nil)
     public var userId: String
     public var email: String
     /** Cognito username */
@@ -31,8 +33,12 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
     public var createdAt: Date
     /** Last update date */
     public var updatedAt: Date?
+    /** Total number of slang terms submitted by user */
+    public var slangSubmittedCount: Int
+    /** Total number of slang terms approved (auto or manual) */
+    public var slangApprovedCount: Int
 
-    public init(userId: String, email: String, username: String, tier: Tier, status: Status, createdAt: Date, updatedAt: Date? = nil) {
+    public init(userId: String, email: String, username: String, tier: Tier, status: Status, createdAt: Date, updatedAt: Date? = nil, slangSubmittedCount: Int, slangApprovedCount: Int) {
         self.userId = userId
         self.email = email
         self.username = username
@@ -40,6 +46,8 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
         self.status = status
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.slangSubmittedCount = slangSubmittedCount
+        self.slangApprovedCount = slangApprovedCount
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -50,6 +58,8 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
         case status
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case slangSubmittedCount = "slang_submitted_count"
+        case slangApprovedCount = "slang_approved_count"
     }
 
     // Encodable protocol methods
@@ -63,5 +73,7 @@ public struct UserProfileResponse: Codable, JSONEncodable, Hashable {
         try container.encode(status, forKey: .status)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
+        try container.encode(slangSubmittedCount, forKey: .slangSubmittedCount)
+        try container.encode(slangApprovedCount, forKey: .slangApprovedCount)
     }
 }

@@ -303,3 +303,75 @@ class UserRepository:
                 },
             )
             raise SystemError(f"Failed to delete user {user_id}")
+
+    @tracer.trace_database_operation("update", "users")
+    def increment_slang_submitted(self, user_id: str) -> bool:
+        """
+        Increment the slang submitted count for a user.
+
+        Args:
+            user_id: The user ID
+
+        Returns:
+            True if increment was successful
+        """
+        try:
+            self.table.update_item(
+                Key={
+                    "PK": f"USER#{user_id}",
+                    "SK": "PROFILE",
+                },
+                UpdateExpression="SET slang_submitted_count = if_not_exists(slang_submitted_count, :zero) + :inc, updated_at = :updated_at",
+                ExpressionAttributeValues={
+                    ":zero": 0,
+                    ":inc": 1,
+                    ":updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            return True
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "increment_slang_submitted",
+                    "user_id": user_id,
+                },
+            )
+            return False
+
+    @tracer.trace_database_operation("update", "users")
+    def increment_slang_approved(self, user_id: str) -> bool:
+        """
+        Increment the slang approved count for a user.
+
+        Args:
+            user_id: The user ID
+
+        Returns:
+            True if increment was successful
+        """
+        try:
+            self.table.update_item(
+                Key={
+                    "PK": f"USER#{user_id}",
+                    "SK": "PROFILE",
+                },
+                UpdateExpression="SET slang_approved_count = if_not_exists(slang_approved_count, :zero) + :inc, updated_at = :updated_at",
+                ExpressionAttributeValues={
+                    ":zero": 0,
+                    ":inc": 1,
+                    ":updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            return True
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "increment_slang_approved",
+                    "user_id": user_id,
+                },
+            )
+            return False

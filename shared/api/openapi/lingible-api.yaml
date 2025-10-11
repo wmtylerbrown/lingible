@@ -225,6 +225,154 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /slang/pending:
+    get:
+      summary: Get pending slang submissions
+      description: Get slang submissions available for community voting (VALIDATED status)
+      tags:
+        - Slang
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Maximum number of submissions to return
+      responses:
+        '200':
+          description: List of pending submissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingSubmissionsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /slang/upvote/{submission_id}:
+    post:
+      summary: Upvote a slang submission
+      description: Add an upvote to a pending slang submission (cannot upvote own submissions)
+      tags:
+        - Slang
+      parameters:
+        - in: path
+          name: submission_id
+          required: true
+          schema:
+            type: string
+          description: The submission ID to upvote
+      responses:
+        '200':
+          description: Upvote added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpvoteResponse'
+        '400':
+          description: Invalid request (already upvoted or own submission)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /slang/admin/approve/{submission_id}:
+    post:
+      summary: Admin approve slang submission
+      description: Manually approve a slang submission (admin only)
+      tags:
+        - Slang
+        - Admin
+      parameters:
+        - in: path
+          name: submission_id
+          required: true
+          schema:
+            type: string
+          description: The submission ID to approve
+      responses:
+        '200':
+          description: Submission approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminApprovalResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /slang/admin/reject/{submission_id}:
+    post:
+      summary: Admin reject slang submission
+      description: Manually reject a slang submission (admin only)
+      tags:
+        - Slang
+        - Admin
+      parameters:
+        - in: path
+          name: submission_id
+          required: true
+          schema:
+            type: string
+          description: The submission ID to reject
+      responses:
+        '200':
+          description: Submission rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminApprovalResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /user/profile:
     get:
       summary: Get user profile
@@ -652,6 +800,8 @@ components:
         - tier
         - status
         - created_at
+        - slang_submitted_count
+        - slang_approved_count
       properties:
         user_id:
           type: string
@@ -682,6 +832,16 @@ components:
           format: date-time
           description: "Last update date"
           example: "2024-12-19T10:30:00Z"
+        slang_submitted_count:
+          type: integer
+          minimum: 0
+          description: "Total number of slang terms submitted by user"
+          example: 15
+        slang_approved_count:
+          type: integer
+          minimum: 0
+          description: "Total number of slang terms approved (auto or manual)"
+          example: 8
 
     UsageResponse:
       type: object
@@ -1159,3 +1319,158 @@ components:
           format: date-time
           description: Submission timestamp
           example: "2024-12-19T10:30:00Z"
+
+    UpvoteResponse:
+      type: object
+      required:
+        - submission_id
+        - upvotes
+        - message
+      properties:
+        submission_id:
+          type: string
+          description: The upvoted submission ID
+          example: "sub_a1b2c3d4e5f6g7h8"
+        upvotes:
+          type: integer
+          minimum: 0
+          description: Total upvote count after this upvote
+          example: 5
+        message:
+          type: string
+          description: Success message
+          example: "Thanks for the upvote!"
+
+    PendingSubmissionsResponse:
+      type: object
+      required:
+        - submissions
+        - total_count
+        - has_more
+      properties:
+        submissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlangSubmission'
+          description: List of pending slang submissions
+        total_count:
+          type: integer
+          minimum: 0
+          description: Number of submissions returned
+          example: 10
+        has_more:
+          type: boolean
+          description: Whether more submissions exist
+          example: true
+
+    AdminApprovalResponse:
+      type: object
+      required:
+        - submission_id
+        - status
+        - message
+      properties:
+        submission_id:
+          type: string
+          description: The submission ID
+          example: "sub_a1b2c3d4e5f6g7h8"
+        status:
+          type: string
+          enum: ["approved", "rejected"]
+          description: Updated submission status
+          example: "approved"
+        message:
+          type: string
+          description: Success message
+          example: "Approved 'bussin' and added to database"
+
+    SlangSubmission:
+      type: object
+      required:
+        - submission_id
+        - user_id
+        - slang_term
+        - meaning
+        - context
+        - status
+        - created_at
+        - llm_validation_status
+        - upvotes
+      properties:
+        submission_id:
+          type: string
+          description: Unique submission ID
+          example: "sub_a1b2c3d4e5f6g7h8"
+        user_id:
+          type: string
+          description: User who submitted the term
+          example: "user_123456789"
+        slang_term:
+          type: string
+          description: The slang term
+          example: "bussin"
+        meaning:
+          type: string
+          description: What the term means
+          example: "Really good, amazing, excellent"
+        example_usage:
+          type: string
+          nullable: true
+          description: Optional example usage
+          example: "This pizza is bussin!"
+        context:
+          type: string
+          enum: ["translation_failure", "manual"]
+          description: How the submission was initiated
+          example: "manual"
+        original_translation_id:
+          type: string
+          nullable: true
+          description: Translation ID if from failed translation
+        status:
+          type: string
+          enum: ["pending", "approved", "rejected", "draft"]
+          description: Overall approval status
+          example: "pending"
+        llm_validation_status:
+          type: string
+          enum: ["pending_validation", "validated", "rejected", "auto_approved", "admin_approved"]
+          description: LLM validation status
+          example: "validated"
+        llm_confidence_score:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence score from LLM validation
+          example: 0.75
+        approval_type:
+          type: string
+          enum: ["llm_auto", "admin_manual", "community_vote"]
+          nullable: true
+          description: Type of approval if approved
+          example: "llm_auto"
+        upvotes:
+          type: integer
+          minimum: 0
+          description: Number of community upvotes
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          description: Submission timestamp
+          example: "2024-12-19T10:30:00Z"
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Review timestamp
+        reviewed_by:
+          type: string
+          nullable: true
+          description: Reviewer user ID
+        approved_by:
+          type: string
+          nullable: true
+          description: Admin who approved (if manual)

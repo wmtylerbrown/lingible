@@ -20,7 +20,8 @@ const LAYER_CONFIGS = {
     handlers: [
       'translate_api', 'get_translation_history', 'trending_api', 'trending_job',
       'user_profile_api', 'user_usage_api', 'health_api',
-      'delete_translation', 'delete_translations', 'cognito_post_confirmation'
+      'delete_translation', 'delete_translations', 'cognito_post_confirmation',
+      'slang_upvote_api', 'slang_pending_api', 'slang_admin_approve_api', 'slang_admin_reject_api'
     ]
   },
   'receipt-validation': {
@@ -28,6 +29,12 @@ const LAYER_CONFIGS = {
     description: 'Dependencies for Apple/Google receipt validation',
     groups: ['main', 'receipt-validation'],
     handlers: ['user_upgrade_api', 'apple_webhook', 'user_account_deletion', 'user_data_cleanup',]
+  },
+  'slang-validation': {
+    name: 'Slang Validation Dependencies',
+    description: 'Dependencies for slang validation with web search (requests library)',
+    groups: ['main', 'slang-validation', 'slang_admin_approve_api', 'slang_admin_reject_api', 'slang_pending_api', 'slang_upvote_api'],
+    handlers: ['submit_slang_api']
   }
 };
 

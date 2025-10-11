@@ -27,7 +27,13 @@ All URIs are relative to *https://api.dev.lingible.com*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*AdminAPI* | [**slangAdminApproveSubmissionIdPost**](docs/AdminAPI.md#slangadminapprovesubmissionidpost) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
+*AdminAPI* | [**slangAdminRejectSubmissionIdPost**](docs/AdminAPI.md#slangadminrejectsubmissionidpost) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
+*SlangAPI* | [**slangAdminApproveSubmissionIdPost**](docs/SlangAPI.md#slangadminapprovesubmissionidpost) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
+*SlangAPI* | [**slangAdminRejectSubmissionIdPost**](docs/SlangAPI.md#slangadminrejectsubmissionidpost) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
+*SlangAPI* | [**slangPendingGet**](docs/SlangAPI.md#slangpendingget) | **GET** /slang/pending | Get pending slang submissions
 *SlangAPI* | [**slangSubmitPost**](docs/SlangAPI.md#slangsubmitpost) | **POST** /slang/submit | Submit new slang term
+*SlangAPI* | [**slangUpvoteSubmissionIdPost**](docs/SlangAPI.md#slangupvotesubmissionidpost) | **POST** /slang/upvote/{submission_id} | Upvote a slang submission
 *SystemAPI* | [**healthGet**](docs/SystemAPI.md#healthget) | **GET** /health | Health check endpoint
 *TranslationAPI* | [**translatePost**](docs/TranslationAPI.md#translatepost) | **POST** /translate | Translate teen slang
 *TranslationAPI* | [**translationsDeleteAllDelete**](docs/TranslationAPI.md#translationsdeletealldelete) | **DELETE** /translations/delete-all | Clear all slang translations
@@ -46,10 +52,13 @@ Class | Method | HTTP request | Description
  - [AccountDeletionRequest](docs/AccountDeletionRequest.md)
  - [AccountDeletionResponse](docs/AccountDeletionResponse.md)
  - [AccountDeletionResponseCleanupSummary](docs/AccountDeletionResponseCleanupSummary.md)
+ - [AdminApprovalResponse](docs/AdminApprovalResponse.md)
  - [AppleWebhookRequest](docs/AppleWebhookRequest.md)
  - [HealthResponse](docs/HealthResponse.md)
  - [ModelErrorResponse](docs/ModelErrorResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
+ - [PendingSubmissionsResponse](docs/PendingSubmissionsResponse.md)
+ - [SlangSubmission](docs/SlangSubmission.md)
  - [SlangSubmissionRequest](docs/SlangSubmissionRequest.md)
  - [SlangSubmissionResponse](docs/SlangSubmissionResponse.md)
  - [SuccessResponse](docs/SuccessResponse.md)
@@ -61,6 +70,7 @@ Class | Method | HTTP request | Description
  - [TrendingTermResponse](docs/TrendingTermResponse.md)
  - [UpgradeRequest](docs/UpgradeRequest.md)
  - [UpgradeResponse](docs/UpgradeResponse.md)
+ - [UpvoteResponse](docs/UpvoteResponse.md)
  - [UsageLimits](docs/UsageLimits.md)
  - [UsageResponse](docs/UsageResponse.md)
  - [UserProfileResponse](docs/UserProfileResponse.md)

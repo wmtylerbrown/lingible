@@ -2,6 +2,12 @@
   "include": [
     "backend/lambda/src"
   ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/.venv",
+    "**/node_modules"
+  ],
   "executionEnvironments": [
     {
       "root": "backend/lambda/src",
@@ -14,5 +20,10 @@
   "typeCheckingMode": "basic",
   "useLibraryCodeForTypes": true,
   "reportMissingImports": "warning",
-  "reportMissingTypeStubs": false
+  "reportMissingTypeStubs": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownVariableType": false,
+  "stubPath": ""
 }

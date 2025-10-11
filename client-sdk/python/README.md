@@ -76,16 +76,16 @@ configuration = lingible_client.Configuration(
 # Enter a context with an instance of the API client
 with lingible_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
-    api_instance = lingible_client.SlangApi(api_client)
-    slang_submission_request = lingible_client.SlangSubmissionRequest() # SlangSubmissionRequest |
+    api_instance = lingible_client.AdminApi(api_client)
+    submission_id = 'submission_id_example' # str | The submission ID to approve
 
     try:
-        # Submit new slang term
-        api_response = api_instance.slang_submit_post(slang_submission_request)
-        print("The response of SlangApi->slang_submit_post:\n")
+        # Admin approve slang submission
+        api_response = api_instance.slang_admin_approve_submission_id_post(submission_id)
+        print("The response of AdminApi->slang_admin_approve_submission_id_post:\n")
         pprint(api_response)
     except ApiException as e:
-        print("Exception when calling SlangApi->slang_submit_post: %s\n" % e)
+        print("Exception when calling AdminApi->slang_admin_approve_submission_id_post: %s\n" % e)
 
 ```
 
@@ -95,7 +95,13 @@ All URIs are relative to *https://api.dev.lingible.com*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*AdminApi* | [**slang_admin_approve_submission_id_post**](docs/AdminApi.md#slang_admin_approve_submission_id_post) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
+*AdminApi* | [**slang_admin_reject_submission_id_post**](docs/AdminApi.md#slang_admin_reject_submission_id_post) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
+*SlangApi* | [**slang_admin_approve_submission_id_post**](docs/SlangApi.md#slang_admin_approve_submission_id_post) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
+*SlangApi* | [**slang_admin_reject_submission_id_post**](docs/SlangApi.md#slang_admin_reject_submission_id_post) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
+*SlangApi* | [**slang_pending_get**](docs/SlangApi.md#slang_pending_get) | **GET** /slang/pending | Get pending slang submissions
 *SlangApi* | [**slang_submit_post**](docs/SlangApi.md#slang_submit_post) | **POST** /slang/submit | Submit new slang term
+*SlangApi* | [**slang_upvote_submission_id_post**](docs/SlangApi.md#slang_upvote_submission_id_post) | **POST** /slang/upvote/{submission_id} | Upvote a slang submission
 *SystemApi* | [**health_get**](docs/SystemApi.md#health_get) | **GET** /health | Health check endpoint
 *TranslationApi* | [**translate_post**](docs/TranslationApi.md#translate_post) | **POST** /translate | Translate teen slang
 *TranslationApi* | [**translations_delete_all_delete**](docs/TranslationApi.md#translations_delete_all_delete) | **DELETE** /translations/delete-all | Clear all slang translations
@@ -114,10 +120,13 @@ Class | Method | HTTP request | Description
  - [AccountDeletionRequest](docs/AccountDeletionRequest.md)
  - [AccountDeletionResponse](docs/AccountDeletionResponse.md)
  - [AccountDeletionResponseCleanupSummary](docs/AccountDeletionResponseCleanupSummary.md)
+ - [AdminApprovalResponse](docs/AdminApprovalResponse.md)
  - [AppleWebhookRequest](docs/AppleWebhookRequest.md)
  - [ErrorResponse](docs/ErrorResponse.md)
  - [HealthResponse](docs/HealthResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
+ - [PendingSubmissionsResponse](docs/PendingSubmissionsResponse.md)
+ - [SlangSubmission](docs/SlangSubmission.md)
  - [SlangSubmissionRequest](docs/SlangSubmissionRequest.md)
  - [SlangSubmissionResponse](docs/SlangSubmissionResponse.md)
  - [SuccessResponse](docs/SuccessResponse.md)
@@ -129,6 +138,7 @@ Class | Method | HTTP request | Description
  - [TrendingTermResponse](docs/TrendingTermResponse.md)
  - [UpgradeRequest](docs/UpgradeRequest.md)
  - [UpgradeResponse](docs/UpgradeResponse.md)
+ - [UpvoteResponse](docs/UpvoteResponse.md)
  - [UsageLimits](docs/UsageLimits.md)
  - [UsageResponse](docs/UsageResponse.md)
  - [UserProfileResponse](docs/UserProfileResponse.md)

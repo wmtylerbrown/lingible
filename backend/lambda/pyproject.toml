@@ -28,6 +28,9 @@ pre-commit = "^4.0.1"
 [tool.poetry.group.receipt-validation.dependencies]
 app-store-server-library = "^1.9.0"
 
+[tool.poetry.group.slang-validation.dependencies]
+tavily-python = "^0.5.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

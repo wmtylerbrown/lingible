@@ -44,6 +44,24 @@ class ApprovalStatus(str, Enum):
     DRAFT = "draft"
 
 
+class SlangSubmissionStatus(str, Enum):
+    """Validation status for slang submissions."""
+
+    PENDING_VALIDATION = "pending_validation"
+    VALIDATED = "validated"
+    REJECTED = "rejected"
+    AUTO_APPROVED = "auto_approved"
+    ADMIN_APPROVED = "admin_approved"
+
+
+class ApprovalType(str, Enum):
+    """Type of approval for submissions."""
+
+    LLM_AUTO = "llm_auto"
+    ADMIN_MANUAL = "admin_manual"
+    COMMUNITY_VOTE = "community_vote"
+
+
 class SourceType(str, Enum):
     """Source type for translation spans."""
 
@@ -163,6 +181,35 @@ class SlangTranslationResponse(LingibleBaseModel):
     )
 
 
+class LLMValidationEvidence(LingibleBaseModel):
+    """Evidence from web search for slang validation."""
+
+    source: str = Field(..., description="Source URL or identifier")
+    example: str = Field(..., description="Example usage found")
+
+
+class LLMValidationResult(LingibleBaseModel):
+    """Result from LLM validation of slang submission."""
+
+    is_valid: bool = Field(..., description="Whether the slang term is valid")
+    confidence: Decimal = Field(
+        ...,
+        ge=Decimal("0.0"),
+        le=Decimal("1.0"),
+        description="Confidence score for validation",
+    )
+    evidence: List[LLMValidationEvidence] = Field(
+        default_factory=list, description="Web evidence supporting validation"
+    )
+    recommended_definition: Optional[str] = Field(
+        None, description="LLM-recommended definition if different from submission"
+    )
+    usage_score: int = Field(
+        ..., ge=1, le=10, description="Widespread usage score (1-10)"
+    )
+    validated_at: datetime = Field(..., description="Validation timestamp")
+
+
 class SubmissionContext(str, Enum):
     """Context for slang submission."""
 
@@ -193,6 +240,35 @@ class SlangSubmission(LingibleBaseModel):
     reviewed_at: Optional[datetime] = Field(None, description="Review timestamp")
     reviewed_by: Optional[str] = Field(None, description="Reviewer user ID")
 
+    # Validation fields
+    llm_validation_status: SlangSubmissionStatus = Field(
+        default=SlangSubmissionStatus.PENDING_VALIDATION,
+        description="LLM validation status",
+    )
+    llm_confidence_score: Optional[Decimal] = Field(
+        None,
+        ge=Decimal("0.0"),
+        le=Decimal("1.0"),
+        description="Confidence score from LLM validation",
+    )
+    llm_validation_result: Optional[LLMValidationResult] = Field(
+        None, description="Full LLM validation result"
+    )
+
+    # Approval tracking
+    approval_type: Optional[ApprovalType] = Field(
+        None, description="Type of approval received"
+    )
+    approved_by: Optional[str] = Field(
+        None, description="Admin user ID if manually approved"
+    )
+
+    # Community voting
+    upvotes: int = Field(default=0, ge=0, description="Number of upvotes")
+    upvoted_by: List[str] = Field(
+        default_factory=list, description="User IDs who upvoted"
+    )
+
 
 class SlangSubmissionRequest(LingibleBaseModel):
     """API request for submitting slang."""
@@ -217,3 +293,27 @@ class SlangSubmissionResponse(LingibleBaseModel):
     status: ApprovalStatus = Field(..., description="Submission status")
     message: str = Field(..., description="Success message")
     created_at: datetime = Field(..., description="Submission timestamp")
+
+
+class UpvoteResponse(LingibleBaseModel):
+    """API response for upvoting a submission."""
+
+    submission_id: str = Field(..., description="Upvoted submission ID")
+    upvotes: int = Field(..., description="Total upvote count")
+    message: str = Field(..., description="Success message")
+
+
+class PendingSubmissionsResponse(LingibleBaseModel):
+    """API response for pending submissions list."""
+
+    submissions: List[SlangSubmission] = Field(..., description="List of submissions")
+    total_count: int = Field(..., description="Total number of pending submissions")
+    has_more: bool = Field(..., description="Whether more submissions exist")
+
+
+class AdminApprovalResponse(LingibleBaseModel):
+    """API response for admin approval/rejection."""
+
+    submission_id: str = Field(..., description="Submission ID")
+    status: ApprovalStatus = Field(..., description="New status")
+    message: str = Field(..., description="Success message")

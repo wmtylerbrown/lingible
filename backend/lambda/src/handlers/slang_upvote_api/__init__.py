@@ -1,0 +1,1 @@
+"""Slang upvote API handler."""

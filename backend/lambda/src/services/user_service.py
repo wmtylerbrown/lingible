@@ -251,3 +251,33 @@ class UserService:
                 "user_id": user_id,
             },
         )
+
+    @tracer.trace_method("increment_slang_submitted")
+    def increment_slang_submitted(self, user_id: str) -> None:
+        """
+        Increment the slang submitted count for a user.
+
+        Args:
+            user_id: The user ID
+        """
+        success = self.repository.increment_slang_submitted(user_id)
+        if success:
+            logger.log_business_event(
+                "slang_submitted_count_incremented",
+                {"user_id": user_id},
+            )
+
+    @tracer.trace_method("increment_slang_approved")
+    def increment_slang_approved(self, user_id: str) -> None:
+        """
+        Increment the slang approved count for a user.
+
+        Args:
+            user_id: The user ID
+        """
+        success = self.repository.increment_slang_approved(user_id)
+        if success:
+            logger.log_business_event(
+                "slang_approved_count_incremented",
+                {"user_id": user_id},
+            )

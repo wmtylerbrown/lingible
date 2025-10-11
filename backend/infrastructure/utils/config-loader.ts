@@ -34,6 +34,12 @@ export interface BackendConfig {
     log_level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
     enable_tracing: boolean;
   };
+  slang_validation: {
+    auto_approval_enabled: boolean;
+    auto_approval_threshold: number;
+    web_search_enabled: boolean;
+    max_search_results: number;
+  };
 }
 
 // Infrastructure configuration (what CDK uses)

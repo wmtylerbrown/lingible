@@ -35,6 +35,14 @@ class User(LingibleBaseModel):
     tier: UserTier = Field(UserTier.FREE, description="User subscription tier")
     status: UserStatus = Field(UserStatus.ACTIVE, description="User account status")
 
+    # Slang contribution statistics
+    slang_submitted_count: int = Field(
+        default=0, ge=0, description="Total slang terms submitted by user"
+    )
+    slang_approved_count: int = Field(
+        default=0, ge=0, description="Total slang terms approved (auto or manual)"
+    )
+
     # Metadata
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -54,6 +62,8 @@ class User(LingibleBaseModel):
             tier=self.tier,
             status=self.status,
             created_at=self.created_at,
+            slang_submitted_count=self.slang_submitted_count,
+            slang_approved_count=self.slang_approved_count,
         )
 
 
@@ -68,6 +78,14 @@ class UserResponse(LingibleBaseModel):
     status: UserStatus = Field(..., description="Account status")
 
     created_at: datetime = Field(..., description="Account creation date")
+
+    # Slang contribution statistics
+    slang_submitted_count: int = Field(
+        default=0, ge=0, description="Total slang terms submitted by user"
+    )
+    slang_approved_count: int = Field(
+        default=0, ge=0, description="Total slang terms approved (auto or manual)"
+    )
 
 
 class UpgradeResponse(LingibleBaseModel):

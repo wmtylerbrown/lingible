@@ -289,6 +289,23 @@ class TrendingEvent(BaseModel):
     )
 
 
+class PendingSubmissionsEvent(BaseModel):
+    """Typed event for pending slang submissions handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+    # Query parameters
+    limit: Optional[int] = Field(
+        50, ge=1, le=100, description="Number of submissions to return"
+    )
+
+
 class CustomCognitoAuthorizerContext(BaseModel):
     # Standard JWT claims (always present)
     sub: str = Field(description="Subject - unique user identifier")

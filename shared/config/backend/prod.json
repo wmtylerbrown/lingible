@@ -29,5 +29,11 @@
   "observability": {
     "log_level": "INFO",
     "enable_tracing": true
+  },
+  "slang_validation": {
+    "auto_approval_enabled": true,
+    "auto_approval_threshold": 0.85,
+    "web_search_enabled": true,
+    "max_search_results": 5
   }
 }

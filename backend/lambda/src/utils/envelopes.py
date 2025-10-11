@@ -240,6 +240,30 @@ class TranslationHistoryEnvelope(AuthenticatedAPIGatewayEnvelope):
         return base_data
 
 
+class PendingSubmissionsEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for pending slang submissions endpoint that extracts query parameters."""
+
+    def _parse_api_gateway(
+        self,
+        event: CustomAPIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse pending submissions specific data."""
+        # Extract query parameters
+        if event.queryStringParameters:
+            try:
+                limit = int(event.queryStringParameters.get("limit", "50"))
+                # Cap at 100
+                base_data["limit"] = min(max(limit, 1), 100)
+            except ValueError:
+                base_data["limit"] = 50
+        else:
+            base_data["limit"] = 50
+
+        return base_data
+
+
 class AccountDeletionEnvelope(AuthenticatedAPIGatewayEnvelope):
     """Envelope for account deletion endpoints that parses request body."""
 

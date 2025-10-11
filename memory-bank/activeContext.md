@@ -1,6 +1,33 @@
 # Active Context - Lingible
 
-## Current Focus: App Store Submission Issues & iPad Compatibility Fixes
+## Current Focus: Slang Crowdsourcing & System Maintenance (2025-10-11)
+
+### ✅ **COMPLETED: Slang Crowdsourcing with AI Validation (2025-10-11)**
+- **AI-Powered Validation**: Complete integration of Tavily web search + AWS Bedrock (Claude) for intelligent slang validation
+- **Three-Tier Approval System**:
+  1. **Auto-Approval**: High-confidence submissions (≥85%, usage score ≥7) automatically approved
+  2. **Community Voting**: Medium-confidence submissions go to community for upvoting
+  3. **Rejection**: Low-confidence submissions automatically rejected
+- **Admin Oversight**: Manual approve/reject endpoints with SNS notifications on all submissions and approvals
+- **User Gamification**: Track `slang_submitted_count` and `slang_approved_count` on user profiles
+- **Cost Controls**: CloudWatch alarms, configurable thresholds, web search result limits
+- **New API Endpoints**: `/slang/upvote/{id}`, `/slang/pending`, `/slang/admin/approve/{id}`, `/slang/admin/reject/{id}`
+- **Infrastructure**: New DynamoDB GSI, Lambda layer for Tavily, IAM permissions for Secrets Manager
+- **Immediate Validation**: LLM validation runs synchronously on submission (no queue delays)
+- **Complete Testing**: Comprehensive test suite following TDD approach
+- **Client SDKs**: Python and Swift SDKs regenerated with new endpoints and user statistics
+
+### ✅ **COMPLETED: Unified Secret Management System (2025-10-11)**
+- **Single Script**: Consolidated all secret management into `manage-secrets.js`
+- **Removed Unused Secrets**: Eliminated `apple-shared-secret` (legacy StoreKit 1) and `apple-webhook-secret` (never implemented)
+- **Active Secrets (3 total)**:
+  - `apple-private-key` - Apple Sign-In (Cognito)
+  - `apple-iap-private-key` - StoreKit 2 API (receipt validation + webhooks)
+  - `tavily-api-key` - Slang validation web search
+- **New List Command**: `npm run secrets list <env>` shows all secrets status at a glance
+- **Consistent Interface**: Uniform commands for all secret types (create, update, info, delete, list)
+- **Documentation**: Comprehensive README updates with new workflow
+- **Better UX**: Clear indication of configured vs missing secrets
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 - **Mandatory TDD Workflow**: Red-Green-Refactor process for all backend development

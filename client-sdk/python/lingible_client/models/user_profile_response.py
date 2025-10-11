@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -34,7 +35,9 @@ class UserProfileResponse(BaseModel):
     status: StrictStr
     created_at: datetime = Field(description="Account creation date")
     updated_at: Optional[datetime] = Field(default=None, description="Last update date")
-    __properties: ClassVar[List[str]] = ["user_id", "email", "username", "tier", "status", "created_at", "updated_at"]
+    slang_submitted_count: Annotated[int, Field(strict=True, ge=0)] = Field(description="Total number of slang terms submitted by user")
+    slang_approved_count: Annotated[int, Field(strict=True, ge=0)] = Field(description="Total number of slang terms approved (auto or manual)")
+    __properties: ClassVar[List[str]] = ["user_id", "email", "username", "tier", "status", "created_at", "updated_at", "slang_submitted_count", "slang_approved_count"]
 
     @field_validator('tier')
     def tier_validate_enum(cls, value):
@@ -107,6 +110,8 @@ class UserProfileResponse(BaseModel):
             "tier": obj.get("tier"),
             "status": obj.get("status"),
             "created_at": obj.get("created_at"),
-            "updated_at": obj.get("updated_at")
+            "updated_at": obj.get("updated_at"),
+            "slang_submitted_count": obj.get("slang_submitted_count"),
+            "slang_approved_count": obj.get("slang_approved_count")
         })
         return _obj

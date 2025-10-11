@@ -6,11 +6,15 @@ README.md
 docs/AccountDeletionRequest.md
 docs/AccountDeletionResponse.md
 docs/AccountDeletionResponseCleanupSummary.md
+docs/AdminApi.md
+docs/AdminApprovalResponse.md
 docs/AppleWebhookRequest.md
 docs/ErrorResponse.md
 docs/HealthResponse.md
 docs/PaginationInfo.md
+docs/PendingSubmissionsResponse.md
 docs/SlangApi.md
+docs/SlangSubmission.md
 docs/SlangSubmissionRequest.md
 docs/SlangSubmissionResponse.md
 docs/SuccessResponse.md
@@ -25,6 +29,7 @@ docs/TrendingListResponse.md
 docs/TrendingTermResponse.md
 docs/UpgradeRequest.md
 docs/UpgradeResponse.md
+docs/UpvoteResponse.md
 docs/UsageLimits.md
 docs/UsageResponse.md
 docs/UserApi.md
@@ -35,6 +40,7 @@ docs/WebhooksApi.md
 git_push.sh
 lingible_client/__init__.py
 lingible_client/api/__init__.py
+lingible_client/api/admin_api.py
 lingible_client/api/slang_api.py
 lingible_client/api/system_api.py
 lingible_client/api/translation_api.py
@@ -49,10 +55,13 @@ lingible_client/models/__init__.py
 lingible_client/models/account_deletion_request.py
 lingible_client/models/account_deletion_response.py
 lingible_client/models/account_deletion_response_cleanup_summary.py
+lingible_client/models/admin_approval_response.py
 lingible_client/models/apple_webhook_request.py
 lingible_client/models/error_response.py
 lingible_client/models/health_response.py
 lingible_client/models/pagination_info.py
+lingible_client/models/pending_submissions_response.py
+lingible_client/models/slang_submission.py
 lingible_client/models/slang_submission_request.py
 lingible_client/models/slang_submission_response.py
 lingible_client/models/success_response.py
@@ -64,6 +73,7 @@ lingible_client/models/trending_list_response.py
 lingible_client/models/trending_term_response.py
 lingible_client/models/upgrade_request.py
 lingible_client/models/upgrade_response.py
+lingible_client/models/upvote_response.py
 lingible_client/models/usage_limits.py
 lingible_client/models/usage_response.py
 lingible_client/models/user_profile_response.py
@@ -75,7 +85,9 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
-test/test_slang_api.py
-test/test_slang_submission_request.py
-test/test_slang_submission_response.py
+test/test_admin_api.py
+test/test_admin_approval_response.py
+test/test_pending_submissions_response.py
+test/test_slang_submission.py
+test/test_upvote_response.py
 tox.ini

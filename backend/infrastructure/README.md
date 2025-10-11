@@ -43,12 +43,13 @@ This project contains the complete infrastructure for Lingible, including:
 # 1. Install dependencies
 npm install
 
-# 2. Configure Apple credentials
-# Edit shared/config/environments/dev.json and prod.json with your Apple credentials
+# 2. Configure credentials
+# Edit shared/config/backend/dev.json and prod.json with your credentials
 
-# 3. Store Apple secrets securely
-npm run apple-secret create private-key dev
-npm run apple-secret create shared-secret dev
+# 3. Store secrets securely
+npm run secrets create apple-private-key dev
+npm run secrets create apple-iap-private-key dev
+npm run secrets create tavily-api-key dev  # Get API key from https://tavily.com
 
 # 4. Deploy hosted zones (DNS)
 npm run deploy:hosted-zones:dev
@@ -76,36 +77,52 @@ npm run deploy:prod
 
 The infrastructure uses Apple Sign-In for authentication. Credentials are split for security:
 
-**Non-sensitive credentials** (stored in `shared/config/environments/dev.json` and `prod.json`):
+**Non-sensitive credentials** (stored in `shared/config/backend/dev.json` and `prod.json`):
 - Client ID
 - Team ID
 - Key ID
 
 **Sensitive credentials** (stored in AWS Secrets Manager):
 - Private Key (for Cognito Apple Sign-In)
-- Shared Secret (for App Store receipt validation)
+- IAP Private Key (for App Store Server API and receipt validation)
+
+### Tavily API Setup
+
+The infrastructure uses Tavily for web search during slang validation. The API key is stored securely:
+
+**Sensitive credentials** (stored in AWS Secrets Manager):
+- Tavily API Key (for web search in slang validation)
+
+**Configuration** (stored in `shared/config/backend/dev.json` and `prod.json`):
+- `slang_validation.web_search_enabled`: Enable/disable web search
+- `slang_validation.max_search_results`: Number of search results to analyze
 
 ### Managing Credentials
 
 ```bash
-# Store/update private key (for Cognito Apple Sign-In)
-npm run apple-secret create private-key dev
-npm run apple-secret update private-key dev
+# List all secrets for an environment
+npm run secrets list dev
+npm run secrets list prod
 
-# Store/update shared secret (for App Store receipt validation)
-npm run apple-secret create shared-secret dev
-npm run apple-secret update shared-secret dev
+# Create/update secrets
+npm run secrets create apple-private-key dev
+npm run secrets create apple-iap-private-key dev
+npm run secrets create tavily-api-key dev  # Get from https://tavily.com
+
+# Update existing secrets
+npm run secrets update apple-private-key dev
+npm run secrets update tavily-api-key dev
 
 # Check secret status
-npm run apple-secret info private-key dev
-npm run apple-secret info shared-secret dev
+npm run secrets info apple-private-key dev
+npm run secrets info tavily-api-key dev
 
 # Delete secrets (if needed)
-npm run apple-secret delete private-key dev
-npm run apple-secret delete shared-secret dev
+npm run secrets delete apple-private-key dev
+npm run secrets delete tavily-api-key dev
 ```
 
-**Note**: Apple credentials in `shared/config/environments/dev.json` and `prod.json` should be updated with your actual values before deployment.
+**Note**: Credentials in `shared/config/backend/dev.json` and `prod.json` should be updated with your actual values before deployment.
 
 ## 📁 Project Structure
 
@@ -115,7 +132,7 @@ infrastructure/
 ├── utils/
 │   └── config-loader.ts      # Shared config loader
 ├── scripts/
-│   ├── manage-apple-secret.js # Apple secret management
+│   ├── manage-secrets.js     # Unified secret management (Apple, Tavily, etc.)
 │   ├── get-dns-info.js       # DNS information utility
 │   └── build-lambda-packages.js # Lambda packaging
 ├── constructs/
@@ -150,14 +167,13 @@ The same `app.ts` file handles both deployment modes:
 
 ### Secret Management
 ```bash
-npm run apple-secret create private-key <env>     # Create Apple private key
-npm run apple-secret create shared-secret <env>   # Create Apple shared secret
-npm run apple-secret update private-key <env>     # Update Apple private key
-npm run apple-secret update shared-secret <env>   # Update Apple shared secret
-npm run apple-secret info private-key <env>       # Check private key status
-npm run apple-secret info shared-secret <env>     # Check shared secret status
-npm run apple-secret delete private-key <env>     # Delete Apple private key
-npm run apple-secret delete shared-secret <env>   # Delete Apple shared secret
+npm run secrets list <env>                        # List all secrets
+npm run secrets create <secret-type> <env>        # Create a secret
+npm run secrets update <secret-type> <env>        # Update a secret
+npm run secrets info <secret-type> <env>          # Get secret info
+npm run secrets delete <secret-type> <env>        # Delete a secret
+
+# Secret types: apple-private-key, apple-iap-private-key, tavily-api-key
 ```
 
 ### Development
@@ -214,15 +230,28 @@ Update `shared/config/environments/dev.json` and `prod.json` with your credentia
 
 **"Secret not found" error**
 ```bash
-npm run apple-secret info private-key dev  # Check if private key exists
-npm run apple-secret info shared-secret dev  # Check if shared secret exists
-npm run apple-secret create private-key dev  # Create private key if missing
-npm run apple-secret create shared-secret dev  # Create shared secret if missing
+# List all secrets to see what's missing
+npm run secrets list dev
+
+# Check specific secrets
+npm run secrets info apple-private-key dev
+npm run secrets info apple-iap-private-key dev
+npm run secrets info tavily-api-key dev
+
+# Create missing secrets
+npm run secrets create apple-private-key dev
+npm run secrets create apple-iap-private-key dev
+npm run secrets create tavily-api-key dev
 ```
 
 **"TO_BE_SET" in Cognito configuration**
 - Ensure you've created the private key secret
-- Check that `shared/config/environments/dev.json` and `prod.json` are properly configured
+- Check that `shared/config/backend/dev.json` and `prod.json` are properly configured
+
+**Slang validation not using web search**
+- Ensure Tavily API key is stored: `npm run secrets info tavily-api-key dev`
+- Check `web_search_enabled` is set to `true` in `shared/config/backend/dev.json`
+- Verify the API key is valid at https://tavily.com
 
 **DNS issues**
 - Verify NS records are added to Squarespace DNS
@@ -236,11 +265,12 @@ npm install    # Reinstall dependencies
 
 ## 🔒 Security
 
-- ✅ Apple private keys stored in AWS Secrets Manager
+- ✅ Sensitive credentials stored in AWS Secrets Manager (Apple keys, Tavily API key)
 - ✅ Private keys never embedded in CloudFormation templates
-- ✅ Configuration file gitignored
-- ✅ Environment-specific secrets
+- ✅ Configuration files gitignored
+- ✅ Environment-specific secrets (dev/prod isolation)
 - ✅ All traffic through API Gateway (no direct AWS access)
+- ✅ IAM permissions scoped to specific secrets
 
 ## 📊 Monitoring
 

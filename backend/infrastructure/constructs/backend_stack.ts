@@ -41,6 +41,7 @@ export class BackendStack extends Construct {
   public sharedLayer!: lambda.LayerVersion;
   public coreLayer!: lambda.LayerVersion;
   public receiptValidationLayer!: lambda.LayerVersion;
+  public slangValidationLayer!: lambda.LayerVersion;
 
   // Lambda functions
   public translateLambda!: lambda.Function;
@@ -58,6 +59,10 @@ export class BackendStack extends Construct {
   public trendingLambda!: lambda.Function;
   public trendingJobLambda!: lambda.Function;
   public submitSlangLambda!: lambda.Function;
+  public slangUpvoteLambda!: lambda.Function;
+  public slangPendingLambda!: lambda.Function;
+  public slangAdminApproveLambda!: lambda.Function;
+  public slangAdminRejectLambda!: lambda.Function;
 
   // Configuration loader
   private configLoader!: ConfigLoader;
@@ -102,6 +107,7 @@ export class BackendStack extends Construct {
     // Create Lambda layers
     this.coreLayer = this.createCoreLayer(environment);
     this.receiptValidationLayer = this.createReceiptValidationLayer(environment);
+    this.slangValidationLayer = this.createSlangValidationLayer(environment);
     this.sharedLayer = this.createSharedLayer(environment);
 
     // Create DynamoDB tables
@@ -167,6 +173,12 @@ export class BackendStack extends Construct {
         // Observability Config
         LOG_LEVEL: backendConfig.observability.log_level,
         ENABLE_TRACING: backendConfig.observability.enable_tracing.toString(),
+
+        // Slang Validation Config
+        SLANG_VALIDATION_AUTO_APPROVAL_ENABLED: backendConfig.slang_validation.auto_approval_enabled.toString(),
+        SLANG_VALIDATION_AUTO_APPROVAL_THRESHOLD: backendConfig.slang_validation.auto_approval_threshold.toString(),
+        SLANG_VALIDATION_WEB_SEARCH_ENABLED: backendConfig.slang_validation.web_search_enabled.toString(),
+        SLANG_VALIDATION_MAX_SEARCH_RESULTS: backendConfig.slang_validation.max_search_results.toString(),
 
         // Apple Config (for App Store Server API)
         APPLE_KEY_ID: config.apple.in_app_purchase_key_id,
@@ -381,6 +393,19 @@ export class BackendStack extends Construct {
       },
     });
 
+    // Add GSI for querying by validation status (for community voting)
+    this.slangSubmissionsTable.addGlobalSecondaryIndex({
+      indexName: 'ValidationStatusIndex',
+      partitionKey: {
+        name: 'llm_validation_status',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'created_at',
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
   }
 
   private createLexiconBucket(bucketName: string): void {
@@ -559,6 +584,24 @@ export class BackendStack extends Construct {
       }),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
       description: 'Receipt validation dependencies for Lingible Lambda functions',
+    });
+  }
+
+  private createSlangValidationLayer(environment: string): lambda.LayerVersion {
+    return new lambda.LayerVersion(this, 'SlangValidationLayer', {
+      layerVersionName: `lingible-slang-validation-layer-${environment}`,
+      code: lambda.Code.fromAsset('./lambda-slang-validation-layer', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_13.bundlingImage,
+          platform: 'linux/arm64',
+          command: [
+            'bash', '-c',
+            'rm -rf /asset-output/python && pip install --platform manylinux2014_aarch64 --implementation cp --python-version 3.13 --only-binary=:all: --upgrade --target /asset-output/python -r requirements.txt'
+          ],
+        },
+      }),
+      compatibleRuntimes: [lambda.Runtime.PYTHON_3_13],
+      description: 'Slang validation dependencies (requests) for Lingible Lambda functions',
     });
   }
 
@@ -856,7 +899,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-submit-slang',
         ...baseEnvironmentVariables,
       },
-      layers: [this.coreLayer, this.sharedLayer],
+      layers: [this.slangValidationLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -866,6 +909,81 @@ export class BackendStack extends Construct {
 
     // Grant SNS publish permissions for slang submissions
     this.slangSubmissionsTopic.grantPublish(this.submitSlangLambda);
+
+    // Add secrets permissions for Tavily API key
+    this.submitSlangLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'secretsmanager:GetSecretValue',
+      ],
+      resources: [
+        `arn:aws:secretsmanager:*:*:secret:lingible-tavily-api-key-${environment}*`,
+      ],
+    }));
+
+    // Slang Upvote Handler
+    this.slangUpvoteLambda = new lambda.Function(this, 'SlangUpvoteLambda', {
+      functionName: `lingible-slang-upvote-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.slang_upvote_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-slang-upvote',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.slangValidationLayer, this.sharedLayer],
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(15),
+    });
+    lambdaPolicyStatements.forEach(statement => this.slangUpvoteLambda.addToRolePolicy(statement));
+
+    // Slang Pending Submissions Handler
+    this.slangPendingLambda = new lambda.Function(this, 'SlangPendingLambda', {
+      functionName: `lingible-slang-pending-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.slang_pending_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-slang-pending',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.slangValidationLayer, this.sharedLayer],
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(15),
+    });
+    lambdaPolicyStatements.forEach(statement => this.slangPendingLambda.addToRolePolicy(statement));
+
+    // Slang Admin Approve Handler
+    this.slangAdminApproveLambda = new lambda.Function(this, 'SlangAdminApproveLambda', {
+      functionName: `lingible-slang-admin-approve-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.slang_admin_approve_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-slang-admin-approve',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.slangValidationLayer, this.sharedLayer],
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(15),
+    });
+    lambdaPolicyStatements.forEach(statement => this.slangAdminApproveLambda.addToRolePolicy(statement));
+
+    // Slang Admin Reject Handler
+    this.slangAdminRejectLambda = new lambda.Function(this, 'SlangAdminRejectLambda', {
+      functionName: `lingible-slang-admin-reject-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.slang_admin_reject_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-slang-admin-reject',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.slangValidationLayer, this.sharedLayer],
+      ...lambdaConfig,
+      memorySize: 256,
+      timeout: Duration.seconds(15),
+    });
+    lambdaPolicyStatements.forEach(statement => this.slangAdminRejectLambda.addToRolePolicy(statement));
 
     // Webhook Handlers
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
@@ -1364,6 +1482,131 @@ export class BackendStack extends Construct {
       ],
     });
 
+    // Slang pending submissions endpoint
+    const pending = slang.addResource('pending');
+    pending.addMethod('GET', new apigateway.LambdaIntegration(this.slangPendingLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': successModel,
+          },
+        },
+        {
+          statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
+    // Slang upvote endpoint
+    const upvote = slang.addResource('upvote');
+    const upvoteSubmission = upvote.addResource('{submission_id}');
+    upvoteSubmission.addMethod('POST', new apigateway.LambdaIntegration(this.slangUpvoteLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': successModel,
+          },
+        },
+        {
+          statusCode: '400',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '404',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
+    // Slang admin endpoints
+    const admin = slang.addResource('admin');
+    const approve = admin.addResource('approve');
+    const approveSubmission = approve.addResource('{submission_id}');
+    approveSubmission.addMethod('POST', new apigateway.LambdaIntegration(this.slangAdminApproveLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      // TODO: Add admin tier check in authorizer or use request validator
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': successModel,
+          },
+        },
+        {
+          statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '403',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '404',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
+    const reject = admin.addResource('reject');
+    const rejectSubmission = reject.addResource('{submission_id}');
+    rejectSubmission.addMethod('POST', new apigateway.LambdaIntegration(this.slangAdminRejectLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      // TODO: Add admin tier check in authorizer or use request validator
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': successModel,
+          },
+        },
+        {
+          statusCode: '401',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '403',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+        {
+          statusCode: '404',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
     // Apple webhook endpoint (no auth required)
     const webhook = this.api.root.addResource('webhook');
     const apple = webhook.addResource('apple');
@@ -1460,6 +1703,32 @@ export class BackendStack extends Construct {
       threshold: 10,
       evaluationPeriods: 2,
       alarmDescription: 'High Lambda error rate',
+    }).addAlarmAction(new actions.SnsAction(this.alertTopic));
+
+    // Cost monitoring alarm for Bedrock usage
+    new cloudwatch.Alarm(this, 'HighBedrockCosts', {
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/Bedrock',
+        metricName: 'InputTokens',
+        statistic: 'Sum',
+        period: Duration.days(1),
+      }),
+      threshold: 1000000, // Alert if > 1M tokens per day (~$1-2 at Haiku pricing)
+      evaluationPeriods: 1,
+      alarmDescription: 'High Bedrock token usage - check slang validation costs',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new actions.SnsAction(this.alertTopic));
+
+    // Slang submission rate alarm (unusual activity detection)
+    new cloudwatch.Alarm(this, 'HighSlangSubmissions', {
+      metric: this.submitSlangLambda.metricInvocations({
+        statistic: 'Sum',
+        period: Duration.hours(1),
+      }),
+      threshold: 100, // Alert if > 100 submissions per hour
+      evaluationPeriods: 1,
+      alarmDescription: 'Unusually high slang submission rate - possible abuse',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     }).addAlarmAction(new actions.SnsAction(this.alertTopic));
   }
 
