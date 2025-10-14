@@ -1,6 +1,7 @@
 """Service for managing user-submitted slang terms."""
 
 import json
+import os
 from datetime import datetime, timezone
 from typing import List
 
@@ -18,7 +19,6 @@ from models.slang import (
 from models.users import UserTier
 from repositories.slang_submission_repository import SlangSubmissionRepository
 from services.user_service import UserService
-from services.slang_validation_service import SlangValidationService
 from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
@@ -42,7 +42,6 @@ class SlangSubmissionService:
         """Initialize slang submission service."""
         self.repository = SlangSubmissionRepository()
         self.user_service = UserService()
-        self.validation_service = SlangValidationService()
         self.config_service = get_config_service()
         self.sns_client = aws_services.sns_client
 
@@ -126,103 +125,15 @@ class SlangSubmissionService:
             },
         )
 
-        # Trigger LLM validation immediately
-        try:
-            validation_result = self.validation_service.validate_submission(submission)
+        # Publish to validation topic for async validation
+        self._publish_validation_request(submission)
 
-            # Update submission with validation result
-            self.repository.update_validation_result(
-                submission_id, user_id, validation_result
-            )
-
-            # Determine status based on validation
-            validation_status = self.validation_service.determine_status(
-                validation_result
-            )
-
-            # Check if should auto-approve
-            if self.validation_service.should_auto_approve(validation_result):
-                # Auto-approve the submission
-                self.repository.update_approval_status(
-                    submission_id,
-                    user_id,
-                    SlangSubmissionStatus.AUTO_APPROVED,
-                    ApprovalType.LLM_AUTO,
-                )
-
-                # Notify admins of auto-approval
-                self._publish_auto_approval_notification(submission, validation_result)
-
-                # Increment user's approved count
-                self.user_service.increment_slang_approved(user_id)
-
-                # TODO: Add to lexicon (will be implemented in future)
-
-                logger.log_business_event(
-                    "slang_auto_approved",
-                    {
-                        "submission_id": submission_id,
-                        "slang_term": request.slang_term,
-                        "confidence": float(validation_result.confidence),
-                    },
-                )
-
-                return SlangSubmissionResponse(
-                    submission_id=submission_id,
-                    status=ApprovalStatus.APPROVED,
-                    message="Your slang term looks legit! Auto-approved and added to our database. Thanks for contributing!",
-                    created_at=submission.created_at,
-                )
-            else:
-                # Update to validated/rejected status
-                self.repository.update_approval_status(
-                    submission_id,
-                    user_id,
-                    validation_status,
-                    (
-                        ApprovalType.COMMUNITY_VOTE
-                        if validation_status == SlangSubmissionStatus.VALIDATED
-                        else ApprovalType.LLM_AUTO
-                    ),
-                )
-
-                # Notify admins of new submission (standard notification)
-                self._publish_submission_notification(submission)
-
-                if validation_status == SlangSubmissionStatus.VALIDATED:
-                    return SlangSubmissionResponse(
-                        submission_id=submission_id,
-                        status=ApprovalStatus.PENDING,
-                        message="Thanks for the submission! The community will vote on it, and we'll review it soon.",
-                        created_at=submission.created_at,
-                    )
-                else:
-                    return SlangSubmissionResponse(
-                        submission_id=submission_id,
-                        status=ApprovalStatus.REJECTED,
-                        message="Hmm, we're not sure this is Gen Z slang. But an admin can still review it!",
-                        created_at=submission.created_at,
-                    )
-
-        except Exception as e:
-            # If validation fails, fall back to standard pending workflow
-            logger.log_error(
-                e,
-                {
-                    "operation": "validate_and_process_submission",
-                    "submission_id": submission_id,
-                },
-            )
-
-            # Notify admins via SNS (fallback to standard notification)
-            self._publish_submission_notification(submission)
-
-            return SlangSubmissionResponse(
-                submission_id=submission_id,
-                status=ApprovalStatus.PENDING,
-                message="Thanks for the submission! We'll review it soon. No cap, we appreciate your help!",
-                created_at=submission.created_at,
-            )
+        return SlangSubmissionResponse(
+            submission_id=submission_id,
+            status=ApprovalStatus.PENDING,
+            message="Thanks for the submission! We'll validate it shortly and let you know the result.",
+            created_at=submission.created_at,
+        )
 
     def get_user_submissions(
         self, user_id: str, limit: int = 20
@@ -406,6 +317,47 @@ class SlangSubmissionService:
                 e,
                 {
                     "operation": "publish_auto_approval_notification",
+                    "submission_id": submission.submission_id,
+                },
+            )
+
+    def _publish_validation_request(self, submission: SlangSubmission) -> None:
+        """Publish validation request to SNS."""
+        try:
+            topic_arn = os.environ.get("SLANG_VALIDATION_REQUEST_TOPIC_ARN")
+            if not topic_arn:
+                logger.error(
+                    "SLANG_VALIDATION_REQUEST_TOPIC_ARN environment variable not set"
+                )
+                return
+
+            message = {
+                "submission_id": submission.submission_id,
+                "user_id": submission.user_id,
+                "slang_term": submission.slang_term,
+                "context": submission.context,
+            }
+
+            self.sns_client.publish(
+                TopicArn=topic_arn,
+                Message=json.dumps(message),
+                Subject="Slang Validation Request",
+            )
+
+            logger.log_business_event(
+                "validation_request_published",
+                {
+                    "submission_id": submission.submission_id,
+                    "slang_term": submission.slang_term,
+                },
+            )
+
+        except Exception as e:
+            # Log but don't fail the submission if validation request fails
+            logger.log_error(
+                e,
+                {
+                    "operation": "publish_validation_request",
                     "submission_id": submission.submission_id,
                 },
             )

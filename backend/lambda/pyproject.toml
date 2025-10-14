@@ -12,7 +12,6 @@ boto3 = "^1.40.20"
 pydantic = "^2.11.7"
 pydantic-core = "^2.33.2"
 aws-lambda-powertools = {extras = ["parser", "logger", "tracer", "parameters"], version = "^3.19.0"}
-tiktoken = "0.11.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"

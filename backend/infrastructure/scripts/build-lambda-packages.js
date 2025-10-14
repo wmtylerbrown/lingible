@@ -21,7 +21,7 @@ const LAYER_CONFIGS = {
       'translate_api', 'get_translation_history', 'trending_api', 'trending_job',
       'user_profile_api', 'user_usage_api', 'health_api',
       'delete_translation', 'delete_translations', 'cognito_post_confirmation',
-      'slang_upvote_api', 'slang_pending_api', 'slang_admin_approve_api', 'slang_admin_reject_api'
+      'submit_slang_api', 'slang_upvote_api', 'slang_pending_api', 'slang_admin_approve_api', 'slang_admin_reject_api'
     ]
   },
   'receipt-validation': {
@@ -34,7 +34,7 @@ const LAYER_CONFIGS = {
     name: 'Slang Validation Dependencies',
     description: 'Dependencies for slang validation with web search (Tavily SDK)',
     groups: ['main', 'slang-validation'],
-    handlers: ['submit_slang_api']
+    handlers: ['slang_validation_processor']
   }
 };
 

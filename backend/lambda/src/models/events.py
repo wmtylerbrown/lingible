@@ -306,6 +306,15 @@ class PendingSubmissionsEvent(BaseModel):
     )
 
 
+class SlangValidationEvent(BaseModel):
+    """Event for async slang validation."""
+
+    submission_id: str = Field(..., description="Slang submission ID to validate")
+    user_id: str = Field(..., description="User ID who submitted the slang")
+    slang_term: str = Field(..., description="The slang term to validate")
+    context: Optional[str] = Field(None, description="Context for the slang term")
+
+
 class CustomCognitoAuthorizerContext(BaseModel):
     # Standard JWT claims (always present)
     sub: str = Field(description="Subject - unique user identifier")

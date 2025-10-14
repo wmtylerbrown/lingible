@@ -12,6 +12,7 @@ import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as sns from 'aws-cdk-lib/aws-sns';
+import * as snsSubscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as eventTargets from 'aws-cdk-lib/aws-events-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -63,6 +64,7 @@ export class BackendStack extends Construct {
   public slangPendingLambda!: lambda.Function;
   public slangAdminApproveLambda!: lambda.Function;
   public slangAdminRejectLambda!: lambda.Function;
+  public slangValidationProcessorLambda!: lambda.Function;
 
   // Configuration loader
   private configLoader!: ConfigLoader;
@@ -82,6 +84,7 @@ export class BackendStack extends Construct {
   public dashboard!: cloudwatch.Dashboard;
   public alertTopic!: sns.Topic;
   public slangSubmissionsTopic!: sns.Topic;
+  public slangValidationRequestTopic!: sns.Topic;
 
   constructor(
     scope: Construct,
@@ -901,8 +904,10 @@ export class BackendStack extends Construct {
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-submit-slang',
         ...baseEnvironmentVariables,
+        SLANG_SUBMISSIONS_TOPIC_ARN: this.slangSubmissionsTopic.topicArn,
+        SLANG_VALIDATION_REQUEST_TOPIC_ARN: this.slangValidationRequestTopic.topicArn,
       },
-      layers: [this.slangValidationLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
 
       ...lambdaConfig,
       memorySize: 256,
@@ -913,16 +918,9 @@ export class BackendStack extends Construct {
     // Grant SNS publish permissions for slang submissions
     this.slangSubmissionsTopic.grantPublish(this.submitSlangLambda);
 
-    // Add secrets permissions for Tavily API key
-    this.submitSlangLambda.addToRolePolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'secretsmanager:GetSecretValue',
-      ],
-      resources: [
-        `arn:aws:secretsmanager:*:*:secret:lingible-tavily-api-key-${environment}*`,
-      ],
-    }));
+    // Grant SNS publish permissions for validation requests
+    this.slangValidationRequestTopic.grantPublish(this.submitSlangLambda);
+
 
     // Slang Upvote Handler
     this.slangUpvoteLambda = new lambda.Function(this, 'SlangUpvoteLambda', {
@@ -933,7 +931,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-slang-upvote',
         ...baseEnvironmentVariables,
       },
-      layers: [this.slangValidationLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
       ...lambdaConfig,
       memorySize: 256,
       timeout: Duration.seconds(15),
@@ -949,7 +947,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-slang-pending',
         ...baseEnvironmentVariables,
       },
-      layers: [this.slangValidationLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
       ...lambdaConfig,
       memorySize: 256,
       timeout: Duration.seconds(15),
@@ -965,7 +963,7 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-slang-admin-approve',
         ...baseEnvironmentVariables,
       },
-      layers: [this.slangValidationLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
       ...lambdaConfig,
       memorySize: 256,
       timeout: Duration.seconds(15),
@@ -981,12 +979,45 @@ export class BackendStack extends Construct {
         POWERTOOLS_SERVICE_NAME: 'lingible-slang-admin-reject',
         ...baseEnvironmentVariables,
       },
-      layers: [this.slangValidationLayer, this.sharedLayer],
+      layers: [this.coreLayer, this.sharedLayer],
       ...lambdaConfig,
       memorySize: 256,
       timeout: Duration.seconds(15),
     });
     lambdaPolicyStatements.forEach(statement => this.slangAdminRejectLambda.addToRolePolicy(statement));
+
+    // Slang Validation Processor
+    this.slangValidationProcessorLambda = new lambda.Function(this, 'SlangValidationProcessorLambda', {
+      functionName: `lingible-slang-validation-processor-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.slang_validation_processor.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-slang-validation-processor',
+        ...baseEnvironmentVariables,
+        SLANG_SUBMISSIONS_TOPIC_ARN: this.slangSubmissionsTopic.topicArn,
+      },
+      layers: [this.slangValidationLayer, this.sharedLayer],
+      ...lambdaConfig,
+      memorySize: 512,
+      timeout: Duration.seconds(60), // Longer timeout for web search + LLM
+    });
+    lambdaPolicyStatements.forEach(statement => this.slangValidationProcessorLambda.addToRolePolicy(statement));
+
+    // Add secrets permissions for Tavily API key
+    this.slangValidationProcessorLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'secretsmanager:GetSecretValue',
+      ],
+      resources: [
+        `arn:aws:secretsmanager:*:*:secret:lingible-tavily-api-key-${environment}*`,
+      ],
+    }));
+
+    // Add SNS subscription for validation requests
+    this.slangValidationRequestTopic.addSubscription(
+      new snsSubscriptions.LambdaSubscription(this.slangValidationProcessorLambda)
+    );
 
     // Webhook Handlers
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
@@ -1636,6 +1667,12 @@ export class BackendStack extends Construct {
     this.slangSubmissionsTopic = new sns.Topic(this, 'SlangSubmissionsTopic', {
       topicName: `lingible-slang-submissions-${environment}`,
       displayName: `Lingible ${environment} Slang Submissions`,
+    });
+
+    // Create SNS topic for slang validation requests
+    this.slangValidationRequestTopic = new sns.Topic(this, 'SlangValidationRequestTopic', {
+      topicName: `lingible-slang-validation-requests-${environment}`,
+      displayName: `Lingible ${environment} Slang Validation Requests`,
     });
   }
 
