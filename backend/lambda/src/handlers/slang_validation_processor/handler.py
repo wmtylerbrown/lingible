@@ -7,6 +7,7 @@ from aws_lambda_powertools.utilities.parser import event_parser
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from models.events import SlangValidationEvent
+from models.slang import ApprovalType
 from services.slang_validation_service import SlangValidationService
 from services.slang_submission_service import SlangSubmissionService
 from repositories.slang_submission_repository import SlangSubmissionRepository
@@ -29,23 +30,24 @@ def lambda_handler(
         },
     )
 
-    try:
-        # Initialize services
-        validation_service = SlangValidationService()
-        submission_service = SlangSubmissionService()
-        repository = SlangSubmissionRepository()
+    # Initialize services
+    validation_service = SlangValidationService()
+    submission_service = SlangSubmissionService()
+    repository = SlangSubmissionRepository()
 
-        # Get submission from repository
-        submission = repository.get_submission_by_id(event.submission_id)
-        if not submission:
-            logger.log_error(
-                Exception("Submission not found"),
-                {"operation": "get_submission", "submission_id": event.submission_id},
-            )
-            return {
-                "statusCode": 404,
-                "body": json.dumps({"error": "Submission not found"}),
-            }
+    # Get submission from repository
+    submission = repository.get_submission_by_id(event.submission_id)
+    if not submission:
+        logger.log_error(
+            Exception("Submission not found"),
+            {"operation": "get_submission", "submission_id": event.submission_id},
+        )
+        return {
+            "statusCode": 404,
+            "body": json.dumps({"error": "Submission not found"}),
+        }
+
+    try:
 
         # Validate the submission
         logger.log_business_event(
@@ -68,7 +70,7 @@ def lambda_handler(
                 "submission_auto_approved",
                 {
                     "submission_id": event.submission_id,
-                    "confidence": str(validation_result.confidence_score),
+                    "confidence": str(validation_result.confidence),
                     "usage_score": validation_result.usage_score,
                 },
             )
@@ -78,7 +80,7 @@ def lambda_handler(
                 event.submission_id,
                 event.user_id,
                 validation_status,
-                validation_result.approval_type,
+                ApprovalType.LLM_AUTO,
             )
 
             # Notify admins of auto-approval
@@ -98,7 +100,7 @@ def lambda_handler(
                 "submission_requires_review",
                 {
                     "submission_id": event.submission_id,
-                    "confidence": str(validation_result.confidence_score),
+                    "confidence": str(validation_result.confidence),
                     "usage_score": validation_result.usage_score,
                 },
             )
@@ -135,7 +137,7 @@ def lambda_handler(
             repository.update_validation_result(
                 event.submission_id,
                 event.user_id,
-                validation_service._fallback_validation(),
+                validation_service._fallback_validation(submission),
             )
         except Exception as update_error:
             logger.log_error(

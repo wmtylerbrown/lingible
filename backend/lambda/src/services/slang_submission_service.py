@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import List
 
 from models.slang import (
+    LLMValidationResult,
     SlangSubmission,
     SlangSubmissionRequest,
     SlangSubmissionResponse,
@@ -283,7 +284,7 @@ class SlangSubmissionService:
             )
 
     def _publish_auto_approval_notification(
-        self, submission: SlangSubmission, validation_result
+        self, submission: SlangSubmission, validation_result: LLMValidationResult
     ) -> None:
         """Publish SNS notification for auto-approved submission."""
         try:
@@ -297,7 +298,7 @@ class SlangSubmissionService:
                 "example_usage": submission.example_usage,
                 "created_at": submission.created_at.isoformat(),
                 "notification_type": "auto_approval",
-                "confidence_score": float(validation_result.confidence_score),
+                "confidence_score": float(validation_result.confidence),
                 "usage_score": validation_result.usage_score,
             }
 
