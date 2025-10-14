@@ -32,8 +32,8 @@ const LAYER_CONFIGS = {
   },
   'slang-validation': {
     name: 'Slang Validation Dependencies',
-    description: 'Dependencies for slang validation with web search (requests library)',
-    groups: ['main', 'slang-validation', 'slang_admin_approve_api', 'slang_admin_reject_api', 'slang_pending_api', 'slang_upvote_api'],
+    description: 'Dependencies for slang validation with web search (Tavily SDK)',
+    groups: ['main', 'slang-validation'],
     handlers: ['submit_slang_api']
   }
 };

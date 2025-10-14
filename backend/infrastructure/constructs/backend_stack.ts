@@ -121,8 +121,8 @@ export class BackendStack extends Construct {
     // Create S3 bucket for lexicon
     this.createLexiconBucket(backendConfig.lexicon.s3_bucket);
 
-    // Create monitoring (SNS topics need to exist before lambdas)
-    this.createMonitoring(environment);
+    // Create SNS topics (needed for Lambda functions)
+    this.createSnsTopics(environment);
 
     const lambdaConfig = {
       runtime: lambda.Runtime.PYTHON_3_13,
@@ -260,6 +260,9 @@ export class BackendStack extends Construct {
 
     // Create scheduled jobs
     this.createScheduledJobs(environment, backendConfig);
+
+    // Create monitoring (after Lambda functions are created)
+    this.createMonitoring(environment);
 
     // Add tags to all resources
     cdk.Tags.of(this).add('Application', 'Lingible');
@@ -1622,7 +1625,7 @@ export class BackendStack extends Construct {
     });
   }
 
-  private createMonitoring(environment: string): void {
+  private createSnsTopics(environment: string): void {
     // Create SNS topic for alerts
     this.alertTopic = new sns.Topic(this, 'AlertTopic', {
       topicName: `lingible-alerts-${environment}`,
@@ -1634,6 +1637,9 @@ export class BackendStack extends Construct {
       topicName: `lingible-slang-submissions-${environment}`,
       displayName: `Lingible ${environment} Slang Submissions`,
     });
+  }
+
+  private createMonitoring(environment: string): void {
 
     // Create CloudWatch Dashboard
     this.dashboard = new cloudwatch.Dashboard(this, 'LingibleDashboard', {
