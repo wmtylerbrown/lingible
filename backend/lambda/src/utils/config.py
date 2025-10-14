@@ -20,6 +20,7 @@ from models.config import (
     CognitoConfig,
     LLMConfig,
     SlangValidationConfig,
+    SlangSubmissionConfig,
     LogLevel,
 )
 from models.slang import AgeRating, AgeFilterMode
@@ -200,6 +201,13 @@ class ConfigService:
                     self._get_env_var("SLANG_VALIDATION_MAX_SEARCH_RESULTS")
                 ),
                 tavily_api_key=tavily_api_key,
+            )  # type: ignore
+        elif config_type == SlangSubmissionConfig:
+            return SlangSubmissionConfig(
+                submissions_topic_arn=self._get_env_var("SLANG_SUBMISSIONS_TOPIC_ARN"),
+                validation_request_topic_arn=self._get_env_var(
+                    "SLANG_VALIDATION_REQUEST_TOPIC_ARN"
+                ),
             )  # type: ignore
         else:
             raise ConfigurationError(f"Unknown configuration type: {config_type}")

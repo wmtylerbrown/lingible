@@ -151,3 +151,14 @@ class SlangValidationConfig(BaseModel):
     tavily_api_key: str = Field(
         description="Tavily API key for web search (from Secrets Manager)"
     )
+
+
+class SlangSubmissionConfig(BaseModel):
+    """Slang submission configuration for SNS topics."""
+
+    submissions_topic_arn: str = Field(
+        description="SNS topic ARN for slang submission notifications"
+    )
+    validation_request_topic_arn: str = Field(
+        description="SNS topic ARN for validation requests"
+    )

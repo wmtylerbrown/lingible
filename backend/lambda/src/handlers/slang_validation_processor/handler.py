@@ -14,7 +14,7 @@ from utils.smart_logger import logger
 from utils.tracing import tracer
 
 
-@tracer.capture_lambda_handler
+@tracer.trace_lambda
 @event_parser(model=SlangValidationEvent)
 def lambda_handler(
     event: SlangValidationEvent, context: LambdaContext
@@ -109,15 +109,7 @@ def lambda_handler(
             )
 
             # Notify admins of submission requiring review
-            submission_service._publish_submission_notification(
-                submission,
-                "slang_submission_validated",
-                {
-                    "validation_status": str(validation_status),
-                    "confidence_score": str(validation_result.confidence_score),
-                    "usage_score": validation_result.usage_score,
-                },
-            )
+            submission_service._publish_submission_notification(submission)
 
         return {
             "statusCode": 200,

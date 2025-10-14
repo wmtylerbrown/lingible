@@ -1,7 +1,6 @@
 """Service for managing user-submitted slang terms."""
 
 import json
-import os
 from datetime import datetime, timezone
 from typing import List
 
@@ -16,6 +15,7 @@ from models.slang import (
     PendingSubmissionsResponse,
     AdminApprovalResponse,
 )
+from models.config import SlangSubmissionConfig
 from models.users import UserTier
 from repositories.slang_submission_repository import SlangSubmissionRepository
 from services.user_service import UserService
@@ -43,6 +43,7 @@ class SlangSubmissionService:
         self.repository = SlangSubmissionRepository()
         self.user_service = UserService()
         self.config_service = get_config_service()
+        self.submission_config = self.config_service.get_config(SlangSubmissionConfig)
         self.sns_client = aws_services.sns_client
 
     @tracer.trace_method("submit_slang")
@@ -131,7 +132,7 @@ class SlangSubmissionService:
         return SlangSubmissionResponse(
             submission_id=submission_id,
             status=ApprovalStatus.PENDING,
-            message="Thanks for the submission! We'll validate it shortly and let you know the result.",
+            message="Thanks for the submission! We're checking it out now. No cap, we appreciate your help!",
             created_at=submission.created_at,
         )
 
@@ -247,7 +248,7 @@ class SlangSubmissionService:
     def _publish_submission_notification(self, submission: SlangSubmission) -> None:
         """Publish SNS notification for new submission."""
         try:
-            topic_arn = self.config_service._get_env_var("SLANG_SUBMISSIONS_TOPIC_ARN")
+            topic_arn = self.submission_config.submissions_topic_arn
 
             message = {
                 "submission_id": submission.submission_id,
@@ -286,7 +287,7 @@ class SlangSubmissionService:
     ) -> None:
         """Publish SNS notification for auto-approved submission."""
         try:
-            topic_arn = self.config_service._get_env_var("SLANG_SUBMISSIONS_TOPIC_ARN")
+            topic_arn = self.submission_config.submissions_topic_arn
 
             message = {
                 "submission_id": submission.submission_id,
@@ -296,7 +297,7 @@ class SlangSubmissionService:
                 "example_usage": submission.example_usage,
                 "created_at": submission.created_at.isoformat(),
                 "notification_type": "auto_approval",
-                "confidence_score": float(validation_result.confidence),
+                "confidence_score": float(validation_result.confidence_score),
                 "usage_score": validation_result.usage_score,
             }
 
@@ -324,10 +325,13 @@ class SlangSubmissionService:
     def _publish_validation_request(self, submission: SlangSubmission) -> None:
         """Publish validation request to SNS."""
         try:
-            topic_arn = os.environ.get("SLANG_VALIDATION_REQUEST_TOPIC_ARN")
+            topic_arn = self.submission_config.validation_request_topic_arn
             if not topic_arn:
-                logger.error(
-                    "SLANG_VALIDATION_REQUEST_TOPIC_ARN environment variable not set"
+                logger.log_error(
+                    Exception(
+                        "SLANG_VALIDATION_REQUEST_TOPIC_ARN environment variable not set"
+                    ),
+                    {"operation": "publish_validation_request"},
                 )
                 return
 

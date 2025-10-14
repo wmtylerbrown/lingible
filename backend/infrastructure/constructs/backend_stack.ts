@@ -183,13 +183,14 @@ export class BackendStack extends Construct {
         SLANG_VALIDATION_WEB_SEARCH_ENABLED: backendConfig.slang_validation.web_search_enabled.toString(),
         SLANG_VALIDATION_MAX_SEARCH_RESULTS: backendConfig.slang_validation.max_search_results.toString(),
 
+        // Slang Submission Config (SNS Topic ARNs)
+        SLANG_SUBMISSIONS_TOPIC_ARN: this.slangSubmissionsTopic.topicArn,
+        SLANG_VALIDATION_REQUEST_TOPIC_ARN: this.slangValidationRequestTopic.topicArn,
+
         // Apple Config (for App Store Server API)
         APPLE_KEY_ID: config.apple.in_app_purchase_key_id,
         APPLE_ISSUER_ID: config.apple.issuer_id,
         APPLE_BUNDLE_ID: config.apple.bundle_id,
-
-        // SNS Topics
-        SLANG_SUBMISSIONS_TOPIC_ARN: this.slangSubmissionsTopic.topicArn,
   };
 
 
