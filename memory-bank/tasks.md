@@ -27,7 +27,7 @@ Successfully implemented event-driven export_lexicon functionality that automati
 ### **4. Updated Export Lexicon Handler:**
 - ✅ **SNS Event Support**: Added SNS event parsing logic that extracts messages from SNS Records array
 - ✅ **Backward Compatibility**: Handler still supports manual invocation (empty event or test events)
-- ✅ **Event Filtering**: Only processes `Revocation_notification` and `manual_approval` notifications, skips others
+- ✅ **Event Filtering**: Only processes `auto_approval` and `manual_approval` notifications, skips others
 - ✅ **Error Handling**: Graceful fallback to manual export if SNS parsing fails
 - ✅ **Logging**: Enhanced logging to track trigger source (SNS vs manual) and submission details
 
