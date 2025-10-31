@@ -368,7 +368,9 @@ export class BackendStack extends Construct {
     });
 
     // Slang Terms table (unified for submissions, lexicon, quiz)
-    this.slangTermsTable = new dynamodb.Table(this, 'SlangTermsTable', {
+    // Note: Using 'SlangSubmissionsTable' construct ID to match existing CloudFormation resource
+    // The table name remains lingible-slang-submissions-dev but conceptually holds slang_terms
+    this.slangTermsTable = new dynamodb.Table(this, 'SlangSubmissionsTable', {
       tableName: slangTermsTableConfig.name,
       partitionKey: {
         name: 'PK',
@@ -396,6 +398,15 @@ export class BackendStack extends Construct {
       },
       projectionType: dynamodb.ProjectionType.ALL,
     });
+
+    // NOTE: For prod deployment with existing table, deploy GSIs incrementally:
+    // 1. ✅ GSIs 2-5 are commented out below
+    // 2. Deploy with just GSI1
+    // 3. Uncomment GSI2, deploy
+    // 4. Uncomment GSI3, deploy
+    // 5. Uncomment GSI4, deploy
+    // 6. Uncomment GSI5, deploy
+    // DynamoDB only allows one GSI creation/deletion per update
 
     // GSI2 - Quiz queries by difficulty
     this.slangTermsTable.addGlobalSecondaryIndex({
@@ -1077,12 +1088,7 @@ export class BackendStack extends Construct {
 
     // Grant DynamoDB read and S3 write for export Lambda
     this.slangTermsTable.grantReadData(this.exportLexiconLambda);
-    const lexiconBucket = s3.Bucket.fromBucketName(
-      this,
-      'LexiconBucket',
-      `lingible-slang-lexicon-${environment}`
-    );
-    lexiconBucket.grantWrite(this.exportLexiconLambda);
+    this.lexiconBucket.grantWrite(this.exportLexiconLambda);
 
     // Subscribe export lexicon to slang submissions topic (only approval events)
     this.slangSubmissionsTopic.addSubscription(

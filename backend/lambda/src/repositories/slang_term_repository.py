@@ -167,7 +167,7 @@ class SlangTermRepository:
                     ":status": "validated",
                     ":result": {
                         "is_valid": validation_result.is_valid,
-                        "confidence": float(validation_result.confidence),
+                        "confidence": validation_result.confidence,  # Already Decimal type
                         "evidence": [
                             {
                                 "source": evidence.source,
@@ -523,23 +523,30 @@ class SlangTermRepository:
 
             # Calculate new accuracy rate
             current_times = item.get("times_in_quiz", 0)
-            current_accuracy = item.get("quiz_accuracy_rate", 0.5)
+            # Convert to Decimal if it's a number (from DynamoDB it might be Decimal already)
+            current_accuracy_raw = item.get("quiz_accuracy_rate", Decimal("0.5"))
+            current_accuracy = (
+                current_accuracy_raw
+                if isinstance(current_accuracy_raw, Decimal)
+                else Decimal(str(current_accuracy_raw))
+            )
 
             new_times = current_times + 1
             if current_times == 0:
-                new_accuracy = 1.0 if was_correct else 0.0
+                new_accuracy = Decimal("1.0") if was_correct else Decimal("0.0")
             else:
                 total_correct = current_accuracy * current_times
                 if was_correct:
                     total_correct += 1
-                new_accuracy = total_correct / new_times
+                # Convert division result to Decimal
+                new_accuracy = Decimal(str(total_correct / new_times))
 
             self.table.update_item(
                 Key={"PK": item["PK"], "SK": item["SK"]},
                 UpdateExpression="SET times_in_quiz = :times, quiz_accuracy_rate = :accuracy, last_used_at = :timestamp",
                 ExpressionAttributeValues={
                     ":times": new_times,
-                    ":accuracy": float(new_accuracy),
+                    ":accuracy": new_accuracy,  # Already Decimal type
                     ":timestamp": datetime.now(timezone.utc).isoformat(),
                 },
             )

@@ -517,6 +517,13 @@
 - **Repository Refactor**: New `SlangTermRepository` replaces `SlangSubmissionRepository` with expanded functionality
 - **Production Deployment**: Successfully deployed async validation system to both dev and prod environments
 
+### ✅ **Lexicon Export Fixes & Decimal Serialization (2025-10-31)**
+- **S3 Bucket/Key Configuration**: Fixed export lexicon handler to use `LEXICON_S3_BUCKET` and `LEXICON_S3_KEY` environment variables instead of hardcoded values
+- **Decimal Serialization**: Added recursive `convert_decimals_to_floats()` function to handle Decimal-to-float conversion for JSON serialization
+- **DynamoDB Decimal Handling**: Fixed float-to-Decimal conversion issues in `migrate_lexicon.py` and `slang_term_repository.py`
+- **S3 Export Success**: Successfully exported 494 terms to S3 in both dev and prod environments
+- **Translation Service Fix**: Resolved `NoSuchKey` errors in translate Lambda by ensuring lexicon file exists in S3
+
 ### ✅ **Unified Secret Management System (2025-10-11)**
 - **Single Management Script**: Consolidated `manage-apple-secret.js` and `manage-tavily-secret.js` into unified `manage-secrets.js`
 - **Simplified Interface**: One command (`npm run secrets`) to manage all secrets across environments

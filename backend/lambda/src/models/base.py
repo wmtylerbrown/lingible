@@ -1,11 +1,10 @@
 """Base API response models."""
 
-import json
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, model_serializer
+from pydantic import BaseModel, Field
 
 
 class HTTPStatus(Enum):
@@ -82,11 +81,20 @@ class LingibleBaseModel(BaseModel):
             Decimal: lambda v: float(v),
         }
 
-    @model_serializer
     def serialize_model(self) -> Dict[str, Any]:
-        """Custom serializer that handles Decimal, datetime, and nested Pydantic models."""
-        result: Dict[str, Any] = {}
-        for field_name, field_value in self.__dict__.items():
+        """Custom serializer that handles Decimal, datetime, and nested Pydantic models.
+
+        Note: This is NOT a @model_serializer because we want to preserve Pydantic's
+        built-in serialization (which handles enums and field aliases correctly) and
+        then post-process for special types like Decimal and datetime.
+        """
+        # Use Pydantic's model_dump to get proper enum serialization and field aliases
+        # This ensures enums are converted to their values (due to use_enum_values=True)
+        # and field aliases are respected (snake_case for API responses)
+        result = self.model_dump(mode="python", by_alias=True)
+
+        # Post-process to handle types that need special serialization
+        for field_name, field_value in result.items():
             if isinstance(field_value, Decimal):
                 result[field_name] = float(field_value)
             elif isinstance(field_value, datetime):
@@ -100,13 +108,12 @@ class LingibleBaseModel(BaseModel):
             elif hasattr(field_value, "serialize_model"):
                 # Handle nested Pydantic models
                 result[field_name] = field_value.serialize_model()
-            else:
-                result[field_name] = field_value
         return result
 
     def to_json(self) -> str:
         """Convert model to JSON string with proper serialization."""
-        return json.dumps(self.serialize_model())
+        # Use Pydantic's built-in JSON encoding which properly handles enums and aliases
+        return self.model_dump_json(by_alias=True)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary with proper serialization."""

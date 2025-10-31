@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from decimal import Decimal
 from typing import Dict, Any
 
 # Add the src directory to the Python path
@@ -151,18 +152,18 @@ def migrate_lexicon():
                     "lexicon_variants": item.get("variants", [item["term"]]),
                     "lexicon_pos": item.get("pos", "phrase"),
                     "lexicon_tags": item.get("tags", []),
-                    "lexicon_confidence": item.get("confidence", 0.85),
+                    "lexicon_confidence": Decimal(str(item.get("confidence", 0.85))),
                     "lexicon_age_rating": item.get("age_rating", "E"),
                     "lexicon_content_flags": item.get("content_flags", []),
                     "lexicon_categories": item.get("categories", []),
-                    "lexicon_momentum": item.get("momentum", 1.0),
+                    "lexicon_momentum": Decimal(str(item.get("momentum", 1.0))),
                     # Quiz fields
                     "is_quiz_eligible": True,
                     "quiz_difficulty": difficulty,
                     "quiz_category": category,
                     "quiz_wrong_options": wrong_options,
                     "times_in_quiz": 0,
-                    "quiz_accuracy_rate": 0.5,  # Start with neutral accuracy
+                    "quiz_accuracy_rate": Decimal("0.5"),  # Start with neutral accuracy
                     # Usage statistics
                     "times_translated": 0,
                     "popularity_score": int(item.get("confidence", 0.85) * 100),
