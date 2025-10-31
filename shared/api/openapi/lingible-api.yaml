@@ -591,6 +591,150 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /quiz/challenge:
+    get:
+      summary: Get a quiz challenge
+      description: |
+        Generate a new quiz challenge for the authenticated user.
+
+        **Free Tier Features:**
+        - Limited to 3 quizzes per day
+        - Basic difficulty levels
+        - Standard question count (10 questions)
+
+        **Premium Tier Features:**
+        - Unlimited quizzes per day
+        - All difficulty levels (beginner, intermediate, advanced)
+        - Customizable question count (1-50 questions)
+        - Multiple challenge types
+      tags:
+        - Quiz
+      parameters:
+        - name: difficulty
+          in: query
+          description: Quiz difficulty level
+          required: false
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced]
+            default: beginner
+        - name: type
+          in: query
+          description: Type of quiz challenge
+          required: false
+          schema:
+            type: string
+            enum: [multiple_choice]
+            default: multiple_choice
+        - name: count
+          in: query
+          description: Number of questions in the quiz (1-50)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Quiz challenge generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizChallenge'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Daily quiz limit reached (free tier) or insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /quiz/submit:
+    post:
+      summary: Submit quiz answers
+      description: |
+        Submit answers for a quiz challenge and receive results.
+
+        The challenge must be valid and not expired. Results include:
+        - Score and accuracy
+        - Per-question feedback
+        - Explanations for each term
+        - Shareable result text
+      tags:
+        - Quiz
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizSubmissionRequest'
+      responses:
+        '200':
+          description: Quiz submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizResult'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request or expired challenge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Challenge not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /quiz/history:
+    get:
+      summary: Get quiz history and eligibility
+      description: |
+        Get the user's quiz history, statistics, and eligibility status.
+
+        Returns:
+        - Total quizzes taken
+        - Average score and best score
+        - Accuracy rate
+        - Quizzes taken today
+        - Whether user can take another quiz
+        - Reason if quiz is not available
+      tags:
+        - Quiz
+      responses:
+        '200':
+          description: Quiz history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizHistory'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1474,3 +1618,297 @@ components:
           type: string
           nullable: true
           description: Admin who approved (if manual)
+
+    QuizDifficulty:
+      type: string
+      enum: [beginner, intermediate, advanced]
+      description: Quiz difficulty level
+      example: beginner
+
+    ChallengeType:
+      type: string
+      enum: [multiple_choice]
+      description: Type of quiz challenge
+      example: multiple_choice
+
+    QuizOption:
+      type: object
+      required:
+        - id
+        - text
+      properties:
+        id:
+          type: string
+          description: Option identifier (a, b, c, d)
+          example: "a"
+        text:
+          type: string
+          description: The answer text
+          example: "Really good, amazing, excellent"
+        is_correct:
+          type: boolean
+          nullable: true
+          description: Whether this option is correct (only included in results, not in challenge)
+
+    QuizQuestion:
+      type: object
+      required:
+        - question_id
+        - slang_term
+        - question_text
+        - options
+      properties:
+        question_id:
+          type: string
+          description: Unique question identifier
+          example: "q_a1b2c3d4e5f6"
+        slang_term:
+          type: string
+          description: The slang term being tested
+          example: "bussin"
+        question_text:
+          type: string
+          description: The question text
+          example: "What does 'bussin' mean?"
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizOption'
+          description: Available answer options
+        context_hint:
+          type: string
+          nullable: true
+          description: Example usage of the slang term
+          example: "This pizza is bussin!"
+        explanation:
+          type: string
+          nullable: true
+          description: Explanation of the term (only included in results)
+
+    QuizChallenge:
+      type: object
+      required:
+        - challenge_id
+        - challenge_type
+        - difficulty
+        - time_limit_seconds
+        - questions
+        - scoring
+        - expires_at
+      properties:
+        challenge_id:
+          type: string
+          description: Unique challenge identifier
+          example: "quiz_a1b2c3d4e5f6g7h8"
+        challenge_type:
+          $ref: '#/components/schemas/ChallengeType'
+        difficulty:
+          $ref: '#/components/schemas/QuizDifficulty'
+        time_limit_seconds:
+          type: integer
+          description: Time limit for completing the quiz
+          example: 60
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizQuestion'
+          description: List of quiz questions
+        scoring:
+          type: object
+          description: Scoring configuration
+          properties:
+            points_per_correct:
+              type: integer
+              example: 10
+            time_bonus:
+              type: boolean
+              description: Enable time bonus points
+              example: true
+        expires_at:
+          type: string
+          format: date-time
+          description: When the challenge expires
+          example: "2024-12-19T11:30:00Z"
+
+    QuizAnswer:
+      type: object
+      required:
+        - question_id
+        - selected
+      properties:
+        question_id:
+          type: string
+          description: ID of the question being answered
+          example: "q_a1b2c3d4e5f6"
+        selected:
+          type: string
+          description: Selected option ID (a, b, c, d)
+          example: "a"
+
+    QuizSubmissionRequest:
+      type: object
+      required:
+        - challenge_id
+        - answers
+        - time_taken_seconds
+      properties:
+        challenge_id:
+          type: string
+          description: ID of the challenge being submitted
+          example: "quiz_a1b2c3d4e5f6g7h8"
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizAnswer'
+          description: User's answers
+        time_taken_seconds:
+          type: integer
+          description: Time taken to complete the quiz
+          example: 45
+
+    QuizQuestionResult:
+      type: object
+      required:
+        - question_id
+        - slang_term
+        - your_answer
+        - correct_answer
+        - is_correct
+        - explanation
+      properties:
+        question_id:
+          type: string
+          description: Question ID
+          example: "q_a1b2c3d4e5f6"
+        slang_term:
+          type: string
+          description: The slang term
+          example: "bussin"
+        your_answer:
+          type: string
+          description: User's selected answer
+          example: "a"
+        correct_answer:
+          type: string
+          description: Correct answer option ID
+          example: "a"
+        is_correct:
+          type: boolean
+          description: Whether the user got it right
+          example: true
+        explanation:
+          type: string
+          description: Full explanation of the term
+          example: "Bussin means something is really good, amazing, or excellent."
+
+    QuizResult:
+      type: object
+      required:
+        - challenge_id
+        - score
+        - total_possible
+        - correct_count
+        - total_questions
+        - time_taken_seconds
+        - time_bonus_points
+        - results
+        - share_text
+      properties:
+        challenge_id:
+          type: string
+          description: Challenge ID
+          example: "quiz_a1b2c3d4e5f6g7h8"
+        score:
+          type: integer
+          description: Total score achieved
+          example: 95
+        total_possible:
+          type: integer
+          description: Maximum possible score
+          example: 110
+        correct_count:
+          type: integer
+          description: Number of correct answers
+          example: 9
+        total_questions:
+          type: integer
+          description: Total number of questions
+          example: 10
+        time_taken_seconds:
+          type: integer
+          description: Time taken to complete
+          example: 45
+        time_bonus_points:
+          type: integer
+          description: Bonus points for fast completion
+          example: 5
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizQuestionResult'
+          description: Per-question results
+        share_text:
+          type: string
+          description: Text for sharing results
+          example: "I scored 95/110 on the Lingible Slang Quiz! I got 9/10 right (90% accuracy). Can you beat me? 🔥"
+        share_url:
+          type: string
+          nullable: true
+          description: URL for sharing results (future feature)
+
+    QuizHistory:
+      type: object
+      required:
+        - user_id
+        - total_quizzes
+        - average_score
+        - best_score
+        - total_correct
+        - total_questions
+        - accuracy_rate
+        - quizzes_today
+        - can_take_quiz
+      properties:
+        user_id:
+          type: string
+          description: User ID
+          example: "user_123456789"
+        total_quizzes:
+          type: integer
+          description: Total quizzes taken
+          example: 25
+        average_score:
+          type: number
+          format: float
+          description: Average score across all quizzes
+          example: 87.5
+        best_score:
+          type: integer
+          description: Best score achieved
+          example: 110
+        total_correct:
+          type: integer
+          description: Total correct answers
+          example: 225
+        total_questions:
+          type: integer
+          description: Total questions answered
+          example: 250
+        accuracy_rate:
+          type: number
+          format: float
+          description: Overall accuracy percentage
+          example: 0.9
+        quizzes_today:
+          type: integer
+          description: Number of quizzes taken today
+          example: 2
+        can_take_quiz:
+          type: boolean
+          description: Whether user can take another quiz
+          example: true
+        reason:
+          type: string
+          nullable: true
+          description: Reason if user cannot take quiz (e.g., 'Daily limit reached')
+          example: "Daily limit of 3 quizzes reached. Upgrade to Premium for unlimited quizzes!"

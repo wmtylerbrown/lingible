@@ -9,6 +9,7 @@ from models.translations import TranslationRequest
 from models.subscriptions import UserUpgradeRequest, AppleWebhookRequest
 from models.users import AccountDeletionRequest
 from models.slang import SlangSubmissionRequest
+from models.quiz import QuizSubmissionRequest
 from models.events import CustomAPIGatewayProxyEventModel
 from .exceptions import ValidationError, AuthenticationError
 
@@ -310,4 +311,73 @@ class AppleWebhookEnvelope(APIGatewayEnvelope):
         # Add webhook-specific data
         base_data["request_body"] = request_body
 
+        return base_data
+
+
+class QuizChallengeEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for quiz challenge endpoints that extracts query parameters."""
+
+    def _parse_api_gateway(
+        self,
+        event: CustomAPIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse quiz challenge specific data."""
+        # Extract query parameters
+        if event.queryStringParameters:
+            base_data["difficulty"] = event.queryStringParameters.get(
+                "difficulty", "beginner"
+            )
+            base_data["challenge_type"] = event.queryStringParameters.get(
+                "type", "multiple_choice"
+            )
+
+            try:
+                question_count = int(event.queryStringParameters.get("count", "10"))
+                base_data["question_count"] = max(
+                    1, min(question_count, 50)
+                )  # Cap between 1-50
+            except ValueError:
+                base_data["question_count"] = 10
+        else:
+            base_data["difficulty"] = "beginner"
+            base_data["challenge_type"] = "multiple_choice"
+            base_data["question_count"] = 10
+
+        return base_data
+
+
+class QuizSubmissionEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for quiz submission endpoints that parses request body."""
+
+    def _parse_api_gateway(
+        self,
+        event: CustomAPIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse quiz submission specific data."""
+        # Parse the request body
+        if not event.body:
+            raise ValidationError("Request body is required")
+
+        request_body = QuizSubmissionRequest.model_validate_json(str(event.body))
+
+        # Add submission-specific data
+        base_data["request_body"] = request_body
+
+        return base_data
+
+
+class QuizHistoryEnvelope(AuthenticatedAPIGatewayEnvelope):
+    """Envelope for quiz history endpoints."""
+
+    def _parse_api_gateway(
+        self,
+        event: CustomAPIGatewayProxyEventModel,
+        model: type[T],
+        base_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Parse quiz history specific data - simple authenticated endpoint."""
         return base_data

@@ -162,3 +162,26 @@ class SlangSubmissionConfig(BaseModel):
     validation_request_topic_arn: str = Field(
         description="SNS topic ARN for validation requests"
     )
+
+
+class QuizConfig(BaseModel):
+    """Quiz system configuration."""
+
+    free_daily_limit: int = Field(
+        default=3, description="Number of free quizzes per day for non-premium users"
+    )
+    premium_unlimited: bool = Field(
+        default=True, description="Whether premium users get unlimited quizzes"
+    )
+    questions_per_quiz: int = Field(
+        default=10, description="Number of questions in a standard quiz"
+    )
+    time_limit_seconds: int = Field(
+        default=60, description="Time limit for completing a quiz"
+    )
+    points_per_correct: int = Field(
+        default=10, description="Points awarded for each correct answer"
+    )
+    enable_time_bonus: bool = Field(
+        default=True, description="Whether to award bonus points for fast completion"
+    )

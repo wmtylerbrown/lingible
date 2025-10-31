@@ -19,6 +19,7 @@ __version__ = "1.0.0"
 # Define package exports
 __all__ = [
     "AdminApi",
+    "QuizApi",
     "SlangApi",
     "SystemApi",
     "TranslationApi",
@@ -39,10 +40,21 @@ __all__ = [
     "AccountDeletionResponseCleanupSummary",
     "AdminApprovalResponse",
     "AppleWebhookRequest",
+    "ChallengeType",
     "ErrorResponse",
     "HealthResponse",
     "PaginationInfo",
     "PendingSubmissionsResponse",
+    "QuizAnswer",
+    "QuizChallenge",
+    "QuizChallengeScoring",
+    "QuizDifficulty",
+    "QuizHistory",
+    "QuizOption",
+    "QuizQuestion",
+    "QuizQuestionResult",
+    "QuizResult",
+    "QuizSubmissionRequest",
     "SlangSubmission",
     "SlangSubmissionRequest",
     "SlangSubmissionResponse",
@@ -66,6 +78,7 @@ __all__ = [
 if __import__("typing").TYPE_CHECKING:
     # import apis into sdk package
     from lingible_client.api.admin_api import AdminApi as AdminApi
+    from lingible_client.api.quiz_api import QuizApi as QuizApi
     from lingible_client.api.slang_api import SlangApi as SlangApi
     from lingible_client.api.system_api import SystemApi as SystemApi
     from lingible_client.api.translation_api import TranslationApi as TranslationApi
@@ -90,10 +103,21 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary as AccountDeletionResponseCleanupSummary
     from lingible_client.models.admin_approval_response import AdminApprovalResponse as AdminApprovalResponse
     from lingible_client.models.apple_webhook_request import AppleWebhookRequest as AppleWebhookRequest
+    from lingible_client.models.challenge_type import ChallengeType as ChallengeType
     from lingible_client.models.error_response import ErrorResponse as ErrorResponse
     from lingible_client.models.health_response import HealthResponse as HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
     from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse as PendingSubmissionsResponse
+    from lingible_client.models.quiz_answer import QuizAnswer as QuizAnswer
+    from lingible_client.models.quiz_challenge import QuizChallenge as QuizChallenge
+    from lingible_client.models.quiz_challenge_scoring import QuizChallengeScoring as QuizChallengeScoring
+    from lingible_client.models.quiz_difficulty import QuizDifficulty as QuizDifficulty
+    from lingible_client.models.quiz_history import QuizHistory as QuizHistory
+    from lingible_client.models.quiz_option import QuizOption as QuizOption
+    from lingible_client.models.quiz_question import QuizQuestion as QuizQuestion
+    from lingible_client.models.quiz_question_result import QuizQuestionResult as QuizQuestionResult
+    from lingible_client.models.quiz_result import QuizResult as QuizResult
+    from lingible_client.models.quiz_submission_request import QuizSubmissionRequest as QuizSubmissionRequest
     from lingible_client.models.slang_submission import SlangSubmission as SlangSubmission
     from lingible_client.models.slang_submission_request import SlangSubmissionRequest as SlangSubmissionRequest
     from lingible_client.models.slang_submission_response import SlangSubmissionResponse as SlangSubmissionResponse
@@ -123,6 +147,7 @@ else:
             ("__all__", __all__),
             """# import apis into sdk package
 from lingible_client.api.admin_api import AdminApi as AdminApi
+from lingible_client.api.quiz_api import QuizApi as QuizApi
 from lingible_client.api.slang_api import SlangApi as SlangApi
 from lingible_client.api.system_api import SystemApi as SystemApi
 from lingible_client.api.translation_api import TranslationApi as TranslationApi
@@ -147,10 +172,21 @@ from lingible_client.models.account_deletion_response import AccountDeletionResp
 from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary as AccountDeletionResponseCleanupSummary
 from lingible_client.models.admin_approval_response import AdminApprovalResponse as AdminApprovalResponse
 from lingible_client.models.apple_webhook_request import AppleWebhookRequest as AppleWebhookRequest
+from lingible_client.models.challenge_type import ChallengeType as ChallengeType
 from lingible_client.models.error_response import ErrorResponse as ErrorResponse
 from lingible_client.models.health_response import HealthResponse as HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo as PaginationInfo
 from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse as PendingSubmissionsResponse
+from lingible_client.models.quiz_answer import QuizAnswer as QuizAnswer
+from lingible_client.models.quiz_challenge import QuizChallenge as QuizChallenge
+from lingible_client.models.quiz_challenge_scoring import QuizChallengeScoring as QuizChallengeScoring
+from lingible_client.models.quiz_difficulty import QuizDifficulty as QuizDifficulty
+from lingible_client.models.quiz_history import QuizHistory as QuizHistory
+from lingible_client.models.quiz_option import QuizOption as QuizOption
+from lingible_client.models.quiz_question import QuizQuestion as QuizQuestion
+from lingible_client.models.quiz_question_result import QuizQuestionResult as QuizQuestionResult
+from lingible_client.models.quiz_result import QuizResult as QuizResult
+from lingible_client.models.quiz_submission_request import QuizSubmissionRequest as QuizSubmissionRequest
 from lingible_client.models.slang_submission import SlangSubmission as SlangSubmission
 from lingible_client.models.slang_submission_request import SlangSubmissionRequest as SlangSubmissionRequest
 from lingible_client.models.slang_submission_response import SlangSubmissionResponse as SlangSubmissionResponse

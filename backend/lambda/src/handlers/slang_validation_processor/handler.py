@@ -10,7 +10,7 @@ from models.events import SlangValidationEvent
 from models.slang import ApprovalType
 from services.slang_validation_service import SlangValidationService
 from services.slang_submission_service import SlangSubmissionService
-from repositories.slang_submission_repository import SlangSubmissionRepository
+from repositories.slang_term_repository import SlangTermRepository
 from utils.smart_logger import logger
 from utils.tracing import tracer
 
@@ -33,7 +33,7 @@ def lambda_handler(
     # Initialize services
     validation_service = SlangValidationService()
     submission_service = SlangSubmissionService()
-    repository = SlangSubmissionRepository()
+    repository = SlangTermRepository()
 
     # Get submission from repository
     submission = repository.get_submission_by_id(event.submission_id)

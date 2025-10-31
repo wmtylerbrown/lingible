@@ -20,10 +20,21 @@ if __import__("typing").TYPE_CHECKING:
     from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary
     from lingible_client.models.admin_approval_response import AdminApprovalResponse
     from lingible_client.models.apple_webhook_request import AppleWebhookRequest
+    from lingible_client.models.challenge_type import ChallengeType
     from lingible_client.models.error_response import ErrorResponse
     from lingible_client.models.health_response import HealthResponse
     from lingible_client.models.pagination_info import PaginationInfo
     from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse
+    from lingible_client.models.quiz_answer import QuizAnswer
+    from lingible_client.models.quiz_challenge import QuizChallenge
+    from lingible_client.models.quiz_challenge_scoring import QuizChallengeScoring
+    from lingible_client.models.quiz_difficulty import QuizDifficulty
+    from lingible_client.models.quiz_history import QuizHistory
+    from lingible_client.models.quiz_option import QuizOption
+    from lingible_client.models.quiz_question import QuizQuestion
+    from lingible_client.models.quiz_question_result import QuizQuestionResult
+    from lingible_client.models.quiz_result import QuizResult
+    from lingible_client.models.quiz_submission_request import QuizSubmissionRequest
     from lingible_client.models.slang_submission import SlangSubmission
     from lingible_client.models.slang_submission_request import SlangSubmissionRequest
     from lingible_client.models.slang_submission_response import SlangSubmissionResponse
@@ -55,10 +66,21 @@ from lingible_client.models.account_deletion_response import AccountDeletionResp
 from lingible_client.models.account_deletion_response_cleanup_summary import AccountDeletionResponseCleanupSummary
 from lingible_client.models.admin_approval_response import AdminApprovalResponse
 from lingible_client.models.apple_webhook_request import AppleWebhookRequest
+from lingible_client.models.challenge_type import ChallengeType
 from lingible_client.models.error_response import ErrorResponse
 from lingible_client.models.health_response import HealthResponse
 from lingible_client.models.pagination_info import PaginationInfo
 from lingible_client.models.pending_submissions_response import PendingSubmissionsResponse
+from lingible_client.models.quiz_answer import QuizAnswer
+from lingible_client.models.quiz_challenge import QuizChallenge
+from lingible_client.models.quiz_challenge_scoring import QuizChallengeScoring
+from lingible_client.models.quiz_difficulty import QuizDifficulty
+from lingible_client.models.quiz_history import QuizHistory
+from lingible_client.models.quiz_option import QuizOption
+from lingible_client.models.quiz_question import QuizQuestion
+from lingible_client.models.quiz_question_result import QuizQuestionResult
+from lingible_client.models.quiz_result import QuizResult
+from lingible_client.models.quiz_submission_request import QuizSubmissionRequest
 from lingible_client.models.slang_submission import SlangSubmission
 from lingible_client.models.slang_submission_request import SlangSubmissionRequest
 from lingible_client.models.slang_submission_response import SlangSubmissionResponse

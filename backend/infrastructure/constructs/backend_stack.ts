@@ -28,7 +28,7 @@ export class BackendStack extends Construct {
   public usersTable!: dynamodb.Table;
   public translationsTable!: dynamodb.Table;
   public trendingTable!: dynamodb.Table;
-  public slangSubmissionsTable!: dynamodb.Table;
+  public slangTermsTable!: dynamodb.Table;
 
   // S3 resources
   public lexiconBucket!: s3.Bucket;
@@ -65,6 +65,10 @@ export class BackendStack extends Construct {
   public slangAdminApproveLambda!: lambda.Function;
   public slangAdminRejectLambda!: lambda.Function;
   public slangValidationProcessorLambda!: lambda.Function;
+  public exportLexiconLambda!: lambda.Function;
+  public quizChallengeLambda!: lambda.Function;
+  public quizSubmitLambda!: lambda.Function;
+  public quizHistoryLambda!: lambda.Function;
 
   // Configuration loader
   private configLoader!: ConfigLoader;
@@ -145,7 +149,7 @@ export class BackendStack extends Construct {
         USERS_TABLE: config.tables.users_table.name,
         TRANSLATIONS_TABLE: config.tables.translations_table.name,
         TRENDING_TABLE: config.tables.trending_table.name,
-        SLANG_SUBMISSIONS_TABLE: config.tables.slang_submissions_table.name,
+        SLANG_TERMS_TABLE: config.tables.slang_submissions_table.name,
 
         // LLM Config
         LLM_MODEL_ID: backendConfig.llm.model,
@@ -187,6 +191,11 @@ export class BackendStack extends Construct {
         SLANG_SUBMISSIONS_TOPIC_ARN: this.slangSubmissionsTopic.topicArn,
         SLANG_VALIDATION_REQUEST_TOPIC_ARN: this.slangValidationRequestTopic.topicArn,
 
+        // Quiz Configuration
+        QUIZ_FREE_DAILY_LIMIT: "3",
+        QUIZ_QUESTIONS_PER_QUIZ: "10",
+        QUIZ_TIME_LIMIT_SECONDS: "60",
+
         // Apple Config (for App Store Server API)
         APPLE_KEY_ID: config.apple.in_app_purchase_key_id,
         APPLE_ISSUER_ID: config.apple.issuer_id,
@@ -210,11 +219,11 @@ export class BackendStack extends Construct {
           this.usersTable.tableArn,
           this.translationsTable.tableArn,
           this.trendingTable.tableArn,
-          this.slangSubmissionsTable.tableArn,
+          this.slangTermsTable.tableArn,
           `${this.usersTable.tableArn}/index/*`,
           `${this.translationsTable.tableArn}/index/*`,
           `${this.trendingTable.tableArn}/index/*`,
-          `${this.slangSubmissionsTable.tableArn}/index/*`,
+          `${this.slangTermsTable.tableArn}/index/*`,
         ],
       }),
       new iam.PolicyStatement({
@@ -282,7 +291,7 @@ export class BackendStack extends Construct {
     usersTableConfig: { name: string; read_capacity: number; write_capacity: number },
     translationsTableConfig: { name: string; read_capacity: number; write_capacity: number },
     trendingTableConfig: { name: string; read_capacity: number; write_capacity: number },
-    slangSubmissionsTableConfig: { name: string; read_capacity: number; write_capacity: number }
+    slangTermsTableConfig: { name: string; read_capacity: number; write_capacity: number }
   ): void {
     // Users table
     this.usersTable = new dynamodb.Table(this, 'UsersTable', {
@@ -358,9 +367,9 @@ export class BackendStack extends Construct {
       },
     });
 
-    // Slang Submissions table
-    this.slangSubmissionsTable = new dynamodb.Table(this, 'SlangSubmissionsTable', {
-      tableName: slangSubmissionsTableConfig.name,
+    // Slang Terms table (unified for submissions, lexicon, quiz)
+    this.slangTermsTable = new dynamodb.Table(this, 'SlangTermsTable', {
+      tableName: slangTermsTableConfig.name,
       partitionKey: {
         name: 'PK',
         type: dynamodb.AttributeType.STRING,
@@ -374,8 +383,8 @@ export class BackendStack extends Construct {
       pointInTimeRecovery: true,
     });
 
-    // Add GSI for querying submissions by status
-    this.slangSubmissionsTable.addGlobalSecondaryIndex({
+    // GSI1 - Query by status (existing functionality)
+    this.slangTermsTable.addGlobalSecondaryIndex({
       indexName: 'GSI1',
       partitionKey: {
         name: 'GSI1PK',
@@ -385,32 +394,63 @@ export class BackendStack extends Construct {
         name: 'GSI1SK',
         type: dynamodb.AttributeType.STRING,
       },
+      projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    // Add GSI for querying user submissions (by SK which is USER#{user_id})
-    this.slangSubmissionsTable.addGlobalSecondaryIndex({
-      indexName: 'UserSubmissionsIndex',
+    // GSI2 - Quiz queries by difficulty
+    this.slangTermsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI2',
       partitionKey: {
-        name: 'SK',
+        name: 'GSI2PK',
         type: dynamodb.AttributeType.STRING,
       },
       sortKey: {
-        name: 'GSI1SK',
+        name: 'GSI2SK',
         type: dynamodb.AttributeType.STRING,
       },
+      projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    // Add GSI for querying by validation status (for community voting)
-    this.slangSubmissionsTable.addGlobalSecondaryIndex({
-      indexName: 'ValidationStatusIndex',
+    // GSI3 - Category queries
+    this.slangTermsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI3',
       partitionKey: {
-        name: 'llm_validation_status',
+        name: 'GSI3PK',
         type: dynamodb.AttributeType.STRING,
       },
       sortKey: {
-        name: 'created_at',
+        name: 'GSI3SK',
         type: dynamodb.AttributeType.STRING,
       },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // GSI4 - Source queries
+    this.slangTermsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI4',
+      partitionKey: {
+        name: 'GSI4PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI4SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // GSI5 - Quiz history queries (for user quiz history)
+    this.slangTermsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI5',
+      partitionKey: {
+        name: 'GSI5PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI5SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
     });
 
   }
@@ -1019,6 +1059,83 @@ export class BackendStack extends Construct {
     this.slangValidationRequestTopic.addSubscription(
       new snsSubscriptions.LambdaSubscription(this.slangValidationProcessorLambda)
     );
+
+    // Export Lexicon Lambda
+    this.exportLexiconLambda = new lambda.Function(this, 'ExportLexiconLambda', {
+      functionName: `lingible-export-lexicon-${environment}`,
+      handler: 'handler.lambda_handler',
+      code: this.createHandlerPackage('src.handlers.export_lexicon_handler.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-export-lexicon',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.coreLayer, this.sharedLayer],
+      ...lambdaConfig,
+      timeout: Duration.minutes(5), // Longer timeout for large exports
+    });
+    lambdaPolicyStatements.forEach(statement => this.exportLexiconLambda.addToRolePolicy(statement));
+
+    // Grant DynamoDB read and S3 write for export Lambda
+    this.slangTermsTable.grantReadData(this.exportLexiconLambda);
+    const lexiconBucket = s3.Bucket.fromBucketName(
+      this,
+      'LexiconBucket',
+      `lingible-slang-lexicon-${environment}`
+    );
+    lexiconBucket.grantWrite(this.exportLexiconLambda);
+
+    // Subscribe export lexicon to slang submissions topic (only approval events)
+    this.slangSubmissionsTopic.addSubscription(
+      new snsSubscriptions.LambdaSubscription(this.exportLexiconLambda, {
+        filterPolicy: {
+          notification_type: sns.SubscriptionFilter.stringFilter({
+            allowlist: ['auto_approval', 'manual_approval']
+          })
+        }
+      })
+    );
+
+    // Quiz Challenge Lambda
+    this.quizChallengeLambda = new lambda.Function(this, 'QuizChallengeLambda', {
+      functionName: `lingible-quiz-challenge-${environment}`,
+      handler: 'handler.lambda_handler',
+      code: this.createHandlerPackage('src.handlers.quiz_challenge_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-quiz-challenge',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.coreLayer, this.sharedLayer],
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.quizChallengeLambda.addToRolePolicy(statement));
+
+    // Quiz Submit Lambda
+    this.quizSubmitLambda = new lambda.Function(this, 'QuizSubmitLambda', {
+      functionName: `lingible-quiz-submit-${environment}`,
+      handler: 'handler.lambda_handler',
+      code: this.createHandlerPackage('src.handlers.quiz_submit_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-quiz-submit',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.coreLayer, this.sharedLayer],
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.quizSubmitLambda.addToRolePolicy(statement));
+
+    // Quiz History Lambda
+    this.quizHistoryLambda = new lambda.Function(this, 'QuizHistoryLambda', {
+      functionName: `lingible-quiz-history-${environment}`,
+      handler: 'handler.lambda_handler',
+      code: this.createHandlerPackage('src.handlers.quiz_history_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-quiz-history',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.coreLayer, this.sharedLayer],
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.quizHistoryLambda.addToRolePolicy(statement));
 
     // Webhook Handlers
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
@@ -1637,6 +1754,54 @@ export class BackendStack extends Construct {
           statusCode: '404',
           responseModels: {
             'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
+    // Quiz endpoints
+    const quiz = this.api.root.addResource('quiz');
+
+    // Quiz challenge endpoint
+    const challenge = quiz.addResource('challenge');
+    challenge.addMethod('GET', new apigateway.LambdaIntegration(this.quizChallengeLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': apigateway.Model.EMPTY_MODEL,
+          },
+        },
+      ],
+    });
+
+    // Quiz submit endpoint
+    const submitQuiz = quiz.addResource('submit');
+    submitQuiz.addMethod('POST', new apigateway.LambdaIntegration(this.quizSubmitLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': apigateway.Model.EMPTY_MODEL,
+          },
+        },
+      ],
+    });
+
+    // Quiz history endpoint
+    const history = quiz.addResource('history');
+    history.addMethod('GET', new apigateway.LambdaIntegration(this.quizHistoryLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': apigateway.Model.EMPTY_MODEL,
           },
         },
       ],

@@ -12,6 +12,7 @@ from .translations import TranslationRequest
 from .subscriptions import UserUpgradeRequest, AppleWebhookRequest
 from .users import AccountDeletionRequest
 from .slang import SlangSubmissionRequest
+from .quiz import QuizSubmissionRequest
 
 
 class TranslationEvent(BaseModel):
@@ -315,6 +316,19 @@ class SlangValidationEvent(BaseModel):
     context: Optional[str] = Field(None, description="Context for the slang term")
 
 
+class LexiconExportEvent(BaseModel):
+    """Event for lexicon export triggered by approval."""
+
+    submission_id: Optional[str] = Field(
+        None, description="Submission ID that triggered export"
+    )
+    slang_term: Optional[str] = Field(None, description="Approved slang term")
+    notification_type: str = Field(
+        ..., description="Type of notification (auto_approval, manual_approval)"
+    )
+    approved_at: Optional[str] = Field(None, description="Approval timestamp")
+
+
 class CustomCognitoAuthorizerContext(BaseModel):
     # Standard JWT claims (always present)
     sub: str = Field(description="Subject - unique user identifier")
@@ -396,4 +410,50 @@ class CustomAPIGatewayProxyEventModel(APIGatewayProxyEventModel):
     # Override the request context to use our custom one
     requestContext: CustomRequestContext = Field(
         description="Request context with custom authorizer"
+    )
+
+
+class QuizChallengeEvent(BaseModel):
+    """Typed event for quiz challenge handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+    # Query parameters for quiz challenge
+    difficulty: Optional[str] = Field("beginner", description="Quiz difficulty level")
+    challenge_type: Optional[str] = Field(
+        "multiple_choice", description="Type of quiz challenge"
+    )
+    question_count: Optional[int] = Field(
+        10, ge=1, le=50, description="Number of questions"
+    )
+
+
+class QuizSubmissionEvent(BaseModel):
+    """Typed event for quiz submission handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_body: QuizSubmissionRequest = Field(..., description="Parsed request body")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+
+class QuizHistoryEvent(BaseModel):
+    """Typed event for quiz history handler."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
     )

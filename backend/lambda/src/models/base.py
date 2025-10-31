@@ -159,3 +159,5 @@ class HealthResponse(LingibleBaseModel):
     """Health check response model."""
 
     status: str = Field(..., description="Service status (healthy, unhealthy, etc.)")
+    version: str = Field(..., description="Application version")
+    timestamp: datetime = Field(..., description="Health check timestamp")

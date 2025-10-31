@@ -29,6 +29,9 @@ Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *AdminAPI* | [**slangAdminApproveSubmissionIdPost**](docs/AdminAPI.md#slangadminapprovesubmissionidpost) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
 *AdminAPI* | [**slangAdminRejectSubmissionIdPost**](docs/AdminAPI.md#slangadminrejectsubmissionidpost) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
+*QuizAPI* | [**quizChallengeGet**](docs/QuizAPI.md#quizchallengeget) | **GET** /quiz/challenge | Get a quiz challenge
+*QuizAPI* | [**quizHistoryGet**](docs/QuizAPI.md#quizhistoryget) | **GET** /quiz/history | Get quiz history and eligibility
+*QuizAPI* | [**quizSubmitPost**](docs/QuizAPI.md#quizsubmitpost) | **POST** /quiz/submit | Submit quiz answers
 *SlangAPI* | [**slangAdminApproveSubmissionIdPost**](docs/SlangAPI.md#slangadminapprovesubmissionidpost) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
 *SlangAPI* | [**slangAdminRejectSubmissionIdPost**](docs/SlangAPI.md#slangadminrejectsubmissionidpost) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
 *SlangAPI* | [**slangPendingGet**](docs/SlangAPI.md#slangpendingget) | **GET** /slang/pending | Get pending slang submissions
@@ -54,10 +57,21 @@ Class | Method | HTTP request | Description
  - [AccountDeletionResponseCleanupSummary](docs/AccountDeletionResponseCleanupSummary.md)
  - [AdminApprovalResponse](docs/AdminApprovalResponse.md)
  - [AppleWebhookRequest](docs/AppleWebhookRequest.md)
+ - [ChallengeType](docs/ChallengeType.md)
  - [HealthResponse](docs/HealthResponse.md)
  - [ModelErrorResponse](docs/ModelErrorResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
  - [PendingSubmissionsResponse](docs/PendingSubmissionsResponse.md)
+ - [QuizAnswer](docs/QuizAnswer.md)
+ - [QuizChallenge](docs/QuizChallenge.md)
+ - [QuizChallengeScoring](docs/QuizChallengeScoring.md)
+ - [QuizDifficulty](docs/QuizDifficulty.md)
+ - [QuizHistory](docs/QuizHistory.md)
+ - [QuizOption](docs/QuizOption.md)
+ - [QuizQuestion](docs/QuizQuestion.md)
+ - [QuizQuestionResult](docs/QuizQuestionResult.md)
+ - [QuizResult](docs/QuizResult.md)
+ - [QuizSubmissionRequest](docs/QuizSubmissionRequest.md)
  - [SlangSubmission](docs/SlangSubmission.md)
  - [SlangSubmissionRequest](docs/SlangSubmissionRequest.md)
  - [SlangSubmissionResponse](docs/SlangSubmissionResponse.md)

@@ -3,6 +3,7 @@
 if __import__("typing").TYPE_CHECKING:
     # import apis into api package
     from lingible_client.api.admin_api import AdminApi
+    from lingible_client.api.quiz_api import QuizApi
     from lingible_client.api.slang_api import SlangApi
     from lingible_client.api.system_api import SystemApi
     from lingible_client.api.translation_api import TranslationApi
@@ -18,6 +19,7 @@ else:
             *as_package(__file__),
             """# import apis into api package
 from lingible_client.api.admin_api import AdminApi
+from lingible_client.api.quiz_api import QuizApi
 from lingible_client.api.slang_api import SlangApi
 from lingible_client.api.system_api import SystemApi
 from lingible_client.api.translation_api import TranslationApi

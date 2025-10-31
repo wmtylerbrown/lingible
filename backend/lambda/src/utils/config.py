@@ -21,6 +21,7 @@ from models.config import (
     LLMConfig,
     SlangValidationConfig,
     SlangSubmissionConfig,
+    QuizConfig,
     LogLevel,
 )
 from models.slang import AgeRating, AgeFilterMode
@@ -208,6 +209,15 @@ class ConfigService:
                 validation_request_topic_arn=self._get_env_var(
                     "SLANG_VALIDATION_REQUEST_TOPIC_ARN"
                 ),
+            )  # type: ignore
+        elif config_type == QuizConfig:
+            return QuizConfig(
+                free_daily_limit=int(self._get_env_var("QUIZ_FREE_DAILY_LIMIT")),
+                premium_unlimited=True,
+                questions_per_quiz=int(self._get_env_var("QUIZ_QUESTIONS_PER_QUIZ")),
+                time_limit_seconds=int(self._get_env_var("QUIZ_TIME_LIMIT_SECONDS")),
+                points_per_correct=10,
+                enable_time_bonus=True,
             )  # type: ignore
         else:
             raise ConfigurationError(f"Unknown configuration type: {config_type}")
