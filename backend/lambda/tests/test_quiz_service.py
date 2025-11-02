@@ -11,6 +11,7 @@ from src.models.quiz import (
     QuizAnswerRequest,
     QuizAnswerResponse,
     QuizSessionProgress,
+    QuizCategory,
 )
 from src.models.users import UserTier
 from src.utils.exceptions import ValidationError, InsufficientPermissionsError
@@ -511,3 +512,46 @@ class TestQuizService:
         normalized_result = [mock_quiz_service._normalize_answer_text(opt) for opt in result]
         for opt in normalized_used:
             assert opt not in normalized_result
+
+    def test_ensure_pools_loaded_success(self, mock_quiz_service):
+        """Test that pool loading succeeds and doesn't raise exceptions."""
+        from services.quiz_service import QuizService
+
+        # Reset state
+        QuizService._wrong_answer_pools = {}
+        QuizService._pools_loaded = False
+
+        # Mock repository to return pools
+        mock_pool = ["Bad", "Okay", "Average", "Terrible", "Awful"]
+        mock_quiz_service.repository.get_wrong_answer_pool.return_value = mock_pool
+
+        # This should not raise an exception
+        mock_quiz_service._ensure_pools_loaded()
+
+        # Verify pools were loaded for all categories
+        assert QuizService._pools_loaded is True
+        assert len(QuizService._wrong_answer_pools) == len(QuizCategory)
+
+        # Verify each category has a pool
+        for category in QuizCategory:
+            assert category.value in QuizService._wrong_answer_pools
+            assert len(QuizService._wrong_answer_pools[category.value]) == len(mock_pool)
+
+    def test_ensure_pools_loaded_handles_missing_pools(self, mock_quiz_service):
+        """Test that pool loading handles missing pools gracefully."""
+        from services.quiz_service import QuizService
+
+        # Reset state
+        QuizService._wrong_answer_pools = {}
+        QuizService._pools_loaded = False
+
+        # Mock repository to return None (pool not found)
+        mock_quiz_service.repository.get_wrong_answer_pool.return_value = None
+
+        # This should not raise an exception, should use empty pools
+        mock_quiz_service._ensure_pools_loaded()
+
+        # Verify pools_loaded is True even with empty pools
+        assert QuizService._pools_loaded is True
+        # Should have entries for all categories, even if empty
+        assert len(QuizService._wrong_answer_pools) == len(QuizCategory)

@@ -213,11 +213,13 @@ class ConfigService:
         elif config_type == QuizConfig:
             return QuizConfig(
                 free_daily_limit=int(self._get_env_var("QUIZ_FREE_DAILY_LIMIT")),
-                premium_unlimited=True,
+                premium_unlimited=self._get_env_var("QUIZ_PREMIUM_UNLIMITED").lower()
+                == "true",
                 questions_per_quiz=int(self._get_env_var("QUIZ_QUESTIONS_PER_QUIZ")),
                 time_limit_seconds=int(self._get_env_var("QUIZ_TIME_LIMIT_SECONDS")),
-                points_per_correct=10,
-                enable_time_bonus=True,
+                points_per_correct=int(self._get_env_var("QUIZ_POINTS_PER_CORRECT")),
+                enable_time_bonus=self._get_env_var("QUIZ_ENABLE_TIME_BONUS").lower()
+                == "true",
             )  # type: ignore
         else:
             raise ConfigurationError(f"Unknown configuration type: {config_type}")

@@ -285,14 +285,14 @@ class QuizService:
                     )
                 else:
                     # Fallback to generic pool if category pool not found
-                    logger.log_warning(
+                    logger.log_debug(
                         f"Wrong answer pool not found for category: {category.value}, using generic pool"
                     )
                     QuizService._wrong_answer_pools[category.value] = []
 
             QuizService._pools_loaded = True
-            logger.log_info(
-                "Wrong answer pools loaded",
+            logger.log_business_event(
+                "wrong_answer_pools_loaded",
                 {
                     "categories_loaded": len(QuizService._wrong_answer_pools),
                     "total_options": sum(
@@ -329,7 +329,7 @@ class QuizService:
 
         # If not enough options in pool, fall back to generic generation
         if len(available) < 3:
-            logger.log_warning(
+            logger.log_debug(
                 "Not enough options in pool, using fallback generation",
                 {"category": category, "available": len(available)},
             )
@@ -366,10 +366,10 @@ class QuizService:
         """Get next question for user, creating session if needed."""
         difficulty = difficulty or QuizDifficulty.BEGINNER
 
-        # Check if user can answer another question
+        # Check if user can answer another question (before creating session)
         if not self.check_question_eligibility(user_id):
             raise InsufficientPermissionsError(
-                f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!"
+                f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!",
             )
 
         # Get or create session
@@ -472,6 +472,18 @@ class QuizService:
             )
             raise ValidationError("Session has expired")
 
+        # Check if user can answer another question (free tier daily limit)
+        # This check happens BEFORE processing the answer to prevent score updates after limit
+        today = datetime.now(timezone.utc).date().isoformat()
+        questions_today = self.repository.get_daily_quiz_count(user_id, today)
+        user = self.user_service.get_user(user_id)
+        is_premium = user is not None and user.tier != UserTier.FREE
+
+        if not is_premium and questions_today >= self.config.free_daily_limit:
+            raise InsufficientPermissionsError(
+                f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!",
+            )
+
         # Validate answer
         correct_answers = session.get("correct_answers", {})
         correct_option = correct_answers.get(answer_request.question_id)
@@ -499,7 +511,9 @@ class QuizService:
         # Update session stats
         new_questions_answered = session.get("questions_answered", 0) + 1
         new_correct_count = session.get("correct_count", 0) + (1 if is_correct else 0)
-        new_total_score = session.get("total_score", 0.0) + points_earned
+        # Service layer works with floats (repository handles Decimal conversion)
+        current_score = session.get("total_score", 0.0)
+        new_total_score = current_score + points_earned
 
         self.repository.update_quiz_session(
             session_id=answer_request.session_id,
@@ -508,7 +522,7 @@ class QuizService:
             total_score=new_total_score,
         )
 
-        # Increment daily question count (not quiz count)
+        # Increment daily question count AFTER processing (so limit check at top prevents over-limit answers)
         self.repository.increment_daily_quiz_count(user_id)
 
         # Update quiz statistics for this term
@@ -599,15 +613,32 @@ class QuizService:
             raise ValidationError("Session already completed")
 
         # Calculate final stats
+        # Ensure all values are proper Python types (defensive conversion from Decimal)
+        from decimal import Decimal
+
         questions_answered = session.get("questions_answered", 0)
+        if isinstance(questions_answered, Decimal):
+            questions_answered = int(questions_answered)
+        elif not isinstance(questions_answered, int):
+            questions_answered = int(questions_answered)
+
         correct_count = session.get("correct_count", 0)
+        if isinstance(correct_count, Decimal):
+            correct_count = int(correct_count)
+        elif not isinstance(correct_count, int):
+            correct_count = int(correct_count)
+
         total_score = session.get("total_score", 0.0)
+        if isinstance(total_score, Decimal):
+            total_score = float(total_score)
+        elif not isinstance(total_score, float):
+            total_score = float(total_score)
 
         if questions_answered == 0:
             raise ValidationError("Cannot end session with no questions answered")
 
         # Calculate total possible (each question worth 10 points max)
-        total_possible = questions_answered * 10.0
+        total_possible = float(questions_answered * 10.0)
 
         # Calculate time taken
         started_at = datetime.fromisoformat(
@@ -633,16 +664,20 @@ class QuizService:
             },
         )
 
+        # Round scores to whole numbers to avoid floating point precision issues
+        rounded_score = int(round(total_score))
+        rounded_total_possible = int(round(total_possible))
+
         # Generate share text
         accuracy = int((correct_count / questions_answered) * 100)
-        share_text = f"I scored {int(total_score)}/{int(total_possible)} on the Lingible Slang Quiz! I got {correct_count}/{questions_answered} right ({accuracy}% accuracy). Can you beat me? 🔥"
+        share_text = f"I scored {rounded_score}/{rounded_total_possible} on the Lingible Slang Quiz! I got {correct_count}/{questions_answered} right ({accuracy}% accuracy). Can you beat me? 🔥"
 
         logger.log_business_event(
             "quiz_session_completed",
             {
                 "user_id": user_id,
                 "session_id": session_id,
-                "score": total_score,
+                "score": float(rounded_score),
                 "correct_count": correct_count,
                 "total_questions": questions_answered,
             },
@@ -650,10 +685,10 @@ class QuizService:
 
         return QuizResult(
             session_id=session_id,
-            score=total_score,
-            total_possible=total_possible,
+            score=float(rounded_score),
+            total_possible=float(rounded_total_possible),
             correct_count=correct_count,
             total_questions=questions_answered,
-            time_taken_seconds=time_taken_seconds,
+            time_taken_seconds=round(time_taken_seconds, 1),
             share_text=share_text,
         )

@@ -2,6 +2,8 @@
 Slang translation models following Lingible patterns.
 """
 
+from __future__ import annotations
+
 from typing import List, Dict, Optional, Any
 from decimal import Decimal
 from datetime import datetime
@@ -33,6 +35,14 @@ class PartOfSpeech(str, Enum):
     WORD = "word"
     ABBREVIATION = "abbr"
     ACRONYM = "acronym"
+    EXPRESSION = "expression"
+    SLANG = "slang"
+    ADJECTIVE = "adjective"
+    ADVERB = "adverb"
+    NOUN = "noun"
+    VERB = "verb"
+    INTERJECTION = "interjection"
+    MEME = "meme"
 
 
 class ApprovalStatus(str, Enum):

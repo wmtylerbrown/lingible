@@ -233,7 +233,7 @@ class TrendingRepository:
             # First get the term to know its is_active and category for GSI updates
             existing_term = self.get_trending_term(term)
             if not existing_term:
-                logger.log_warning(
+                logger.log_debug(
                     f"Cannot increment search count for non-existent term: {term}"
                 )
                 return False
@@ -279,7 +279,7 @@ class TrendingRepository:
             # First get the term to know its is_active and category for GSI updates
             existing_term = self.get_trending_term(term)
             if not existing_term:
-                logger.log_warning(
+                logger.log_debug(
                     f"Cannot increment translation count for non-existent term: {term}"
                 )
                 return False

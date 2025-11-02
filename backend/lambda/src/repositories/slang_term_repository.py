@@ -692,11 +692,12 @@ class SlangTermRepository:
                 "quiz_id": quiz_id,
                 "challenge_type": quiz_result.get("challenge_type", "multiple_choice"),
                 "difficulty": quiz_result.get("difficulty", "beginner"),
-                "score": quiz_result["score"],
-                "total_possible": quiz_result["total_possible"],
+                # Convert float to Decimal for DynamoDB (repository boundary conversion)
+                "score": Decimal(str(quiz_result["score"])),
+                "total_possible": Decimal(str(quiz_result["total_possible"])),
                 "correct_count": quiz_result["correct_count"],
                 "total_questions": quiz_result["total_questions"],
-                "time_taken_seconds": quiz_result["time_taken_seconds"],
+                "time_taken_seconds": Decimal(str(quiz_result["time_taken_seconds"])),
                 "completed_at": datetime.now(timezone.utc).isoformat(),
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 # GSI5 for user quiz history queries
@@ -817,11 +818,21 @@ class SlangTermRepository:
                 }
 
             total_quizzes = len(history)
-            total_score = sum(item.get("score", 0) for item in history)
-            total_possible = sum(item.get("total_possible", 100) for item in history)
+
+            # Convert Decimal to float for service layer (DynamoDB returns Decimal)
+            def get_score(item):
+                score = item.get("score", 0)
+                return float(score) if isinstance(score, Decimal) else score
+
+            def get_total_possible(item):
+                tp = item.get("total_possible", 100)
+                return float(tp) if isinstance(tp, Decimal) else tp
+
+            total_score = sum(get_score(item) for item in history)
+            total_possible = sum(get_total_possible(item) for item in history)
             total_correct = sum(item.get("correct_count", 0) for item in history)
             total_questions = sum(item.get("total_questions", 10) for item in history)
-            best_score = max(item.get("score", 0) for item in history)
+            best_score = max(get_score(item) for item in history)
 
             average_score = (
                 (total_score / total_possible * 100) if total_possible > 0 else 0.0
@@ -878,7 +889,7 @@ class SlangTermRepository:
                 "difficulty": difficulty,
                 "questions_answered": 0,
                 "correct_count": 0,
-                "total_score": 0.0,
+                "total_score": Decimal("0.0"),
                 "started_at": now.isoformat(),
                 "last_activity": now.isoformat(),
                 "status": "active",
@@ -907,7 +918,10 @@ class SlangTermRepository:
 
     @tracer.trace_database_operation("get", "quiz_session")
     def get_quiz_session(self, session_id: str) -> Optional[dict]:
-        """Get quiz session by session_id."""
+        """Get quiz session by session_id.
+
+        Returns dict with Decimal values converted to float for service layer compatibility.
+        """
         try:
             # Use GSI6 to lookup by session_id
             response = self.table.query(
@@ -919,7 +933,21 @@ class SlangTermRepository:
 
             items = response.get("Items", [])
             if items:
-                return items[0]
+                session = items[0]
+                # Convert Decimal to Python types for service layer compatibility
+                if "total_score" in session and isinstance(
+                    session["total_score"], Decimal
+                ):
+                    session["total_score"] = float(session["total_score"])
+                if "questions_answered" in session and isinstance(
+                    session["questions_answered"], Decimal
+                ):
+                    session["questions_answered"] = int(session["questions_answered"])
+                if "correct_count" in session and isinstance(
+                    session["correct_count"], Decimal
+                ):
+                    session["correct_count"] = int(session["correct_count"])
+                return session
             return None
 
         except Exception as e:
@@ -950,6 +978,20 @@ class SlangTermRepository:
                 # Sort by last_activity descending
                 items.sort(key=lambda x: x.get("last_activity", ""), reverse=True)
                 session = items[0]
+
+                # Convert Decimal to Python types for service layer compatibility
+                if "total_score" in session and isinstance(
+                    session["total_score"], Decimal
+                ):
+                    session["total_score"] = float(session["total_score"])
+                if "questions_answered" in session and isinstance(
+                    session["questions_answered"], Decimal
+                ):
+                    session["questions_answered"] = int(session["questions_answered"])
+                if "correct_count" in session and isinstance(
+                    session["correct_count"], Decimal
+                ):
+                    session["correct_count"] = int(session["correct_count"])
 
                 # Check if expired (> 15 minutes)
                 last_activity = datetime.fromisoformat(
@@ -1006,7 +1048,8 @@ class SlangTermRepository:
 
             if total_score is not None:
                 update_expr_parts.append("total_score = :ts")
-                expr_attr_values[":ts"] = total_score
+                # Convert float to Decimal for DynamoDB (always convert at repository boundary)
+                expr_attr_values[":ts"] = Decimal(str(total_score))
 
             if correct_answers is not None:
                 update_expr_parts.append("correct_answers = :ca")

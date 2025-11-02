@@ -1,4 +1,4 @@
-"""One-time script to import updated_lexicon.json into slang_terms table."""
+"""One-time script to import default_lexicon.json into slang_terms table."""
 
 import json
 import os
@@ -100,11 +100,11 @@ def build_gsi2_sort_key(attestation_date: str, confidence: float, term: str) -> 
 
 @tracer.trace_method("migrate_lexicon")
 def migrate_lexicon():
-    """Import all terms from updated_lexicon.json."""
+    """Import all terms from default_lexicon.json."""
     try:
         # Load lexicon data
         lexicon_path = os.path.join(
-            os.path.dirname(__file__), "..", "data", "lexicons", "updated_lexicon.json"
+            os.path.dirname(__file__), "..", "data", "lexicons", "default_lexicon.json"
         )
 
         with open(lexicon_path, "r", encoding="utf-8") as f:

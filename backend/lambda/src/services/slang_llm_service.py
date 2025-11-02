@@ -73,7 +73,11 @@ class SlangLLMService:
         # Build the prompt with or without term mappings
         term_mappings_text = ""
         if term_mappings:
-            term_mappings_text = f"- The following term→gloss mappings are available for reference:\n{json.dumps(term_mappings, ensure_ascii=False)}\n- You can use these mappings to translate the slang terms if you do not high confidence (≥0.8) in your own translation.\n- These mappings are not exhaustive, so you may need to use your own knowledge to translate the slang terms to be the most gramatically correct.\n"
+            term_mappings_text = f"""- The following term→gloss mappings are available:\n{json.dumps(term_mappings, ensure_ascii=False)}
+- Most are direct translations you can use (like "fire" → "excellent").
+- Some are definitions rather than translations - use good judgment.
+- For interjections/memes like "6 7", the gloss is explanatory; don't literally output it.
+- Translate naturally based on what fits the context.\n"""
         else:
             term_mappings_text = (
                 "- Identify and translate any slang terms you recognize.\n"

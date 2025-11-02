@@ -549,3 +549,13 @@
 - **New GSIs**: Added GSI7 (Trending by popularity) and GSI8 (Trending by category) to support merged trending functionality
 - **Migration Complete**: Successfully migrated 409 terms with 100% success rate, all attestation fields preserved
 - **Production Ready**: All changes deployed to dev, approval process ensures new submissions get proper fields for quiz selection
+
+### ✅ **PartOfSpeech Enum Expansion & Lexicon Improvements (2025-11-02)**
+- **Enum Expansion**: Expanded `PartOfSpeech` enum from 4 to 12 values: `phrase`, `word`, `abbr`, `acronym`, `expression`, `slang`, `adjective`, `adverb`, `noun`, `verb`, `interjection`, `meme`
+- **Export Handler Fix**: Removed `map_pos_to_valid_enum` mapping logic - export handler now uses POS values directly from DynamoDB
+- **Lexicon Consolidation**: Replaced `default_lexicon.json` with `updated_lexicon.json` (409 terms), removed duplicate file
+- **LLM Prompt Enhancement**: Improved translation prompt to distinguish between direct translations ("fire" → "excellent") and explanatory definitions (interjections/memes)
+- **Data Migration**: Successfully re-migrated all 409 lexicon terms to DynamoDB with expanded POS values
+- **S3 Export**: Re-exported lexicon to S3 with proper POS values and all attestation fields
+- **No Client Updates Needed**: Changes are backend-only - `PartOfSpeech` enum is internal and not exposed in API responses
+- **Production Deployed**: All changes deployed to dev environment, lexicon validation errors resolved

@@ -1,8 +1,10 @@
 """Seed script to populate wrong answer pools for quiz categories."""
 
+import json
 import sys
 import os
 from pathlib import Path
+from typing import List, Set
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -810,26 +812,162 @@ WRONG_ANSWER_POOLS = {
 }
 
 
+def _normalize_answer_text(text: str) -> str:
+    """Normalize answer text: extract first meaning, standardize formatting.
+
+    Matches the normalization logic in QuizService to ensure consistent comparison.
+    """
+    if not text:
+        return ""
+    # Extract first meaning before semicolon
+    normalized = text.split(";")[0].strip()
+    # Standardize capitalization: sentence case (first letter uppercase, rest lowercase)
+    if normalized:
+        normalized = (
+            normalized[0].upper() + normalized[1:].lower()
+            if len(normalized) > 1
+            else normalized.upper()
+        )
+    return normalized
+
+
+def _load_lexicon_meanings() -> Set[str]:
+    """Load all normalized term meanings from the lexicon file.
+
+    Returns a set of normalized meanings for validation.
+    """
+    lexicon_path = (
+        Path(__file__).parent.parent / "data" / "lexicons" / "default_lexicon.json"
+    )
+
+    if not lexicon_path.exists():
+        logger.log_business_event(
+            "lexicon_file_not_found",
+            {"path": str(lexicon_path)},
+        )
+        return set()
+
+    try:
+        with open(lexicon_path, "r", encoding="utf-8") as f:
+            lexicon = json.load(f)
+
+        normalized_meanings = set()
+        for item in lexicon.get("items", []):
+            gloss = item.get("gloss", "")
+            if gloss:
+                normalized = _normalize_answer_text(gloss)
+                if normalized:
+                    normalized_meanings.add(normalized)
+
+        logger.log_business_event(
+            "lexicon_meanings_loaded",
+            {"count": len(normalized_meanings)},
+        )
+        return normalized_meanings
+    except Exception as e:
+        logger.log_error(
+            e,
+            {"operation": "load_lexicon_meanings", "path": str(lexicon_path)},
+        )
+        return set()
+
+
+def _validate_pool_against_lexicon(
+    pool: List[str], category: str, lexicon_meanings: Set[str]
+) -> List[str]:
+    """Validate pool items against lexicon meanings.
+
+    Returns list of pool items that match actual term meanings (should be removed).
+    """
+    matches = []
+    for pool_item in pool:
+        normalized_pool_item = _normalize_answer_text(pool_item)
+        if normalized_pool_item in lexicon_meanings:
+            matches.append(pool_item)
+            logger.log_business_event(
+                "pool_item_matches_lexicon",
+                {
+                    "category": category,
+                    "pool_item": pool_item,
+                    "normalized": normalized_pool_item,
+                },
+            )
+    return matches
+
+
 def seed_wrong_answer_pools():
-    """Seed wrong answer pools for all quiz categories."""
+    """Seed wrong answer pools for all quiz categories.
+
+    Validates pool items against lexicon meanings to ensure wrong answers
+    don't accidentally match actual term meanings.
+    """
     logger.log_business_event(
         "wrong_answer_pool_seeding_started",
         {"total_categories": len(WRONG_ANSWER_POOLS)},
     )
 
+    # Load lexicon meanings for validation
+    lexicon_meanings = _load_lexicon_meanings()
+    validation_enabled = len(lexicon_meanings) > 0
+
     repository = SlangTermRepository()
 
     pools_created = 0
     pools_failed = 0
+    total_warnings = 0
 
     for category, pool in WRONG_ANSWER_POOLS.items():
         try:
-            success = repository.create_wrong_answer_pool(category.value, pool)
+            # Validate pool items against lexicon (if available)
+            validated_pool = pool.copy()
+            if validation_enabled:
+                matches = _validate_pool_against_lexicon(
+                    pool, category.value, lexicon_meanings
+                )
+                if matches:
+                    total_warnings += len(matches)
+                    logger.log_business_event(
+                        "pool_validation_warnings",
+                        {
+                            "category": category.value,
+                            "matches_count": len(matches),
+                            "matches": matches,
+                        },
+                    )
+                    # Remove matching items from pool
+                    validated_pool = [item for item in pool if item not in matches]
+                    logger.log_business_event(
+                        "pool_items_removed",
+                        {
+                            "category": category.value,
+                            "removed_count": len(matches),
+                            "remaining_count": len(validated_pool),
+                        },
+                    )
+
+            # Only seed if we have enough pool items (need at least 10)
+            if len(validated_pool) < 10:
+                pools_failed += 1
+                logger.log_error(
+                    Exception(
+                        f"Pool for {category.value} has too few items after validation: {len(validated_pool)}"
+                    ),
+                    {"category": category.value, "pool_size": len(validated_pool)},
+                )
+                continue
+
+            success = repository.create_wrong_answer_pool(
+                category.value, validated_pool
+            )
             if success:
                 pools_created += 1
                 logger.log_business_event(
                     "wrong_answer_pool_created",
-                    {"category": category.value, "pool_size": len(pool)},
+                    {
+                        "category": category.value,
+                        "pool_size": len(validated_pool),
+                        "original_size": len(pool),
+                    },
                 )
             else:
                 pools_failed += 1
@@ -850,6 +988,8 @@ def seed_wrong_answer_pools():
             "pools_created": pools_created,
             "pools_failed": pools_failed,
             "total_categories": len(WRONG_ANSWER_POOLS),
+            "validation_warnings": total_warnings,
+            "validation_enabled": validation_enabled,
         },
     )
 

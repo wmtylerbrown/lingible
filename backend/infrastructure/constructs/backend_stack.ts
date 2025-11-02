@@ -190,10 +190,13 @@ export class BackendStack extends Construct {
         SLANG_SUBMISSIONS_TOPIC_ARN: this.slangSubmissionsTopic.topicArn,
         SLANG_VALIDATION_REQUEST_TOPIC_ARN: this.slangValidationRequestTopic.topicArn,
 
-        // Quiz Configuration
-        QUIZ_FREE_DAILY_LIMIT: "3",
-        QUIZ_QUESTIONS_PER_QUIZ: "10",
-        QUIZ_TIME_LIMIT_SECONDS: "60",
+        // Quiz Configuration (from shared config)
+        QUIZ_FREE_DAILY_LIMIT: backendConfig.quiz.free_daily_limit.toString(),
+        QUIZ_PREMIUM_UNLIMITED: backendConfig.quiz.premium_unlimited.toString(),
+        QUIZ_QUESTIONS_PER_QUIZ: backendConfig.quiz.questions_per_quiz.toString(),
+        QUIZ_TIME_LIMIT_SECONDS: backendConfig.quiz.time_limit_seconds.toString(),
+        QUIZ_POINTS_PER_CORRECT: backendConfig.quiz.points_per_correct.toString(),
+        QUIZ_ENABLE_TIME_BONUS: backendConfig.quiz.enable_time_bonus.toString(),
 
         // Apple Config (for App Store Server API)
         APPLE_KEY_ID: config.apple.in_app_purchase_key_id,

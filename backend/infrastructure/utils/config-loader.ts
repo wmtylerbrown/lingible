@@ -40,6 +40,14 @@ export interface BackendConfig {
     web_search_enabled: boolean;
     max_search_results: number;
   };
+  quiz: {
+    free_daily_limit: number;
+    premium_unlimited: boolean;
+    questions_per_quiz: number;
+    time_limit_seconds: number;
+    points_per_correct: number;
+    enable_time_bonus: boolean;
+  };
 }
 
 // Infrastructure configuration (what CDK uses)
