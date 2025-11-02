@@ -6,8 +6,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **session_id** | **str** | Session ID |
-**score** | **float** | Total score achieved |
-**total_possible** | **float** | Maximum possible score |
+**score** | **float** | Total score achieved (whole number) |
+**total_possible** | **float** | Maximum possible score (whole number) |
 **correct_count** | **int** | Number of correct answers |
 **total_questions** | **int** | Total number of questions |
 **time_taken_seconds** | **float** | Time taken to complete |

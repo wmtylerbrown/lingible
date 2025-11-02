@@ -101,6 +101,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
+            '403': "ErrorResponse",
             '400': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
@@ -170,6 +171,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
+            '403': "ErrorResponse",
             '400': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
@@ -239,6 +241,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
+            '403': "ErrorResponse",
             '400': "ErrorResponse",
         }
         response_data = self.api_client.call_api(

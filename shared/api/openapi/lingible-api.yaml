@@ -708,6 +708,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Daily question limit reached (free tier)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '400':
           description: Invalid request, expired session, or question not found
           content:
@@ -1792,13 +1798,13 @@ components:
         score:
           type: number
           format: float
-          description: Total score achieved
-          example: 95.5
+          description: Total score achieved (whole number)
+          example: 95
         total_possible:
           type: number
           format: float
-          description: Maximum possible score
-          example: 110.0
+          description: Maximum possible score (whole number)
+          example: 100
         correct_count:
           type: integer
           description: Number of correct answers

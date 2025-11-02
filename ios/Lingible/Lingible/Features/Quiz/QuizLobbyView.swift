@@ -3,8 +3,6 @@ import LingibleAPI
 
 struct QuizLobbyView: View {
     @ObservedObject var viewModel: QuizViewModel
-    @State private var selectedDifficulty: QuizDifficulty = .beginner
-    @State private var selectedQuestionCount: Int = 10
 
     var body: some View {
         NavigationView {
@@ -14,9 +12,6 @@ struct QuizLobbyView: View {
                     if let history = viewModel.quizHistory {
                         statsCard(history: history)
                     }
-
-                    // Quiz Configuration
-                    configurationCard
 
                     // Start Quiz Button
                     startQuizButton
@@ -88,75 +83,43 @@ struct QuizLobbyView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Configuration Card
-    private var configurationCard: some View {
+    // MARK: - Start Quiz Button
+    private var startQuizButton: some View {
         VStack(spacing: 16) {
             Text("Ready to test your Gen Z slang? No cap.")
                 .font(.headline)
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
+                .padding(.bottom, 8)
 
-            // Difficulty Selector
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Difficulty")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-
-                Picker("Difficulty", selection: $selectedDifficulty) {
-                    Text("Beginner").tag(QuizDifficulty.beginner)
-                    Text("Intermediate").tag(QuizDifficulty.intermediate)
-                    Text("Advanced").tag(QuizDifficulty.advanced)
+            Button(action: {
+                Task {
+                    await viewModel.startQuiz()
                 }
-                .pickerStyle(SegmentedPickerStyle())
-            }
-
-            // Question Count Selector
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Number of Questions")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-
-                Picker("Question Count", selection: $selectedQuestionCount) {
-                    Text("5").tag(5)
-                    Text("10").tag(10)
-                    Text("15").tag(15)
+            }) {
+                HStack {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "play.fill")
+                    }
+                    Text(viewModel.isLoading ? "Starting Quiz..." : "Start Quiz")
+                        .fontWeight(.semibold)
                 }
-                .pickerStyle(SegmentedPickerStyle())
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(viewModel.canStartQuiz ? Color.lingiblePrimary : Color.gray)
+                .foregroundColor(.white)
+                .cornerRadius(12)
             }
+            .disabled(!viewModel.canStartQuiz || viewModel.isLoading)
         }
         .padding()
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: Color(.label).opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-
-    // MARK: - Start Quiz Button
-    private var startQuizButton: some View {
-        Button(action: {
-            Task {
-                await viewModel.startQuiz(difficulty: selectedDifficulty, questionCount: selectedQuestionCount)
-            }
-        }) {
-            HStack {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(0.8)
-                } else {
-                    Image(systemName: "play.fill")
-                }
-                Text(viewModel.isLoading ? "Starting Quiz..." : "Start Quiz")
-                    .fontWeight(.semibold)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(viewModel.canStartQuiz ? Color.lingiblePrimary : Color.gray)
-            .foregroundColor(.white)
-            .cornerRadius(12)
-        }
-        .disabled(!viewModel.canStartQuiz || viewModel.isLoading)
     }
 
     private var canStartQuiz: Bool {

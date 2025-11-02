@@ -109,9 +109,4 @@ pyproject.toml
 setup.cfg
 setup.py
 test/__init__.py
-test/test_quiz_answer_request.py
-test/test_quiz_answer_response.py
-test/test_quiz_end_request.py
-test/test_quiz_question_response.py
-test/test_quiz_session_progress.py
 tox.ini

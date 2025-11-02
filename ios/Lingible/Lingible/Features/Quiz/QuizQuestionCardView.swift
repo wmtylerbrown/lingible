@@ -4,18 +4,15 @@ import LingibleAPI
 struct QuizQuestionCardView: View {
     let question: QuizQuestion
     let questionNumber: Int
-    let totalQuestions: Int
     @ObservedObject var viewModel: QuizViewModel
     @State private var showContextHint = false
     @State private var timeExpired = false
+    @State private var selectedOptionId: String?
 
     private let questionTimeLimit: Double = 15.0
 
     var body: some View {
         VStack(spacing: 0) {
-            // Progress indicator
-            progressBar
-
             // Timer Bar
             timerBar
 
@@ -23,7 +20,7 @@ struct QuizQuestionCardView: View {
             VStack(spacing: 20) {
                 // Question Text
                 VStack(spacing: 12) {
-                    Text("Question \(questionNumber) of \(totalQuestions)")
+                    Text("Question \(questionNumber)")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -76,6 +73,30 @@ struct QuizQuestionCardView: View {
                     }
                 }
 
+                // Feedback Message (show if we have feedback for current question)
+                if let answerResponse = viewModel.lastAnswerResponse {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Image(systemName: answerResponse.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(answerResponse.isCorrect ? .green : .red)
+                            Text(answerResponse.isCorrect ? "Correct! +\(Int(answerResponse.pointsEarned)) points" : "Incorrect")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(answerResponse.isCorrect ? .green : .red)
+                        }
+                        if !answerResponse.explanation.isEmpty {
+                            Text("\(answerResponse.explanation)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .italic()
+                        }
+                    }
+                    .padding()
+                    .background(answerResponse.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                    .cornerRadius(8)
+                    .transition(.scale)
+                }
+
                 // Time Expired Message
                 if timeExpired {
                     Text("That's cap! Time ran out! ⏰")
@@ -114,29 +135,6 @@ struct QuizQuestionCardView: View {
         }
     }
 
-    // MARK: - Progress Bar
-    private var progressBar: some View {
-        VStack(spacing: 4) {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 4)
-
-                    Rectangle()
-                        .fill(Color.lingiblePrimary)
-                        .frame(width: geometry.size.width * progress, height: 4)
-                }
-            }
-            .frame(height: 4)
-        }
-        .padding(.horizontal)
-        .padding(.top)
-    }
-
-    private var progress: Double {
-        Double(questionNumber) / Double(totalQuestions)
-    }
 
     // MARK: - Timer Bar
     private var timerBar: some View {
@@ -184,12 +182,18 @@ struct QuizQuestionCardView: View {
 
     // MARK: - Answer Button
     private func answerButton(option: QuizOption) -> some View {
-        let isSelected = viewModel.selectedAnswers[question.questionId] == option.id
-        let isDisabled = isSelected || viewModel.timedOutQuestions.contains(question.questionId)
+        let isSelected = selectedOptionId == option.id || viewModel.lastAnswerResponse != nil
+        let isDisabled = selectedOptionId != nil || viewModel.timedOutQuestions.contains(question.questionId) || viewModel.isSubmitting
 
         return Button(action: {
             if !isDisabled {
-                viewModel.selectAnswer(questionId: question.questionId, optionId: option.id)
+                selectedOptionId = option.id
+                Task {
+                    await viewModel.selectAnswer(questionId: question.questionId, optionId: option.id)
+                    // Clear selection after feedback shown
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    selectedOptionId = nil
+                }
             }
         }) {
             HStack {

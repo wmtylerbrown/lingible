@@ -12,11 +12,8 @@ struct QuizResultsView: View {
                     // Score Display
                     scoreDisplay(result: result)
 
-                    // Time Bonus Breakdown
-                    timeBonusBreakdown(result: result)
-
-                    // Per-Question Results
-                    perQuestionResults(results: result.results)
+                    // Stats Breakdown
+                    statsBreakdown(result: result)
 
                     // Action Buttons
                     actionButtons
@@ -43,7 +40,7 @@ struct QuizResultsView: View {
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            Text("\(result.score)/\(result.totalPossible)")
+            Text("\(formatScore(result.score))")
                 .font(.system(size: 56, weight: .bold))
                 .foregroundColor(.lingiblePrimary)
 
@@ -69,14 +66,14 @@ struct QuizResultsView: View {
         .shadow(color: Color(.label).opacity(0.1), radius: 8, x: 0, y: 4)
     }
 
-    // MARK: - Time Bonus Breakdown
-    private func timeBonusBreakdown(result: QuizResult) -> some View {
+    // MARK: - Stats Breakdown
+    private func statsBreakdown(result: QuizResult) -> some View {
         VStack(spacing: 12) {
             HStack {
-                Image(systemName: "bolt.fill")
-                    .foregroundColor(.yellow)
+                Image(systemName: "chart.bar.fill")
+                    .foregroundColor(.lingiblePrimary)
                     .font(.title2)
-                Text("Time Bonus Breakdown")
+                Text("Quiz Statistics")
                     .font(.headline)
                     .foregroundColor(.primary)
                 Spacer()
@@ -84,132 +81,47 @@ struct QuizResultsView: View {
 
             Divider()
 
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Base Score")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Text("\(result.score - result.timeBonusPoints) points")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Time Bonus")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Text("+\(result.timeBonusPoints) points")
-                        .font(.title3)
+            HStack(spacing: 20) {
+                VStack(spacing: 4) {
+                    Text("\(result.correctCount)")
+                        .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.yellow)
-                }
-            }
-
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Time Taken")
+                        .foregroundColor(.green)
+                    Text("Correct")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(formatTime(TimeInterval(result.timeTakenSeconds)))
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
                 }
 
                 Spacer()
 
-                if let challenge = viewModel.currentChallenge {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Time Limit")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(formatTime(TimeInterval(challenge.timeLimitSeconds)))
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                    }
-                }
-            }
-            .padding(.top, 4)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.yellow.opacity(0.3), lineWidth: 2)
-        )
-    }
-
-    // MARK: - Per-Question Results
-    private func perQuestionResults(results: [QuizQuestionResult]) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Question Breakdown")
-                .font(.headline)
-                .foregroundColor(.primary)
-
-            ForEach(results, id: \.questionId) { result in
-                questionResultCard(result: result)
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-    }
-
-    private func questionResultCard(result: QuizQuestionResult) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("'\(result.slangTerm)'")
-                    .font(.headline)
-                    .foregroundColor(.lingiblePrimary)
-
-                Spacer()
-
-                if result.isCorrect {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                VStack(spacing: 4) {
+                    Text("\(result.totalQuestions - result.correctCount)")
                         .font(.title2)
-                } else {
-                    Image(systemName: "xmark.circle.fill")
+                        .fontWeight(.bold)
                         .foregroundColor(.red)
-                        .font(.title2)
-                }
-            }
-
-            HStack {
-                Text("Your answer:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(result.yourAnswer.uppercased())
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-            }
-
-            if !result.isCorrect {
-                HStack {
-                    Text("Correct answer:")
+                    Text("Incorrect")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(result.correctAnswer.uppercased())
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.green)
+                }
+
+                Spacer()
+
+                VStack(spacing: 4) {
+                    Text(formatTime(TimeInterval(result.timeTakenSeconds)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                    Text("Time")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
-
-            if !result.explanation.isEmpty {
-                Text(result.explanation)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
-            }
+            .padding(.vertical, 8)
         }
         .padding()
-        .background(result.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-        .cornerRadius(8)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color(.label).opacity(0.1), radius: 8, x: 0, y: 4)
     }
 
     // MARK: - Action Buttons
@@ -282,6 +194,11 @@ struct QuizResultsView: View {
         } else {
             return String(format: "%ds", remainingSeconds)
         }
+    }
+
+    private func formatScore(_ score: Float) -> String {
+        // Round to whole number
+        return String(format: "%.0f", score.rounded())
     }
 }
 

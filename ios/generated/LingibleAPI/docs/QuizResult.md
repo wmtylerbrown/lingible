@@ -4,8 +4,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **sessionId** | **String** | Session ID |
-**score** | **Float** | Total score achieved |
-**totalPossible** | **Float** | Maximum possible score |
+**score** | **Float** | Total score achieved (whole number) |
+**totalPossible** | **Float** | Maximum possible score (whole number) |
 **correctCount** | **Int** | Number of correct answers |
 **totalQuestions** | **Int** | Total number of questions |
 **timeTakenSeconds** | **Float** | Time taken to complete |

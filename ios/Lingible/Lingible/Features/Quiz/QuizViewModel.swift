@@ -15,11 +15,11 @@ final class QuizViewModel: ObservableObject {
 
     // MARK: - Published Properties
     @Published var quizHistory: QuizHistory?
-    @Published var currentChallenge: QuizChallenge?
-    @Published var currentQuestionIndex: Int = 0
-    @Published var selectedAnswers: [String: String] = [:] // questionId -> optionId
+    @Published var currentSessionId: String?
+    @Published var currentQuestion: QuizQuestion?
+    @Published var sessionProgress: QuizSessionProgress?
+    @Published var lastAnswerResponse: QuizAnswerResponse?
     @Published var questionStartTimes: [String: Date] = [:]
-    @Published var questionEndTimes: [String: Date] = [:] // questionId -> completion time
     @Published var questionTimeRemaining: [String: Double] = [:] // questionId -> remaining seconds
     @Published var timedOutQuestions: Set<String> = []
     @Published var isSubmitting: Bool = false
@@ -34,26 +34,16 @@ final class QuizViewModel: ObservableObject {
     private let defaultQuestionTimeLimit: Double = 15.0 // seconds per question
 
     // MARK: - Computed Properties
-    var currentQuestion: QuizQuestion? {
-        guard let challenge = currentChallenge,
-              currentQuestionIndex < challenge.questions.count else {
-            return nil
-        }
-        return challenge.questions[currentQuestionIndex]
+    var questionsAnswered: Int {
+        sessionProgress?.questionsAnswered ?? 0
     }
 
-    var totalQuestions: Int {
-        currentChallenge?.questions.count ?? 0
+    var totalScore: Float {
+        sessionProgress?.totalScore ?? 0.0
     }
 
-    var progress: Double {
-        guard totalQuestions > 0 else { return 0.0 }
-        return Double(currentQuestionIndex) / Double(totalQuestions)
-    }
-
-    var allQuestionsAnswered: Bool {
-        guard let challenge = currentChallenge else { return false }
-        return selectedAnswers.count + timedOutQuestions.count >= challenge.questions.count
+    var accuracy: Float {
+        sessionProgress?.accuracy ?? 0.0
     }
 
     var totalTimeElapsed: TimeInterval {
@@ -89,7 +79,7 @@ final class QuizViewModel: ObservableObject {
         isLoading = false
     }
 
-    func startQuiz(difficulty: QuizDifficulty, questionCount: Int) async {
+    func startQuiz() async {
         isLoading = true
         errorMessage = nil
 
@@ -97,19 +87,16 @@ final class QuizViewModel: ObservableObject {
         resetQuizState()
 
         do {
-            let challenge = try await quizService.generateChallenge(
-                difficulty: difficulty,
-                questionCount: questionCount
-            )
+            // Get first question (default difficulty: beginner)
+            let questionResponse = try await quizService.getNextQuestion(difficulty: nil)
 
-            currentChallenge = challenge
+            // Store session ID and first question
+            currentSessionId = questionResponse.sessionId
+            currentQuestion = questionResponse.question
             currentScreen = .active
-            currentQuestionIndex = 0
 
             // Start timer for first question
-            if let firstQuestion = challenge.questions.first {
-                startQuestionTimer(questionId: firstQuestion.questionId)
-            }
+            startQuestionTimer(questionId: questionResponse.question.questionId)
 
         } catch {
             handleError(error)
@@ -118,40 +105,83 @@ final class QuizViewModel: ObservableObject {
         isLoading = false
     }
 
-    func selectAnswer(questionId: String, optionId: String) {
+    func selectAnswer(questionId: String, optionId: String) async {
+        guard let sessionId = currentSessionId else { return }
+
         // Stop timer for this question
         stopQuestionTimer(questionId: questionId)
 
-        // Record answer
-        selectedAnswers[questionId] = optionId
+        // Calculate time taken
+        let timeTaken = calculateTimeTaken(questionId: questionId)
 
-        // Record completion time
-        questionEndTimes[questionId] = Date()
+        // Create answer request
+        let answerRequest = QuizAnswerRequest(
+            sessionId: sessionId,
+            questionId: questionId,
+            selectedOption: optionId,
+            timeTakenSeconds: Float(timeTaken)
+        )
 
-        // Auto-advance to next question after brief delay
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            await advanceToNextQuestion()
+        isSubmitting = true
+        errorMessage = nil
+
+        do {
+            // Submit answer immediately and get feedback
+            let response = try await quizService.submitAnswer(request: answerRequest)
+
+            // Store response for UI feedback
+            lastAnswerResponse = response
+            sessionProgress = response.runningStats
+
+            // Show feedback briefly, then fetch next question
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds for feedback
+
+            // Clear feedback and fetch next question
+            lastAnswerResponse = nil
+            await getNextQuestion()
+
+        } catch {
+            handleError(error)
+            isSubmitting = false
         }
+
+        isSubmitting = false
     }
 
-    func advanceToNextQuestion() async {
-        guard let challenge = currentChallenge else { return }
+    func getNextQuestion() async {
+        guard currentSessionId != nil else { return }
 
-        // If we've answered all questions, we can submit
-        if currentQuestionIndex >= challenge.questions.count - 1 {
-            // Last question answered, ready to submit
-            return
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // Get next question (uses existing session)
+            let questionResponse = try await quizService.getNextQuestion(difficulty: nil)
+
+            // Update session ID if it changed (shouldn't happen, but be safe)
+            if currentSessionId != questionResponse.sessionId {
+                currentSessionId = questionResponse.sessionId
+            }
+
+            // Update current question
+            currentQuestion = questionResponse.question
+
+            // Start timer for new question
+            startQuestionTimer(questionId: questionResponse.question.questionId)
+
+        } catch {
+            handleError(error)
         }
 
-        // Move to next question
-        currentQuestionIndex += 1
+        isLoading = false
+    }
 
-        // Start timer for next question
-        if currentQuestionIndex < challenge.questions.count {
-            let nextQuestion = challenge.questions[currentQuestionIndex]
-            startQuestionTimer(questionId: nextQuestion.questionId)
+    func calculateTimeTaken(questionId: String) -> Double {
+        guard let startTime = questionStartTimes[questionId] else {
+            return defaultQuestionTimeLimit
         }
+        let timeTaken = Date().timeIntervalSince(startTime)
+        return min(timeTaken, defaultQuestionTimeLimit)
     }
 
     func startQuestionTimer(questionId: String, timeLimit: Double = 15.0) {
@@ -179,7 +209,9 @@ final class QuizViewModel: ObservableObject {
                     // Timer expired
                     timer.invalidate()
                     self.questionTimers.removeValue(forKey: questionId)
-                    self.handleTimerExpiration(questionId: questionId)
+                    Task {
+                        await self.handleTimerExpiration(questionId: questionId)
+                    }
                 } else {
                     // Update remaining time - reassign dictionary to trigger @Published
                     var updated = self.questionTimeRemaining
@@ -198,55 +230,35 @@ final class QuizViewModel: ObservableObject {
         questionTimers.removeValue(forKey: questionId)
     }
 
-    func handleTimerExpiration(questionId: String) {
+    func handleTimerExpiration(questionId: String) async {
+        guard let sessionId = currentSessionId else { return }
+
         // Mark question as timed out
         timedOutQuestions.insert(questionId)
 
-        // Record completion time (used full time limit)
-        questionEndTimes[questionId] = Date()
-
-        // Auto-advance to next question after brief delay
-        Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds for "Time's up!" message
-            await advanceToNextQuestion()
-        }
-    }
-
-    func submitQuiz() async {
-        guard let challenge = currentChallenge else { return }
-
-        // Stop all timers
-        stopAllTimers()
+        // Submit empty/invalid answer for timed out question
+        let answerRequest = QuizAnswerRequest(
+            sessionId: sessionId,
+            questionId: questionId,
+            selectedOption: "", // Empty selection for timeout
+            timeTakenSeconds: Float(defaultQuestionTimeLimit)
+        )
 
         isSubmitting = true
         errorMessage = nil
 
-        // Calculate total time taken
-        let totalTimeSeconds = calculateTotalTime()
-
-        // Build answers array (including empty answers for timed out questions)
-        var answers: [QuizAnswer] = []
-        for question in challenge.questions {
-            if let selectedOptionId = selectedAnswers[question.questionId] {
-                answers.append(QuizAnswer(questionId: question.questionId, selected: selectedOptionId))
-            } else if timedOutQuestions.contains(question.questionId) {
-                // Timed out - submit with empty/invalid answer
-                answers.append(QuizAnswer(questionId: question.questionId, selected: "timeout"))
-            } else {
-                // No answer selected (shouldn't happen if allQuestionsAnswered is true)
-                answers.append(QuizAnswer(questionId: question.questionId, selected: "none"))
-            }
-        }
-
         do {
-            let result = try await quizService.submitQuiz(
-                challengeId: challenge.challengeId,
-                answers: answers,
-                timeTakenSeconds: totalTimeSeconds
-            )
+            // Submit timeout answer
+            let response = try await quizService.submitAnswer(request: answerRequest)
 
-            quizResult = result
-            currentScreen = .results
+            // Update progress
+            sessionProgress = response.runningStats
+
+            // Show feedback briefly
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds for "Time's up!" message
+
+            // Fetch next question
+            await getNextQuestion()
 
         } catch {
             handleError(error)
@@ -255,25 +267,30 @@ final class QuizViewModel: ObservableObject {
         isSubmitting = false
     }
 
-    func calculateTotalTime() -> Int {
-        guard !questionStartTimes.isEmpty else { return 0 }
+    func endQuiz() async {
+        guard let sessionId = currentSessionId else { return }
 
-        var totalTime: TimeInterval = 0
+        // Stop all timers
+        stopAllTimers()
 
-        for (questionId, startTime) in questionStartTimes {
-            if let endTime = questionEndTimes[questionId] {
-                // Question was completed (answered or timed out)
-                let timeTaken = endTime.timeIntervalSince(startTime)
-                totalTime += timeTaken
-            } else {
-                // Question not yet completed (shouldn't happen when submitting)
-                // Use current time as fallback
-                let timeTaken = Date().timeIntervalSince(startTime)
-                totalTime += timeTaken
-            }
+        isSubmitting = true
+        errorMessage = nil
+
+        do {
+            // End session and get final results
+            let result = try await quizService.endSession(sessionId: sessionId)
+
+            quizResult = result
+            currentScreen = .results
+
+            // Refresh history to show updated stats
+            await loadQuizHistory()
+
+        } catch {
+            handleError(error)
         }
 
-        return Int(totalTime)
+        isSubmitting = false
     }
 
     func getTimeRemaining(questionId: String) -> Double {
@@ -282,11 +299,11 @@ final class QuizViewModel: ObservableObject {
 
     func resetQuizState() {
         stopAllTimers()
-        currentChallenge = nil
-        currentQuestionIndex = 0
-        selectedAnswers.removeAll()
+        currentSessionId = nil
+        currentQuestion = nil
+        sessionProgress = nil
+        lastAnswerResponse = nil
         questionStartTimes.removeAll()
-        questionEndTimes.removeAll()
         questionTimeRemaining.removeAll()
         timedOutQuestions.removeAll()
         quizResult = nil
@@ -312,12 +329,11 @@ final class QuizViewModel: ObservableObject {
             switch quizError {
             case .dailyLimitReached:
                 errorMessage = quizError.localizedDescription
-            case .invalidChallenge:
-                errorMessage = quizError.localizedDescription
-                // Return to lobby if challenge is invalid
+                // Return to lobby if daily limit reached
                 returnToLobby()
             case .unauthorized:
                 errorMessage = "Please sign in to take quizzes"
+                returnToLobby()
             default:
                 errorMessage = quizError.localizedDescription
             }

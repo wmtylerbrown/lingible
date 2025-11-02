@@ -13,7 +13,7 @@ from models.slang import (
     LLMValidationResult,
     LLMValidationEvidence,
 )
-from models.quiz import QuizDifficulty
+from models.quiz import QuizDifficulty, QuizCategory
 from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
@@ -235,8 +235,6 @@ class SlangTermRepository:
                 SlangSubmissionStatus.AUTO_APPROVED,
                 SlangSubmissionStatus.ADMIN_APPROVED,
             ]:
-                from models.quiz import QuizDifficulty, QuizCategory
-
                 # Extract submission date for attestation (use created_at, fallback to now)
                 submission_date = item.get(
                     "created_at", datetime.now(timezone.utc).isoformat()
@@ -252,8 +250,6 @@ class SlangTermRepository:
                         # DynamoDB Decimal format
                         confidence_float = float(confidence_value.get("N", 0.85))
                     elif confidence_value is not None:
-                        from decimal import Decimal
-
                         if isinstance(confidence_value, Decimal):
                             confidence_float = float(confidence_value)
                         else:
@@ -264,8 +260,6 @@ class SlangTermRepository:
                     # Fallback to llm_confidence_score if validation_result not available
                     llm_confidence_score = item.get("llm_confidence_score")
                     if llm_confidence_score:
-                        from decimal import Decimal
-
                         if isinstance(llm_confidence_score, Decimal):
                             confidence_float = float(llm_confidence_score)
                         else:
@@ -819,35 +813,45 @@ class SlangTermRepository:
 
             total_quizzes = len(history)
 
-            # Convert Decimal to float for service layer (DynamoDB returns Decimal)
+            # Convert Decimal to Python types for service layer (DynamoDB returns Decimal)
             def get_score(item):
                 score = item.get("score", 0)
-                return float(score) if isinstance(score, Decimal) else score
+                return self._to_float(score)
 
             def get_total_possible(item):
                 tp = item.get("total_possible", 100)
-                return float(tp) if isinstance(tp, Decimal) else tp
+                return self._to_float(tp)
+
+            def get_correct_count(item):
+                cc = item.get("correct_count", 0)
+                return self._to_int(cc)
+
+            def get_total_questions(item):
+                tq = item.get("total_questions", 10)
+                return self._to_int(tq)
 
             total_score = sum(get_score(item) for item in history)
             total_possible = sum(get_total_possible(item) for item in history)
-            total_correct = sum(item.get("correct_count", 0) for item in history)
-            total_questions = sum(item.get("total_questions", 10) for item in history)
+            total_correct = sum(get_correct_count(item) for item in history)
+            total_questions = sum(get_total_questions(item) for item in history)
             best_score = max(get_score(item) for item in history)
 
             average_score = (
                 (total_score / total_possible * 100) if total_possible > 0 else 0.0
             )
             accuracy_rate = (
-                (total_correct / total_questions) if total_questions > 0 else 0.0
+                (float(total_correct) / float(total_questions))
+                if total_questions > 0
+                else 0.0
             )
 
             return {
-                "total_quizzes": total_quizzes,
-                "average_score": round(average_score, 2),
-                "best_score": best_score,
-                "total_correct": total_correct,
-                "total_questions": total_questions,
-                "accuracy_rate": round(accuracy_rate, 3),
+                "total_quizzes": total_quizzes,  # Already int (len())
+                "average_score": round(average_score, 2),  # float
+                "best_score": self._to_float(best_score),  # Ensure float
+                "total_correct": int(total_correct),  # Ensure int
+                "total_questions": int(total_questions),  # Ensure int
+                "accuracy_rate": round(accuracy_rate, 3),  # float
             }
 
         except Exception as e:
@@ -916,11 +920,31 @@ class SlangTermRepository:
             )
             return False
 
+    def _to_int(self, value: Any) -> int:
+        """Convert Decimal/float/int to int safely."""
+        if isinstance(value, Decimal):
+            return int(float(value))
+        elif isinstance(value, float):
+            return int(value)
+        elif isinstance(value, int):
+            return value
+        else:
+            return int(value) if value else 0
+
+    def _to_float(self, value: Any) -> float:
+        """Convert Decimal/float/int to float safely."""
+        if isinstance(value, Decimal):
+            return float(value)
+        elif isinstance(value, (int, float)):
+            return float(value)
+        else:
+            return float(value) if value else 0.0
+
     @tracer.trace_database_operation("get", "quiz_session")
     def get_quiz_session(self, session_id: str) -> Optional[dict]:
         """Get quiz session by session_id.
 
-        Returns dict with Decimal values converted to float for service layer compatibility.
+        Returns dict with Decimal values converted to Python types for service layer compatibility.
         """
         try:
             # Use GSI6 to lookup by session_id
@@ -934,19 +958,15 @@ class SlangTermRepository:
             items = response.get("Items", [])
             if items:
                 session = items[0]
-                # Convert Decimal to Python types for service layer compatibility
-                if "total_score" in session and isinstance(
-                    session["total_score"], Decimal
-                ):
-                    session["total_score"] = float(session["total_score"])
-                if "questions_answered" in session and isinstance(
-                    session["questions_answered"], Decimal
-                ):
-                    session["questions_answered"] = int(session["questions_answered"])
-                if "correct_count" in session and isinstance(
-                    session["correct_count"], Decimal
-                ):
-                    session["correct_count"] = int(session["correct_count"])
+                # Convert Decimal/float to Python types for service layer compatibility
+                if "total_score" in session:
+                    session["total_score"] = self._to_float(session["total_score"])
+                if "questions_answered" in session:
+                    session["questions_answered"] = self._to_int(
+                        session["questions_answered"]
+                    )
+                if "correct_count" in session:
+                    session["correct_count"] = self._to_int(session["correct_count"])
                 return session
             return None
 
@@ -979,19 +999,15 @@ class SlangTermRepository:
                 items.sort(key=lambda x: x.get("last_activity", ""), reverse=True)
                 session = items[0]
 
-                # Convert Decimal to Python types for service layer compatibility
-                if "total_score" in session and isinstance(
-                    session["total_score"], Decimal
-                ):
-                    session["total_score"] = float(session["total_score"])
-                if "questions_answered" in session and isinstance(
-                    session["questions_answered"], Decimal
-                ):
-                    session["questions_answered"] = int(session["questions_answered"])
-                if "correct_count" in session and isinstance(
-                    session["correct_count"], Decimal
-                ):
-                    session["correct_count"] = int(session["correct_count"])
+                # Convert Decimal/float to Python types for service layer compatibility
+                if "total_score" in session:
+                    session["total_score"] = self._to_float(session["total_score"])
+                if "questions_answered" in session:
+                    session["questions_answered"] = self._to_int(
+                        session["questions_answered"]
+                    )
+                if "correct_count" in session:
+                    session["correct_count"] = self._to_int(session["correct_count"])
 
                 # Check if expired (> 15 minutes)
                 last_activity = datetime.fromisoformat(

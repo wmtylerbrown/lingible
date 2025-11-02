@@ -27,8 +27,8 @@ class QuizResult(BaseModel):
     QuizResult
     """ # noqa: E501
     session_id: StrictStr = Field(description="Session ID")
-    score: Union[StrictFloat, StrictInt] = Field(description="Total score achieved")
-    total_possible: Union[StrictFloat, StrictInt] = Field(description="Maximum possible score")
+    score: Union[StrictFloat, StrictInt] = Field(description="Total score achieved (whole number)")
+    total_possible: Union[StrictFloat, StrictInt] = Field(description="Maximum possible score (whole number)")
     correct_count: StrictInt = Field(description="Number of correct answers")
     total_questions: StrictInt = Field(description="Total number of questions")
     time_taken_seconds: Union[StrictFloat, StrictInt] = Field(description="Time taken to complete")

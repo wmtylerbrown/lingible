@@ -4,8 +4,10 @@ import LingibleAPI
 // MARK: - Quiz Service Protocol
 protocol QuizServiceProtocol {
     func getQuizHistory() async throws -> QuizHistory
-    func generateChallenge(difficulty: QuizDifficulty, questionCount: Int) async throws -> QuizChallenge
-    func submitQuiz(challengeId: String, answers: [QuizAnswer], timeTakenSeconds: Int) async throws -> QuizResult
+    func getNextQuestion(difficulty: QuizDifficulty?) async throws -> QuizQuestionResponse
+    func submitAnswer(request: QuizAnswerRequest) async throws -> QuizAnswerResponse
+    func getProgress(sessionId: String) async throws -> QuizSessionProgress
+    func endSession(sessionId: String) async throws -> QuizResult
 }
 
 // MARK: - Quiz Service Implementation
@@ -58,7 +60,7 @@ final class QuizService: QuizServiceProtocol {
         }
     }
 
-    func generateChallenge(difficulty: QuizDifficulty, questionCount: Int) async throws -> QuizChallenge {
+    func getNextQuestion(difficulty: QuizDifficulty? = nil) async throws -> QuizQuestionResponse {
         // Check if user is authenticated
         guard try await getCurrentUser() != nil else {
             throw QuizError.unauthorized
@@ -70,8 +72,11 @@ final class QuizService: QuizServiceProtocol {
         // Configure API client with auth token
         configureAPIClient(with: accessToken)
 
-        // Convert QuizDifficulty to API enum
-        let apiDifficulty: QuizAPI.Difficulty_quizChallengeGet = {
+        // Convert QuizDifficulty to API enum (default to beginner)
+        let apiDifficulty: QuizAPI.Difficulty_quizQuestionGet? = {
+            guard let difficulty = difficulty else {
+                return .beginner
+            }
             switch difficulty {
             case .beginner:
                 return .beginner
@@ -84,8 +89,8 @@ final class QuizService: QuizServiceProtocol {
 
         do {
             // Make API call using the generated API
-            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<QuizChallenge, Error>) in
-                QuizAPI.quizChallengeGet(difficulty: apiDifficulty, type: .multipleChoice, count: questionCount) { data, error in
+            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<QuizQuestionResponse, Error>) in
+                QuizAPI.quizQuestionGet(difficulty: apiDifficulty) { data, error in
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let data = data {
@@ -109,7 +114,7 @@ final class QuizService: QuizServiceProtocol {
         }
     }
 
-    func submitQuiz(challengeId: String, answers: [QuizAnswer], timeTakenSeconds: Int) async throws -> QuizResult {
+    func submitAnswer(request: QuizAnswerRequest) async throws -> QuizAnswerResponse {
         // Check if user is authenticated
         guard try await getCurrentUser() != nil else {
             throw QuizError.unauthorized
@@ -121,17 +126,10 @@ final class QuizService: QuizServiceProtocol {
         // Configure API client with auth token
         configureAPIClient(with: accessToken)
 
-        // Create submission request
-        let submissionRequest = QuizSubmissionRequest(
-            challengeId: challengeId,
-            answers: answers,
-            timeTakenSeconds: timeTakenSeconds
-        )
-
         do {
             // Make API call using the generated API
-            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<QuizResult, Error>) in
-                QuizAPI.quizSubmitPost(quizSubmissionRequest: submissionRequest) { data, error in
+            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<QuizAnswerResponse, Error>) in
+                QuizAPI.quizAnswerPost(quizAnswerRequest: request) { data, error in
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let data = data {
@@ -147,9 +145,78 @@ final class QuizService: QuizServiceProtocol {
             if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
                 throw QuizError.unauthorized
             }
-            // Check for invalid challenge errors
-            if nsError.localizedDescription.contains("Invalid") || nsError.localizedDescription.contains("expired") {
-                throw QuizError.invalidChallenge
+            throw QuizError.networkError(error)
+        }
+    }
+
+    func getProgress(sessionId: String) async throws -> QuizSessionProgress {
+        // Check if user is authenticated
+        guard try await getCurrentUser() != nil else {
+            throw QuizError.unauthorized
+        }
+
+        // Get access token using AuthenticationService
+        let accessToken = try await authenticationService.getAuthToken()
+
+        // Configure API client with auth token
+        configureAPIClient(with: accessToken)
+
+        do {
+            // Make API call using the generated API
+            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<QuizSessionProgress, Error>) in
+                QuizAPI.quizProgressGet(sessionId: sessionId) { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "QuizError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                    }
+                }
+            }
+        } catch {
+            // Check if it's an authentication/authorization error
+            let nsError = error as NSError
+            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
+                throw QuizError.unauthorized
+            }
+            throw QuizError.networkError(error)
+        }
+    }
+
+    func endSession(sessionId: String) async throws -> QuizResult {
+        // Check if user is authenticated
+        guard try await getCurrentUser() != nil else {
+            throw QuizError.unauthorized
+        }
+
+        // Get access token using AuthenticationService
+        let accessToken = try await authenticationService.getAuthToken()
+
+        // Configure API client with auth token
+        configureAPIClient(with: accessToken)
+
+        // Create end request
+        let endRequest = QuizEndRequest(sessionId: sessionId)
+
+        do {
+            // Make API call using the generated API
+            return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<QuizResult, Error>) in
+                QuizAPI.quizEndPost(quizEndRequest: endRequest) { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "QuizError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                    }
+                }
+            }
+        } catch {
+            // Check if it's an authentication/authorization error
+            let nsError = error as NSError
+            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
+                throw QuizError.unauthorized
             }
             throw QuizError.networkError(error)
         }
@@ -183,7 +250,6 @@ enum QuizError: LocalizedError {
     case networkError(Error)
     case invalidResponse
     case dailyLimitReached
-    case invalidChallenge
 
     var errorDescription: String? {
         switch self {
@@ -197,8 +263,6 @@ enum QuizError: LocalizedError {
             return "Invalid response from server"
         case .dailyLimitReached:
             return "Daily quiz limit reached. Upgrade to Premium for unlimited quizzes!"
-        case .invalidChallenge:
-            return "This quiz has expired or is invalid. Please start a new quiz."
         }
     }
 }

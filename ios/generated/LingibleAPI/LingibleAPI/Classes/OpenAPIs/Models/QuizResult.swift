@@ -14,9 +14,9 @@ public struct QuizResult: Codable, JSONEncodable, Hashable {
 
     /** Session ID */
     public var sessionId: String
-    /** Total score achieved */
+    /** Total score achieved (whole number) */
     public var score: Float
-    /** Maximum possible score */
+    /** Maximum possible score (whole number) */
     public var totalPossible: Float
     /** Number of correct answers */
     public var correctCount: Int

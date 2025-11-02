@@ -1,6 +1,6 @@
 # Active Context - Lingible
 
-## Current Focus: Lexicon Enhancement & Quiz System Optimization (2025-11-02)
+## Current Focus: Quiz System Decimal/Float/Int Conversion Fixes & Code Quality Improvements (2025-11-02)
 
 ### ✅ **COMPLETED: Slang Crowdsourcing with AI Validation (2025-10-11)**
 - **AI-Powered Validation**: Complete integration of Tavily web search + AWS Bedrock (Claude) for intelligent slang validation
@@ -52,6 +52,16 @@
 - **Migration Success**: Successfully migrated 409 terms with 100% success rate, all attestation fields preserved
 - **Export Integration**: Lexicon export handler includes attestation fields, ensuring S3 exports are complete
 - **Quiz Selection**: Newer terms (by `first_attested` date) are now prioritized in quiz selection while maintaining variety
+
+### ✅ **COMPLETED: Quiz System Decimal/Float/Int Conversion Fixes & Code Quality (2025-11-02)**
+- **Comprehensive Type Conversion Review**: Fixed all Decimal/float/int conversion issues in quiz service and repository
+- **Repository Boundary Conversions**: Added `_to_int()` and `_to_float()` helper methods for robust type conversion from DynamoDB
+- **Service Layer Simplification**: Removed redundant conversions, relying on Pydantic for type coercion where possible
+- **Arithmetic Operations**: Fixed sum operations and division operations to handle Decimal/float/int types correctly
+- **Score Rounding**: Ensured scores are consistently rounded to whole numbers in backend and displayed properly in iOS
+- **Import Organization**: Moved all imports to top of files, eliminating mid-function import anti-pattern
+- **Type Safety**: Maintained strong typing throughout with proper Pydantic model handling
+- **Test Coverage**: All existing tests passing with improved type conversion handling
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 - **Mandatory TDD Workflow**: Red-Green-Refactor process for all backend development

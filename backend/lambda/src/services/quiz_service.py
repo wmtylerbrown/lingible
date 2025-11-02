@@ -3,6 +3,7 @@
 import uuid
 import random
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, Optional, Dict, Set
 
 from models.quiz import (
@@ -11,6 +12,7 @@ from models.quiz import (
     QuizResult,
     QuizHistory,
     QuizDifficulty,
+    QuizCategory,
     QuizQuestionResponse,
     QuizAnswerRequest,
     QuizAnswerResponse,
@@ -65,7 +67,7 @@ class QuizService:
         if not is_correct:
             return 0.0
 
-        max_points = float(self.config.points_per_correct)
+        max_points = self.config.points_per_correct
         question_time_limit = 30.0  # 30 seconds per question (configurable later)
 
         # Calculate time ratio (capped at 1.0)
@@ -272,8 +274,6 @@ class QuizService:
             return
 
         try:
-            from models.quiz import QuizCategory
-
             # Load pools for all categories
             for category in QuizCategory:
                 pool = self.repository.get_wrong_answer_pool(category.value)
@@ -336,8 +336,6 @@ class QuizService:
             return []
 
         # Shuffle and return 3 random options
-        import random
-
         random.shuffle(available)
         return available[:3]
 
@@ -509,10 +507,21 @@ class QuizService:
         explanation = self._normalize_answer_text(explanation)
 
         # Update session stats
-        new_questions_answered = session.get("questions_answered", 0) + 1
-        new_correct_count = session.get("correct_count", 0) + (1 if is_correct else 0)
-        # Service layer works with floats (repository handles Decimal conversion)
+        # Ensure values are proper types before arithmetic (repository should convert, but defensive)
+        questions_answered = session.get("questions_answered", 0)
+        correct_count = session.get("correct_count", 0)
         current_score = session.get("total_score", 0.0)
+
+        # Convert to proper types if needed (repository should handle this, but defensive)
+        if isinstance(questions_answered, (Decimal, float)):
+            questions_answered = int(questions_answered)
+        if isinstance(correct_count, (Decimal, float)):
+            correct_count = int(correct_count)
+        if isinstance(current_score, Decimal):
+            current_score = float(current_score)
+
+        new_questions_answered = questions_answered + 1
+        new_correct_count = correct_count + (1 if is_correct else 0)
         new_total_score = current_score + points_earned
 
         self.repository.update_quiz_session(
@@ -531,7 +540,7 @@ class QuizService:
 
         # Calculate running stats
         accuracy = (
-            new_correct_count / new_questions_answered
+            float(new_correct_count) / float(new_questions_answered)
             if new_questions_answered > 0
             else 0.0
         )
@@ -584,7 +593,19 @@ class QuizService:
         correct_count = session.get("correct_count", 0)
         total_score = session.get("total_score", 0.0)
 
-        accuracy = correct_count / questions_answered if questions_answered > 0 else 0.0
+        # Ensure values are proper types before arithmetic/division
+        if isinstance(questions_answered, (Decimal, float)):
+            questions_answered = int(questions_answered)
+        if isinstance(correct_count, (Decimal, float)):
+            correct_count = int(correct_count)
+        if isinstance(total_score, Decimal):
+            total_score = float(total_score)
+
+        accuracy = (
+            float(correct_count) / float(questions_answered)
+            if questions_answered > 0
+            else 0.0
+        )
 
         started_at = datetime.fromisoformat(
             session.get("started_at", datetime.now(timezone.utc).isoformat())
@@ -613,26 +634,25 @@ class QuizService:
             raise ValidationError("Session already completed")
 
         # Calculate final stats
-        # Ensure all values are proper Python types (defensive conversion from Decimal)
-        from decimal import Decimal
+        # Ensure all values are proper Python types (defensive conversion from Decimal/float)
 
         questions_answered = session.get("questions_answered", 0)
-        if isinstance(questions_answered, Decimal):
+        if isinstance(questions_answered, (Decimal, float)):
             questions_answered = int(questions_answered)
-        elif not isinstance(questions_answered, int):
-            questions_answered = int(questions_answered)
+        else:
+            questions_answered = int(questions_answered) if questions_answered else 0
 
         correct_count = session.get("correct_count", 0)
-        if isinstance(correct_count, Decimal):
+        if isinstance(correct_count, (Decimal, float)):
             correct_count = int(correct_count)
-        elif not isinstance(correct_count, int):
-            correct_count = int(correct_count)
+        else:
+            correct_count = int(correct_count) if correct_count else 0
 
         total_score = session.get("total_score", 0.0)
         if isinstance(total_score, Decimal):
             total_score = float(total_score)
-        elif not isinstance(total_score, float):
-            total_score = float(total_score)
+        else:
+            total_score = float(total_score) if total_score else 0.0
 
         if questions_answered == 0:
             raise ValidationError("Cannot end session with no questions answered")
@@ -669,7 +689,7 @@ class QuizService:
         rounded_total_possible = int(round(total_possible))
 
         # Generate share text
-        accuracy = int((correct_count / questions_answered) * 100)
+        accuracy = int((float(correct_count) / float(questions_answered)) * 100)
         share_text = f"I scored {rounded_score}/{rounded_total_possible} on the Lingible Slang Quiz! I got {correct_count}/{questions_answered} right ({accuracy}% accuracy). Can you beat me? 🔥"
 
         logger.log_business_event(
@@ -677,7 +697,7 @@ class QuizService:
             {
                 "user_id": user_id,
                 "session_id": session_id,
-                "score": float(rounded_score),
+                "score": rounded_score,
                 "correct_count": correct_count,
                 "total_questions": questions_answered,
             },
@@ -685,10 +705,12 @@ class QuizService:
 
         return QuizResult(
             session_id=session_id,
-            score=float(rounded_score),
-            total_possible=float(rounded_total_possible),
-            correct_count=correct_count,
-            total_questions=questions_answered,
+            score=float(
+                rounded_score
+            ),  # Pydantic will handle float, but explicit for clarity
+            total_possible=float(rounded_total_possible),  # Pydantic will handle float
+            correct_count=correct_count,  # Already int
+            total_questions=questions_answered,  # Already int
             time_taken_seconds=round(time_taken_seconds, 1),
             share_text=share_text,
         )
