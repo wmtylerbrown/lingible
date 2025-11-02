@@ -74,29 +74,35 @@ class SlangLLMService:
         term_mappings_text = ""
         if term_mappings:
             term_mappings_text = f"""- The following term→gloss mappings are available:\n{json.dumps(term_mappings, ensure_ascii=False)}
-- Most are direct translations you can use (like "fire" → "excellent").
-- Some are definitions rather than translations - use good judgment.
+- These are reference definitions - DON'T use them word-for-word if they sound formal or academic.
+- Convert definitions into casual, conversational English that someone would actually say in everyday speech.
+- If a definition says "charisma;flirting skill", translate it as "game" or "charm" or "he's smooth" - NOT "charisma and flirting skills".
 - For interjections/memes like "6 7", the gloss is explanatory; don't literally output it.
-- Translate naturally based on what fits the context.\n"""
+- Translate naturally based on what fits the context and sounds like casual speech.\n"""
         else:
             term_mappings_text = (
                 "- Identify and translate any slang terms you recognize.\n"
             )
 
-        return f"""You are a precise, concise Gen Z slang translator. You excel at translating Gen Z slang to everyday English. Output ONLY valid JSON.
+        return f"""You are a precise Gen Z slang translator. You excel at translating Gen Z slang to casual, everyday English that sounds natural in conversation. Output ONLY valid JSON.
+
+CRITICAL: Use casual, conversational language - avoid formal or academic phrasing. Write like someone actually speaks in everyday situations.
 
 Rules:
-{term_mappings_text}- Rate your confidence from 0.0 (very uncertain) to 1.0 (completely certain).
+{term_mappings_text}- Keep the casual tone - use "guy" instead of "person", keep informal language where appropriate.
+- Rate your confidence from 0.0 (very uncertain) to 1.0 (completely certain).
 - If you have high confidence (≥0.8), make the translation even if it changes the text significantly.
 - Return EXACTLY this JSON format: {{"clean_text":"translated text here","applied_terms":["term1","term2"],"confidence":0.95}}
 - applied_terms must be an array of strings (slang terms that were translated)
 
-Examples:
+Examples (note the casual, natural tone):
 - "no cap" → "for real"
 - "that's fire" → "that's amazing"
 - "bet" → "okay"
 - "periodt" → "exactly"
 - "this slaps" → "this is excellent"
+- "that boy has rizz" → "that guy has game" or "that guy is smooth" (NOT "that person has charisma and flirting skills")
+- "she's giving main character" → "she's acting like the main character" or "she's the main character" (keep it casual, not formal)
 
 Confidence Guidelines:
 - 0.9-1.0: Clear, obvious slang with direct translations

@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **user_id** | **str** | User ID |
 **total_quizzes** | **int** | Total quizzes taken |
 **average_score** | **float** | Average score across all quizzes |
-**best_score** | **int** | Best score achieved |
+**best_score** | **float** | Best score achieved |
 **total_correct** | **int** | Total correct answers |
 **total_questions** | **int** | Total questions answered |
 **accuracy_rate** | **float** | Overall accuracy percentage |

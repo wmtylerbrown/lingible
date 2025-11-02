@@ -399,18 +399,29 @@ class QuizService:
         used_wrong_options_list = session.get("used_wrong_options", [])
         used_wrong_options: Set[str] = set(used_wrong_options_list)
 
-        # Get a quiz term
+        # Get terms already used in this session to avoid repeats
+        current_term_names = dict(session.get("term_names", {}))
+        used_term_names = set(current_term_names.values())
+
+        # Get a quiz term, excluding already used terms
+        # Use a larger batch size when we have many used terms to ensure we have options
+        batch_size = max(
+            20, len(used_term_names) + 10
+        )  # At least 20, or more if many terms used
         terms = self.repository.get_quiz_eligible_terms(
             difficulty=difficulty,
-            limit=10,  # Get small batch for single question
+            limit=batch_size,
+            exclude_terms=list(used_term_names),
         )
 
         if not terms:
+            # If we've exhausted all available terms, raise error
             raise ValidationError(
-                f"Not enough terms available for difficulty {difficulty.value}"
+                f"Not enough terms available for difficulty {difficulty.value}. "
+                f"All {len(used_term_names)} available terms have been used in this quiz session."
             )
 
-        # Select random term
+        # Select random term from the filtered list
         term = random.choice(terms)
 
         # Format as question (with normalization and used options tracking)
@@ -427,7 +438,8 @@ class QuizService:
         # Update session with new question data
         current_correct_answers = dict(session.get("correct_answers", {}))
         current_correct_answers[question.question_id] = correct_option_id
-        current_term_names = dict(session.get("term_names", {}))
+        # Create a copy of current_term_names for updating (avoid mutating original)
+        current_term_names = dict(current_term_names)
         current_term_names[question.question_id] = term["slang_term"]
 
         self.repository.update_quiz_session(

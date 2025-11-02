@@ -81,24 +81,50 @@ class TestResponseUtils:
     """Test response utility functions."""
 
     def test_create_success_response(self):
-        """Test creating success response."""
-        data = {"message": "Success", "user_id": "test_123"}
+        """Test creating success response with Pydantic model."""
+        from src.models.quiz import QuizHistory
 
-        response = create_model_response(data)
+        history = QuizHistory(
+            user_id="test_123",
+            total_quizzes=1,
+            average_score=85.0,
+            best_score=100.0,
+            total_correct=10,
+            total_questions=10,
+            accuracy_rate=1.0,
+            quizzes_today=0,
+            can_take_quiz=True,
+        )
+
+        response = create_model_response(history)
 
         assert response["statusCode"] == 200
         assert response["headers"]["Content-Type"] == "application/json"
-        assert json.loads(response["body"])["success"] is True
-        assert json.loads(response["body"])["data"]["message"] == "Success"
+        body = json.loads(response["body"])
+        assert body["user_id"] == "test_123"
+        assert body["total_quizzes"] == 1
 
     def test_create_success_response_with_custom_status(self):
         """Test creating success response with custom status code."""
-        data = {"created": True}
+        from src.models.quiz import QuizHistory
 
-        response = create_model_response(data, status_code=201)
+        history = QuizHistory(
+            user_id="test",
+            total_quizzes=1,
+            average_score=85.0,
+            best_score=100.0,
+            total_correct=10,
+            total_questions=10,
+            accuracy_rate=1.0,
+            quizzes_today=0,
+            can_take_quiz=True,
+        )
+
+        response = create_model_response(history, status_code=201)
 
         assert response["statusCode"] == 201
-        assert json.loads(response["body"])["success"] is True
+        body = json.loads(response["body"])
+        assert body["user_id"] == "test"
 
     def test_create_error_response(self):
         """Test creating error response."""
@@ -110,16 +136,28 @@ class TestResponseUtils:
         assert response["headers"]["Content-Type"] == "application/json"
         body = json.loads(response["body"])
         assert body["success"] is False
-        assert body["error"]["message"] == "Test error"
-        assert body["error"]["code"] == "BUSINESS_LOGIC_ERROR"
+        assert body["message"] == "Test error"
+        assert body["error_code"] == "BIZ_001"
+        assert "timestamp" in body
+        assert isinstance(body["timestamp"], str)  # ISO8601 string
 
-    def test_create_error_response_with_custom_status(self):
-        """Test creating error response with custom status code."""
-        error = SystemError("Internal error")
+    def test_create_error_response_with_details(self):
+        """Test creating error response with usage limit details."""
+        from src.utils.exceptions import UsageLimitExceededError
 
-        response = create_error_response(error, status_code=503)
+        error = UsageLimitExceededError("quiz_questions", 10, 10)
 
-        assert response["statusCode"] == 503
+        response = create_error_response(error)
+
+        assert response["statusCode"] == 429
+        body = json.loads(response["body"])
+        assert body["success"] is False
+        assert body["status_code"] == 429
+        assert body["details"]["limit_type"] == "quiz_questions"
+        assert body["details"]["current_usage"] == 10  # Should be int, not string
+        assert body["details"]["limit"] == 10  # Should be int, not string
+        assert isinstance(body["details"]["current_usage"], int)
+        assert isinstance(body["details"]["limit"], int)
 
     def test_create_model_response_with_quiz_history(self):
         """Test create_model_response with QuizHistory model."""

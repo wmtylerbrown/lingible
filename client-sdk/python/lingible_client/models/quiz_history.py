@@ -29,7 +29,7 @@ class QuizHistory(BaseModel):
     user_id: StrictStr = Field(description="User ID")
     total_quizzes: StrictInt = Field(description="Total quizzes taken")
     average_score: Union[StrictFloat, StrictInt] = Field(description="Average score across all quizzes")
-    best_score: StrictInt = Field(description="Best score achieved")
+    best_score: Union[StrictFloat, StrictInt] = Field(description="Best score achieved")
     total_correct: StrictInt = Field(description="Total correct answers")
     total_questions: StrictInt = Field(description="Total questions answered")
     accuracy_rate: Union[StrictFloat, StrictInt] = Field(description="Overall accuracy percentage")

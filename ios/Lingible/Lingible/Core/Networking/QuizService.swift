@@ -241,24 +241,27 @@ final class QuizService: QuizServiceProtocol {
         // Log the error for debugging
         print("🔍 QuizService.parseError: Starting error parsing")
         print("🔍 QuizService.parseError: Error type: \(type(of: error))")
-        if let nsError = error as NSError {
-            print("🔍 QuizService.parseError: NSError domain: \(nsError.domain), code: \(nsError.code)")
-            print("🔍 QuizService.parseError: NSError description: \(nsError.localizedDescription)")
-            print("🔍 QuizService.parseError: NSError userInfo: \(nsError.userInfo)")
-        }
+        let errorAsNSError = error as NSError
+        print("🔍 QuizService.parseError: NSError domain: \(errorAsNSError.domain), code: \(errorAsNSError.code)")
+        print("🔍 QuizService.parseError: NSError description: \(errorAsNSError.localizedDescription)")
+        print("🔍 QuizService.parseError: NSError userInfo: \(errorAsNSError.userInfo)")
 
         // Check if it's an ErrorResponse from the generated API client
         if case let ErrorResponse.error(statusCode, data, response, underlyingError) = error {
             print("🔍 QuizService.parseError: ErrorResponse detected")
             print("🔍 QuizService.parseError: Status code: \(statusCode)")
 
+            // Don't parse successful responses (200) as errors
+            if statusCode == 200 {
+                print("🔍 QuizService.parseError: Skipping status 200 (success response, not an error)")
+                return nil
+            }
+
             if let httpResponse = response as? HTTPURLResponse {
                 print("🔍 QuizService.parseError: HTTP status: \(httpResponse.statusCode)")
             }
 
-            if let underlyingError = underlyingError {
-                print("🔍 QuizService.parseError: Underlying error: \(underlyingError)")
-            }
+            print("🔍 QuizService.parseError: Underlying error: \(underlyingError)")
             if let data = data {
                 print("🔍 QuizService.parseError: Data length: \(data.count) bytes")
                 if let dataString = String(data: data, encoding: .utf8) {

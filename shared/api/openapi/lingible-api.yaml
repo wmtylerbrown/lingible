@@ -1987,9 +1987,10 @@ components:
           description: Average score across all quizzes
           example: 87.5
         best_score:
-          type: integer
+          type: number
+          format: float
           description: Best score achieved
-          example: 110
+          example: 87.5
         total_correct:
           type: integer
           description: Total correct answers

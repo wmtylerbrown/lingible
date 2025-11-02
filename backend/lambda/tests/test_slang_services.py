@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
 
 from models.slang import (
-    SlangTerm, SlangLexicon, TranslationResult, TranslationSpan,
-    QualityMetrics, SlangTranslationResult, SlangTranslationDensity,
+    SlangTerm, SlangLexicon, TranslationSpan,
+    SlangTranslationResponse, SlangTranslationDensity,
     LexiconStats, AgeRating, AgeFilterMode, PartOfSpeech, ApprovalStatus
 )
 from services.slang_lexicon_service import SlangLexiconService
@@ -373,3 +373,61 @@ class TestSlangServiceIntegration:
         # Integration tests for slang translation now happen through
         # the main TranslationService in test_translation_service.py
         pass
+
+
+class TestSlangLLMService:
+    """Test SlangLLMService prompt generation."""
+
+    @pytest.fixture
+    def llm_config(self):
+        """Create LLMConfig for testing."""
+        from models.config import LLMConfig
+        return LLMConfig(
+            model="anthropic.claude-3-sonnet-20240229-v1:0",
+            max_tokens=1000,
+            temperature=0.7,
+            top_p=0.9,
+        )
+
+    def test_genz_to_english_prompt_emphasizes_casual_language(self, llm_config):
+        """Test that GenZ to English prompt emphasizes casual, conversational language."""
+        from models.slang import TranslationSpan
+
+        spans = [
+            TranslationSpan(
+                canonical="rizz",
+                start=15,
+                end=19,
+                gloss="charisma;flirting skill",
+                confidence=0.9
+            )
+        ]
+
+        service = SlangLLMService(llm_config)
+        prompt = service._create_genz_to_english_prompt("That boy has rizz", spans)
+
+        # Verify prompt contains instructions about casual language
+        assert "casual" in prompt.lower() or "conversational" in prompt.lower()
+        assert "everyday" in prompt.lower() or "natural" in prompt.lower()
+        assert "formal" in prompt.lower() or "academic" in prompt.lower()
+
+        # Verify it includes the rizz example
+        assert "rizz" in prompt.lower()
+        assert "game" in prompt.lower() or "smooth" in prompt.lower()
+
+        # Verify it tells LLM NOT to use formal definitions
+        assert "not" in prompt.lower() or "avoid" in prompt.lower() or "don't" in prompt.lower()
+
+        # Verify it mentions using "guy" instead of "person"
+        assert "guy" in prompt.lower()
+
+    def test_genz_to_english_prompt_includes_rizz_example(self, llm_config):
+        """Test that prompt includes specific example for rizz translation."""
+        service = SlangLLMService(llm_config)
+        prompt = service._create_genz_to_english_prompt("test", [])
+
+        # Check for the rizz example in the prompt
+        assert "that boy has rizz" in prompt.lower() or "rizz" in prompt.lower()
+        # Should show casual translation, not formal
+        assert ("game" in prompt.lower() or "smooth" in prompt.lower()) or \
+               ("charisma and flirting skills" in prompt.lower())

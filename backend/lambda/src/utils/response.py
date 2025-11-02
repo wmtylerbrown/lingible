@@ -1,5 +1,6 @@
 """Enhanced response utilities with proper error handling."""
 
+import json
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from models.base import ErrorResponse, HTTPStatus, ErrorCode
@@ -12,8 +13,8 @@ def create_model_response(
     status_code: int = HTTPStatus.OK.value,
 ) -> Dict[str, Any]:
     """Create a successful API Gateway response from a Pydantic model."""
-    # All API response models now inherit from LingibleBaseModel and have to_json()
-    json_body = model.to_json()
+    # Use serialize_model() for consistent datetime/Decimal serialization
+    json_body = json.dumps(model.serialize_model())
 
     return APIGatewayResponse(
         statusCode=status_code,
@@ -50,7 +51,7 @@ def create_error_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=error_data.model_dump_json(),
+        body=json.dumps(error_data.serialize_model()),
         isBase64Encoded=False,
     ).model_dump()
 
@@ -79,7 +80,7 @@ def create_validation_error_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=error_data.model_dump_json(),
+        body=json.dumps(error_data.serialize_model()),
         isBase64Encoded=False,
     ).model_dump()
 
@@ -106,7 +107,7 @@ def create_unauthorized_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=error_data.model_dump_json(),
+        body=json.dumps(error_data.serialize_model()),
         isBase64Encoded=False,
     ).model_dump()
 
@@ -133,6 +134,6 @@ def create_rate_limit_response(
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
         },
-        body=error_data.model_dump_json(),
+        body=json.dumps(error_data.serialize_model()),
         isBase64Encoded=False,
     ).model_dump()

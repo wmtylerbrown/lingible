@@ -6,7 +6,7 @@ Name | Type | Description | Notes
 **userId** | **String** | User ID |
 **totalQuizzes** | **Int** | Total quizzes taken |
 **averageScore** | **Float** | Average score across all quizzes |
-**bestScore** | **Int** | Best score achieved |
+**bestScore** | **Float** | Best score achieved |
 **totalCorrect** | **Int** | Total correct answers |
 **totalQuestions** | **Int** | Total questions answered |
 **accuracyRate** | **Float** | Overall accuracy percentage |

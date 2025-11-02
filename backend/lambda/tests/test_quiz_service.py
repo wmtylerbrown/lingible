@@ -267,6 +267,121 @@ class TestQuizService:
         assert response.session_id == "session_456"
         mock_quiz_service.repository.create_quiz_session.assert_not_called()
 
+    def test_get_next_question_excludes_used_terms(self, mock_quiz_service, premium_user_profile):
+        """Test get_next_question excludes terms that have already been used in the session."""
+        # Session with "bussin" already used
+        existing_session = {
+            "session_id": "session_789",
+            "user_id": "user_123",
+            "difficulty": "beginner",
+            "questions_answered": 2,
+            "correct_count": 2,
+            "total_score": 17.0,
+            "correct_answers": {"q1": "a", "q2": "b"},
+            "term_names": {"q1": "bussin", "q2": "cap"},  # Both terms already used
+            "used_wrong_options": ["Bad", "Okay", "Average"],
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        # Available terms include the already-used ones plus new ones
+        available_terms = [
+            {
+                "slang_term": "bussin",  # Already used
+                "meaning": "Really good",
+                "is_quiz_eligible": True,
+                "quiz_difficulty": "beginner",
+            },
+            {
+                "slang_term": "cap",  # Already used
+                "meaning": "Lie",
+                "is_quiz_eligible": True,
+                "quiz_difficulty": "beginner",
+            },
+            {
+                "slang_term": "slay",  # NEW - not used yet
+                "meaning": "Do something exceptionally well",
+                "is_quiz_eligible": True,
+                "quiz_difficulty": "beginner",
+            },
+            {
+                "slang_term": "fire",  # NEW - not used yet
+                "meaning": "Amazing",
+                "is_quiz_eligible": True,
+                "quiz_difficulty": "beginner",
+            },
+        ]
+
+        mock_quiz_service.user_service.get_user.return_value = premium_user_profile
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 1
+        mock_quiz_service.repository.get_active_quiz_session.return_value = existing_session
+
+        # Mock get_quiz_eligible_terms to return terms excluding the used ones
+        def mock_get_terms(difficulty, limit, exclude_terms):
+            """Mock that filters out excluded terms."""
+            excluded_set = set(exclude_terms) if exclude_terms else set()
+            filtered = [t for t in available_terms if t["slang_term"] not in excluded_set]
+            return filtered[:limit]
+
+        mock_quiz_service.repository.get_quiz_eligible_terms.side_effect = mock_get_terms
+        mock_quiz_service.repository.update_quiz_session.return_value = True
+
+        response = mock_quiz_service.get_next_question("user_123", QuizDifficulty.BEGINNER)
+
+        # Verify the term used is NOT one of the already-used terms
+        assert response.question.slang_term not in ["bussin", "cap"]
+        assert response.question.slang_term in ["slay", "fire"]
+
+        # Verify get_quiz_eligible_terms was called with exclude_terms
+        call_args = mock_quiz_service.repository.get_quiz_eligible_terms.call_args
+        assert call_args is not None
+        assert "exclude_terms" in call_args.kwargs or len(call_args.kwargs.get("exclude_terms", [])) > 0
+        excluded_terms = call_args.kwargs.get("exclude_terms", [])
+        assert "bussin" in excluded_terms
+        assert "cap" in excluded_terms
+
+    def test_get_next_question_handles_all_terms_exhausted(self, mock_quiz_service, premium_user_profile):
+        """Test get_next_question raises error when all available terms are exhausted."""
+        # Session that has used all available terms
+        existing_session = {
+            "session_id": "session_exhausted",
+            "user_id": "user_123",
+            "difficulty": "beginner",
+            "questions_answered": 2,
+            "correct_count": 2,
+            "total_score": 17.0,
+            "correct_answers": {"q1": "a", "q2": "b"},
+            "term_names": {"q1": "bussin", "q2": "cap"},
+            "used_wrong_options": [],
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        # Only 2 terms available (both already used)
+        available_terms = [
+            {"slang_term": "bussin", "meaning": "Really good", "is_quiz_eligible": True},
+            {"slang_term": "cap", "meaning": "Lie", "is_quiz_eligible": True},
+        ]
+
+        mock_quiz_service.user_service.get_user.return_value = premium_user_profile
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 1
+        mock_quiz_service.repository.get_active_quiz_session.return_value = existing_session
+
+        def mock_get_terms(difficulty, limit, exclude_terms):
+            """Mock that filters out excluded terms."""
+            excluded_set = set(exclude_terms) if exclude_terms else set()
+            filtered = [t for t in available_terms if t["slang_term"] not in excluded_set]
+            return filtered[:limit]
+
+        mock_quiz_service.repository.get_quiz_eligible_terms.side_effect = mock_get_terms
+
+        # Should raise ValidationError when no terms available
+        with pytest.raises(ValidationError) as exc_info:
+            mock_quiz_service.get_next_question("user_123", QuizDifficulty.BEGINNER)
+
+        # Verify the error message
+        assert "Not enough terms available" in exc_info.value.message
+
     def test_get_next_question_free_tier_limit(self, mock_quiz_service, free_user_profile):
         """Test get_next_question respects free tier daily limit."""
         from datetime import datetime, timezone

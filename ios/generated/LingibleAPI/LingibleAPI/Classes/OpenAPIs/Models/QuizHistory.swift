@@ -19,7 +19,7 @@ public struct QuizHistory: Codable, JSONEncodable, Hashable {
     /** Average score across all quizzes */
     public var averageScore: Float
     /** Best score achieved */
-    public var bestScore: Int
+    public var bestScore: Float
     /** Total correct answers */
     public var totalCorrect: Int
     /** Total questions answered */
@@ -33,7 +33,7 @@ public struct QuizHistory: Codable, JSONEncodable, Hashable {
     /** Reason if user cannot take quiz (e.g., 'Daily limit reached') */
     public var reason: String?
 
-    public init(userId: String, totalQuizzes: Int, averageScore: Float, bestScore: Int, totalCorrect: Int, totalQuestions: Int, accuracyRate: Float, quizzesToday: Int, canTakeQuiz: Bool, reason: String? = nil) {
+    public init(userId: String, totalQuizzes: Int, averageScore: Float, bestScore: Float, totalCorrect: Int, totalQuestions: Int, accuracyRate: Float, quizzesToday: Int, canTakeQuiz: Bool, reason: String? = nil) {
         self.userId = userId
         self.totalQuizzes = totalQuizzes
         self.averageScore = averageScore
