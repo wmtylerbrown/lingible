@@ -89,7 +89,7 @@ class QuizHistory(LingibleBaseModel):
     user_id: str = Field(description="User ID")
     total_quizzes: int = Field(description="Total quizzes taken")
     average_score: float = Field(description="Average score across all quizzes")
-    best_score: int = Field(description="Best score achieved")
+    best_score: float = Field(description="Best score achieved")
     total_correct: int = Field(description="Total correct answers")
     total_questions: int = Field(description="Total questions answered")
     accuracy_rate: float = Field(description="Overall accuracy percentage")
