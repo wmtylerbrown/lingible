@@ -51,10 +51,9 @@ final class QuizService: QuizServiceProtocol {
                 }
             }
         } catch {
-            // Check if it's an authentication/authorization error
-            let nsError = error as NSError
-            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
-                throw QuizError.unauthorized
+            // Parse structured error response
+            if let quizError = parseError(error) {
+                throw quizError
             }
             throw QuizError.networkError(error)
         }
@@ -101,14 +100,9 @@ final class QuizService: QuizServiceProtocol {
                 }
             }
         } catch {
-            // Check if it's an authentication/authorization error
-            let nsError = error as NSError
-            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
-                throw QuizError.unauthorized
-            }
-            // Check for daily limit errors
-            if nsError.localizedDescription.contains("limit") || nsError.localizedDescription.contains("Daily") {
-                throw QuizError.dailyLimitReached
+            // Parse structured error response
+            if let quizError = parseError(error) {
+                throw quizError
             }
             throw QuizError.networkError(error)
         }
@@ -140,10 +134,9 @@ final class QuizService: QuizServiceProtocol {
                 }
             }
         } catch {
-            // Check if it's an authentication/authorization error
-            let nsError = error as NSError
-            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
-                throw QuizError.unauthorized
+            // Parse structured error response
+            if let quizError = parseError(error) {
+                throw quizError
             }
             throw QuizError.networkError(error)
         }
@@ -175,10 +168,9 @@ final class QuizService: QuizServiceProtocol {
                 }
             }
         } catch {
-            // Check if it's an authentication/authorization error
-            let nsError = error as NSError
-            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
-                throw QuizError.unauthorized
+            // Parse structured error response
+            if let quizError = parseError(error) {
+                throw quizError
             }
             throw QuizError.networkError(error)
         }
@@ -213,10 +205,9 @@ final class QuizService: QuizServiceProtocol {
                 }
             }
         } catch {
-            // Check if it's an authentication/authorization error
-            let nsError = error as NSError
-            if nsError.domain.contains("Auth") || nsError.localizedDescription.contains("Access Token") || nsError.localizedDescription.contains("scopes") {
-                throw QuizError.unauthorized
+            // Parse structured error response
+            if let quizError = parseError(error) {
+                throw quizError
             }
             throw QuizError.networkError(error)
         }
@@ -240,6 +231,138 @@ final class QuizService: QuizServiceProtocol {
     private func configureAPIClient(with accessToken: String) {
         // Configure the global API client with authorization header
         LingibleAPIAPI.customHeaders["Authorization"] = "Bearer \(accessToken)"
+    }
+
+    // MARK: - Error Parsing
+
+    /// Parses API error responses and converts them to QuizError
+    /// Follows the same pattern as TranslationView for consistent error handling
+    private func parseError(_ error: Error) -> QuizError? {
+        // Log the error for debugging
+        print("🔍 QuizService.parseError: Starting error parsing")
+        print("🔍 QuizService.parseError: Error type: \(type(of: error))")
+        if let nsError = error as NSError {
+            print("🔍 QuizService.parseError: NSError domain: \(nsError.domain), code: \(nsError.code)")
+            print("🔍 QuizService.parseError: NSError description: \(nsError.localizedDescription)")
+            print("🔍 QuizService.parseError: NSError userInfo: \(nsError.userInfo)")
+        }
+
+        // Check if it's an ErrorResponse from the generated API client
+        if case let ErrorResponse.error(statusCode, data, response, underlyingError) = error {
+            print("🔍 QuizService.parseError: ErrorResponse detected")
+            print("🔍 QuizService.parseError: Status code: \(statusCode)")
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("🔍 QuizService.parseError: HTTP status: \(httpResponse.statusCode)")
+            }
+
+            if let underlyingError = underlyingError {
+                print("🔍 QuizService.parseError: Underlying error: \(underlyingError)")
+            }
+            if let data = data {
+                print("🔍 QuizService.parseError: Data length: \(data.count) bytes")
+                if let dataString = String(data: data, encoding: .utf8) {
+                    print("🔍 QuizService.parseError: Data content: \(dataString)")
+                } else {
+                    print("🔍 QuizService.parseError: Could not decode data as UTF-8 string")
+                }
+
+                // Try to parse as ModelErrorResponse to get structured error info
+                do {
+                    let errorResponse = try JSONDecoder().decode(ModelErrorResponse.self, from: data)
+                    print("🔍 QuizService.parseError: ✅ Successfully parsed ModelErrorResponse")
+                    print("🔍 QuizService.parseError: - errorCode: '\(errorResponse.errorCode)'")
+                    print("🔍 QuizService.parseError: - statusCode: \(errorResponse.statusCode)")
+                    print("🔍 QuizService.parseError: - message: '\(errorResponse.message)'")
+                    if let details = errorResponse.details {
+                        print("🔍 QuizService.parseError: - details: \(details)")
+                    }
+
+                    // Check for specific error codes
+                    let errorCode = errorResponse.errorCode.lowercased()
+                    print("🔍 QuizService.parseError: Checking error code (lowercased): '\(errorCode)'")
+
+                    switch errorCode {
+                    case "quiz_daily_limit_reached", "auth_003", "usagelimitexceedederror":
+                        print("🔍 QuizService.parseError: ✅ Matched error code '\(errorCode)' -> dailyLimitReached")
+                        return .dailyLimitReached
+
+                    case "invalidtokenerror", "tokenexpirederror", "auth_001", "auth_002":
+                        print("🔍 QuizService.parseError: ✅ Matched error code '\(errorCode)' -> unauthorized")
+                        return .unauthorized
+
+                    default:
+                        print("🔍 QuizService.parseError: ⚠️ Error code '\(errorCode)' not in switch, checking details and status code")
+
+                        // Check details for error_type
+                        if let details = errorResponse.details?.value as? [String: Any] {
+                            print("🔍 QuizService.parseError: Checking details: \(details)")
+                            if let errorType = details["error_type"] as? String {
+                                print("🔍 QuizService.parseError: Found error_type in details: '\(errorType)'")
+                                if errorType == "quiz_daily_limit_reached" {
+                                    print("🔍 QuizService.parseError: ✅ Matched error_type -> dailyLimitReached")
+                                    return .dailyLimitReached
+                                }
+                            }
+                        }
+
+                        // For other errors, check the status code
+                        if errorResponse.statusCode == 401 || errorResponse.statusCode == 403 || errorResponse.statusCode == 429 {
+                            print("🔍 QuizService.parseError: Status code is \(errorResponse.statusCode), checking message")
+                            let messageLower = errorResponse.message.lowercased()
+                            print("🔍 QuizService.parseError: Message (lowercased): '\(messageLower)'")
+
+                            // Check if it's a daily limit by examining the message
+                            if messageLower.contains("daily limit") ||
+                               messageLower.contains("limit reached") ||
+                               messageLower.contains("questions reached") {
+                                print("🔍 QuizService.parseError: ✅ Message contains daily limit keywords -> dailyLimitReached")
+                                return .dailyLimitReached
+                            }
+                            print("🔍 QuizService.parseError: ⚠️ Status \(errorResponse.statusCode) but no daily limit in message -> unauthorized")
+                            return .unauthorized
+                        }
+                    }
+                } catch let decodeError {
+                    // Failed to parse structured error, fall through to check error description
+                    print("🔍 QuizService.parseError: ❌ Failed to decode ModelErrorResponse: \(decodeError)")
+                    if let dataString = String(data: data, encoding: .utf8) {
+                        print("🔍 QuizService.parseError: Raw data that failed to parse: \(dataString)")
+                    }
+                }
+            } else {
+                print("🔍 QuizService.parseError: ⚠️ ErrorResponse data is nil")
+            }
+        } else {
+            print("🔍 QuizService.parseError: Not an ErrorResponse, checking as NSError")
+        }
+
+        // Fallback: Check error description for common patterns
+        print("🔍 QuizService.parseError: Falling back to error description check")
+        let nsError = error as NSError
+        let description = nsError.localizedDescription.lowercased()
+        print("🔍 QuizService.parseError: Error description (lowercased): '\(description)'")
+
+        // Check for authentication errors
+        if nsError.domain.contains("Auth") ||
+           description.contains("access token") ||
+           description.contains("scopes") ||
+           description.contains("unauthorized") {
+            print("🔍 QuizService.parseError: ✅ Matched authentication pattern -> unauthorized")
+            return .unauthorized
+        }
+
+        // Check for daily limit in description (fallback)
+        if description.contains("daily limit") ||
+           description.contains("limit reached") ||
+           description.contains("questions reached") ||
+           (description.contains("limit") && description.contains("questions")) {
+            print("🔍 QuizService.parseError: ✅ Matched daily limit pattern in description -> dailyLimitReached")
+            return .dailyLimitReached
+        }
+
+        print("🔍 QuizService.parseError: ❌ No match found, returning nil")
+        return nil
     }
 }
 

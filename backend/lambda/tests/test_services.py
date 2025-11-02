@@ -720,23 +720,94 @@ class TestUserService:
 
     def test_upgrade_user_tier_to_premium(self, user_service, sample_user):
         """Test upgrading user tier to premium."""
-        user_service.repository.get_user.return_value = sample_user
-        user_service.repository.update_user.return_value = True
+        from datetime import datetime, timezone
+        from unittest.mock import Mock
+
+        user_service.user_repository.get_user.return_value = sample_user
+        user_service.user_repository.update_user.return_value = True
+        # Mock usage limits
+        user_service.user_repository.get_usage_limits.return_value = Mock(tier=UserTier.FREE)
+        user_service.user_repository.update_usage_limits.return_value = True
+        # Mock quiz limit deletion
+        user_service.user_repository.delete_daily_quiz_count.return_value = True
 
         result = user_service.upgrade_user_tier("test_user_123", UserTier.PREMIUM)
 
         assert result is True
         # Verify the user tier was updated
-        user_service.repository.update_user.assert_called_once()
-        updated_user = user_service.repository.update_user.call_args[0][0]
+        user_service.user_repository.update_user.assert_called_once()
+        updated_user = user_service.user_repository.update_user.call_args[0][0]
         assert updated_user.tier == UserTier.PREMIUM
+        # Verify quiz daily count item was deleted via repository method
+        user_service.user_repository.delete_daily_quiz_count.assert_called_once_with("test_user_123")
+
+    def test_upgrade_user_tier_to_premium_quiz_reset_handles_error(self, user_service, sample_user):
+        """Test upgrade_user_tier handles quiz limit deletion errors gracefully."""
+        from datetime import datetime, timezone
+        from unittest.mock import Mock
+
+        user_service.user_repository.get_user.return_value = sample_user
+        user_service.user_repository.update_user.return_value = True
+        user_service.user_repository.get_usage_limits.return_value = Mock(tier=UserTier.FREE)
+        user_service.user_repository.update_usage_limits.return_value = True
+        # Mock repository deletion failure (returns False)
+        user_service.user_repository.delete_daily_quiz_count.return_value = False
+
+        # Should still succeed even if quiz deletion fails
+        result = user_service.upgrade_user_tier("test_user_123", UserTier.PREMIUM)
+
+        assert result is True
+        user_service.user_repository.update_user.assert_called_once()
+        # Verify the method was called even though it failed
+        user_service.user_repository.delete_daily_quiz_count.assert_called_once_with("test_user_123")
+
+    def test_upgrade_user_tier_to_free_no_quiz_reset(self, user_service, sample_user):
+        """Test upgrading to FREE tier doesn't delete quiz count."""
+        from unittest.mock import Mock
+
+        user_service.user_repository.get_user.return_value = sample_user
+        user_service.user_repository.update_user.return_value = True
+        user_service.user_repository.get_usage_limits.return_value = Mock(tier=UserTier.PREMIUM)
+        user_service.user_repository.update_usage_limits.return_value = True
+
+        result = user_service.upgrade_user_tier("test_user_123", UserTier.FREE)
+
+        assert result is True
+        # Should not delete quiz count when downgrading to FREE
+        user_service.user_repository.delete_daily_quiz_count.assert_not_called()
 
     def test_upgrade_user_tier_nonexistent_user(self, user_service):
         """Test upgrading tier for user that doesn't exist."""
-        user_service.repository.get_user.return_value = None
+        user_service.user_repository.get_user.return_value = None
 
         with pytest.raises(ValidationError):
             user_service.upgrade_user_tier("nonexistent_user", UserTier.PREMIUM)
+
+    def test_delete_user_deletes_quiz_data(self, user_service):
+        """Test delete_user calls quiz data cleanup before deleting user."""
+        from unittest.mock import Mock, patch
+
+        # Mock SlangTermRepository
+        mock_quiz_repo = Mock()
+        mock_quiz_repo.delete_user_quiz_data.return_value = 5  # 5 items deleted
+
+        # Mock user repository
+        user_service.user_repository.delete_user.return_value = True
+
+        # Mock Cognito
+        with patch('src.services.user_service.get_cognito_client') as mock_cognito:
+            mock_cognito_client = Mock()
+            mock_cognito.return_value = mock_cognito_client
+            user_service.config_service = Mock()
+            user_service.config_service.get_config.return_value = Mock(user_pool_id="pool_123")
+
+            with patch('src.services.user_service.SlangTermRepository', return_value=mock_quiz_repo):
+                user_service.delete_user("user_123")
+
+            # Verify quiz data deletion was called first
+            mock_quiz_repo.delete_user_quiz_data.assert_called_once_with("user_123")
+            # Verify user deletion was called after
+            user_service.user_repository.delete_user.assert_called_once_with("user_123")
 
     def test_subscription_service_upgrade_flow(self):
         """Test that SubscriptionService properly calls UserService.upgrade_user_tier."""

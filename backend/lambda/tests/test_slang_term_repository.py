@@ -309,34 +309,6 @@ class TestSlangTermRepository:
         assert result is True
         mock_repository.table.put_item.assert_called_once()
 
-    def test_get_daily_quiz_count(self, mock_repository):
-        """Test getting daily quiz count."""
-        mock_repository.table.get_item.return_value = {
-            "Item": {"quiz_count": 2}
-        }
-
-        result = mock_repository.get_daily_quiz_count("user_456", "2024-01-15")
-
-        assert result == 2
-
-    def test_get_daily_quiz_count_not_found(self, mock_repository):
-        """Test getting daily quiz count when no record exists."""
-        mock_repository.table.get_item.return_value = {}
-
-        result = mock_repository.get_daily_quiz_count("user_456", "2024-01-15")
-
-        assert result == 0
-
-    def test_increment_daily_quiz_count(self, mock_repository):
-        """Test incrementing daily quiz count."""
-        mock_repository.table.update_item.return_value = {
-            "Attributes": {"quiz_count": 3}
-        }
-
-        result = mock_repository.increment_daily_quiz_count("user_456")
-
-        assert result == 3
-        mock_repository.table.update_item.assert_called_once()
 
     def test_get_user_quiz_stats(self, mock_repository):
         """Test getting user quiz statistics."""
@@ -453,3 +425,75 @@ class TestSlangTermRepository:
 
         assert len(result) == 1
         assert result[0]["quiz_category"] == "approval"
+
+    def test_delete_user_quiz_data_sessions_and_history(self, mock_repository):
+        """Test delete_user_quiz_data deletes quiz sessions and history."""
+        # Mock quiz sessions
+        mock_repository.table.query.side_effect = [
+            # First query for sessions
+            {
+                "Items": [
+                    {"PK": "USER#user_123", "SK": "SESSION#session_1"},
+                    {"PK": "USER#user_123", "SK": "SESSION#session_2"},
+                ]
+            },
+            # Second query for history (via GSI5)
+            {
+                "Items": [
+                    {"PK": "USER#user_123", "SK": "QUIZ#quiz_1"},
+                    {"PK": "USER#user_123", "SK": "QUIZ#quiz_2"},
+                    {"PK": "USER#user_123", "SK": "QUIZ#quiz_3"},
+                ]
+            }
+        ]
+        mock_repository.table.delete_item.return_value = {}
+
+        result = mock_repository.delete_user_quiz_data("user_123")
+
+        assert result == 5  # 2 sessions + 3 history items
+        # Should have called delete_item 5 times
+        assert mock_repository.table.delete_item.call_count == 5
+        # Verify sessions query was called
+        calls = mock_repository.table.query.call_args_list
+        assert calls[0][1]["ExpressionAttributeValues"][":pk"] == "USER#user_123"
+        assert calls[0][1]["ExpressionAttributeValues"][":sk_prefix"] == "SESSION#"
+        # Verify history query was called with GSI5
+        assert calls[1][1]["IndexName"] == "GSI5"
+        assert calls[1][1]["ExpressionAttributeValues"][":gsi5pk"] == "QUIZHISTORY#user_123"
+
+    def test_delete_user_quiz_data_empty_results(self, mock_repository):
+        """Test delete_user_quiz_data handles empty results."""
+        # Mock empty queries
+        mock_repository.table.query.side_effect = [
+            {"Items": []},  # No sessions
+            {"Items": []},  # No history
+        ]
+
+        result = mock_repository.delete_user_quiz_data("user_123")
+
+        assert result == 0
+        mock_repository.table.delete_item.assert_not_called()
+
+    def test_delete_user_quiz_data_handles_sessions_error(self, mock_repository):
+        """Test delete_user_quiz_data handles errors in session deletion gracefully."""
+        # Mock query error for sessions
+        mock_repository.table.query.side_effect = Exception("Query error")
+
+        result = mock_repository.delete_user_quiz_data("user_123")
+
+        assert result == 0
+
+    def test_delete_user_quiz_data_handles_history_error(self, mock_repository):
+        """Test delete_user_quiz_data handles errors in history deletion gracefully."""
+        # Mock successful sessions query, error on history
+        mock_repository.table.query.side_effect = [
+            {"Items": [{"PK": "USER#user_123", "SK": "SESSION#session_1"}]},
+            Exception("GSI5 query error")
+        ]
+        mock_repository.table.delete_item.return_value = {}
+
+        result = mock_repository.delete_user_quiz_data("user_123")
+
+        # Should still delete the session that was found
+        assert result == 1
+        mock_repository.table.delete_item.assert_called_once()

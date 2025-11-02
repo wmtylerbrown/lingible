@@ -14,6 +14,7 @@ from .response import (
 from .exceptions import (
     ValidationError,
     AuthenticationError,
+    InsufficientPermissionsError,
     RateLimitExceededError,
     AppException,
 )
@@ -63,6 +64,18 @@ def api_handler(
                     e, {"user_id": current_user_id, "error_type": "validation"}
                 )
                 return create_validation_error_response(str(e))
+
+            except InsufficientPermissionsError as e:
+                # Handle InsufficientPermissionsError BEFORE AuthenticationError
+                # because it extends AuthenticationError but needs 403 status code
+                logger.log_error(
+                    e,
+                    {
+                        "user_id": current_user_id,
+                        "error_type": "insufficient_permissions",
+                    },
+                )
+                return create_error_response(e)
 
             except AuthenticationError as e:
                 logger.log_error(

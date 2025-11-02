@@ -101,7 +101,7 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Answer submitted successfully |  -  |
 **401** | Unauthorized |  -  |
-**403** | Daily question limit reached (free tier) |  -  |
+**429** | Daily question limit reached (free tier) |  -  |
 **400** | Invalid request, expired session, or question not found |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -455,6 +455,6 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Question retrieved successfully |  -  |
 **401** | Unauthorized |  -  |
-**403** | Daily question limit reached (free tier) |  -  |
+**429** | Daily question limit reached (free tier) |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

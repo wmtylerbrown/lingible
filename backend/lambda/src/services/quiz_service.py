@@ -21,11 +21,12 @@ from models.quiz import (
 from models.config import QuizConfig
 from models.users import UserTier
 from repositories.slang_term_repository import SlangTermRepository
+from repositories.user_repository import UserRepository
 from services.user_service import UserService
 from utils.config import get_config_service
 from utils.smart_logger import logger
 from utils.tracing import tracer
-from utils.exceptions import ValidationError, InsufficientPermissionsError
+from utils.exceptions import ValidationError, UsageLimitExceededError
 
 
 class QuizService:
@@ -37,6 +38,7 @@ class QuizService:
 
     def __init__(self):
         self.repository = SlangTermRepository()
+        self.user_repository = UserRepository()
         self.user_service = UserService()
         self.config = get_config_service().get_config(QuizConfig)
         self._ensure_pools_loaded()
@@ -88,7 +90,7 @@ class QuizService:
 
         # Get today's quiz count
         today = datetime.now(timezone.utc).date().isoformat()
-        quizzes_today = self.repository.get_daily_quiz_count(user_id, today)
+        quizzes_today = self.user_repository.get_daily_quiz_count(user_id, today)
 
         # Check eligibility
         can_take_quiz = is_premium or quizzes_today < self.config.free_daily_limit
@@ -352,7 +354,7 @@ class QuizService:
 
         # Check daily question count (not quiz count)
         today = datetime.now(timezone.utc).date().isoformat()
-        questions_today = self.repository.get_daily_quiz_count(user_id, today)
+        questions_today = self.user_repository.get_daily_quiz_count(user_id, today)
 
         # Free tier: limit total questions per day
         return questions_today < self.config.free_daily_limit
@@ -366,8 +368,13 @@ class QuizService:
 
         # Check if user can answer another question (before creating session)
         if not self.check_question_eligibility(user_id):
-            raise InsufficientPermissionsError(
-                f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!",
+            today = datetime.now(timezone.utc).date().isoformat()
+            questions_today = self.user_repository.get_daily_quiz_count(user_id, today)
+            raise UsageLimitExceededError(
+                limit_type="quiz_questions",
+                current_usage=questions_today,
+                limit=self.config.free_daily_limit,
+                message=f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!",
             )
 
         # Get or create session
@@ -473,13 +480,16 @@ class QuizService:
         # Check if user can answer another question (free tier daily limit)
         # This check happens BEFORE processing the answer to prevent score updates after limit
         today = datetime.now(timezone.utc).date().isoformat()
-        questions_today = self.repository.get_daily_quiz_count(user_id, today)
+        questions_today = self.user_repository.get_daily_quiz_count(user_id, today)
         user = self.user_service.get_user(user_id)
         is_premium = user is not None and user.tier != UserTier.FREE
 
         if not is_premium and questions_today >= self.config.free_daily_limit:
-            raise InsufficientPermissionsError(
-                f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!",
+            raise UsageLimitExceededError(
+                limit_type="quiz_questions",
+                current_usage=questions_today,
+                limit=self.config.free_daily_limit,
+                message=f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!",
             )
 
         # Validate answer
@@ -532,7 +542,7 @@ class QuizService:
         )
 
         # Increment daily question count AFTER processing (so limit check at top prevents over-limit answers)
-        self.repository.increment_daily_quiz_count(user_id)
+        self.user_repository.increment_daily_quiz_count(user_id)
 
         # Update quiz statistics for this term
         if slang_term:

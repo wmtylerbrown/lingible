@@ -1,6 +1,6 @@
 """User repository for user-related data operations."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from models.users import User, UserTier
@@ -287,6 +287,42 @@ class UserRepository:
                 }
             )
 
+            # Delete all quiz daily count items (query and delete all QUIZ_DAILY# items)
+            try:
+                # Query for all quiz daily items for this user
+                response = self.table.query(
+                    KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+                    ExpressionAttributeValues={
+                        ":pk": f"USER#{user_id}",
+                        ":sk_prefix": "QUIZ_DAILY#",
+                    },
+                )
+                quiz_items = response.get("Items", [])
+                for item in quiz_items:
+                    self.table.delete_item(
+                        Key={
+                            "PK": item["PK"],
+                            "SK": item["SK"],
+                        }
+                    )
+                if quiz_items:
+                    logger.log_business_event(
+                        "quiz_daily_count_items_deleted",
+                        {
+                            "user_id": user_id,
+                            "deleted_count": len(quiz_items),
+                        },
+                    )
+            except Exception as e:
+                # Log but don't fail user deletion if quiz cleanup fails
+                logger.log_error(
+                    e,
+                    {
+                        "operation": "delete_quiz_daily_counts",
+                        "user_id": user_id,
+                    },
+                )
+
             logger.log_business_event(
                 "user_deleted",
                 {
@@ -303,6 +339,97 @@ class UserRepository:
                 },
             )
             raise SystemError(f"Failed to delete user {user_id}")
+
+    @tracer.trace_database_operation("get", "daily_quiz_count")
+    def get_daily_quiz_count(self, user_id: str, date: str) -> int:
+        """Get number of quiz questions answered today."""
+        try:
+            response = self.table.get_item(
+                Key={
+                    "PK": f"USER#{user_id}",
+                    "SK": f"QUIZ_DAILY#{date}",
+                }
+            )
+
+            if "Item" in response:
+                return response["Item"].get("quiz_count", 0)
+            return 0
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "get_daily_quiz_count",
+                    "user_id": user_id,
+                    "date": date,
+                },
+            )
+            return 0
+
+    @tracer.trace_database_operation("update", "daily_quiz_count")
+    def increment_daily_quiz_count(self, user_id: str) -> int:
+        """Increment and return daily quiz count. Creates item if needed with TTL (48h after date)."""
+        try:
+            today = datetime.now(timezone.utc).date()
+            today_str = today.isoformat()
+
+            # Calculate TTL: 48 hours after the date (e.g., if date is 2024-12-19, TTL = 2024-12-21 00:00 UTC)
+            # Convert date string to datetime at midnight UTC, then add 48 hours
+            date_obj = datetime.strptime(today_str, "%Y-%m-%d").replace(
+                tzinfo=timezone.utc
+            )
+            ttl_timestamp = int((date_obj + timedelta(hours=48)).timestamp())
+
+            response = self.table.update_item(
+                Key={
+                    "PK": f"USER#{user_id}",
+                    "SK": f"QUIZ_DAILY#{today_str}",
+                },
+                UpdateExpression="ADD quiz_count :inc SET last_quiz_at = :timestamp, #ttl = :ttl",
+                ExpressionAttributeNames={
+                    "#ttl": "ttl",  # ttl is a reserved word in DynamoDB
+                },
+                ExpressionAttributeValues={
+                    ":inc": 1,
+                    ":timestamp": datetime.now(timezone.utc).isoformat(),
+                    ":ttl": ttl_timestamp,
+                },
+                ReturnValues="UPDATED_NEW",
+            )
+
+            return response["Attributes"].get("quiz_count", 1)
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "increment_daily_quiz_count",
+                    "user_id": user_id,
+                },
+            )
+            return 1
+
+    @tracer.trace_database_operation("delete", "daily_quiz_count")
+    def delete_daily_quiz_count(self, user_id: str) -> bool:
+        """Delete the quiz daily count item for today."""
+        try:
+            today = datetime.now(timezone.utc).date().isoformat()
+            self.table.delete_item(
+                Key={
+                    "PK": f"USER#{user_id}",
+                    "SK": f"QUIZ_DAILY#{today}",
+                }
+            )
+            return True
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "delete_daily_quiz_count",
+                    "user_id": user_id,
+                },
+            )
+            return False
 
     @tracer.trace_database_operation("update", "users")
     def increment_slang_submitted(self, user_id: str) -> bool:

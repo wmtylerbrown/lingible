@@ -713,62 +713,84 @@ class SlangTermRepository:
             )
             return False
 
-    @tracer.trace_database_operation("get", "daily_quiz_count")
-    def get_daily_quiz_count(self, user_id: str, date: str) -> int:
-        """Get number of quizzes taken today."""
+    @tracer.trace_database_operation("delete", "user_quiz_data")
+    def delete_user_quiz_data(self, user_id: str) -> int:
+        """Delete all quiz data for a user (sessions and history). Returns count of deleted items."""
+        deleted_count = 0
         try:
-            response = self.table.get_item(
-                Key={
-                    "PK": f"USER#{user_id}",
-                    "SK": f"QUIZ_DAILY#{date}",
-                }
-            )
+            # Delete all quiz sessions: PK=USER#{user_id}, SK starts with SESSION#
+            try:
+                response = self.table.query(
+                    KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+                    ExpressionAttributeValues={
+                        ":pk": f"USER#{user_id}",
+                        ":sk_prefix": "SESSION#",
+                    },
+                )
+                sessions = response.get("Items", [])
+                for session in sessions:
+                    self.table.delete_item(
+                        Key={
+                            "PK": session["PK"],
+                            "SK": session["SK"],
+                        }
+                    )
+                    deleted_count += 1
+            except Exception as e:
+                logger.log_error(
+                    e,
+                    {
+                        "operation": "delete_quiz_sessions",
+                        "user_id": user_id,
+                    },
+                )
 
-            if "Item" in response:
-                return response["Item"].get("quiz_count", 0)
-            return 0
+            # Delete all quiz history: Query GSI5 for QUIZHISTORY#{user_id}, then delete by PK/SK
+            try:
+                response = self.table.query(
+                    IndexName="GSI5",
+                    KeyConditionExpression="GSI5PK = :gsi5pk",
+                    ExpressionAttributeValues={
+                        ":gsi5pk": f"QUIZHISTORY#{user_id}",
+                    },
+                )
+                history_items = response.get("Items", [])
+                for item in history_items:
+                    self.table.delete_item(
+                        Key={
+                            "PK": item["PK"],
+                            "SK": item["SK"],
+                        }
+                    )
+                    deleted_count += 1
+            except Exception as e:
+                logger.log_error(
+                    e,
+                    {
+                        "operation": "delete_quiz_history",
+                        "user_id": user_id,
+                    },
+                )
+
+            if deleted_count > 0:
+                logger.log_business_event(
+                    "user_quiz_data_deleted",
+                    {
+                        "user_id": user_id,
+                        "deleted_count": deleted_count,
+                    },
+                )
 
         except Exception as e:
             logger.log_error(
                 e,
                 {
-                    "operation": "get_daily_quiz_count",
-                    "user_id": user_id,
-                    "date": date,
-                },
-            )
-            return 0
-
-    @tracer.trace_database_operation("update", "daily_quiz_count")
-    def increment_daily_quiz_count(self, user_id: str) -> int:
-        """Increment and return daily quiz count."""
-        try:
-            today = datetime.now(timezone.utc).date().isoformat()
-
-            response = self.table.update_item(
-                Key={
-                    "PK": f"USER#{user_id}",
-                    "SK": f"QUIZ_DAILY#{today}",
-                },
-                UpdateExpression="ADD quiz_count :inc SET last_quiz_at = :timestamp",
-                ExpressionAttributeValues={
-                    ":inc": 1,
-                    ":timestamp": datetime.now(timezone.utc).isoformat(),
-                },
-                ReturnValues="UPDATED_NEW",
-            )
-
-            return response["Attributes"].get("quiz_count", 1)
-
-        except Exception as e:
-            logger.log_error(
-                e,
-                {
-                    "operation": "increment_daily_quiz_count",
+                    "operation": "delete_user_quiz_data",
                     "user_id": user_id,
                 },
             )
-            return 1
+
+        return deleted_count
 
     @tracer.trace_database_operation("query", "quiz_history")
     def get_user_quiz_history(self, user_id: str, limit: int = 20) -> List[dict]:

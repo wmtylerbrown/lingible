@@ -17,6 +17,8 @@ struct ProfileView: View {
     @State private var showingTrackingSettingsAlert = false
     @State private var showingManageSubscriptions = false
     @State private var errorMessage = ""
+    @State private var quizHistory: QuizHistory?
+    @State private var isLoadingQuizHistory = false
 
     var body: some View {
         NavigationView {
@@ -38,10 +40,27 @@ struct ProfileView: View {
                 // Usage & Limits Section
                 Section(header: Text("Daily Usage")) {
                     if let usage = appCoordinator.userUsage {
+                        // Translation Usage
                         UsageProgressView(
                             currentUsage: usage.dailyUsed,
                             dailyLimit: usage.dailyLimit
                         )
+
+                        // Quiz Usage
+                        if let quizHistory = quizHistory {
+                            QuizUsageProgressView(
+                                currentUsage: quizHistory.quizzesToday,
+                                dailyLimit: 10 // From backend config
+                            )
+                        } else if isLoadingQuizHistory {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Loading quiz usage...")
+                                    .foregroundColor(.secondary)
+                                    .font(.subheadline)
+                            }
+                        }
 
                         // Additional usage details
                         usageRow(title: "Text Length Limit", value: "\(usage.currentMaxTextLength) characters")
@@ -341,6 +360,7 @@ struct ProfileView: View {
         .onAppear {
             Task {
                 await appCoordinator.userService.loadUserData(forceRefresh: false)
+                await loadQuizHistory()
             }
         }
     }
@@ -692,6 +712,32 @@ struct ProfileView: View {
     private func openTrackingSettings() {
         if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsUrl)
+        }
+    }
+
+    // MARK: - Quiz History Loading
+    private func loadQuizHistory() async {
+        isLoadingQuizHistory = true
+        defer { isLoadingQuizHistory = false }
+
+        do {
+            let accessToken = try await appCoordinator.authenticationService.getAuthToken()
+            LingibleAPIAPI.customHeaders["Authorization"] = "Bearer \(accessToken)"
+
+            quizHistory = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<QuizHistory, Error>) in
+                QuizAPI.quizHistoryGet { data, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else if let data = data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "QuizHistoryError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                    }
+                }
+            }
+        } catch {
+            // Silently fail - quiz history is not critical for profile view
+            print("Failed to load quiz history for profile: \(error.localizedDescription)")
         }
     }
 }

@@ -334,10 +334,26 @@ final class QuizViewModel: ObservableObject {
             case .unauthorized:
                 errorMessage = "Please sign in to take quizzes"
                 returnToLobby()
+            case .networkError(let underlyingError):
+                // Provide more specific network error messages
+                let nsError = underlyingError as NSError
+                if nsError.domain == NSURLErrorDomain {
+                    switch nsError.code {
+                    case NSURLErrorNotConnectedToInternet:
+                        errorMessage = "No internet connection. Please check your network and try again."
+                    case NSURLErrorTimedOut:
+                        errorMessage = "Request timed out. Please try again."
+                    default:
+                        errorMessage = "Network error: \(underlyingError.localizedDescription)"
+                    }
+                } else {
+                    errorMessage = "Network error: \(underlyingError.localizedDescription)"
+                }
             default:
                 errorMessage = quizError.localizedDescription
             }
         } else {
+            // For any other error, provide a user-friendly message
             errorMessage = "Failed to load quiz: \(error.localizedDescription)"
         }
     }

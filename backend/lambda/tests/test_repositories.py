@@ -497,6 +497,191 @@ class TestUserRepository:
                     print(f"   - Reset functionality works")
                     print(f"   - No silent failures or type mismatches")
 
+    def test_get_daily_quiz_count_not_found(self, user_repository):
+        """Test get_daily_quiz_count returns 0 when item doesn't exist."""
+        user_repository.table.get_item.return_value = {}
+
+        result = user_repository.get_daily_quiz_count("user_123", "2024-12-19")
+
+        assert result == 0
+
+    def test_get_daily_quiz_count_exists(self, user_repository):
+        """Test get_daily_quiz_count returns correct count when item exists."""
+        user_repository.table.get_item.return_value = {
+            "Item": {
+                "PK": "USER#user_123",
+                "SK": "QUIZ_DAILY#2024-12-19",
+                "quiz_count": 3
+            }
+        }
+
+        result = user_repository.get_daily_quiz_count("user_123", "2024-12-19")
+
+        assert result == 3
+        user_repository.table.get_item.assert_called_once_with(
+            Key={
+                "PK": "USER#user_123",
+                "SK": "QUIZ_DAILY#2024-12-19",
+            }
+        )
+
+    def test_get_daily_quiz_count_handles_error(self, user_repository):
+        """Test get_daily_quiz_count handles errors gracefully."""
+        user_repository.table.get_item.side_effect = Exception("Database error")
+
+        result = user_repository.get_daily_quiz_count("user_123", "2024-12-19")
+
+        assert result == 0
+
+    def test_increment_daily_quiz_count_creates_with_ttl(self, user_repository):
+        """Test increment_daily_quiz_count creates item with TTL if it doesn't exist."""
+        from datetime import datetime, timezone, timedelta
+        from unittest.mock import patch
+
+        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+            today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+            today_date = today.date()
+            date_obj = datetime.strptime(today_date.isoformat(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            expected_ttl = int((date_obj + timedelta(hours=48)).timestamp())
+
+            mock_datetime.now.return_value = today
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            user_repository.table.update_item.return_value = {
+                "Attributes": {
+                    "quiz_count": 1,
+                    "last_quiz_at": today.isoformat(),
+                    "ttl": expected_ttl
+                }
+            }
+
+            result = user_repository.increment_daily_quiz_count("user_123")
+
+            assert result == 1
+            call_args = user_repository.table.update_item.call_args
+            assert call_args[1]["Key"] == {
+                "PK": "USER#user_123",
+                "SK": f"QUIZ_DAILY#{today_date.isoformat()}",
+            }
+            # Verify TTL is set
+            expr_values = call_args[1]["ExpressionAttributeValues"]
+            assert expr_values[":ttl"] == expected_ttl
+            assert expr_values[":inc"] == 1
+
+    def test_increment_daily_quiz_count_increments_existing(self, user_repository):
+        """Test increment_daily_quiz_count increments existing count."""
+        from datetime import datetime, timezone, timedelta
+        from unittest.mock import patch
+
+        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+            today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+            today_date = today.date()
+
+            mock_datetime.now.return_value = today
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            user_repository.table.update_item.return_value = {
+                "Attributes": {
+                    "quiz_count": 4
+                }
+            }
+
+            result = user_repository.increment_daily_quiz_count("user_123")
+
+            assert result == 4
+
+    def test_increment_daily_quiz_count_handles_error(self, user_repository):
+        """Test increment_daily_quiz_count handles errors gracefully."""
+        from datetime import datetime, timezone
+        from unittest.mock import patch
+
+        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+            today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+            mock_datetime.now.return_value = today
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            user_repository.table.update_item.side_effect = Exception("Database error")
+
+            result = user_repository.increment_daily_quiz_count("user_123")
+
+            assert result == 1  # Returns 1 on error
+
+    def test_delete_user_includes_quiz_cleanup(self, user_repository):
+        """Test delete_user deletes all quiz daily count items."""
+        # Mock successful deletions
+        user_repository.table.delete_item.return_value = {}
+        # Mock query for quiz items
+        user_repository.table.query.return_value = {
+            "Items": [
+                {"PK": "USER#user_123", "SK": "QUIZ_DAILY#2024-12-19"},
+                {"PK": "USER#user_123", "SK": "QUIZ_DAILY#2024-12-18"},
+            ]
+        }
+
+        result = user_repository.delete_user("user_123")
+
+        assert result is True
+        # Should delete profile, usage limits, and 2 quiz items = 4 total deletions
+        assert user_repository.table.delete_item.call_count == 4
+        # Verify quiz items were queried
+        user_repository.table.query.assert_called_once_with(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+            ExpressionAttributeValues={
+                ":pk": "USER#user_123",
+                ":sk_prefix": "QUIZ_DAILY#",
+            },
+        )
+
+    def test_delete_user_handles_quiz_cleanup_error(self, user_repository):
+        """Test delete_user handles quiz cleanup errors gracefully."""
+        user_repository.table.delete_item.return_value = {}
+        user_repository.table.query.side_effect = Exception("Query error")
+
+        result = user_repository.delete_user("user_123")
+
+        # Should still succeed, just deleting profile and usage limits
+        assert result is True
+        assert user_repository.table.delete_item.call_count == 2  # Profile and usage only
+
+    def test_delete_daily_quiz_count_success(self, user_repository):
+        """Test delete_daily_quiz_count successfully deletes item."""
+        from datetime import datetime, timezone
+        from unittest.mock import patch
+
+        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+            today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+            today_str = today.date().isoformat()
+            mock_datetime.now.return_value = today
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            user_repository.table.delete_item.return_value = {}
+
+            result = user_repository.delete_daily_quiz_count("user_123")
+
+            assert result is True
+            user_repository.table.delete_item.assert_called_once_with(
+                Key={
+                    "PK": "USER#user_123",
+                    "SK": f"QUIZ_DAILY#{today_str}",
+                }
+            )
+
+    def test_delete_daily_quiz_count_handles_error(self, user_repository):
+        """Test delete_daily_quiz_count handles errors gracefully."""
+        from datetime import datetime, timezone
+        from unittest.mock import patch
+
+        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+            today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+            mock_datetime.now.return_value = today
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            user_repository.table.delete_item.side_effect = Exception("Database error")
+
+            result = user_repository.delete_daily_quiz_count("user_123")
+
+            assert result is False
+
 
 class TestTranslationRepository:
     """Test TranslationRepository."""

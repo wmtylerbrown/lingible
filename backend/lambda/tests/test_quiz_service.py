@@ -14,7 +14,7 @@ from src.models.quiz import (
     QuizCategory,
 )
 from src.models.users import UserTier
-from src.utils.exceptions import ValidationError, InsufficientPermissionsError
+from src.utils.exceptions import ValidationError, UsageLimitExceededError
 
 
 class TestQuizService:
@@ -24,44 +24,50 @@ class TestQuizService:
     def mock_quiz_service(self):
         """Create mocked QuizService."""
         with patch('services.quiz_service.SlangTermRepository') as mock_repo_class:
-            with patch('services.quiz_service.UserService') as mock_user_service_class:
-                with patch('services.quiz_service.get_config_service') as mock_config:
-                    # Setup config mock
-                    mock_config_service = Mock()
-                    mock_quiz_config = Mock()
-                    mock_quiz_config.free_daily_limit = 3
-                    mock_quiz_config.points_per_correct = 10
-                    mock_quiz_config.enable_time_bonus = True
-                    mock_quiz_config.time_limit_seconds = 60
-                    mock_config_service.get_config.return_value = mock_quiz_config
-                    mock_config.return_value = mock_config_service
+            with patch('services.quiz_service.UserRepository') as mock_user_repo_class:
+                with patch('services.quiz_service.UserService') as mock_user_service_class:
+                    with patch('services.quiz_service.get_config_service') as mock_config:
+                        # Setup config mock
+                        mock_config_service = Mock()
+                        mock_quiz_config = Mock()
+                        mock_quiz_config.free_daily_limit = 3
+                        mock_quiz_config.points_per_correct = 10
+                        mock_quiz_config.enable_time_bonus = True
+                        mock_quiz_config.time_limit_seconds = 60
+                        mock_config_service.get_config.return_value = mock_quiz_config
+                        mock_config.return_value = mock_config_service
 
-                    # Setup repository mock
-                    mock_repo = Mock()
-                    mock_repo_class.return_value = mock_repo
+                        # Setup repository mock
+                        mock_repo = Mock()
+                        mock_repo_class.return_value = mock_repo
 
-                    # Setup user service mock
-                    mock_user_service = Mock()
-                    mock_user_service_class.return_value = mock_user_service
+                        # Setup user repository mock
+                        mock_user_repo = Mock()
+                        mock_user_repo_class.return_value = mock_user_repo
 
-                    # Mock wrong answer pools for all categories
-                    from models.quiz import QuizCategory
+                        # Setup user service mock
+                        mock_user_service = Mock()
+                        mock_user_service_class.return_value = mock_user_service
 
-                    def mock_get_pool(category: str):
-                        """Return mock pool for any category."""
-                        return ["Bad", "Okay", "Average", "Terrible", "Awful", "Good", "Great", "Perfect"]
+                        # Mock wrong answer pools for all categories
+                        from models.quiz import QuizCategory
 
-                    mock_repo.get_wrong_answer_pool = mock_get_pool
+                        def mock_get_pool(category: str):
+                            """Return mock pool for any category."""
+                            return ["Bad", "Okay", "Average", "Terrible", "Awful", "Good", "Great", "Perfect"]
 
-                    # Reset pool state for fresh test run
-                    from services.quiz_service import QuizService
-                    QuizService._wrong_answer_pools = {}
-                    QuizService._pools_loaded = False
+                        mock_repo.get_wrong_answer_pool = mock_get_pool
 
-                    service = QuizService()
-                    service.repository = mock_repo
-                    service.user_service = mock_user_service
-                    return service
+                        # Reset pool state for fresh test run
+                        from services.quiz_service import QuizService
+                        QuizService._wrong_answer_pools = {}
+                        QuizService._pools_loaded = False
+
+                        service = QuizService()
+                        service.repository = mock_repo
+                        service.user_repository = mock_user_repo
+                        service.user_service = mock_user_service
+                        return service
 
     @pytest.fixture
     def premium_user_profile(self):
@@ -101,8 +107,8 @@ class TestQuizService:
 
     def test_check_quiz_eligibility_premium_unlimited(self, mock_quiz_service, premium_user_profile):
         """Test premium users can take unlimited quizzes."""
-        mock_quiz_service.user_service.get_user_profile.return_value = premium_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 5  # Over free limit
+        mock_quiz_service.user_service.get_user.return_value = premium_user_profile
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 5  # Over free limit
         mock_quiz_service.repository.get_user_quiz_stats.return_value = {
             "total_quizzes": 10,
             "average_score": 85.0,
@@ -120,8 +126,8 @@ class TestQuizService:
 
     def test_check_quiz_eligibility_free_within_limit(self, mock_quiz_service, free_user_profile):
         """Test free users within daily limit can take quizzes."""
-        mock_quiz_service.user_service.get_user_profile.return_value = free_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 2  # Under limit of 3
+        mock_quiz_service.user_service.get_user.return_value = free_user_profile
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 2  # Under limit of 3
         mock_quiz_service.repository.get_user_quiz_stats.return_value = {
             "total_quizzes": 5,
             "average_score": 75.0,
@@ -135,12 +141,12 @@ class TestQuizService:
 
         assert result.can_take_quiz is True
         assert result.quizzes_today == 2
-        assert "limit" not in result.reason.lower()
+        assert result.reason is None or "limit" not in result.reason.lower()
 
     def test_check_quiz_eligibility_free_over_limit(self, mock_quiz_service, free_user_profile):
         """Test free users over daily limit cannot take quizzes."""
-        mock_quiz_service.user_service.get_user_profile.return_value = free_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 3  # At limit
+        mock_quiz_service.user_service.get_user.return_value = free_user_profile
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 3  # At limit
         mock_quiz_service.repository.get_user_quiz_stats.return_value = {
             "total_quizzes": 8,
             "average_score": 80.0,
@@ -207,7 +213,7 @@ class TestQuizService:
     def test_get_next_question_creates_session(self, mock_quiz_service, premium_user_profile, sample_quiz_terms):
         """Test get_next_question creates new session when none exists."""
         mock_quiz_service.user_service.get_user.return_value = premium_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 1
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 1
         mock_quiz_service.repository.get_active_quiz_session.return_value = None  # No active session
         mock_quiz_service.repository.create_quiz_session.return_value = True
         mock_quiz_service.repository.get_quiz_session.return_value = {
@@ -251,7 +257,7 @@ class TestQuizService:
         }
 
         mock_quiz_service.user_service.get_user.return_value = premium_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 1
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 1
         mock_quiz_service.repository.get_active_quiz_session.return_value = existing_session
         mock_quiz_service.repository.get_quiz_eligible_terms.return_value = sample_quiz_terms
         mock_quiz_service.repository.update_quiz_session.return_value = True
@@ -263,11 +269,19 @@ class TestQuizService:
 
     def test_get_next_question_free_tier_limit(self, mock_quiz_service, free_user_profile):
         """Test get_next_question respects free tier daily limit."""
+        from datetime import datetime, timezone
         mock_quiz_service.user_service.get_user.return_value = free_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 3  # At limit
+        today = datetime.now(timezone.utc).date().isoformat()
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 3  # At limit
 
-        with pytest.raises(InsufficientPermissionsError, match="Daily limit"):
+        with pytest.raises(UsageLimitExceededError) as exc_info:
             mock_quiz_service.get_next_question("user_123", QuizDifficulty.BEGINNER)
+
+        error = exc_info.value
+        assert error.details["limit_type"] == "quiz_questions"
+        assert error.details["current_usage"] == 3
+        assert error.details["limit"] == 3
+        assert "Daily limit" in error.message
 
     def test_submit_answer_correct(self, mock_quiz_service, sample_quiz_terms):
         """Test submit_answer with correct answer."""
@@ -287,7 +301,7 @@ class TestQuizService:
         mock_quiz_service.repository.get_quiz_session.return_value = session
         mock_quiz_service.repository.get_term_by_slang.return_value = {"meaning": "Really good"}
         mock_quiz_service.repository.update_quiz_session.return_value = True
-        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 1
+        mock_quiz_service.user_repository.increment_daily_quiz_count.return_value = 1
         mock_quiz_service.repository.update_quiz_statistics.return_value = None
 
         answer_request = QuizAnswerRequest(
@@ -324,7 +338,7 @@ class TestQuizService:
         mock_quiz_service.repository.get_quiz_session.return_value = session
         mock_quiz_service.repository.get_term_by_slang.return_value = {"meaning": "Really good"}
         mock_quiz_service.repository.update_quiz_session.return_value = True
-        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 1
+        mock_quiz_service.user_repository.increment_daily_quiz_count.return_value = 1
         mock_quiz_service.repository.update_quiz_statistics.return_value = None
 
         answer_request = QuizAnswerRequest(
@@ -555,3 +569,41 @@ class TestQuizService:
         assert QuizService._pools_loaded is True
         # Should have entries for all categories, even if empty
         assert len(QuizService._wrong_answer_pools) == len(QuizCategory)
+
+    def test_submit_answer_free_tier_limit_exceeded(self, mock_quiz_service, free_user_profile):
+        """Test submit_answer raises UsageLimitExceededError when free tier limit is exceeded."""
+        from datetime import datetime, timezone
+
+        session = {
+            "session_id": "session_123",
+            "user_id": "user_123",
+            "questions_answered": 0,
+            "correct_count": 0,
+            "total_score": 0.0,
+            "correct_answers": {"q1": "a"},
+            "term_names": {"q1": "bussin"},
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "last_activity": datetime.now(timezone.utc).isoformat(),
+        }
+
+        mock_quiz_service.user_service.get_user.return_value = free_user_profile
+        mock_quiz_service.repository.get_quiz_session.return_value = session
+        today = datetime.now(timezone.utc).date().isoformat()
+        mock_quiz_service.user_repository.get_daily_quiz_count.return_value = 3  # At limit
+
+        answer_request = QuizAnswerRequest(
+            session_id="session_123",
+            question_id="q1",
+            selected_option="a",
+            time_taken_seconds=5.0
+        )
+
+        with pytest.raises(UsageLimitExceededError) as exc_info:
+            mock_quiz_service.submit_answer("user_123", answer_request)
+
+        error = exc_info.value
+        assert error.details["limit_type"] == "quiz_questions"
+        assert error.details["current_usage"] == 3
+        assert error.details["limit"] == 3
+        assert "Daily limit" in error.message

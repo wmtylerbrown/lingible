@@ -101,7 +101,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
-            '403': "ErrorResponse",
+            '429': "ErrorResponse",
             '400': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
@@ -171,7 +171,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
-            '403': "ErrorResponse",
+            '429': "ErrorResponse",
             '400': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
@@ -241,7 +241,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
-            '403': "ErrorResponse",
+            '429': "ErrorResponse",
             '400': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
@@ -1182,7 +1182,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizQuestionResponse",
             '401': "ErrorResponse",
-            '403': "ErrorResponse",
+            '429': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1251,7 +1251,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizQuestionResponse",
             '401': "ErrorResponse",
-            '403': "ErrorResponse",
+            '429': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1320,7 +1320,7 @@ class QuizApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "QuizQuestionResponse",
             '401': "ErrorResponse",
-            '403': "ErrorResponse",
+            '429': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,

@@ -663,12 +663,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '403':
+        '429':
           description: Daily question limit reached (free tier)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: "Daily limit of 3 questions reached. Upgrade to Premium for unlimited questions!"
+                error_code: "usagelimitexceedederror"
+                status_code: 429
+                details:
+                  limit_type: "quiz_questions"
+                  current_usage: 3
+                  limit: 3
 
   /quiz/answer:
     post:
@@ -708,12 +717,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '403':
+        '429':
           description: Daily question limit reached (free tier)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: "Daily limit of 3 questions reached. Upgrade to Premium for unlimited questions!"
+                error_code: "usagelimitexceedederror"
+                status_code: 429
+                details:
+                  limit_type: "quiz_questions"
+                  current_usage: 3
+                  limit: 3
         '400':
           description: Invalid request, expired session, or question not found
           content:

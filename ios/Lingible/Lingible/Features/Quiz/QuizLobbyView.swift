@@ -122,10 +122,6 @@ struct QuizLobbyView: View {
         .shadow(color: Color(.label).opacity(0.05), radius: 2, x: 0, y: 1)
     }
 
-    private var canStartQuiz: Bool {
-        viewModel.quizHistory?.canTakeQuiz ?? false
-    }
-
     // MARK: - Error Card
     private func errorCard(message: String) -> some View {
         HStack {
@@ -145,6 +141,11 @@ struct QuizLobbyView: View {
 // MARK: - ViewModel Extension
 extension QuizViewModel {
     var canStartQuiz: Bool {
-        quizHistory?.canTakeQuiz ?? false
+        // Allow starting quiz if history hasn't loaded yet (optimistic) or if canTakeQuiz is true
+        // Only block if we've explicitly loaded history and canTakeQuiz is false
+        guard let history = quizHistory else {
+            return true // Haven't loaded yet, allow optimistic start
+        }
+        return history.canTakeQuiz
     }
 }

@@ -16,6 +16,7 @@ from utils.exceptions import ValidationError
 from utils.timezone_utils import get_central_midnight_tomorrow, is_new_day_central_time
 from utils.aws_services import get_cognito_client
 from repositories.user_repository import UserRepository
+from repositories.slang_term_repository import SlangTermRepository
 
 
 class UserService:
@@ -153,6 +154,18 @@ class UserService:
             # Create default usage limits with new tier
             self._create_default_usage_limits(user_id, new_tier)
 
+        # Reset quiz daily limit when upgrading to PREMIUM (allows immediate unlimited access)
+        if new_tier == UserTier.PREMIUM:
+            deleted = self.repository.delete_daily_quiz_count(user_id)
+            if deleted:
+                logger.log_business_event(
+                    "quiz_limit_reset_on_upgrade",
+                    {
+                        "user_id": user_id,
+                    },
+                )
+            # Note: We don't fail upgrade if quiz limit deletion fails (it's not critical)
+
         logger.log_business_event(
             "user_tier_upgraded",
             {
@@ -212,10 +225,14 @@ class UserService:
     @tracer.trace_method("delete_user")
     def delete_user(self, user_id: str) -> None:
         """Delete a user and all associated data from both DynamoDB and Cognito."""
-        # Step 1: Delete user data from DynamoDB
+        # Step 1: Delete quiz data from termsTable (sessions and history)
+        quiz_repo = SlangTermRepository()
+        quiz_repo.delete_user_quiz_data(user_id)
+
+        # Step 2: Delete user data from DynamoDB (includes quiz daily counts)
         self.repository.delete_user(user_id)
 
-        # Step 2: Delete user from Cognito
+        # Step 3: Delete user from Cognito
         try:
             cognito_config = self.config_service.get_config(CognitoConfig)
             cognito_client = get_cognito_client()
