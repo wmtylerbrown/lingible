@@ -1,9 +1,10 @@
 """Quiz models for slang learning games."""
 
-from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from enum import Enum
+
+from .base import LingibleBaseModel
 
 
 class QuizDifficulty(str, Enum):
@@ -28,14 +29,7 @@ class QuizCategory(str, Enum):
     GENERAL = "general"
 
 
-class ChallengeType(str, Enum):
-    """Types of quiz challenges."""
-
-    MULTIPLE_CHOICE = "multiple_choice"
-    # Future: DECODE_MESSAGE, TRUE_FALSE, MIXED
-
-
-class QuizOption(BaseModel):
+class QuizOption(LingibleBaseModel):
     """Single quiz answer option."""
 
     id: str = Field(description="Option identifier (a, b, c, d)")
@@ -46,7 +40,7 @@ class QuizOption(BaseModel):
     )
 
 
-class QuizQuestion(BaseModel):
+class QuizQuestion(LingibleBaseModel):
     """Single quiz question."""
 
     question_id: str = Field(description="Unique question identifier")
@@ -63,34 +57,7 @@ class QuizQuestion(BaseModel):
     )
 
 
-class QuizChallenge(BaseModel):
-    """A quiz challenge sent to the user."""
-
-    challenge_id: str = Field(description="Unique challenge identifier")
-    challenge_type: ChallengeType = Field(description="Type of quiz challenge")
-    difficulty: QuizDifficulty = Field(description="Difficulty level")
-    time_limit_seconds: int = Field(description="Time limit for completing the quiz")
-    questions: List[QuizQuestion] = Field(description="List of quiz questions")
-    scoring: Dict[str, Any] = Field(description="Scoring configuration")
-    expires_at: datetime = Field(description="When the challenge expires")
-
-
-class QuizAnswer(BaseModel):
-    """User's answer to a single question."""
-
-    question_id: str = Field(description="ID of the question being answered")
-    selected: str = Field(description="Selected option ID (a, b, c, d)")
-
-
-class QuizSubmissionRequest(BaseModel):
-    """Request to submit quiz answers."""
-
-    challenge_id: str = Field(description="ID of the challenge being submitted")
-    answers: List[QuizAnswer] = Field(description="User's answers")
-    time_taken_seconds: int = Field(description="Time taken to complete the quiz")
-
-
-class QuizQuestionResult(BaseModel):
+class QuizQuestionResult(LingibleBaseModel):
     """Result for a single question."""
 
     question_id: str = Field(description="Question ID")
@@ -101,24 +68,22 @@ class QuizQuestionResult(BaseModel):
     explanation: str = Field(description="Full explanation of the term")
 
 
-class QuizResult(BaseModel):
+class QuizResult(LingibleBaseModel):
     """Complete quiz results."""
 
-    challenge_id: str = Field(description="Challenge ID")
-    score: int = Field(description="Total score achieved")
-    total_possible: int = Field(description="Maximum possible score")
+    session_id: str = Field(description="Session ID")
+    score: float = Field(description="Total score achieved")
+    total_possible: float = Field(description="Maximum possible score")
     correct_count: int = Field(description="Number of correct answers")
     total_questions: int = Field(description="Total number of questions")
-    time_taken_seconds: int = Field(description="Time taken to complete")
-    time_bonus_points: int = Field(description="Bonus points for fast completion")
-    results: List[QuizQuestionResult] = Field(description="Per-question results")
+    time_taken_seconds: float = Field(description="Time taken to complete")
     share_text: str = Field(description="Text for sharing results")
     share_url: Optional[str] = Field(
         default=None, description="URL for sharing results (future feature)"
     )
 
 
-class QuizHistory(BaseModel):
+class QuizHistory(LingibleBaseModel):
     """User's quiz history summary."""
 
     user_id: str = Field(description="User ID")
@@ -136,15 +101,55 @@ class QuizHistory(BaseModel):
     )
 
 
-class QuizChallengeRequest(BaseModel):
-    """Request parameters for generating a quiz."""
+# ===== Stateless Quiz API Models =====
 
-    difficulty: Optional[QuizDifficulty] = Field(
-        default=QuizDifficulty.BEGINNER, description="Desired difficulty level"
+
+class QuizQuestionResponse(LingibleBaseModel):
+    """Response for GET /quiz/question - single question with session info."""
+
+    session_id: str = Field(description="Quiz session identifier")
+    question: QuizQuestion = Field(description="The quiz question")
+
+
+class QuizAnswerRequest(BaseModel):
+    """Request to submit answer for one question."""
+
+    session_id: str = Field(description="Quiz session identifier")
+    question_id: str = Field(description="ID of the question being answered")
+    selected_option: str = Field(description="Selected option ID (a, b, c, d)")
+    time_taken_seconds: float = Field(
+        ge=0.0, description="Time taken to answer (in seconds)"
     )
-    challenge_type: Optional[ChallengeType] = Field(
-        default=ChallengeType.MULTIPLE_CHOICE, description="Type of challenge"
+
+
+class QuizAnswerResponse(LingibleBaseModel):
+    """Response for POST /quiz/answer - immediate feedback."""
+
+    is_correct: bool = Field(description="Whether the answer was correct")
+    points_earned: float = Field(description="Points earned for this question")
+    explanation: str = Field(description="Explanation of the correct answer")
+    running_stats: "QuizSessionProgress" = Field(
+        description="Current session statistics"
     )
-    question_count: Optional[int] = Field(
-        default=10, description="Number of questions in the quiz"
+
+
+class QuizSessionProgress(LingibleBaseModel):
+    """Current quiz session progress statistics."""
+
+    questions_answered: int = Field(description="Number of questions answered")
+    correct_count: int = Field(description="Number of correct answers")
+    total_score: float = Field(description="Total score accumulated")
+    accuracy: float = Field(
+        ge=0.0, le=1.0, description="Current accuracy rate (0.0 to 1.0)"
     )
+    time_spent_seconds: float = Field(description="Total time spent on quiz so far")
+
+
+class QuizEndRequest(BaseModel):
+    """Request to end quiz session."""
+
+    session_id: str = Field(description="Quiz session identifier")
+
+
+# Update forward references for string annotations
+QuizAnswerResponse.model_rebuild()

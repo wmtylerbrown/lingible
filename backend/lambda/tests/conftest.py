@@ -211,7 +211,7 @@ def mock_tracer():
 @pytest.fixture
 def mock_config():
     """Mock configuration for testing."""
-    from models.config import LLMConfig, UsageLimitsConfig
+    from models.config import LLMConfig, UsageLimitsConfig, QuizConfig
     from decimal import Decimal
 
     with patch('src.utils.config.ConfigService') as mock_config_class:
@@ -242,9 +242,28 @@ def mock_config():
                     free_history_retention_days=7,
                     premium_history_retention_days=90
                 )
+            elif config_type == QuizConfig:
+                return QuizConfig(
+                    free_daily_limit=3,
+                    points_per_correct=10,
+                    enable_time_bonus=True,
+                    time_limit_seconds=60,
+                )
             return Mock()
 
+        # Mock _get_env_var for table names
+        def mock_get_env_var(key: str) -> str:
+            env_vars = {
+                "USERS_TABLE": "test-users-table",
+                "TRANSLATIONS_TABLE": "test-translations-table",
+                "TERMS_TABLE": "test-terms-table",
+                "LOG_LEVEL": "INFO",
+                "ENABLE_TRACING": "false",
+            }
+            return env_vars.get(key, "")
+
         mock_config.get_config.side_effect = mock_get_config
+        mock_config._get_env_var = mock_get_env_var
         mock_config_class.return_value = mock_config
         yield mock_config
 

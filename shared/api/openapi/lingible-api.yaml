@@ -591,121 +591,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /quiz/challenge:
-    get:
-      summary: Get a quiz challenge
-      description: |
-        Generate a new quiz challenge for the authenticated user.
-
-        **Free Tier Features:**
-        - Limited to 3 quizzes per day
-        - Basic difficulty levels
-        - Standard question count (10 questions)
-
-        **Premium Tier Features:**
-        - Unlimited quizzes per day
-        - All difficulty levels (beginner, intermediate, advanced)
-        - Customizable question count (1-50 questions)
-        - Multiple challenge types
-      tags:
-        - Quiz
-      parameters:
-        - name: difficulty
-          in: query
-          description: Quiz difficulty level
-          required: false
-          schema:
-            type: string
-            enum: [beginner, intermediate, advanced]
-            default: beginner
-        - name: type
-          in: query
-          description: Type of quiz challenge
-          required: false
-          schema:
-            type: string
-            enum: [multiple_choice]
-            default: multiple_choice
-        - name: count
-          in: query
-          description: Number of questions in the quiz (1-50)
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 10
-      responses:
-        '200':
-          description: Quiz challenge generated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/QuizChallenge'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '400':
-          description: Invalid request parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Daily quiz limit reached (free tier) or insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /quiz/submit:
-    post:
-      summary: Submit quiz answers
-      description: |
-        Submit answers for a quiz challenge and receive results.
-
-        The challenge must be valid and not expired. Results include:
-        - Score and accuracy
-        - Per-question feedback
-        - Explanations for each term
-        - Shareable result text
-      tags:
-        - Quiz
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/QuizSubmissionRequest'
-      responses:
-        '200':
-          description: Quiz submitted successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/QuizResult'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '400':
-          description: Invalid request or expired challenge
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Challenge not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /quiz/history:
     get:
       summary: Get quiz history and eligibility
@@ -728,6 +613,181 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuizHistory'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== Stateless Per-Question API (New - Recommended) =====
+
+  /quiz/question:
+    get:
+      summary: Get next quiz question (stateless API)
+      description: |
+        Get the next question for the current quiz session. Creates a new session if none exists
+        or if the previous session has expired (>15 minutes inactive).
+
+        **Features:**
+        - No upfront question count required
+        - Automatic session management
+        - Validates free tier daily question limits
+        - Returns single question with normalized answer options
+
+        **Session Management:**
+        - One active session per user
+        - Auto-expires after 15 minutes of inactivity
+        - Sessions auto-cleanup via DynamoDB TTL (24 hours)
+      tags:
+        - Quiz
+      parameters:
+        - name: difficulty
+          in: query
+          description: Quiz difficulty level
+          required: false
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced]
+            default: beginner
+      responses:
+        '200':
+          description: Question retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Daily question limit reached (free tier)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /quiz/answer:
+    post:
+      summary: Submit answer for one question (stateless API)
+      description: |
+        Submit an answer for a single question and receive immediate feedback with running statistics.
+
+        **Response includes:**
+        - Whether the answer was correct
+        - Points earned (time-based scoring)
+        - Explanation of the correct answer
+        - Running statistics (score, accuracy, time spent)
+
+        **Scoring:**
+        - Points decrease based on time taken (faster = more points)
+        - Maximum 10 points per question
+        - Minimum 1 point even if timer expires
+        - Incorrect answers earn 0 points
+      tags:
+        - Quiz
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizAnswerRequest'
+      responses:
+        '200':
+          description: Answer submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizAnswerResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request, expired session, or question not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /quiz/progress:
+    get:
+      summary: Get current quiz session progress (stateless API)
+      description: |
+        Get current progress statistics for an active quiz session.
+
+        Returns:
+        - Questions answered so far
+        - Correct count and accuracy
+        - Total score accumulated
+        - Time spent on quiz
+      tags:
+        - Quiz
+      parameters:
+        - name: session_id
+          in: query
+          description: Quiz session identifier
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Progress retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizSessionProgress'
+        '400':
+          description: Missing session_id or invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /quiz/end:
+    post:
+      summary: End quiz session and get final results (stateless API)
+      description: |
+        End the current quiz session and receive final results. Saves the session to history
+        for lifetime statistics tracking.
+
+        **Post-End Actions:**
+        - Session marked as completed
+        - Results saved to quiz history
+        - Statistics aggregated for user profile
+        - Shareable result text generated
+      tags:
+        - Quiz
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizEndRequest'
+      responses:
+        '200':
+          description: Session ended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizResult'
+        '400':
+          description: Invalid session or no questions answered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
@@ -1625,12 +1685,6 @@ components:
       description: Quiz difficulty level
       example: beginner
 
-    ChallengeType:
-      type: string
-      enum: [multiple_choice]
-      description: Type of quiz challenge
-      example: multiple_choice
-
     QuizOption:
       type: object
       required:
@@ -1685,87 +1739,6 @@ components:
           nullable: true
           description: Explanation of the term (only included in results)
 
-    QuizChallenge:
-      type: object
-      required:
-        - challenge_id
-        - challenge_type
-        - difficulty
-        - time_limit_seconds
-        - questions
-        - scoring
-        - expires_at
-      properties:
-        challenge_id:
-          type: string
-          description: Unique challenge identifier
-          example: "quiz_a1b2c3d4e5f6g7h8"
-        challenge_type:
-          $ref: '#/components/schemas/ChallengeType'
-        difficulty:
-          $ref: '#/components/schemas/QuizDifficulty'
-        time_limit_seconds:
-          type: integer
-          description: Time limit for completing the quiz
-          example: 60
-        questions:
-          type: array
-          items:
-            $ref: '#/components/schemas/QuizQuestion'
-          description: List of quiz questions
-        scoring:
-          type: object
-          description: Scoring configuration
-          properties:
-            points_per_correct:
-              type: integer
-              example: 10
-            time_bonus:
-              type: boolean
-              description: Enable time bonus points
-              example: true
-        expires_at:
-          type: string
-          format: date-time
-          description: When the challenge expires
-          example: "2024-12-19T11:30:00Z"
-
-    QuizAnswer:
-      type: object
-      required:
-        - question_id
-        - selected
-      properties:
-        question_id:
-          type: string
-          description: ID of the question being answered
-          example: "q_a1b2c3d4e5f6"
-        selected:
-          type: string
-          description: Selected option ID (a, b, c, d)
-          example: "a"
-
-    QuizSubmissionRequest:
-      type: object
-      required:
-        - challenge_id
-        - answers
-        - time_taken_seconds
-      properties:
-        challenge_id:
-          type: string
-          description: ID of the challenge being submitted
-          example: "quiz_a1b2c3d4e5f6g7h8"
-        answers:
-          type: array
-          items:
-            $ref: '#/components/schemas/QuizAnswer'
-          description: User's answers
-        time_taken_seconds:
-          type: integer
-          description: Time taken to complete the quiz
-          example: 45
-
     QuizQuestionResult:
       type: object
       required:
@@ -1804,28 +1777,28 @@ components:
     QuizResult:
       type: object
       required:
-        - challenge_id
+        - session_id
         - score
         - total_possible
         - correct_count
         - total_questions
         - time_taken_seconds
-        - time_bonus_points
-        - results
         - share_text
       properties:
-        challenge_id:
+        session_id:
           type: string
-          description: Challenge ID
-          example: "quiz_a1b2c3d4e5f6g7h8"
+          description: Session ID
+          example: "session_a1b2c3d4e5f6g7h8"
         score:
-          type: integer
+          type: number
+          format: float
           description: Total score achieved
-          example: 95
+          example: 95.5
         total_possible:
-          type: integer
+          type: number
+          format: float
           description: Maximum possible score
-          example: 110
+          example: 110.0
         correct_count:
           type: integer
           description: Number of correct answers
@@ -1835,18 +1808,10 @@ components:
           description: Total number of questions
           example: 10
         time_taken_seconds:
-          type: integer
+          type: number
+          format: float
           description: Time taken to complete
-          example: 45
-        time_bonus_points:
-          type: integer
-          description: Bonus points for fast completion
-          example: 5
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/QuizQuestionResult'
-          description: Per-question results
+          example: 45.3
         share_text:
           type: string
           description: Text for sharing results
@@ -1855,6 +1820,121 @@ components:
           type: string
           nullable: true
           description: URL for sharing results (future feature)
+
+    # ===== Stateless API Schemas =====
+
+    QuizQuestionResponse:
+      type: object
+      required:
+        - session_id
+        - question
+      properties:
+        session_id:
+          type: string
+          description: Quiz session identifier
+          example: "session_a1b2c3d4e5f6g7h8"
+        question:
+          $ref: '#/components/schemas/QuizQuestion'
+
+    QuizAnswerRequest:
+      type: object
+      required:
+        - session_id
+        - question_id
+        - selected_option
+        - time_taken_seconds
+      properties:
+        session_id:
+          type: string
+          description: Quiz session identifier
+          example: "session_a1b2c3d4e5f6g7h8"
+        question_id:
+          type: string
+          description: ID of the question being answered
+          example: "q_a1b2c3d4e5f6"
+        selected_option:
+          type: string
+          description: Selected option ID (a, b, c, d)
+          example: "a"
+        time_taken_seconds:
+          type: number
+          format: float
+          minimum: 0.0
+          description: Time taken to answer (in seconds)
+          example: 5.2
+
+    QuizAnswerResponse:
+      type: object
+      required:
+        - is_correct
+        - points_earned
+        - explanation
+        - running_stats
+      properties:
+        is_correct:
+          type: boolean
+          description: Whether the answer was correct
+          example: true
+        points_earned:
+          type: number
+          format: float
+          description: Points earned for this question
+          example: 8.5
+        explanation:
+          type: string
+          description: Explanation of the correct answer
+          example: "Really good"
+        running_stats:
+          $ref: '#/components/schemas/QuizSessionProgress'
+
+    QuizSessionProgress:
+      type: object
+      required:
+        - questions_answered
+        - correct_count
+        - total_score
+        - accuracy
+        - time_spent_seconds
+      properties:
+        questions_answered:
+          type: integer
+          minimum: 0
+          description: Number of questions answered
+          example: 5
+        correct_count:
+          type: integer
+          minimum: 0
+          description: Number of correct answers
+          example: 4
+        total_score:
+          type: number
+          format: float
+          minimum: 0.0
+          description: Total score accumulated
+          example: 35.5
+        accuracy:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: Current accuracy rate (0.0 to 1.0)
+          example: 0.8
+        time_spent_seconds:
+          type: number
+          format: float
+          minimum: 0.0
+          description: Total time spent on quiz so far
+          example: 245.3
+
+    QuizEndRequest:
+      type: object
+      required:
+        - session_id
+      properties:
+        session_id:
+          type: string
+          description: Quiz session identifier
+          example: "session_a1b2c3d4e5f6g7h8"
 
     QuizHistory:
       type: object

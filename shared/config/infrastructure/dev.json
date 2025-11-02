@@ -13,11 +13,8 @@
     "translations_table": {
       "name": "lingible-translations-dev"
     },
-    "trending_table": {
-      "name": "lingible-trending-dev"
-    },
-    "slang_submissions_table": {
-      "name": "lingible-slang-submissions-dev"
+    "terms_table": {
+      "name": "lingible-terms-dev"
     }
   },
   "apple": {

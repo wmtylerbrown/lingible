@@ -537,3 +537,15 @@
 - **Consistent Commands**: Uniform interface across all secret types (create, update, info, delete, list)
 - **Better UX**: Clear indication of configured vs missing secrets for easier troubleshooting
 - **Maintenance Reduction**: Single script reduces code duplication and maintenance burden
+
+### ✅ **Lexicon Update with Attestation Fields & Quiz Prioritization (2025-11-02)**
+- **Updated Lexicon**: Migrated to `updated_lexicon.json` with 409 terms including new attestation fields (`first_attested`, `first_attested_confidence`, `attestation_note`)
+- **Attestation Support**: Export handler and migration script updated to include attestation fields in lexicon exports
+- **Date-Based Quiz Prioritization**: GSI2 sort key now prioritizes newer terms (`{YYYYMMDD}#{confidence}#{term}` format) for quiz selection
+- **Approval Process Enhancement**: Approved user submissions now automatically set attestation fields (using submission date) and quiz eligibility
+- **Quiz Eligibility**: Approved submissions get `is_quiz_eligible`, `quiz_difficulty`, `quiz_category`, and proper GSI2 index fields
+- **Table Consolidation**: Merged `trendingTable` into unified `termsTable` (renamed from `slangTermsTable`) for cost optimization
+- **GSI Optimization**: Reduced GSI projections from `ALL` to `INCLUDE` or `KEYS_ONLY` where possible to reduce storage costs
+- **New GSIs**: Added GSI7 (Trending by popularity) and GSI8 (Trending by category) to support merged trending functionality
+- **Migration Complete**: Successfully migrated 409 terms with 100% success rate, all attestation fields preserved
+- **Production Ready**: All changes deployed to dev, approval process ensures new submissions get proper fields for quiz selection

@@ -2,20 +2,19 @@
 
 import uuid
 import random
-from datetime import datetime, timezone, timedelta
-from typing import List
+from datetime import datetime, timezone
+from typing import List, Optional, Dict, Set
 
 from models.quiz import (
-    QuizChallenge,
-    QuizChallengeRequest,
     QuizQuestion,
     QuizOption,
-    QuizSubmissionRequest,
     QuizResult,
-    QuizQuestionResult,
     QuizHistory,
     QuizDifficulty,
-    ChallengeType,
+    QuizQuestionResponse,
+    QuizAnswerRequest,
+    QuizAnswerResponse,
+    QuizSessionProgress,
 )
 from models.config import QuizConfig
 from models.users import UserTier
@@ -30,11 +29,54 @@ from utils.exceptions import ValidationError, InsufficientPermissionsError
 class QuizService:
     """Service for quiz generation, scoring, and history tracking."""
 
+    # Class-level cache for wrong answer pools (loaded once per Lambda instance)
+    _wrong_answer_pools: Dict[str, List[str]] = {}
+    _pools_loaded: bool = False
+
     def __init__(self):
         self.repository = SlangTermRepository()
         self.user_service = UserService()
         self.config = get_config_service().get_config(QuizConfig)
-        self._active_challenges = {}  # In-memory cache for challenge validation
+        self._ensure_pools_loaded()
+
+    # ===== Answer Normalization (Phase 1.5) =====
+
+    def _normalize_answer_text(self, text: str) -> str:
+        """Normalize answer text: extract first meaning, standardize formatting."""
+        if not text:
+            return ""
+        # Extract first meaning before semicolon
+        normalized = text.split(";")[0].strip()
+        # Standardize capitalization: sentence case (first letter uppercase, rest lowercase)
+        if normalized:
+            normalized = (
+                normalized[0].upper() + normalized[1:].lower()
+                if len(normalized) > 1
+                else normalized.upper()
+            )
+        return normalized
+
+    # ===== Per-Question Scoring (Phase 2) =====
+
+    def _calculate_question_points(
+        self, is_correct: bool, time_taken_seconds: float
+    ) -> float:
+        """Calculate points earned for a single question based on correctness and time."""
+        if not is_correct:
+            return 0.0
+
+        max_points = float(self.config.points_per_correct)
+        question_time_limit = 30.0  # 30 seconds per question (configurable later)
+
+        # Calculate time ratio (capped at 1.0)
+        time_ratio = min(time_taken_seconds / question_time_limit, 1.0)
+
+        # Points decrease linearly: 90% decay, 10% minimum
+        # Formula: max_points * (1.0 - time_ratio * 0.9)
+        points_earned = max_points * (1.0 - time_ratio * 0.9)
+
+        # Ensure minimum of 1 point
+        return max(1.0, round(points_earned, 1))
 
     @tracer.trace_method("check_quiz_eligibility")
     def check_quiz_eligibility(self, user_id: str) -> QuizHistory:
@@ -68,113 +110,53 @@ class QuizService:
             reason=reason,
         )
 
-    @tracer.trace_method("generate_challenge")
-    def generate_challenge(
-        self, user_id: str, request: QuizChallengeRequest
-    ) -> QuizChallenge:
-        """Generate a new quiz challenge."""
+    def _format_multiple_choice(
+        self, term: dict, used_wrong_options: Set[str]
+    ) -> tuple[QuizQuestion, str]:
+        """Format a term as multiple choice question. Returns (question, correct_option_id).
 
-        # Check eligibility
-        eligibility = self.check_quiz_eligibility(user_id)
-        if not eligibility.can_take_quiz:
-            raise InsufficientPermissionsError(
-                eligibility.reason or "Quiz not available"
-            )
+        Args:
+            term: Term dictionary with meaning, slang_term, etc.
+            used_wrong_options: Set of normalized wrong options already used in this session
+        """
+        # Normalize correct answer
+        correct_meaning = self._normalize_answer_text(term["meaning"])
 
-        # Extract values with defaults (handle Optional fields)
-        difficulty = request.difficulty or QuizDifficulty.BEGINNER
-        challenge_type = request.challenge_type or ChallengeType.MULTIPLE_CHOICE
-        question_count = request.question_count or 10
+        # Get category for pool lookup
+        category = term.get("quiz_category", "general")
 
-        # Get quiz-eligible terms
-        terms = self.repository.get_quiz_eligible_terms(
-            difficulty=difficulty,
-            limit=question_count * 3,  # Get extras to ensure variety
+        # Get wrong options from category pool
+        wrong_options = self._get_wrong_options_from_pool(
+            category, used_wrong_options, term["meaning"]
         )
 
-        if len(terms) < question_count:
+        # Fallback to dynamic generation if pool doesn't have enough options
+        if len(wrong_options) < 3:
+            wrong_options = self._generate_wrong_options(term, used_wrong_options)
+
+        # Ensure we have exactly 3 wrong options (already normalized from pool)
+        if len(wrong_options) < 3:
             raise ValidationError(
-                f"Not enough terms available for difficulty {difficulty}"
+                f"Failed to generate enough wrong options. Got {len(wrong_options)}, needed 3"
             )
 
-        # Randomly select terms
-        selected_terms = random.sample(terms, question_count)
+        normalized_wrong = wrong_options[:3]
 
-        # Format questions
-        questions = []
-        correct_answers = {}
-        term_names = {}
-
-        for term in selected_terms:
-            if challenge_type == ChallengeType.MULTIPLE_CHOICE:
-                question, correct_option = self._format_multiple_choice(term)
-                questions.append(question)
-                correct_answers[question.question_id] = correct_option
-                term_names[question.question_id] = term["slang_term"]
-
-        # Create challenge
-        challenge_id = f"quiz_{uuid.uuid4().hex[:16]}"
-        challenge = QuizChallenge(
-            challenge_id=challenge_id,
-            challenge_type=challenge_type,
-            difficulty=difficulty,
-            time_limit_seconds=self.config.time_limit_seconds,
-            questions=questions,
-            scoring={
-                "points_per_correct": self.config.points_per_correct,
-                "time_bonus": self.config.enable_time_bonus,
-            },
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-        )
-
-        # Cache challenge for validation (expires after 1 hour)
-        self._active_challenges[challenge_id] = {
-            "user_id": user_id,
-            "correct_answers": correct_answers,
-            "expires_at": challenge.expires_at,
-            "terms": term_names,
-            "difficulty": difficulty,
-        }
-
-        logger.log_business_event(
-            "quiz_challenge_generated",
-            {
-                "user_id": user_id,
-                "challenge_id": challenge_id,
-                "difficulty": difficulty,
-                "question_count": len(questions),
-            },
-        )
-
-        return challenge
-
-    def _format_multiple_choice(self, term: dict) -> tuple[QuizQuestion, str]:
-        """Format a term as multiple choice question. Returns (question, correct_option_id)."""
-        wrong_options = term.get("quiz_wrong_options", [])
-
-        # If no pre-generated options, generate them
-        if not wrong_options or len(wrong_options) < 3:
-            wrong_options = self._generate_wrong_options(term, wrong_options)
-
-        # Ensure we have exactly 3 wrong options
-        wrong_options = wrong_options[:3]
-
-        # Create options (mark correct answer for internal tracking)
+        # Create options (all normalized for consistency)
         all_options = [
-            QuizOption(id="a", text=term["meaning"]),
-            QuizOption(id="b", text=wrong_options[0]),
-            QuizOption(id="c", text=wrong_options[1]),
-            QuizOption(id="d", text=wrong_options[2]),
+            QuizOption(id="a", text=correct_meaning),
+            QuizOption(id="b", text=normalized_wrong[0]),
+            QuizOption(id="c", text=normalized_wrong[1]),
+            QuizOption(id="d", text=normalized_wrong[2]),
         ]
 
         # Shuffle options but remember which one is correct
-        correct_text = term["meaning"]
         random.shuffle(all_options)
 
         # Find the correct option ID after shuffling
         correct_option_id = None
         for option in all_options:
-            if option.text == correct_text:
+            if option.text == correct_meaning:
                 correct_option_id = option.id
                 break
 
@@ -189,27 +171,39 @@ class QuizService:
         return question, correct_option_id or "a"
 
     def _generate_wrong_options(
-        self, term: dict, existing: List[str] = []
+        self, term: dict, used_wrong_options: Set[str]
     ) -> List[str]:
-        """Generate plausible wrong answers using category-based approach."""
-        needed = 3 - len(existing)
+        """Generate plausible wrong answers using category-based approach (fallback when pools unavailable).
+
+        Args:
+            term: Term dictionary
+            used_wrong_options: Set of normalized wrong options already used in session
+        """
+        needed = 3
+        normalized_correct = self._normalize_answer_text(term["meaning"])
 
         # Strategy A: Try to get from similar category terms first
         similar_terms = self.repository.get_terms_by_category(
-            term.get("quiz_category", "general"), limit=10
+            term.get("quiz_category", "general"), limit=20  # Get more for variety
         )
 
-        category_options = [
-            t["meaning"]
-            for t in similar_terms
-            if t["slang_term"] != term["slang_term"]
-            and t["meaning"] != term["meaning"]
-            and t["meaning"] not in existing
-        ]
+        category_options = []
+        for t in similar_terms:
+            if t["slang_term"] == term["slang_term"]:
+                continue
+            normalized_meaning = self._normalize_answer_text(t["meaning"])
+            # Avoid correct answer and used options
+            if (
+                normalized_meaning != normalized_correct
+                and normalized_meaning not in used_wrong_options
+            ):
+                category_options.append(normalized_meaning)
+                if len(category_options) >= needed:
+                    break
 
-        wrong_options = existing + category_options[:needed]
+        wrong_options = category_options[:needed]
 
-        # If still not enough, use generic fallbacks
+        # If still not enough, use expanded generic fallbacks (normalized)
         if len(wrong_options) < 3:
             fallbacks = [
                 "Very busy",
@@ -231,122 +225,435 @@ class QuizService:
                 "Small",
                 "Hot",
                 "Cold",
+                "Amazing",
+                "Terrible",
+                "Average",
+                "Perfect",
+                "Awkward",
+                "Popular",
+                "Unpopular",
+                "Easy",
+                "Difficult",
+                "Simple",
+                "Complex",
+                "True",
+                "False",
+                "Old",
+                "New",
+                "Fresh",
+                "Stale",
+                "Modern",
+                "Classic",
+                "Unique",
+                "Common",
+                "Rare",
+                "Frequent",
+                "Occasional",
             ]
-            wrong_options.extend(
-                [f for f in fallbacks if f not in wrong_options][
-                    : 3 - len(wrong_options)
-                ]
-            )
+
+            normalized_fallbacks = [self._normalize_answer_text(f) for f in fallbacks]
+
+            # Filter out already used options and correct answer
+            available_fallbacks = [
+                f
+                for f in normalized_fallbacks
+                if f not in wrong_options
+                and f != normalized_correct
+                and f not in used_wrong_options
+            ]
+
+            wrong_options.extend(available_fallbacks[: 3 - len(wrong_options)])
 
         return wrong_options[:3]
 
-    @tracer.trace_method("submit_quiz")
-    def submit_quiz(
-        self, user_id: str, submission: QuizSubmissionRequest
-    ) -> QuizResult:
-        """Grade a quiz submission and return results."""
+    def _ensure_pools_loaded(self) -> None:
+        """Load wrong answer pools from DynamoDB (cached per Lambda instance)."""
+        if QuizService._pools_loaded:
+            return
 
-        # Validate challenge exists and belongs to user
-        if submission.challenge_id not in self._active_challenges:
-            raise ValidationError("Invalid or expired challenge ID")
+        try:
+            from models.quiz import QuizCategory
 
-        challenge_data = self._active_challenges[submission.challenge_id]
+            # Load pools for all categories
+            for category in QuizCategory:
+                pool = self.repository.get_wrong_answer_pool(category.value)
+                if pool:
+                    QuizService._wrong_answer_pools[category.value] = pool
+                    logger.log_debug(
+                        "Loaded wrong answer pool",
+                        {"category": category.value, "size": len(pool)},
+                    )
+                else:
+                    # Fallback to generic pool if category pool not found
+                    logger.log_warning(
+                        f"Wrong answer pool not found for category: {category.value}, using generic pool"
+                    )
+                    QuizService._wrong_answer_pools[category.value] = []
 
-        if challenge_data["user_id"] != user_id:
-            raise ValidationError("Challenge does not belong to this user")
+            QuizService._pools_loaded = True
+            logger.log_info(
+                "Wrong answer pools loaded",
+                {
+                    "categories_loaded": len(QuizService._wrong_answer_pools),
+                    "total_options": sum(
+                        len(pool) for pool in QuizService._wrong_answer_pools.values()
+                    ),
+                },
+            )
+        except Exception as e:
+            logger.log_error(e, {"operation": "load_wrong_answer_pools"})
+            # Continue with empty pools - will use fallback generation
 
-        if datetime.now(timezone.utc) > challenge_data["expires_at"]:
-            del self._active_challenges[submission.challenge_id]
-            raise ValidationError("Challenge has expired")
+    def _get_wrong_options_from_pool(
+        self, category: str, used_wrong_options: Set[str], correct_answer: str
+    ) -> List[str]:
+        """Get wrong options from category pool, avoiding duplicates and correct answer."""
+        # Get pool for category
+        pool = QuizService._wrong_answer_pools.get(category, [])
+        if not pool:
+            # Fallback to general pool if category pool not available
+            pool = QuizService._wrong_answer_pools.get("general", [])
 
-        # Grade answers
-        correct_answers = challenge_data["correct_answers"]
-        term_names = challenge_data["terms"]
-        results = []
-        correct_count = 0
+        # Normalize correct answer for comparison
+        normalized_correct = self._normalize_answer_text(correct_answer)
 
-        for answer in submission.answers:
-            is_correct = answer.selected == correct_answers.get(answer.question_id)
-            if is_correct:
-                correct_count += 1
+        # Filter out correct answer and already used options (pool options are already normalized)
+        available = []
+        for option in pool:
+            normalized_option = self._normalize_answer_text(option)
+            if (
+                normalized_option != normalized_correct
+                and normalized_option not in used_wrong_options
+            ):
+                available.append(normalized_option)
 
-            # Get term details for explanation
-            term = self.repository.get_term_by_slang(term_names[answer.question_id])
+        # If not enough options in pool, fall back to generic generation
+        if len(available) < 3:
+            logger.log_warning(
+                "Not enough options in pool, using fallback generation",
+                {"category": category, "available": len(available)},
+            )
+            return []
 
-            results.append(
-                QuizQuestionResult(
-                    question_id=answer.question_id,
-                    slang_term=term_names[answer.question_id],
-                    your_answer=answer.selected,
-                    correct_answer=correct_answers[answer.question_id],
-                    is_correct=is_correct,
-                    explanation=term.get("meaning", "") if term else "Term not found",
-                )
+        # Shuffle and return 3 random options
+        import random
+
+        random.shuffle(available)
+        return available[:3]
+
+    # ===== Stateless Quiz API Methods =====
+
+    @tracer.trace_method("check_question_eligibility")
+    def check_question_eligibility(self, user_id: str) -> bool:
+        """Check if user can answer another question (free tier daily limit)."""
+        user = self.user_service.get_user(user_id)
+        is_premium = user is not None and user.tier != UserTier.FREE
+
+        if is_premium:
+            return True
+
+        # Check daily question count (not quiz count)
+        today = datetime.now(timezone.utc).date().isoformat()
+        questions_today = self.repository.get_daily_quiz_count(user_id, today)
+
+        # Free tier: limit total questions per day
+        return questions_today < self.config.free_daily_limit
+
+    @tracer.trace_method("get_next_question")
+    def get_next_question(
+        self, user_id: str, difficulty: Optional[QuizDifficulty] = None
+    ) -> QuizQuestionResponse:
+        """Get next question for user, creating session if needed."""
+        difficulty = difficulty or QuizDifficulty.BEGINNER
+
+        # Check if user can answer another question
+        if not self.check_question_eligibility(user_id):
+            raise InsufficientPermissionsError(
+                f"Daily limit of {self.config.free_daily_limit} questions reached. Upgrade to Premium for unlimited questions!"
             )
 
-        # Calculate score
-        base_score = correct_count * self.config.points_per_correct
-        time_bonus = 0
-        if (
-            self.config.enable_time_bonus
-            and submission.time_taken_seconds < self.config.time_limit_seconds
-        ):
-            time_bonus = int(
-                (self.config.time_limit_seconds - submission.time_taken_seconds) / 6
-            )  # 1 point per 6 seconds saved
+        # Get or create session
+        session = self.repository.get_active_quiz_session(user_id)
+        if not session:
+            # Create new session
+            session_id = f"session_{uuid.uuid4().hex[:16]}"
+            self.repository.create_quiz_session(
+                session_id=session_id,
+                user_id=user_id,
+                difficulty=difficulty.value,
+            )
+            session = self.repository.get_quiz_session(session_id)
+            if not session:
+                raise ValidationError("Failed to create quiz session")
+        else:
+            session_id = session["session_id"]
+            # Ensure difficulty matches (use session difficulty)
+            difficulty = QuizDifficulty(session.get("difficulty", "beginner"))
 
-        total_score = base_score + time_bonus
-        total_possible = (
-            len(submission.answers) * self.config.points_per_correct + 10
-        )  # Max 10 time bonus
+        # Get used wrong options from session to avoid duplicates
+        used_wrong_options_list = session.get("used_wrong_options", [])
+        used_wrong_options: Set[str] = set(used_wrong_options_list)
+
+        # Get a quiz term
+        terms = self.repository.get_quiz_eligible_terms(
+            difficulty=difficulty,
+            limit=10,  # Get small batch for single question
+        )
+
+        if not terms:
+            raise ValidationError(
+                f"Not enough terms available for difficulty {difficulty.value}"
+            )
+
+        # Select random term
+        term = random.choice(terms)
+
+        # Format as question (with normalization and used options tracking)
+        question, correct_option_id = self._format_multiple_choice(
+            term, used_wrong_options
+        )
+
+        # Get wrong options used in this question (normalized)
+        wrong_options_texts = [
+            opt.text for opt in question.options if opt.id != correct_option_id
+        ]
+        new_used_wrong_options = list(used_wrong_options) + wrong_options_texts
+
+        # Update session with new question data
+        current_correct_answers = dict(session.get("correct_answers", {}))
+        current_correct_answers[question.question_id] = correct_option_id
+        current_term_names = dict(session.get("term_names", {}))
+        current_term_names[question.question_id] = term["slang_term"]
+
+        self.repository.update_quiz_session(
+            session_id=session_id,
+            correct_answers=current_correct_answers,
+            term_names=current_term_names,
+            used_wrong_options=new_used_wrong_options,
+        )
+
+        logger.log_business_event(
+            "quiz_question_generated",
+            {
+                "user_id": user_id,
+                "session_id": session_id,
+                "question_id": question.question_id,
+                "difficulty": difficulty.value,
+            },
+        )
+
+        return QuizQuestionResponse(session_id=session_id, question=question)
+
+    @tracer.trace_method("submit_answer")
+    def submit_answer(
+        self, user_id: str, answer_request: QuizAnswerRequest
+    ) -> QuizAnswerResponse:
+        """Submit answer for one question and return immediate feedback."""
+        # Load session
+        session = self.repository.get_quiz_session(answer_request.session_id)
+        if not session:
+            raise ValidationError("Invalid or expired session")
+
+        if session["user_id"] != user_id:
+            raise ValidationError("Session does not belong to this user")
+
+        if session.get("status") != "active":
+            raise ValidationError("Session is not active")
+
+        # Check expiration
+        last_activity = datetime.fromisoformat(
+            session.get("last_activity", datetime.now(timezone.utc).isoformat())
+        )
+        if (
+            datetime.now(timezone.utc) - last_activity
+        ).total_seconds() > 900:  # 15 minutes
+            self.repository.update_quiz_session(
+                answer_request.session_id, status="expired"
+            )
+            raise ValidationError("Session has expired")
+
+        # Validate answer
+        correct_answers = session.get("correct_answers", {})
+        correct_option = correct_answers.get(answer_request.question_id)
+        if not correct_option:
+            raise ValidationError("Question not found in session")
+
+        is_correct = answer_request.selected_option.lower() == correct_option.lower()
+
+        # Calculate points using per-question time-based scoring
+        points_earned = self._calculate_question_points(
+            is_correct=is_correct,
+            time_taken_seconds=answer_request.time_taken_seconds,
+        )
+
+        # Get term for explanation
+        term_names = session.get("term_names", {})
+        slang_term = term_names.get(answer_request.question_id)
+        term = self.repository.get_term_by_slang(slang_term) if slang_term else None
+        explanation = (
+            term.get("meaning", "Term not found") if term else "Term not found"
+        )
+        # Normalize explanation
+        explanation = self._normalize_answer_text(explanation)
+
+        # Update session stats
+        new_questions_answered = session.get("questions_answered", 0) + 1
+        new_correct_count = session.get("correct_count", 0) + (1 if is_correct else 0)
+        new_total_score = session.get("total_score", 0.0) + points_earned
+
+        self.repository.update_quiz_session(
+            session_id=answer_request.session_id,
+            questions_answered=new_questions_answered,
+            correct_count=new_correct_count,
+            total_score=new_total_score,
+        )
+
+        # Increment daily question count (not quiz count)
+        self.repository.increment_daily_quiz_count(user_id)
+
+        # Update quiz statistics for this term
+        if slang_term:
+            self.repository.update_quiz_statistics(slang_term, is_correct)
+
+        # Calculate running stats
+        accuracy = (
+            new_correct_count / new_questions_answered
+            if new_questions_answered > 0
+            else 0.0
+        )
+
+        # Calculate time spent (we'll need to track this in session, but for now estimate)
+        started_at = datetime.fromisoformat(
+            session.get("started_at", datetime.now(timezone.utc).isoformat())
+        )
+        time_spent = (datetime.now(timezone.utc) - started_at).total_seconds()
+
+        running_stats = QuizSessionProgress(
+            questions_answered=new_questions_answered,
+            correct_count=new_correct_count,
+            total_score=new_total_score,
+            accuracy=accuracy,
+            time_spent_seconds=time_spent,
+        )
+
+        logger.log_business_event(
+            "quiz_answer_submitted",
+            {
+                "user_id": user_id,
+                "session_id": answer_request.session_id,
+                "question_id": answer_request.question_id,
+                "is_correct": is_correct,
+                "points_earned": points_earned,
+            },
+        )
+
+        return QuizAnswerResponse(
+            is_correct=is_correct,
+            points_earned=points_earned,
+            explanation=explanation,
+            running_stats=running_stats,
+        )
+
+    @tracer.trace_method("get_session_progress")
+    def get_session_progress(
+        self, user_id: str, session_id: str
+    ) -> QuizSessionProgress:
+        """Get current progress for a quiz session."""
+        session = self.repository.get_quiz_session(session_id)
+        if not session:
+            raise ValidationError("Session not found")
+
+        if session["user_id"] != user_id:
+            raise ValidationError("Session does not belong to this user")
+
+        questions_answered = session.get("questions_answered", 0)
+        correct_count = session.get("correct_count", 0)
+        total_score = session.get("total_score", 0.0)
+
+        accuracy = correct_count / questions_answered if questions_answered > 0 else 0.0
+
+        started_at = datetime.fromisoformat(
+            session.get("started_at", datetime.now(timezone.utc).isoformat())
+        )
+        time_spent = (datetime.now(timezone.utc) - started_at).total_seconds()
+
+        return QuizSessionProgress(
+            questions_answered=questions_answered,
+            correct_count=correct_count,
+            total_score=total_score,
+            accuracy=accuracy,
+            time_spent_seconds=time_spent,
+        )
+
+    @tracer.trace_method("end_session")
+    def end_session(self, user_id: str, session_id: str) -> QuizResult:
+        """End quiz session and return final results."""
+        session = self.repository.get_quiz_session(session_id)
+        if not session:
+            raise ValidationError("Session not found")
+
+        if session["user_id"] != user_id:
+            raise ValidationError("Session does not belong to this user")
+
+        if session.get("status") == "completed":
+            raise ValidationError("Session already completed")
+
+        # Calculate final stats
+        questions_answered = session.get("questions_answered", 0)
+        correct_count = session.get("correct_count", 0)
+        total_score = session.get("total_score", 0.0)
+
+        if questions_answered == 0:
+            raise ValidationError("Cannot end session with no questions answered")
+
+        # Calculate total possible (each question worth 10 points max)
+        total_possible = questions_answered * 10.0
+
+        # Calculate time taken
+        started_at = datetime.fromisoformat(
+            session.get("started_at", datetime.now(timezone.utc).isoformat())
+        )
+        time_taken_seconds = (datetime.now(timezone.utc) - started_at).total_seconds()
+
+        # Mark session as completed
+        self.repository.update_quiz_session(session_id=session_id, status="completed")
 
         # Save to history
         self.repository.save_quiz_result(
             user_id,
             {
-                "quiz_id": submission.challenge_id,
+                "quiz_id": session_id,
                 "score": total_score,
                 "total_possible": total_possible,
                 "correct_count": correct_count,
-                "total_questions": len(submission.answers),
-                "time_taken_seconds": submission.time_taken_seconds,
-                "difficulty": challenge_data.get("difficulty", "beginner"),
+                "total_questions": questions_answered,
+                "time_taken_seconds": time_taken_seconds,
+                "difficulty": session.get("difficulty", "beginner"),
                 "challenge_type": "multiple_choice",
             },
         )
 
-        # Increment daily count
-        self.repository.increment_daily_quiz_count(user_id)
-
-        # Update quiz statistics for terms
-        for result in results:
-            self.repository.update_quiz_statistics(result.slang_term, result.is_correct)
-
-        # Clean up challenge
-        del self._active_challenges[submission.challenge_id]
-
         # Generate share text
-        accuracy = int((correct_count / len(submission.answers)) * 100)
-        share_text = f"I scored {total_score}/{total_possible} on the Lingible Slang Quiz! I got {correct_count}/{len(submission.answers)} right ({accuracy}% accuracy). Can you beat me? 🔥"
+        accuracy = int((correct_count / questions_answered) * 100)
+        share_text = f"I scored {int(total_score)}/{int(total_possible)} on the Lingible Slang Quiz! I got {correct_count}/{questions_answered} right ({accuracy}% accuracy). Can you beat me? 🔥"
 
         logger.log_business_event(
-            "quiz_completed",
+            "quiz_session_completed",
             {
                 "user_id": user_id,
+                "session_id": session_id,
                 "score": total_score,
                 "correct_count": correct_count,
-                "total_questions": len(submission.answers),
+                "total_questions": questions_answered,
             },
         )
 
         return QuizResult(
-            challenge_id=submission.challenge_id,
+            session_id=session_id,
             score=total_score,
             total_possible=total_possible,
             correct_count=correct_count,
-            total_questions=len(submission.answers),
-            time_taken_seconds=submission.time_taken_seconds,
-            time_bonus_points=time_bonus,
-            results=results,
+            total_questions=questions_answered,
+            time_taken_seconds=time_taken_seconds,
             share_text=share_text,
         )

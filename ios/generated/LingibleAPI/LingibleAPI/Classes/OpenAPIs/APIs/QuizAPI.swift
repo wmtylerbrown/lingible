@@ -13,33 +13,15 @@ import AnyCodable
 open class QuizAPI {
 
     /**
-     * enum for parameter difficulty
-     */
-    public enum Difficulty_quizChallengeGet: String, CaseIterable {
-        case beginner = "beginner"
-        case intermediate = "intermediate"
-        case advanced = "advanced"
-    }
+     Submit answer for one question (stateless API)
 
-    /**
-     * enum for parameter type
-     */
-    public enum ModelType_quizChallengeGet: String, CaseIterable {
-        case multipleChoice = "multiple_choice"
-    }
-
-    /**
-     Get a quiz challenge
-
-     - parameter difficulty: (query) Quiz difficulty level (optional, default to .beginner)
-     - parameter type: (query) Type of quiz challenge (optional, default to .multipleChoice)
-     - parameter count: (query) Number of questions in the quiz (1-50) (optional, default to 10)
+     - parameter quizAnswerRequest: (body)
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
     @discardableResult
-    open class func quizChallengeGet(difficulty: Difficulty_quizChallengeGet? = nil, type: ModelType_quizChallengeGet? = nil, count: Int? = nil, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: QuizChallenge?, _ error: Error?) -> Void)) -> RequestTask {
-        return quizChallengeGetWithRequestBuilder(difficulty: difficulty, type: type, count: count).execute(apiResponseQueue) { result in
+    open class func quizAnswerPost(quizAnswerRequest: QuizAnswerRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: QuizAnswerResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return quizAnswerPostWithRequestBuilder(quizAnswerRequest: quizAnswerRequest).execute(apiResponseQueue) { result in
             switch result {
             case let .success(response):
                 completion(response.body, nil)
@@ -50,38 +32,78 @@ open class QuizAPI {
     }
 
     /**
-     Get a quiz challenge
-     - GET /quiz/challenge
-     - Generate a new quiz challenge for the authenticated user.  **Free Tier Features:** - Limited to 3 quizzes per day - Basic difficulty levels - Standard question count (10 questions)  **Premium Tier Features:** - Unlimited quizzes per day - All difficulty levels (beginner, intermediate, advanced) - Customizable question count (1-50 questions) - Multiple challenge types
+     Submit answer for one question (stateless API)
+     - POST /quiz/answer
+     - Submit an answer for a single question and receive immediate feedback with running statistics.  **Response includes:** - Whether the answer was correct - Points earned (time-based scoring) - Explanation of the correct answer - Running statistics (score, accuracy, time spent)  **Scoring:** - Points decrease based on time taken (faster = more points) - Maximum 10 points per question - Minimum 1 point even if timer expires - Incorrect answers earn 0 points
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter difficulty: (query) Quiz difficulty level (optional, default to .beginner)
-     - parameter type: (query) Type of quiz challenge (optional, default to .multipleChoice)
-     - parameter count: (query) Number of questions in the quiz (1-50) (optional, default to 10)
-     - returns: RequestBuilder<QuizChallenge>
+     - parameter quizAnswerRequest: (body)
+     - returns: RequestBuilder<QuizAnswerResponse>
      */
-    open class func quizChallengeGetWithRequestBuilder(difficulty: Difficulty_quizChallengeGet? = nil, type: ModelType_quizChallengeGet? = nil, count: Int? = nil) -> RequestBuilder<QuizChallenge> {
-        let localVariablePath = "/quiz/challenge"
+    open class func quizAnswerPostWithRequestBuilder(quizAnswerRequest: QuizAnswerRequest) -> RequestBuilder<QuizAnswerResponse> {
+        let localVariablePath = "/quiz/answer"
         let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
-        let localVariableParameters: [String: Any]? = nil
+        let localVariableParameters = JSONEncodingHelper.encodingParameters(forEncodableObject: quizAnswerRequest)
 
-        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
-        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
-            "difficulty": (wrappedValue: difficulty?.encodeToJSON(), isExplode: true),
-            "type": (wrappedValue: type?.encodeToJSON(), isExplode: true),
-            "count": (wrappedValue: count?.encodeToJSON(), isExplode: true),
-        ])
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
 
         let localVariableNillableHeaders: [String: Any?] = [
-            :
+            "Content-Type": "application/json",
         ]
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<QuizChallenge>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+        let localVariableRequestBuilder: RequestBuilder<QuizAnswerResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
 
-        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
+     End quiz session and get final results (stateless API)
+
+     - parameter quizEndRequest: (body)
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
+     */
+    @discardableResult
+    open class func quizEndPost(quizEndRequest: QuizEndRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: QuizResult?, _ error: Error?) -> Void)) -> RequestTask {
+        return quizEndPostWithRequestBuilder(quizEndRequest: quizEndRequest).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
+    }
+
+    /**
+     End quiz session and get final results (stateless API)
+     - POST /quiz/end
+     - End the current quiz session and receive final results. Saves the session to history for lifetime statistics tracking.  **Post-End Actions:** - Session marked as completed - Results saved to quiz history - Statistics aggregated for user profile - Shareable result text generated
+     - Bearer Token:
+       - type: http
+       - name: BearerAuth
+     - parameter quizEndRequest: (body)
+     - returns: RequestBuilder<QuizResult>
+     */
+    open class func quizEndPostWithRequestBuilder(quizEndRequest: QuizEndRequest) -> RequestBuilder<QuizResult> {
+        let localVariablePath = "/quiz/end"
+        let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
+        let localVariableParameters = JSONEncodingHelper.encodingParameters(forEncodableObject: quizEndRequest)
+
+        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            "Content-Type": "application/json",
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<QuizResult>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
     }
 
     /**
@@ -130,15 +152,15 @@ open class QuizAPI {
     }
 
     /**
-     Submit quiz answers
+     Get current quiz session progress (stateless API)
 
-     - parameter quizSubmissionRequest: (body)
+     - parameter sessionId: (query) Quiz session identifier
      - parameter apiResponseQueue: The queue on which api response is dispatched.
      - parameter completion: completion handler to receive the data and the error objects
      */
     @discardableResult
-    open class func quizSubmitPost(quizSubmissionRequest: QuizSubmissionRequest, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: QuizResult?, _ error: Error?) -> Void)) -> RequestTask {
-        return quizSubmitPostWithRequestBuilder(quizSubmissionRequest: quizSubmissionRequest).execute(apiResponseQueue) { result in
+    open class func quizProgressGet(sessionId: String, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: QuizSessionProgress?, _ error: Error?) -> Void)) -> RequestTask {
+        return quizProgressGetWithRequestBuilder(sessionId: sessionId).execute(apiResponseQueue) { result in
             switch result {
             case let .success(response):
                 completion(response.body, nil)
@@ -149,30 +171,92 @@ open class QuizAPI {
     }
 
     /**
-     Submit quiz answers
-     - POST /quiz/submit
-     - Submit answers for a quiz challenge and receive results.  The challenge must be valid and not expired. Results include: - Score and accuracy - Per-question feedback - Explanations for each term - Shareable result text
+     Get current quiz session progress (stateless API)
+     - GET /quiz/progress
+     - Get current progress statistics for an active quiz session.  Returns: - Questions answered so far - Correct count and accuracy - Total score accumulated - Time spent on quiz
      - Bearer Token:
        - type: http
        - name: BearerAuth
-     - parameter quizSubmissionRequest: (body)
-     - returns: RequestBuilder<QuizResult>
+     - parameter sessionId: (query) Quiz session identifier
+     - returns: RequestBuilder<QuizSessionProgress>
      */
-    open class func quizSubmitPostWithRequestBuilder(quizSubmissionRequest: QuizSubmissionRequest) -> RequestBuilder<QuizResult> {
-        let localVariablePath = "/quiz/submit"
+    open class func quizProgressGetWithRequestBuilder(sessionId: String) -> RequestBuilder<QuizSessionProgress> {
+        let localVariablePath = "/quiz/progress"
         let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
-        let localVariableParameters = JSONEncodingHelper.encodingParameters(forEncodableObject: quizSubmissionRequest)
+        let localVariableParameters: [String: Any]? = nil
 
-        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "session_id": (wrappedValue: sessionId.encodeToJSON(), isExplode: true),
+        ])
 
         let localVariableNillableHeaders: [String: Any?] = [
-            "Content-Type": "application/json",
+            :
         ]
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<QuizResult>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+        let localVariableRequestBuilder: RequestBuilder<QuizSessionProgress>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
 
-        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
+    }
+
+    /**
+     * enum for parameter difficulty
+     */
+    public enum Difficulty_quizQuestionGet: String, CaseIterable {
+        case beginner = "beginner"
+        case intermediate = "intermediate"
+        case advanced = "advanced"
+    }
+
+    /**
+     Get next quiz question (stateless API)
+
+     - parameter difficulty: (query) Quiz difficulty level (optional, default to .beginner)
+     - parameter apiResponseQueue: The queue on which api response is dispatched.
+     - parameter completion: completion handler to receive the data and the error objects
+     */
+    @discardableResult
+    open class func quizQuestionGet(difficulty: Difficulty_quizQuestionGet? = nil, apiResponseQueue: DispatchQueue = LingibleAPIAPI.apiResponseQueue, completion: @escaping ((_ data: QuizQuestionResponse?, _ error: Error?) -> Void)) -> RequestTask {
+        return quizQuestionGetWithRequestBuilder(difficulty: difficulty).execute(apiResponseQueue) { result in
+            switch result {
+            case let .success(response):
+                completion(response.body, nil)
+            case let .failure(error):
+                completion(nil, error)
+            }
+        }
+    }
+
+    /**
+     Get next quiz question (stateless API)
+     - GET /quiz/question
+     - Get the next question for the current quiz session. Creates a new session if none exists or if the previous session has expired (>15 minutes inactive).  **Features:** - No upfront question count required - Automatic session management - Validates free tier daily question limits - Returns single question with normalized answer options  **Session Management:** - One active session per user - Auto-expires after 15 minutes of inactivity - Sessions auto-cleanup via DynamoDB TTL (24 hours)
+     - Bearer Token:
+       - type: http
+       - name: BearerAuth
+     - parameter difficulty: (query) Quiz difficulty level (optional, default to .beginner)
+     - returns: RequestBuilder<QuizQuestionResponse>
+     */
+    open class func quizQuestionGetWithRequestBuilder(difficulty: Difficulty_quizQuestionGet? = nil) -> RequestBuilder<QuizQuestionResponse> {
+        let localVariablePath = "/quiz/question"
+        let localVariableURLString = LingibleAPIAPI.basePath + localVariablePath
+        let localVariableParameters: [String: Any]? = nil
+
+        var localVariableUrlComponents = URLComponents(string: localVariableURLString)
+        localVariableUrlComponents?.queryItems = APIHelper.mapValuesToQueryItems([
+            "difficulty": (wrappedValue: difficulty?.encodeToJSON(), isExplode: true),
+        ])
+
+        let localVariableNillableHeaders: [String: Any?] = [
+            :
+        ]
+
+        let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
+
+        let localVariableRequestBuilder: RequestBuilder<QuizQuestionResponse>.Type = LingibleAPIAPI.requestBuilderFactory.getBuilder()
+
+        return localVariableRequestBuilder.init(method: "GET", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters, requiresAuthentication: true)
     }
 }

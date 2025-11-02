@@ -12,49 +12,41 @@ import AnyCodable
 
 public struct QuizResult: Codable, JSONEncodable, Hashable {
 
-    /** Challenge ID */
-    public var challengeId: String
+    /** Session ID */
+    public var sessionId: String
     /** Total score achieved */
-    public var score: Int
+    public var score: Float
     /** Maximum possible score */
-    public var totalPossible: Int
+    public var totalPossible: Float
     /** Number of correct answers */
     public var correctCount: Int
     /** Total number of questions */
     public var totalQuestions: Int
     /** Time taken to complete */
-    public var timeTakenSeconds: Int
-    /** Bonus points for fast completion */
-    public var timeBonusPoints: Int
-    /** Per-question results */
-    public var results: [QuizQuestionResult]
+    public var timeTakenSeconds: Float
     /** Text for sharing results */
     public var shareText: String
     /** URL for sharing results (future feature) */
     public var shareUrl: String?
 
-    public init(challengeId: String, score: Int, totalPossible: Int, correctCount: Int, totalQuestions: Int, timeTakenSeconds: Int, timeBonusPoints: Int, results: [QuizQuestionResult], shareText: String, shareUrl: String? = nil) {
-        self.challengeId = challengeId
+    public init(sessionId: String, score: Float, totalPossible: Float, correctCount: Int, totalQuestions: Int, timeTakenSeconds: Float, shareText: String, shareUrl: String? = nil) {
+        self.sessionId = sessionId
         self.score = score
         self.totalPossible = totalPossible
         self.correctCount = correctCount
         self.totalQuestions = totalQuestions
         self.timeTakenSeconds = timeTakenSeconds
-        self.timeBonusPoints = timeBonusPoints
-        self.results = results
         self.shareText = shareText
         self.shareUrl = shareUrl
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case challengeId = "challenge_id"
+        case sessionId = "session_id"
         case score
         case totalPossible = "total_possible"
         case correctCount = "correct_count"
         case totalQuestions = "total_questions"
         case timeTakenSeconds = "time_taken_seconds"
-        case timeBonusPoints = "time_bonus_points"
-        case results
         case shareText = "share_text"
         case shareUrl = "share_url"
     }
@@ -63,14 +55,12 @@ public struct QuizResult: Codable, JSONEncodable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(challengeId, forKey: .challengeId)
+        try container.encode(sessionId, forKey: .sessionId)
         try container.encode(score, forKey: .score)
         try container.encode(totalPossible, forKey: .totalPossible)
         try container.encode(correctCount, forKey: .correctCount)
         try container.encode(totalQuestions, forKey: .totalQuestions)
         try container.encode(timeTakenSeconds, forKey: .timeTakenSeconds)
-        try container.encode(timeBonusPoints, forKey: .timeBonusPoints)
-        try container.encode(results, forKey: .results)
         try container.encode(shareText, forKey: .shareText)
         try container.encodeIfPresent(shareUrl, forKey: .shareUrl)
     }

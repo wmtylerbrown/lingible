@@ -68,7 +68,7 @@ class SlangSubmissionService:
 
         # Check for duplicates
         if self.repository.check_duplicate_submission(
-            user_id, request.slang_term, self.DUPLICATE_CHECK_DAYS
+            request.slang_term, user_id, self.DUPLICATE_CHECK_DAYS
         ):
             raise ValidationError(
                 f"You've already submitted '{request.slang_term}' recently. Check back later to see if it was approved!"

@@ -27,7 +27,7 @@ class TestSlangTermRepository:
             with patch('repositories.slang_term_repository.aws_services') as mock_aws:
                 # Setup config mock
                 mock_config_service = Mock()
-                mock_config_service._get_env_var.return_value = "test-slang-terms-table"
+                mock_config_service._get_env_var.return_value = "test-terms-table"
                 mock_config.return_value = mock_config_service
 
                 # Setup AWS services mock
@@ -238,7 +238,6 @@ class TestSlangTermRepository:
                 "is_quiz_eligible": True,
                 "quiz_difficulty": "beginner",
                 "quiz_category": "approval",
-                "quiz_wrong_options": ["Bad", "Okay", "Average"],
             }
         ]
 
@@ -248,6 +247,49 @@ class TestSlangTermRepository:
 
         assert len(result) == 1
         assert result[0]["is_quiz_eligible"] is True
+
+    def test_get_terms_by_category_keys_only_fallback(self, mock_repository):
+        """Test get_terms_by_category handles KEYS_ONLY projection by fetching full items."""
+        # GSI3 returns KEYS_ONLY, so items will only have PK and SK
+        mock_items = [
+            {"PK": "TERM#bussin", "SK": "SOURCE#lexicon#bussin"},
+            {"PK": "TERM#cap", "SK": "SOURCE#lexicon#cap"},
+        ]
+
+        # Full items that should be returned after GetItem
+        full_items = {
+            ("TERM#bussin", "SOURCE#lexicon#bussin"): {
+                "PK": "TERM#bussin",
+                "SK": "SOURCE#lexicon#bussin",
+                "slang_term": "bussin",
+                "meaning": "Really good",
+                "quiz_category": "approval",
+            },
+            ("TERM#cap", "SOURCE#lexicon#cap"): {
+                "PK": "TERM#cap",
+                "SK": "SOURCE#lexicon#cap",
+                "slang_term": "cap",
+                "meaning": "Lie",
+                "quiz_category": "disapproval",
+            },
+        }
+
+        mock_repository.table.query.return_value = {"Items": mock_items}
+        # Mock GetItem to return full items
+        def mock_get_item(**kwargs):
+            key = kwargs.get("Key", {})
+            pk = key.get("PK")
+            sk = key.get("SK")
+            return {"Item": full_items.get((pk, sk), {})}
+
+        mock_repository.table.get_item = mock_get_item
+
+        result = mock_repository.get_terms_by_category("approval", limit=10)
+
+        # Should return full items with meaning and slang_term
+        assert len(result) == 2
+        assert all("meaning" in item for item in result)
+        assert all("slang_term" in item for item in result)
 
     def test_save_quiz_result(self, mock_repository):
         """Test saving quiz result."""

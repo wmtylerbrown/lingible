@@ -6,16 +6,11 @@ from datetime import datetime, timezone
 from models.quiz import (
     QuizDifficulty,
     QuizCategory,
-    ChallengeType,
     QuizOption,
     QuizQuestion,
-    QuizChallenge,
-    QuizAnswer,
-    QuizSubmissionRequest,
     QuizQuestionResult,
     QuizResult,
     QuizHistory,
-    QuizChallengeRequest,
 )
 
 
@@ -39,10 +34,6 @@ class TestQuizModels:
         assert QuizCategory.AUTHENTICITY == "authenticity"
         assert QuizCategory.INTENSITY == "intensity"
         assert QuizCategory.GENERAL == "general"
-
-    def test_challenge_type_enum(self):
-        """Test ChallengeType enum values."""
-        assert ChallengeType.MULTIPLE_CHOICE == "multiple_choice"
 
     def test_quiz_option_model(self):
         """Test QuizOption model."""
@@ -80,66 +71,6 @@ class TestQuizModels:
         assert len(question.options) == 4
         assert question.context_hint == "That pizza was bussin!"
         assert question.explanation == "Bussin means really good, especially for food."
-
-    def test_quiz_challenge_model(self):
-        """Test QuizChallenge model."""
-        options = [
-            QuizOption(id="a", text="Really good"),
-            QuizOption(id="b", text="Bad"),
-        ]
-
-        questions = [
-            QuizQuestion(
-                question_id="q1",
-                slang_term="bussin",
-                question_text="What does 'bussin' mean?",
-                options=options
-            )
-        ]
-
-        challenge = QuizChallenge(
-            challenge_id="quiz_123",
-            challenge_type=ChallengeType.MULTIPLE_CHOICE,
-            difficulty=QuizDifficulty.BEGINNER,
-            time_limit_seconds=60,
-            questions=questions,
-            scoring={"points_per_correct": 10, "time_bonus": True},
-            expires_at=datetime.now(timezone.utc)
-        )
-
-        assert challenge.challenge_id == "quiz_123"
-        assert challenge.challenge_type == ChallengeType.MULTIPLE_CHOICE
-        assert challenge.difficulty == QuizDifficulty.BEGINNER
-        assert challenge.time_limit_seconds == 60
-        assert len(challenge.questions) == 1
-        assert challenge.scoring["points_per_correct"] == 10
-
-    def test_quiz_answer_model(self):
-        """Test QuizAnswer model."""
-        answer = QuizAnswer(
-            question_id="q_123",
-            selected="a"
-        )
-
-        assert answer.question_id == "q_123"
-        assert answer.selected == "a"
-
-    def test_quiz_submission_request_model(self):
-        """Test QuizSubmissionRequest model."""
-        answers = [
-            QuizAnswer(question_id="q1", selected="a"),
-            QuizAnswer(question_id="q2", selected="b"),
-        ]
-
-        submission = QuizSubmissionRequest(
-            challenge_id="quiz_123",
-            answers=answers,
-            time_taken_seconds=45
-        )
-
-        assert submission.challenge_id == "quiz_123"
-        assert len(submission.answers) == 2
-        assert submission.time_taken_seconds == 45
 
     def test_quiz_question_result_model(self):
         """Test QuizQuestionResult model."""
@@ -181,26 +112,22 @@ class TestQuizModels:
         ]
 
         result = QuizResult(
-            challenge_id="quiz_123",
+            session_id="session_123",
             score=15,
             total_possible=20,
             correct_count=1,
             total_questions=2,
             time_taken_seconds=45,
-            time_bonus_points=5,
-            results=question_results,
             share_text="I scored 15/20 on the Lingible Slang Quiz!",
             share_url="https://lingible.com/quiz/123"
         )
 
-        assert result.challenge_id == "quiz_123"
+        assert result.session_id == "session_123"
         assert result.score == 15
         assert result.total_possible == 20
         assert result.correct_count == 1
         assert result.total_questions == 2
         assert result.time_taken_seconds == 45
-        assert result.time_bonus_points == 5
-        assert len(result.results) == 2
         assert "15/20" in result.share_text
         assert result.share_url == "https://lingible.com/quiz/123"
 
@@ -249,26 +176,6 @@ class TestQuizModels:
         assert "limit" in history.reason.lower()
         assert "upgrade" in history.reason.lower()
 
-    def test_quiz_challenge_request_model(self):
-        """Test QuizChallengeRequest model with defaults."""
-        request = QuizChallengeRequest()
-
-        assert request.difficulty == QuizDifficulty.BEGINNER
-        assert request.challenge_type == ChallengeType.MULTIPLE_CHOICE
-        assert request.question_count == 10
-
-    def test_quiz_challenge_request_model_custom(self):
-        """Test QuizChallengeRequest model with custom values."""
-        request = QuizChallengeRequest(
-            difficulty=QuizDifficulty.ADVANCED,
-            challenge_type=ChallengeType.MULTIPLE_CHOICE,
-            question_count=15
-        )
-
-        assert request.difficulty == QuizDifficulty.ADVANCED
-        assert request.challenge_type == ChallengeType.MULTIPLE_CHOICE
-        assert request.question_count == 15
-
     def test_quiz_option_without_is_correct(self):
         """Test QuizOption without is_correct field (for challenges)."""
         option = QuizOption(
@@ -296,14 +203,12 @@ class TestQuizModels:
     def test_quiz_result_without_share_url(self):
         """Test QuizResult without share_url."""
         result = QuizResult(
-            challenge_id="quiz_123",
+            session_id="session_123",
             score=10,
             total_possible=10,
             correct_count=1,
             total_questions=1,
             time_taken_seconds=30,
-            time_bonus_points=0,
-            results=[],
             share_text="I scored 10/10!"
         )
 

@@ -4,28 +4,31 @@ All URIs are relative to *https://api.dev.lingible.com*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**quiz_challenge_get**](QuizApi.md#quiz_challenge_get) | **GET** /quiz/challenge | Get a quiz challenge
+[**quiz_answer_post**](QuizApi.md#quiz_answer_post) | **POST** /quiz/answer | Submit answer for one question (stateless API)
+[**quiz_end_post**](QuizApi.md#quiz_end_post) | **POST** /quiz/end | End quiz session and get final results (stateless API)
 [**quiz_history_get**](QuizApi.md#quiz_history_get) | **GET** /quiz/history | Get quiz history and eligibility
-[**quiz_submit_post**](QuizApi.md#quiz_submit_post) | **POST** /quiz/submit | Submit quiz answers
+[**quiz_progress_get**](QuizApi.md#quiz_progress_get) | **GET** /quiz/progress | Get current quiz session progress (stateless API)
+[**quiz_question_get**](QuizApi.md#quiz_question_get) | **GET** /quiz/question | Get next quiz question (stateless API)
 
 
-# **quiz_challenge_get**
-> QuizChallenge quiz_challenge_get(difficulty=difficulty, type=type, count=count)
+# **quiz_answer_post**
+> QuizAnswerResponse quiz_answer_post(quiz_answer_request)
 
-Get a quiz challenge
+Submit answer for one question (stateless API)
 
-Generate a new quiz challenge for the authenticated user.
+Submit an answer for a single question and receive immediate feedback with running statistics.
 
-**Free Tier Features:**
-- Limited to 3 quizzes per day
-- Basic difficulty levels
-- Standard question count (10 questions)
+**Response includes:**
+- Whether the answer was correct
+- Points earned (time-based scoring)
+- Explanation of the correct answer
+- Running statistics (score, accuracy, time spent)
 
-**Premium Tier Features:**
-- Unlimited quizzes per day
-- All difficulty levels (beginner, intermediate, advanced)
-- Customizable question count (1-50 questions)
-- Multiple challenge types
+**Scoring:**
+- Points decrease based on time taken (faster = more points)
+- Maximum 10 points per question
+- Minimum 1 point even if timer expires
+- Incorrect answers earn 0 points
 
 
 ### Example
@@ -34,7 +37,8 @@ Generate a new quiz challenge for the authenticated user.
 
 ```python
 import lingible_client
-from lingible_client.models.quiz_challenge import QuizChallenge
+from lingible_client.models.quiz_answer_request import QuizAnswerRequest
+from lingible_client.models.quiz_answer_response import QuizAnswerResponse
 from lingible_client.rest import ApiException
 from pprint import pprint
 
@@ -58,17 +62,15 @@ configuration = lingible_client.Configuration(
 with lingible_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = lingible_client.QuizApi(api_client)
-    difficulty = beginner # str | Quiz difficulty level (optional) (default to beginner)
-    type = multiple_choice # str | Type of quiz challenge (optional) (default to multiple_choice)
-    count = 10 # int | Number of questions in the quiz (1-50) (optional) (default to 10)
+    quiz_answer_request = lingible_client.QuizAnswerRequest() # QuizAnswerRequest |
 
     try:
-        # Get a quiz challenge
-        api_response = api_instance.quiz_challenge_get(difficulty=difficulty, type=type, count=count)
-        print("The response of QuizApi->quiz_challenge_get:\n")
+        # Submit answer for one question (stateless API)
+        api_response = api_instance.quiz_answer_post(quiz_answer_request)
+        print("The response of QuizApi->quiz_answer_post:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling QuizApi->quiz_challenge_get: %s\n" % e)
+        print("Exception when calling QuizApi->quiz_answer_post: %s\n" % e)
 ```
 
 
@@ -78,13 +80,11 @@ with lingible_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **difficulty** | **str**| Quiz difficulty level | [optional] [default to beginner]
- **type** | **str**| Type of quiz challenge | [optional] [default to multiple_choice]
- **count** | **int**| Number of questions in the quiz (1-50) | [optional] [default to 10]
+ **quiz_answer_request** | [**QuizAnswerRequest**](QuizAnswerRequest.md)|  |
 
 ### Return type
 
-[**QuizChallenge**](QuizChallenge.md)
+[**QuizAnswerResponse**](QuizAnswerResponse.md)
 
 ### Authorization
 
@@ -92,17 +92,105 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | Quiz challenge generated successfully |  -  |
+**200** | Answer submitted successfully |  -  |
 **401** | Unauthorized |  -  |
-**400** | Invalid request parameters |  -  |
-**403** | Daily quiz limit reached (free tier) or insufficient permissions |  -  |
+**400** | Invalid request, expired session, or question not found |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **quiz_end_post**
+> QuizResult quiz_end_post(quiz_end_request)
+
+End quiz session and get final results (stateless API)
+
+End the current quiz session and receive final results. Saves the session to history
+for lifetime statistics tracking.
+
+**Post-End Actions:**
+- Session marked as completed
+- Results saved to quiz history
+- Statistics aggregated for user profile
+- Shareable result text generated
+
+
+### Example
+
+* Bearer (JWT) Authentication (BearerAuth):
+
+```python
+import lingible_client
+from lingible_client.models.quiz_end_request import QuizEndRequest
+from lingible_client.models.quiz_result import QuizResult
+from lingible_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to https://api.dev.lingible.com
+# See configuration.py for a list of all supported configuration parameters.
+configuration = lingible_client.Configuration(
+    host = "https://api.dev.lingible.com"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure Bearer authorization (JWT): BearerAuth
+configuration = lingible_client.Configuration(
+    access_token = os.environ["BEARER_TOKEN"]
+)
+
+# Enter a context with an instance of the API client
+with lingible_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = lingible_client.QuizApi(api_client)
+    quiz_end_request = lingible_client.QuizEndRequest() # QuizEndRequest |
+
+    try:
+        # End quiz session and get final results (stateless API)
+        api_response = api_instance.quiz_end_post(quiz_end_request)
+        print("The response of QuizApi->quiz_end_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling QuizApi->quiz_end_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **quiz_end_request** | [**QuizEndRequest**](QuizEndRequest.md)|  |
+
+### Return type
+
+[**QuizResult**](QuizResult.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Session ended successfully |  -  |
+**400** | Invalid session or no questions answered |  -  |
+**401** | Unauthorized |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -190,18 +278,18 @@ This endpoint does not need any parameter.
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **quiz_submit_post**
-> QuizResult quiz_submit_post(quiz_submission_request)
+# **quiz_progress_get**
+> QuizSessionProgress quiz_progress_get(session_id)
 
-Submit quiz answers
+Get current quiz session progress (stateless API)
 
-Submit answers for a quiz challenge and receive results.
+Get current progress statistics for an active quiz session.
 
-The challenge must be valid and not expired. Results include:
-- Score and accuracy
-- Per-question feedback
-- Explanations for each term
-- Shareable result text
+Returns:
+- Questions answered so far
+- Correct count and accuracy
+- Total score accumulated
+- Time spent on quiz
 
 
 ### Example
@@ -210,8 +298,7 @@ The challenge must be valid and not expired. Results include:
 
 ```python
 import lingible_client
-from lingible_client.models.quiz_result import QuizResult
-from lingible_client.models.quiz_submission_request import QuizSubmissionRequest
+from lingible_client.models.quiz_session_progress import QuizSessionProgress
 from lingible_client.rest import ApiException
 from pprint import pprint
 
@@ -235,15 +322,15 @@ configuration = lingible_client.Configuration(
 with lingible_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = lingible_client.QuizApi(api_client)
-    quiz_submission_request = lingible_client.QuizSubmissionRequest() # QuizSubmissionRequest |
+    session_id = 'session_id_example' # str | Quiz session identifier
 
     try:
-        # Submit quiz answers
-        api_response = api_instance.quiz_submit_post(quiz_submission_request)
-        print("The response of QuizApi->quiz_submit_post:\n")
+        # Get current quiz session progress (stateless API)
+        api_response = api_instance.quiz_progress_get(session_id)
+        print("The response of QuizApi->quiz_progress_get:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling QuizApi->quiz_submit_post: %s\n" % e)
+        print("Exception when calling QuizApi->quiz_progress_get: %s\n" % e)
 ```
 
 
@@ -253,11 +340,11 @@ with lingible_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **quiz_submission_request** | [**QuizSubmissionRequest**](QuizSubmissionRequest.md)|  |
+ **session_id** | **str**| Quiz session identifier |
 
 ### Return type
 
-[**QuizResult**](QuizResult.md)
+[**QuizSessionProgress**](QuizSessionProgress.md)
 
 ### Authorization
 
@@ -265,16 +352,108 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json
+ - **Content-Type**: Not defined
  - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** | Quiz submitted successfully |  -  |
+**200** | Progress retrieved successfully |  -  |
+**400** | Missing session_id or invalid request |  -  |
 **401** | Unauthorized |  -  |
-**400** | Invalid request or expired challenge |  -  |
-**404** | Challenge not found |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **quiz_question_get**
+> QuizQuestionResponse quiz_question_get(difficulty=difficulty)
+
+Get next quiz question (stateless API)
+
+Get the next question for the current quiz session. Creates a new session if none exists
+or if the previous session has expired (>15 minutes inactive).
+
+**Features:**
+- No upfront question count required
+- Automatic session management
+- Validates free tier daily question limits
+- Returns single question with normalized answer options
+
+**Session Management:**
+- One active session per user
+- Auto-expires after 15 minutes of inactivity
+- Sessions auto-cleanup via DynamoDB TTL (24 hours)
+
+
+### Example
+
+* Bearer (JWT) Authentication (BearerAuth):
+
+```python
+import lingible_client
+from lingible_client.models.quiz_question_response import QuizQuestionResponse
+from lingible_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to https://api.dev.lingible.com
+# See configuration.py for a list of all supported configuration parameters.
+configuration = lingible_client.Configuration(
+    host = "https://api.dev.lingible.com"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure Bearer authorization (JWT): BearerAuth
+configuration = lingible_client.Configuration(
+    access_token = os.environ["BEARER_TOKEN"]
+)
+
+# Enter a context with an instance of the API client
+with lingible_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = lingible_client.QuizApi(api_client)
+    difficulty = beginner # str | Quiz difficulty level (optional) (default to beginner)
+
+    try:
+        # Get next quiz question (stateless API)
+        api_response = api_instance.quiz_question_get(difficulty=difficulty)
+        print("The response of QuizApi->quiz_question_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling QuizApi->quiz_question_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **difficulty** | **str**| Quiz difficulty level | [optional] [default to beginner]
+
+### Return type
+
+[**QuizQuestionResponse**](QuizQuestionResponse.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Question retrieved successfully |  -  |
+**401** | Unauthorized |  -  |
+**403** | Daily question limit reached (free tier) |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

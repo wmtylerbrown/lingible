@@ -27,8 +27,7 @@ export class BackendStack extends Construct {
   // Database resources
   public usersTable!: dynamodb.Table;
   public translationsTable!: dynamodb.Table;
-  public trendingTable!: dynamodb.Table;
-  public slangTermsTable!: dynamodb.Table;
+  public termsTable!: dynamodb.Table;
 
   // S3 resources
   public lexiconBucket!: s3.Bucket;
@@ -69,6 +68,8 @@ export class BackendStack extends Construct {
   public quizChallengeLambda!: lambda.Function;
   public quizSubmitLambda!: lambda.Function;
   public quizHistoryLambda!: lambda.Function;
+  public quizProgressLambda!: lambda.Function;
+  public quizEndLambda!: lambda.Function;
 
   // Configuration loader
   private configLoader!: ConfigLoader;
@@ -121,8 +122,7 @@ export class BackendStack extends Construct {
     this.createDatabaseTables(
       { name: config.tables.users_table.name, read_capacity: 5, write_capacity: 5 },
       { name: config.tables.translations_table.name, read_capacity: 5, write_capacity: 5 },
-      { name: config.tables.trending_table.name, read_capacity: 5, write_capacity: 5 },
-      { name: config.tables.slang_submissions_table.name, read_capacity: 5, write_capacity: 5 }
+      { name: config.tables.terms_table.name, read_capacity: 5, write_capacity: 5 }
     );
 
     // Create S3 bucket for lexicon
@@ -148,8 +148,7 @@ export class BackendStack extends Construct {
         // AWS Resources
         USERS_TABLE: config.tables.users_table.name,
         TRANSLATIONS_TABLE: config.tables.translations_table.name,
-        TRENDING_TABLE: config.tables.trending_table.name,
-        SLANG_TERMS_TABLE: config.tables.slang_submissions_table.name,
+        TERMS_TABLE: config.tables.terms_table.name,
 
         // LLM Config
         LLM_MODEL_ID: backendConfig.llm.model,
@@ -218,12 +217,10 @@ export class BackendStack extends Construct {
         resources: [
           this.usersTable.tableArn,
           this.translationsTable.tableArn,
-          this.trendingTable.tableArn,
-          this.slangTermsTable.tableArn,
+          this.termsTable.tableArn,
           `${this.usersTable.tableArn}/index/*`,
           `${this.translationsTable.tableArn}/index/*`,
-          `${this.trendingTable.tableArn}/index/*`,
-          `${this.slangTermsTable.tableArn}/index/*`,
+          `${this.termsTable.tableArn}/index/*`,
         ],
       }),
       new iam.PolicyStatement({
@@ -290,8 +287,7 @@ export class BackendStack extends Construct {
   private createDatabaseTables(
     usersTableConfig: { name: string; read_capacity: number; write_capacity: number },
     translationsTableConfig: { name: string; read_capacity: number; write_capacity: number },
-    trendingTableConfig: { name: string; read_capacity: number; write_capacity: number },
-    slangTermsTableConfig: { name: string; read_capacity: number; write_capacity: number }
+    termsTableConfig: { name: string; read_capacity: number; write_capacity: number }
   ): void {
     // Users table
     this.usersTable = new dynamodb.Table(this, 'UsersTable', {
@@ -325,53 +321,10 @@ export class BackendStack extends Construct {
       pointInTimeRecovery: true,
     });
 
-    // Trending table
-    this.trendingTable = new dynamodb.Table(this, 'TrendingTable', {
-      tableName: trendingTableConfig.name,
-      partitionKey: {
-        name: 'PK',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'SK',
-        type: dynamodb.AttributeType.STRING,
-      },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY, // For development
-      pointInTimeRecovery: true,
-    });
-
-    // Add GSI for trending terms by popularity
-    this.trendingTable.addGlobalSecondaryIndex({
-      indexName: 'PopularityIndex',
-      partitionKey: {
-        name: 'is_active',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'popularity_score',
-        type: dynamodb.AttributeType.NUMBER,
-      },
-    });
-
-    // Add GSI for trending terms by category
-    this.trendingTable.addGlobalSecondaryIndex({
-      indexName: 'CategoryPopularityIndex',
-      partitionKey: {
-        name: 'category',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'popularity_score',
-        type: dynamodb.AttributeType.NUMBER,
-      },
-    });
-
-    // Slang Terms table (unified for submissions, lexicon, quiz)
-    // Note: Using 'SlangSubmissionsTable' construct ID to match existing CloudFormation resource
-    // The table name remains lingible-slang-submissions-dev but conceptually holds slang_terms
-    this.slangTermsTable = new dynamodb.Table(this, 'SlangSubmissionsTable', {
-      tableName: slangTermsTableConfig.name,
+    // Terms table (unified for submissions, lexicon, quiz, trending)
+    // Renamed from slangTermsTable to better reflect unified purpose
+    this.termsTable = new dynamodb.Table(this, 'TermsTable', {
+      tableName: termsTableConfig.name,
       partitionKey: {
         name: 'PK',
         type: dynamodb.AttributeType.STRING,
@@ -386,7 +339,8 @@ export class BackendStack extends Construct {
     });
 
     // GSI1 - Query by status (existing functionality)
-    this.slangTermsTable.addGlobalSecondaryIndex({
+    // Optimized: INCLUDE projection for submission fields only
+    this.termsTable.addGlobalSecondaryIndex({
       indexName: 'GSI1',
       partitionKey: {
         name: 'GSI1PK',
@@ -396,20 +350,23 @@ export class BackendStack extends Construct {
         name: 'GSI1SK',
         type: dynamodb.AttributeType.STRING,
       },
-      projectionType: dynamodb.ProjectionType.ALL,
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        'submission_id', 'user_id', 'slang_term', 'meaning', 'status',
+        'created_at', 'reviewed_at', 'reviewed_by', 'example_usage',
+        'context', 'original_translation_id', 'approval_type',
+        'llm_validation_status', 'llm_confidence_score', 'llm_validation_result',
+        'approved_by', 'upvotes', 'upvoted_by', 'source'
+      ],
     });
 
     // NOTE: For prod deployment with existing table, deploy GSIs incrementally:
-    // 1. ✅ GSIs 2-5 are commented out below
-    // 2. Deploy with just GSI1
-    // 3. Uncomment GSI2, deploy
-    // 4. Uncomment GSI3, deploy
-    // 5. Uncomment GSI4, deploy
-    // 6. Uncomment GSI5, deploy
     // DynamoDB only allows one GSI creation/deletion per update
+    // Projection changes can be done incrementally (one GSI at a time)
 
     // GSI2 - Quiz queries by difficulty
-    this.slangTermsTable.addGlobalSecondaryIndex({
+    // Optimized: INCLUDE projection for quiz-relevant fields only
+    this.termsTable.addGlobalSecondaryIndex({
       indexName: 'GSI2',
       partitionKey: {
         name: 'GSI2PK',
@@ -419,11 +376,16 @@ export class BackendStack extends Construct {
         name: 'GSI2SK',
         type: dynamodb.AttributeType.STRING,
       },
-      projectionType: dynamodb.ProjectionType.ALL,
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        'slang_term', 'meaning', 'quiz_difficulty', 'quiz_category',
+        'is_quiz_eligible', 'example_usage'
+      ],
     });
 
-    // GSI3 - Category queries
-    this.slangTermsTable.addGlobalSecondaryIndex({
+    // GSI3 - Category queries (fallback only, rarely used)
+    // Optimized: KEYS_ONLY - can fetch full item if needed via GetItem
+    this.termsTable.addGlobalSecondaryIndex({
       indexName: 'GSI3',
       partitionKey: {
         name: 'GSI3PK',
@@ -433,11 +395,12 @@ export class BackendStack extends Construct {
         name: 'GSI3SK',
         type: dynamodb.AttributeType.STRING,
       },
-      projectionType: dynamodb.ProjectionType.ALL,
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
     });
 
     // GSI4 - Source queries
-    this.slangTermsTable.addGlobalSecondaryIndex({
+    // Optimized: INCLUDE projection for source/lexicon fields
+    this.termsTable.addGlobalSecondaryIndex({
       indexName: 'GSI4',
       partitionKey: {
         name: 'GSI4PK',
@@ -447,11 +410,15 @@ export class BackendStack extends Construct {
         name: 'GSI4SK',
         type: dynamodb.AttributeType.STRING,
       },
-      projectionType: dynamodb.ProjectionType.ALL,
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        'slang_term', 'meaning', 'source', 'user_id', 'created_at', 'status'
+      ],
     });
 
     // GSI5 - Quiz history queries (for user quiz history)
-    this.slangTermsTable.addGlobalSecondaryIndex({
+    // Keep ALL: Complex nested structure, used frequently
+    this.termsTable.addGlobalSecondaryIndex({
       indexName: 'GSI5',
       partitionKey: {
         name: 'GSI5PK',
@@ -462,6 +429,61 @@ export class BackendStack extends Construct {
         type: dynamodb.AttributeType.STRING,
       },
       projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // GSI6 - Quiz session lookup by session_id
+    // Keep ALL: Session has many dynamic fields, used frequently
+    this.termsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI6',
+      partitionKey: {
+        name: 'GSI6PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI6SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // GSI7 - Trending terms by popularity (merged from trending table)
+    // Optimized: INCLUDE projection for trending fields
+    this.termsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI7',
+      partitionKey: {
+        name: 'GSI7PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI7SK',
+        type: dynamodb.AttributeType.NUMBER,
+      },
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        'term', 'definition', 'category', 'popularity_score',
+        'search_count', 'translation_count', 'is_active',
+        'first_seen', 'last_updated', 'example_usage', 'origin', 'related_terms'
+      ],
+    });
+
+    // GSI8 - Trending terms by category (merged from trending table)
+    // Optimized: INCLUDE projection for trending fields
+    this.termsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI8',
+      partitionKey: {
+        name: 'GSI8PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI8SK',
+        type: dynamodb.AttributeType.NUMBER,
+      },
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        'term', 'definition', 'category', 'popularity_score',
+        'search_count', 'translation_count', 'is_active',
+        'first_seen', 'last_updated', 'example_usage', 'origin', 'related_terms'
+      ],
     });
 
   }
@@ -1074,7 +1096,7 @@ export class BackendStack extends Construct {
     // Export Lexicon Lambda
     this.exportLexiconLambda = new lambda.Function(this, 'ExportLexiconLambda', {
       functionName: `lingible-export-lexicon-${environment}`,
-      handler: 'handler.lambda_handler',
+      handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.export_lexicon_handler.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-export-lexicon',
@@ -1087,7 +1109,7 @@ export class BackendStack extends Construct {
     lambdaPolicyStatements.forEach(statement => this.exportLexiconLambda.addToRolePolicy(statement));
 
     // Grant DynamoDB read and S3 write for export Lambda
-    this.slangTermsTable.grantReadData(this.exportLexiconLambda);
+    this.termsTable.grantReadData(this.exportLexiconLambda);
     this.lexiconBucket.grantWrite(this.exportLexiconLambda);
 
     // Subscribe export lexicon to slang submissions topic (only approval events)
@@ -1104,7 +1126,7 @@ export class BackendStack extends Construct {
     // Quiz Challenge Lambda
     this.quizChallengeLambda = new lambda.Function(this, 'QuizChallengeLambda', {
       functionName: `lingible-quiz-challenge-${environment}`,
-      handler: 'handler.lambda_handler',
+      handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.quiz_challenge_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-quiz-challenge',
@@ -1118,7 +1140,7 @@ export class BackendStack extends Construct {
     // Quiz Submit Lambda
     this.quizSubmitLambda = new lambda.Function(this, 'QuizSubmitLambda', {
       functionName: `lingible-quiz-submit-${environment}`,
-      handler: 'handler.lambda_handler',
+      handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.quiz_submit_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-quiz-submit',
@@ -1132,7 +1154,7 @@ export class BackendStack extends Construct {
     // Quiz History Lambda
     this.quizHistoryLambda = new lambda.Function(this, 'QuizHistoryLambda', {
       functionName: `lingible-quiz-history-${environment}`,
-      handler: 'handler.lambda_handler',
+      handler: 'handler.handler',
       code: this.createHandlerPackage('src.handlers.quiz_history_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-quiz-history',
@@ -1142,6 +1164,34 @@ export class BackendStack extends Construct {
       ...lambdaConfig,
     });
     lambdaPolicyStatements.forEach(statement => this.quizHistoryLambda.addToRolePolicy(statement));
+
+    // Quiz Progress Lambda (stateless API)
+    this.quizProgressLambda = new lambda.Function(this, 'QuizProgressLambda', {
+      functionName: `lingible-quiz-progress-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.quiz_progress_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-quiz-progress',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.coreLayer, this.sharedLayer],
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.quizProgressLambda.addToRolePolicy(statement));
+
+    // Quiz End Lambda (stateless API)
+    this.quizEndLambda = new lambda.Function(this, 'QuizEndLambda', {
+      functionName: `lingible-quiz-end-${environment}`,
+      handler: 'handler.handler',
+      code: this.createHandlerPackage('src.handlers.quiz_end_api.handler'),
+      environment: {
+        POWERTOOLS_SERVICE_NAME: 'lingible-quiz-end',
+        ...baseEnvironmentVariables,
+      },
+      layers: [this.coreLayer, this.sharedLayer],
+      ...lambdaConfig,
+    });
+    lambdaPolicyStatements.forEach(statement => this.quizEndLambda.addToRolePolicy(statement));
 
     // Webhook Handlers
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
@@ -1768,9 +1818,10 @@ export class BackendStack extends Construct {
     // Quiz endpoints
     const quiz = this.api.root.addResource('quiz');
 
-    // Quiz challenge endpoint
-    const challenge = quiz.addResource('challenge');
-    challenge.addMethod('GET', new apigateway.LambdaIntegration(this.quizChallengeLambda), {
+    // Stateless API endpoints (new - recommended)
+    // GET /quiz/question - Get next question
+    const question = quiz.addResource('question');
+    question.addMethod('GET', new apigateway.LambdaIntegration(this.quizChallengeLambda), {
       authorizer: cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
@@ -1780,12 +1831,18 @@ export class BackendStack extends Construct {
             'application/json': apigateway.Model.EMPTY_MODEL,
           },
         },
+        {
+          statusCode: '403',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
       ],
     });
 
-    // Quiz submit endpoint
-    const submitQuiz = quiz.addResource('submit');
-    submitQuiz.addMethod('POST', new apigateway.LambdaIntegration(this.quizSubmitLambda), {
+    // POST /quiz/answer - Submit answer for one question
+    const answer = quiz.addResource('answer');
+    answer.addMethod('POST', new apigateway.LambdaIntegration(this.quizSubmitLambda), {
       authorizer: cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
       methodResponses: [
@@ -1793,6 +1850,54 @@ export class BackendStack extends Construct {
           statusCode: '200',
           responseModels: {
             'application/json': apigateway.Model.EMPTY_MODEL,
+          },
+        },
+        {
+          statusCode: '400',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
+    // GET /quiz/progress - Get session progress
+    const progress = quiz.addResource('progress');
+    progress.addMethod('GET', new apigateway.LambdaIntegration(this.quizProgressLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': apigateway.Model.EMPTY_MODEL,
+          },
+        },
+        {
+          statusCode: '400',
+          responseModels: {
+            'application/json': errorModel,
+          },
+        },
+      ],
+    });
+
+    // POST /quiz/end - End quiz session
+    const endQuiz = quiz.addResource('end');
+    endQuiz.addMethod('POST', new apigateway.LambdaIntegration(this.quizEndLambda), {
+      authorizer: cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseModels: {
+            'application/json': apigateway.Model.EMPTY_MODEL,
+          },
+        },
+        {
+          statusCode: '400',
+          responseModels: {
+            'application/json': errorModel,
           },
         },
       ],

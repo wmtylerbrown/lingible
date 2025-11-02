@@ -1,8 +1,8 @@
 """Repository for slang term data operations (submissions, lexicon, quiz)."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Dict, Any
 from decimal import Decimal
 
 from models.slang import (
@@ -26,7 +26,7 @@ class SlangTermRepository:
     def __init__(self) -> None:
         """Initialize slang term repository."""
         self.config_service = get_config_service()
-        self.table_name = self.config_service._get_env_var("SLANG_TERMS_TABLE")
+        self.table_name = self.config_service._get_env_var("TERMS_TABLE")
         self.table = aws_services.get_table(self.table_name)
 
     def generate_submission_id(self) -> str:
@@ -202,7 +202,12 @@ class SlangTermRepository:
         status: SlangSubmissionStatus,
         approval_type: ApprovalType,
     ) -> bool:
-        """Update submission approval status."""
+        """Update submission approval status.
+
+        When approving a submission, also sets:
+        - Attestation fields (first_attested = submission date)
+        - Quiz eligibility fields (difficulty, category, GSI2PK/GSI2SK)
+        """
         try:
             # Find the submission item
             response = self.table.scan(
@@ -215,18 +220,99 @@ class SlangTermRepository:
 
             item = response["Items"][0]
 
-            # Update status fields
+            # Base update expression for status change
+            update_expression = "SET #status = :status, approval_type = :approval_type, reviewed_at = :timestamp, reviewed_by = :reviewer, GSI1PK = :gsi1pk"
+            expression_values: Dict[str, Any] = {
+                ":status": str(status),
+                ":approval_type": str(approval_type),
+                ":timestamp": datetime.now(timezone.utc).isoformat(),
+                ":reviewer": "system",
+                ":gsi1pk": f"STATUS#{status}",
+            }
+
+            # If approving, set attestation and quiz eligibility fields
+            if status in [
+                SlangSubmissionStatus.AUTO_APPROVED,
+                SlangSubmissionStatus.ADMIN_APPROVED,
+            ]:
+                from models.quiz import QuizDifficulty, QuizCategory
+
+                # Extract submission date for attestation (use created_at, fallback to now)
+                submission_date = item.get(
+                    "created_at", datetime.now(timezone.utc).isoformat()
+                )
+                first_attested = submission_date[:10]  # Extract YYYY-MM-DD
+
+                # Estimate difficulty based on LLM confidence (if available)
+                llm_validation_result = item.get("llm_validation_result")
+                if llm_validation_result:
+                    # Validation result is stored as a dict with confidence as Decimal or float
+                    confidence_value = llm_validation_result.get("confidence")
+                    if isinstance(confidence_value, dict):
+                        # DynamoDB Decimal format
+                        confidence_float = float(confidence_value.get("N", 0.85))
+                    elif confidence_value is not None:
+                        from decimal import Decimal
+
+                        if isinstance(confidence_value, Decimal):
+                            confidence_float = float(confidence_value)
+                        else:
+                            confidence_float = float(confidence_value)
+                    else:
+                        confidence_float = 0.85
+                else:
+                    # Fallback to llm_confidence_score if validation_result not available
+                    llm_confidence_score = item.get("llm_confidence_score")
+                    if llm_confidence_score:
+                        from decimal import Decimal
+
+                        if isinstance(llm_confidence_score, Decimal):
+                            confidence_float = float(llm_confidence_score)
+                        else:
+                            confidence_float = float(llm_confidence_score)
+                    else:
+                        confidence_float = 0.85  # Default confidence
+
+                # Estimate difficulty (same logic as migrate_lexicon)
+                momentum = 1.0  # Default for user submissions
+                combined_score = confidence_float * momentum
+                if combined_score >= 0.9:
+                    difficulty = QuizDifficulty.BEGINNER
+                elif combined_score >= 0.7:
+                    difficulty = QuizDifficulty.INTERMEDIATE
+                else:
+                    difficulty = QuizDifficulty.ADVANCED
+
+                # Map category (user submissions default to GENERAL unless we can infer from meaning)
+                category = QuizCategory.GENERAL
+
+                # Build GSI2SK with date prioritization (same format as migration)
+                # Format: {YYYYMMDD:08d}#{confidence:04d}#{term}
+                reverse_date = int(first_attested.replace("-", ""))
+                confidence_score = int(confidence_float * 100)
+                gsi2sk = f"{reverse_date:08d}#{confidence_score:04d}#{item.get('slang_term', '')}"
+
+                # Add attestation fields
+                update_expression += ", first_attested = :first_attested, first_attested_confidence = :first_attested_confidence"
+                expression_values[":first_attested"] = first_attested
+                expression_values[":first_attested_confidence"] = (
+                    "medium"  # Default for user submissions
+                )
+
+                # Add quiz eligibility fields
+                update_expression += ", is_quiz_eligible = :is_quiz_eligible, quiz_difficulty = :quiz_difficulty, quiz_category = :quiz_category, GSI2PK = :gsi2pk, GSI2SK = :gsi2sk"
+                expression_values[":is_quiz_eligible"] = True
+                expression_values[":quiz_difficulty"] = str(difficulty)
+                expression_values[":quiz_category"] = str(category)
+                expression_values[":gsi2pk"] = f"QUIZ#{difficulty}"
+                expression_values[":gsi2sk"] = gsi2sk
+
+            # Update the item
             self.table.update_item(
                 Key={"PK": item["PK"], "SK": item["SK"]},
-                UpdateExpression="SET #status = :status, approval_type = :approval_type, reviewed_at = :timestamp, reviewed_by = :reviewer, GSI1PK = :gsi1pk",
+                UpdateExpression=update_expression,
                 ExpressionAttributeNames={"#status": "status"},
-                ExpressionAttributeValues={
-                    ":status": str(status),
-                    ":approval_type": str(approval_type),
-                    ":timestamp": datetime.now(timezone.utc).isoformat(),
-                    ":reviewer": "system",
-                    ":gsi1pk": f"STATUS#{status}",
-                },
+                ExpressionAttributeValues=expression_values,
             )
             return True
 
@@ -448,14 +534,23 @@ class SlangTermRepository:
     def get_quiz_eligible_terms(
         self, difficulty: QuizDifficulty, limit: int = 10, exclude_terms: List[str] = []
     ) -> List[dict]:
-        """Get quiz-eligible terms by difficulty (GSI2)."""
+        """Get quiz-eligible terms by difficulty (GSI2).
+
+        Terms are sorted by:
+        1. first_attested date (newest first)
+        2. confidence score (higher first, within same date)
+        3. term name (lexicographic, within same date+confidence)
+
+        This prioritizes newer slang terms while maintaining popularity-based
+        selection within the same time period.
+        """
         try:
             response = self.table.query(
                 IndexName="GSI2",
                 KeyConditionExpression="GSI2PK = :difficulty",
                 ExpressionAttributeValues={":difficulty": f"QUIZ#{difficulty}"},
                 Limit=limit * 2,  # Get extras to filter out excluded terms
-                ScanIndexForward=False,  # Sort by popularity (descending)
+                ScanIndexForward=False,  # Descending: newer dates + higher confidence first
             )
 
             items = response.get("Items", [])
@@ -485,7 +580,11 @@ class SlangTermRepository:
 
     @tracer.trace_database_operation("query", "category_terms")
     def get_terms_by_category(self, category: str, limit: int = 50) -> List[dict]:
-        """Get terms by category (GSI3)."""
+        """Get terms by category (GSI3).
+
+        Note: GSI3 uses KEYS_ONLY projection, so we fetch full items via GetItem
+        for each result if meaning/slang_term fields are needed.
+        """
         try:
             response = self.table.query(
                 IndexName="GSI3",
@@ -493,7 +592,23 @@ class SlangTermRepository:
                 ExpressionAttributeValues={":category": f"CATEGORY#{category}"},
                 Limit=limit,
             )
-            return response.get("Items", [])
+            items = response.get("Items", [])
+
+            # GSI3 is KEYS_ONLY projection, so always fetch full items
+            # For fallback wrong answer generation, we need meaning and slang_term
+            full_items = []
+            for item in items:
+                # KEYS_ONLY only returns PK and SK, so always fetch full item
+                full_item = self.table.get_item(
+                    Key={
+                        "PK": item["PK"],
+                        "SK": item["SK"],
+                    }
+                ).get("Item")
+                if full_item:
+                    full_items.append(full_item)
+
+            return full_items
         except Exception as e:
             logger.log_error(
                 e,
@@ -740,6 +855,275 @@ class SlangTermRepository:
                 "total_questions": 0,
                 "accuracy_rate": 0.0,
             }
+
+    # ===== Quiz Session Methods (NEW) =====
+
+    @tracer.trace_database_operation("create", "quiz_session")
+    def create_quiz_session(
+        self,
+        session_id: str,
+        user_id: str,
+        difficulty: str,
+    ) -> bool:
+        """Create a new quiz session."""
+        try:
+            now = datetime.now(timezone.utc)
+            expires_at = int((now + timedelta(hours=24)).timestamp())
+
+            item = {
+                "PK": f"USER#{user_id}",
+                "SK": f"SESSION#{session_id}",
+                "session_id": session_id,
+                "user_id": user_id,
+                "difficulty": difficulty,
+                "questions_answered": 0,
+                "correct_count": 0,
+                "total_score": 0.0,
+                "started_at": now.isoformat(),
+                "last_activity": now.isoformat(),
+                "status": "active",
+                "correct_answers": {},
+                "term_names": {},
+                "used_wrong_options": [],
+                "expires_at": expires_at,  # TTL for auto-cleanup
+                # GSI6 for session lookup by session_id
+                "GSI6PK": f"SESSION#{session_id}",
+                "GSI6SK": now.isoformat(),
+            }
+
+            self.table.put_item(Item=item)
+            return True
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {
+                    "operation": "create_quiz_session",
+                    "session_id": session_id,
+                    "user_id": user_id,
+                },
+            )
+            return False
+
+    @tracer.trace_database_operation("get", "quiz_session")
+    def get_quiz_session(self, session_id: str) -> Optional[dict]:
+        """Get quiz session by session_id."""
+        try:
+            # Use GSI6 to lookup by session_id
+            response = self.table.query(
+                IndexName="GSI6",
+                KeyConditionExpression="GSI6PK = :session_pk",
+                ExpressionAttributeValues={":session_pk": f"SESSION#{session_id}"},
+                Limit=1,
+            )
+
+            items = response.get("Items", [])
+            if items:
+                return items[0]
+            return None
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "get_quiz_session", "session_id": session_id},
+            )
+            return None
+
+    @tracer.trace_database_operation("get", "active_quiz_session")
+    def get_active_quiz_session(self, user_id: str) -> Optional[dict]:
+        """Get active quiz session for a user."""
+        try:
+            response = self.table.query(
+                KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+                FilterExpression="#status = :active",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":pk": f"USER#{user_id}",
+                    ":sk_prefix": "SESSION#",
+                    ":active": "active",
+                },
+            )
+
+            items = response.get("Items", [])
+            # Get most recent active session
+            if items:
+                # Sort by last_activity descending
+                items.sort(key=lambda x: x.get("last_activity", ""), reverse=True)
+                session = items[0]
+
+                # Check if expired (> 15 minutes)
+                last_activity = datetime.fromisoformat(
+                    session.get("last_activity", datetime.now(timezone.utc).isoformat())
+                )
+                if (
+                    datetime.now(timezone.utc) - last_activity
+                ).total_seconds() > 900:  # 15 minutes
+                    # Mark as expired
+                    self.update_quiz_session(
+                        session_id=session["session_id"], status="expired"
+                    )
+                    return None
+
+                return session
+            return None
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "get_active_quiz_session", "user_id": user_id},
+            )
+            return None
+
+    @tracer.trace_database_operation("update", "quiz_session")
+    def update_quiz_session(
+        self,
+        session_id: str,
+        questions_answered: Optional[int] = None,
+        correct_count: Optional[int] = None,
+        total_score: Optional[float] = None,
+        correct_answers: Optional[Dict[str, str]] = None,
+        term_names: Optional[Dict[str, str]] = None,
+        used_wrong_options: Optional[List[str]] = None,
+        status: Optional[str] = None,
+        update_last_activity: bool = True,
+    ) -> bool:
+        """Update quiz session."""
+        try:
+            now = datetime.now(timezone.utc)
+
+            # Build update expression
+            update_expr_parts = []
+            expr_attr_values: Dict[str, Any] = {}
+            expr_attr_names: Dict[str, str] = {}
+
+            if questions_answered is not None:
+                update_expr_parts.append("questions_answered = :qa")
+                expr_attr_values[":qa"] = questions_answered
+
+            if correct_count is not None:
+                update_expr_parts.append("correct_count = :cc")
+                expr_attr_values[":cc"] = correct_count
+
+            if total_score is not None:
+                update_expr_parts.append("total_score = :ts")
+                expr_attr_values[":ts"] = total_score
+
+            if correct_answers is not None:
+                update_expr_parts.append("correct_answers = :ca")
+                expr_attr_values[":ca"] = correct_answers
+
+            if term_names is not None:
+                update_expr_parts.append("term_names = :tn")
+                expr_attr_values[":tn"] = term_names
+
+            if used_wrong_options is not None:
+                update_expr_parts.append("used_wrong_options = :uwo")
+                expr_attr_values[":uwo"] = used_wrong_options
+
+            if status is not None:
+                update_expr_parts.append("#status = :status")
+                expr_attr_names["#status"] = "status"
+                expr_attr_values[":status"] = status
+
+            if update_last_activity:
+                update_expr_parts.append("last_activity = :la")
+                expr_attr_values[":la"] = now.isoformat()
+
+            if not update_expr_parts:
+                return True  # Nothing to update
+
+            # Get session to find PK/SK
+            session = self.get_quiz_session(session_id)
+            if not session:
+                return False
+
+            update_expr = "SET " + ", ".join(update_expr_parts)
+
+            update_params = {
+                "Key": {"PK": session["PK"], "SK": session["SK"]},
+                "UpdateExpression": update_expr,
+                "ExpressionAttributeValues": expr_attr_values,
+            }
+
+            if expr_attr_names:
+                update_params["ExpressionAttributeNames"] = expr_attr_names
+
+            self.table.update_item(**update_params)
+            return True
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "update_quiz_session", "session_id": session_id},
+            )
+            return False
+
+    @tracer.trace_database_operation("delete", "quiz_session")
+    def delete_quiz_session(self, session_id: str) -> bool:
+        """Delete quiz session."""
+        try:
+            session = self.get_quiz_session(session_id)
+            if not session:
+                return False
+
+            self.table.delete_item(Key={"PK": session["PK"], "SK": session["SK"]})
+            return True
+
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "delete_quiz_session", "session_id": session_id},
+            )
+            return False
+
+    # ===== Wrong Answer Pool Methods =====
+
+    @tracer.trace_database_operation("get", "wrong_answer_pool")
+    def get_wrong_answer_pool(self, category: str) -> Optional[List[str]]:
+        """Get wrong answer pool for a category."""
+        try:
+            response = self.table.get_item(
+                Key={
+                    "PK": f"QUIZPOOL#{category}",
+                    "SK": f"CATEGORY#{category}",
+                }
+            )
+            item = response.get("Item")
+            if item:
+                return item.get("pool", [])
+            return None
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "get_wrong_answer_pool", "category": category},
+            )
+            return None
+
+    @tracer.trace_database_operation("create", "wrong_answer_pool")
+    def create_wrong_answer_pool(self, category: str, pool: List[str]) -> bool:
+        """Create or update wrong answer pool for a category."""
+        try:
+            item = {
+                "PK": f"QUIZPOOL#{category}",
+                "SK": f"CATEGORY#{category}",
+                "category": category,
+                "pool": pool,
+                "pool_size": len(pool),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            self.table.put_item(Item=item)
+            logger.log_debug(
+                "Wrong answer pool created",
+                {"category": category, "pool_size": len(pool)},
+            )
+            return True
+        except Exception as e:
+            logger.log_error(
+                e,
+                {"operation": "create_wrong_answer_pool", "category": category},
+            )
+            return False
 
     # ===== Export Methods (NEW) =====
 

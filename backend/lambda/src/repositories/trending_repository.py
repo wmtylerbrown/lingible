@@ -17,7 +17,7 @@ class TrendingRepository:
     def __init__(self) -> None:
         """Initialize trending repository."""
         self.config_service = get_config_service()
-        self.table_name = self.config_service._get_env_var("TRENDING_TABLE")
+        self.table_name = self.config_service._get_env_var("TERMS_TABLE")
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "trending")
@@ -25,8 +25,8 @@ class TrendingRepository:
         """Create a new trending term record."""
         try:
             item = {
-                "PK": f"TRENDING#{term.term.upper()}",
-                "SK": "TERM",
+                "PK": f"TERM#{term.term.lower()}",
+                "SK": "METADATA#trending",
                 "term": term.term,
                 "definition": term.definition,
                 "category": term.category,
@@ -42,6 +42,11 @@ class TrendingRepository:
                 "ttl": int(
                     datetime.now(timezone.utc).timestamp() + (90 * 24 * 60 * 60)
                 ),  # 90 days TTL for trending data
+                # GSI fields for trending queries
+                "GSI7PK": f"TRENDING#{str(term.is_active)}",
+                "GSI7SK": term.popularity_score,
+                "GSI8PK": f"TRENDING#{term.category}",
+                "GSI8SK": term.popularity_score,
             }
 
             # Remove None values
@@ -66,8 +71,8 @@ class TrendingRepository:
         try:
             response = self.table.get_item(
                 Key={
-                    "PK": f"TRENDING#{term.upper()}",
-                    "SK": "TERM",
+                    "PK": f"TERM#{term.lower()}",
+                    "SK": "METADATA#trending",
                 }
             )
 
@@ -105,8 +110,8 @@ class TrendingRepository:
         """Update trending term record."""
         try:
             item = {
-                "PK": f"TRENDING#{term.term.upper()}",
-                "SK": "TERM",
+                "PK": f"TERM#{term.term.lower()}",
+                "SK": "METADATA#trending",
                 "term": term.term,
                 "definition": term.definition,
                 "category": term.category,
@@ -119,6 +124,11 @@ class TrendingRepository:
                 "example_usage": term.example_usage,
                 "origin": term.origin,
                 "related_terms": term.related_terms,
+                # GSI fields for trending queries
+                "GSI7PK": f"TRENDING#{str(term.is_active)}",
+                "GSI7SK": term.popularity_score,
+                "GSI8PK": f"TRENDING#{term.category}",
+                "GSI8SK": term.popularity_score,
             }
 
             # Remove None values
@@ -147,18 +157,19 @@ class TrendingRepository:
         """Get list of trending terms with optional filtering."""
         try:
             # Use GSI for querying by category and popularity
+            # GSI7: by is_active (popularity), GSI8: by category (popularity)
             if category:
-                index_name = "CategoryPopularityIndex"
-                key_condition = "category = :category"
-                expression_values: dict = {":category": category}
+                index_name = "GSI8"
+                key_condition = "GSI8PK = :category"
+                expression_values: dict = {":category": f"TRENDING#{category}"}
                 # Add filter for active terms when using category index
                 if active_only:
                     filter_expression = "is_active = :is_active"
                     expression_values[":is_active"] = str(active_only)
             else:
-                index_name = "PopularityIndex"
-                key_condition = "is_active = :is_active"
-                expression_values = {":is_active": str(active_only)}
+                index_name = "GSI7"
+                key_condition = "GSI7PK = :is_active"
+                expression_values = {":is_active": f"TRENDING#{str(active_only)}"}
                 filter_expression = None
 
             query_params = {
@@ -219,16 +230,34 @@ class TrendingRepository:
     def increment_search_count(self, term: str) -> bool:
         """Increment search count for a trending term."""
         try:
+            # First get the term to know its is_active and category for GSI updates
+            existing_term = self.get_trending_term(term)
+            if not existing_term:
+                logger.log_warning(
+                    f"Cannot increment search count for non-existent term: {term}"
+                )
+                return False
+
+            # Update item with GSI fields
             self.table.update_item(
                 Key={
-                    "PK": f"TRENDING#{term.upper()}",
-                    "SK": "TERM",
+                    "PK": f"TERM#{term.lower()}",
+                    "SK": "METADATA#trending",
                 },
-                UpdateExpression="SET search_count = if_not_exists(search_count, :zero) + :one, last_updated = :updated_at",
+                UpdateExpression=(
+                    "SET search_count = if_not_exists(search_count, :zero) + :one, "
+                    "last_updated = :updated_at, "
+                    "GSI7PK = :gsi7pk, GSI7SK = :gsi7sk, "
+                    "GSI8PK = :gsi8pk, GSI8SK = :gsi8sk"
+                ),
                 ExpressionAttributeValues={
                     ":zero": 0,
                     ":one": 1,
                     ":updated_at": datetime.now(timezone.utc).isoformat(),
+                    ":gsi7pk": f"TRENDING#{str(existing_term.is_active)}",
+                    ":gsi7sk": existing_term.popularity_score,
+                    ":gsi8pk": f"TRENDING#{existing_term.category}",
+                    ":gsi8sk": existing_term.popularity_score,
                 },
             )
             return True
@@ -247,16 +276,34 @@ class TrendingRepository:
     def increment_translation_count(self, term: str) -> bool:
         """Increment translation count for a trending term."""
         try:
+            # First get the term to know its is_active and category for GSI updates
+            existing_term = self.get_trending_term(term)
+            if not existing_term:
+                logger.log_warning(
+                    f"Cannot increment translation count for non-existent term: {term}"
+                )
+                return False
+
+            # Update item with GSI fields
             self.table.update_item(
                 Key={
-                    "PK": f"TRENDING#{term.upper()}",
-                    "SK": "TERM",
+                    "PK": f"TERM#{term.lower()}",
+                    "SK": "METADATA#trending",
                 },
-                UpdateExpression="SET translation_count = if_not_exists(translation_count, :zero) + :one, last_updated = :updated_at",
+                UpdateExpression=(
+                    "SET translation_count = if_not_exists(translation_count, :zero) + :one, "
+                    "last_updated = :updated_at, "
+                    "GSI7PK = :gsi7pk, GSI7SK = :gsi7sk, "
+                    "GSI8PK = :gsi8pk, GSI8SK = :gsi8sk"
+                ),
                 ExpressionAttributeValues={
                     ":zero": 0,
                     ":one": 1,
                     ":updated_at": datetime.now(timezone.utc).isoformat(),
+                    ":gsi7pk": f"TRENDING#{str(existing_term.is_active)}",
+                    ":gsi7sk": existing_term.popularity_score,
+                    ":gsi8pk": f"TRENDING#{existing_term.category}",
+                    ":gsi8sk": existing_term.popularity_score,
                 },
             )
             return True
@@ -277,9 +324,9 @@ class TrendingRepository:
         try:
             # Get total count of active trending terms
             response = self.table.query(
-                IndexName="PopularityIndex",
-                KeyConditionExpression="is_active = :is_active",
-                ExpressionAttributeValues={":is_active": "True"},
+                IndexName="GSI7",
+                KeyConditionExpression="GSI7PK = :is_active",
+                ExpressionAttributeValues={":is_active": "TRENDING#True"},
                 Select="COUNT",
             )
 
@@ -289,11 +336,11 @@ class TrendingRepository:
             category_counts = {}
             for category in TrendingCategory:
                 response = self.table.query(
-                    IndexName="CategoryPopularityIndex",
-                    KeyConditionExpression="category = :category",
+                    IndexName="GSI8",
+                    KeyConditionExpression="GSI8PK = :category",
                     FilterExpression="is_active = :is_active",
                     ExpressionAttributeValues={
-                        ":category": category,
+                        ":category": f"TRENDING#{category}",
                         ":is_active": "True",
                     },
                     Select="COUNT",
@@ -323,8 +370,8 @@ class TrendingRepository:
         try:
             self.table.delete_item(
                 Key={
-                    "PK": f"TRENDING#{term.upper()}",
-                    "SK": "TERM",
+                    "PK": f"TERM#{term.lower()}",
+                    "SK": "METADATA#trending",
                 }
             )
 

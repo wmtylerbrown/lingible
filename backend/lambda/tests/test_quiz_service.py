@@ -1,18 +1,19 @@
 """Tests for QuizService."""
 
 import pytest
+import json
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone, timedelta
 
-from models.quiz import (
-    QuizChallengeRequest,
-    QuizSubmissionRequest,
-    QuizAnswer,
+from src.models.quiz import (
     QuizDifficulty,
-    ChallengeType,
+    QuizQuestionResponse,
+    QuizAnswerRequest,
+    QuizAnswerResponse,
+    QuizSessionProgress,
 )
-from models.users import UserTier
-from utils.exceptions import ValidationError, InsufficientPermissionsError
+from src.models.users import UserTier
+from src.utils.exceptions import ValidationError, InsufficientPermissionsError
 
 
 class TestQuizService:
@@ -42,7 +43,20 @@ class TestQuizService:
                     mock_user_service = Mock()
                     mock_user_service_class.return_value = mock_user_service
 
+                    # Mock wrong answer pools for all categories
+                    from models.quiz import QuizCategory
+
+                    def mock_get_pool(category: str):
+                        """Return mock pool for any category."""
+                        return ["Bad", "Okay", "Average", "Terrible", "Awful", "Good", "Great", "Perfect"]
+
+                    mock_repo.get_wrong_answer_pool = mock_get_pool
+
+                    # Reset pool state for fresh test run
                     from services.quiz_service import QuizService
+                    QuizService._wrong_answer_pools = {}
+                    QuizService._pools_loaded = False
+
                     service = QuizService()
                     service.repository = mock_repo
                     service.user_service = mock_user_service
@@ -72,7 +86,6 @@ class TestQuizService:
                 "is_quiz_eligible": True,
                 "quiz_difficulty": "beginner",
                 "quiz_category": "approval",
-                "quiz_wrong_options": ["Bad", "Okay", "Average"],
                 "example_usage": "That pizza was bussin!",
             },
             {
@@ -81,7 +94,6 @@ class TestQuizService:
                 "is_quiz_eligible": True,
                 "quiz_difficulty": "beginner",
                 "quiz_category": "disapproval",
-                "quiz_wrong_options": ["Truth", "Fact", "Real"],
                 "example_usage": "That's cap!",
             }
         ]
@@ -143,63 +155,11 @@ class TestQuizService:
         assert "limit" in result.reason.lower()
         assert "upgrade" in result.reason.lower()
 
-    def test_generate_challenge_success(self, mock_quiz_service, premium_user_profile, sample_quiz_terms):
-        """Test successful challenge generation."""
-        mock_quiz_service.user_service.get_user_profile.return_value = premium_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 1
-        mock_quiz_service.repository.get_user_quiz_stats.return_value = {"total_quizzes": 5}
-        mock_quiz_service.repository.get_quiz_eligible_terms.return_value = sample_quiz_terms
-
-        request = QuizChallengeRequest(
-            difficulty=QuizDifficulty.BEGINNER,
-            challenge_type=ChallengeType.MULTIPLE_CHOICE,
-            question_count=2
-        )
-
-        result = mock_quiz_service.generate_challenge("user_123", request)
-
-        assert result.challenge_id.startswith("quiz_")
-        assert len(result.questions) == 2
-        assert result.difficulty == QuizDifficulty.BEGINNER
-        assert result.challenge_type == ChallengeType.MULTIPLE_CHOICE
-        assert result.time_limit_seconds == 60
-
-    def test_generate_challenge_insufficient_terms(self, mock_quiz_service, premium_user_profile):
-        """Test challenge generation fails when insufficient terms available."""
-        mock_quiz_service.user_service.get_user_profile.return_value = premium_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 1
-        mock_quiz_service.repository.get_user_quiz_stats.return_value = {"total_quizzes": 5}
-        mock_quiz_service.repository.get_quiz_eligible_terms.return_value = []  # No terms
-
-        request = QuizChallengeRequest(
-            difficulty=QuizDifficulty.BEGINNER,
-            challenge_type=ChallengeType.MULTIPLE_CHOICE,
-            question_count=10
-        )
-
-        with pytest.raises(ValidationError, match="Not enough terms available"):
-            mock_quiz_service.generate_challenge("user_123", request)
-
-    def test_generate_challenge_not_eligible(self, mock_quiz_service, free_user_profile):
-        """Test challenge generation fails when user not eligible."""
-        mock_quiz_service.user_service.get_user_profile.return_value = free_user_profile
-        mock_quiz_service.repository.get_daily_quiz_count.return_value = 5  # Over limit
-        mock_quiz_service.repository.get_user_quiz_stats.return_value = {"total_quizzes": 10}
-
-        request = QuizChallengeRequest(
-            difficulty=QuizDifficulty.BEGINNER,
-            challenge_type=ChallengeType.MULTIPLE_CHOICE,
-            question_count=10
-        )
-
-        with pytest.raises(InsufficientPermissionsError):
-            mock_quiz_service.generate_challenge("user_123", request)
-
     def test_format_multiple_choice_question(self, mock_quiz_service, sample_quiz_terms):
         """Test formatting term as multiple choice question."""
         term = sample_quiz_terms[0]  # "bussin"
 
-        question, correct_option = mock_quiz_service._format_multiple_choice(term)
+        question, correct_option = mock_quiz_service._format_multiple_choice(term, set())
 
         assert question.slang_term == "bussin"
         assert question.question_text == "What does 'bussin' mean?"
@@ -219,7 +179,7 @@ class TestQuizService:
         }
         existing = ["Bad", "Okay"]
 
-        result = mock_quiz_service._generate_wrong_options(term, existing)
+        result = mock_quiz_service._generate_wrong_options(term, set(existing), existing=existing)
 
         assert len(result) == 3
         assert "Bad" in result
@@ -234,233 +194,320 @@ class TestQuizService:
             "meaning": "Really good",
         }
 
-        result = mock_quiz_service._generate_wrong_options(term)
+        result = mock_quiz_service._generate_wrong_options(term, set(), existing=[])
 
         assert len(result) == 3
         assert "Really good" not in result
         # Should include generic options
         assert any(opt in result for opt in ["Bad", "Okay", "Average"])
 
-    def test_submit_quiz_success(self, mock_quiz_service):
-        """Test successful quiz submission."""
-        challenge_id = "quiz_123"
-        user_id = "user_456"
+    # ===== Stateless API Tests =====
 
-        # Mock active challenge
-        mock_quiz_service._active_challenges[challenge_id] = {
-            "user_id": user_id,
-            "correct_answers": {"q1": "a", "q2": "b"},
-            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
-            "terms": {"q1": "bussin", "q2": "cap"},
-            "difficulty": "beginner"
-        }
-
-        # Mock repository methods
-        mock_quiz_service.repository.save_quiz_result.return_value = True
-        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 2
-        mock_quiz_service.repository.get_term_by_slang.side_effect = [
-            {"meaning": "Really good"},
-            {"meaning": "Lie"}
-        ]
-
-        submission = QuizSubmissionRequest(
-            challenge_id=challenge_id,
-            answers=[
-                QuizAnswer(question_id="q1", selected="a"),
-                QuizAnswer(question_id="q2", selected="b")
-            ],
-            time_taken_seconds=45
-        )
-
-        result = mock_quiz_service.submit_quiz(user_id, submission)
-
-        assert result.challenge_id == challenge_id
-        assert result.correct_count == 2
-        assert result.total_questions == 2
-        assert result.score == 20  # 2 correct * 10 points + time bonus
-        assert len(result.results) == 2
-        assert result.results[0].is_correct is True
-
-    def test_submit_quiz_invalid_challenge(self, mock_quiz_service):
-        """Test quiz submission with invalid challenge ID."""
-        submission = QuizSubmissionRequest(
-            challenge_id="invalid_challenge",
-            answers=[],
-            time_taken_seconds=45
-        )
-
-        with pytest.raises(ValidationError, match="Invalid or expired challenge"):
-            mock_quiz_service.submit_quiz("user_123", submission)
-
-    def test_submit_quiz_wrong_user(self, mock_quiz_service):
-        """Test quiz submission with wrong user."""
-        challenge_id = "quiz_123"
-
-        # Mock active challenge for different user
-        mock_quiz_service._active_challenges[challenge_id] = {
-            "user_id": "other_user",
-            "correct_answers": {},
-            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
-            "terms": {},
-            "difficulty": "beginner"
-        }
-
-        submission = QuizSubmissionRequest(
-            challenge_id=challenge_id,
-            answers=[],
-            time_taken_seconds=45
-        )
-
-        with pytest.raises(ValidationError, match="does not belong to this user"):
-            mock_quiz_service.submit_quiz("user_123", submission)
-
-    def test_submit_quiz_expired_challenge(self, mock_quiz_service):
-        """Test quiz submission with expired challenge."""
-        challenge_id = "quiz_123"
-
-        # Mock expired challenge
-        mock_quiz_service._active_challenges[challenge_id] = {
+    def test_get_next_question_creates_session(self, mock_quiz_service, premium_user_profile, sample_quiz_terms):
+        """Test get_next_question creates new session when none exists."""
+        mock_quiz_service.user_service.get_user.return_value = premium_user_profile
+        mock_quiz_service.repository.get_daily_quiz_count.return_value = 1
+        mock_quiz_service.repository.get_active_quiz_session.return_value = None  # No active session
+        mock_quiz_service.repository.create_quiz_session.return_value = True
+        mock_quiz_service.repository.get_quiz_session.return_value = {
+            "session_id": "session_123",
             "user_id": "user_123",
+            "difficulty": "beginner",
+            "questions_answered": 0,
+            "correct_count": 0,
+            "total_score": 0.0,
             "correct_answers": {},
-            "expires_at": datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
-            "terms": {},
-            "difficulty": "beginner"
+            "term_names": {},
+            "used_wrong_options": [],
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+        mock_quiz_service.repository.get_quiz_eligible_terms.return_value = sample_quiz_terms
+        mock_quiz_service.repository.update_quiz_session.return_value = True
+
+        response = mock_quiz_service.get_next_question("user_123", QuizDifficulty.BEGINNER)
+
+        assert isinstance(response, QuizQuestionResponse)
+        assert response.session_id == "session_123"
+        assert response.question.slang_term in ["bussin", "cap"]
+        assert len(response.question.options) == 4
+        mock_quiz_service.repository.create_quiz_session.assert_called_once()
+
+    def test_get_next_question_uses_existing_session(self, mock_quiz_service, premium_user_profile, sample_quiz_terms):
+        """Test get_next_question uses existing active session."""
+        existing_session = {
+            "session_id": "session_456",
+            "user_id": "user_123",
+            "difficulty": "beginner",
+            "questions_answered": 1,
+            "correct_count": 1,
+            "total_score": 8.5,
+            "correct_answers": {"q1": "a"},
+            "term_names": {"q1": "bussin"},
+            "used_wrong_options": ["Bad", "Okay", "Average"],
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        submission = QuizSubmissionRequest(
-            challenge_id=challenge_id,
-            answers=[],
-            time_taken_seconds=45
+        mock_quiz_service.user_service.get_user.return_value = premium_user_profile
+        mock_quiz_service.repository.get_daily_quiz_count.return_value = 1
+        mock_quiz_service.repository.get_active_quiz_session.return_value = existing_session
+        mock_quiz_service.repository.get_quiz_eligible_terms.return_value = sample_quiz_terms
+        mock_quiz_service.repository.update_quiz_session.return_value = True
+
+        response = mock_quiz_service.get_next_question("user_123", QuizDifficulty.BEGINNER)
+
+        assert response.session_id == "session_456"
+        mock_quiz_service.repository.create_quiz_session.assert_not_called()
+
+    def test_get_next_question_free_tier_limit(self, mock_quiz_service, free_user_profile):
+        """Test get_next_question respects free tier daily limit."""
+        mock_quiz_service.user_service.get_user.return_value = free_user_profile
+        mock_quiz_service.repository.get_daily_quiz_count.return_value = 3  # At limit
+
+        with pytest.raises(InsufficientPermissionsError, match="Daily limit"):
+            mock_quiz_service.get_next_question("user_123", QuizDifficulty.BEGINNER)
+
+    def test_submit_answer_correct(self, mock_quiz_service, sample_quiz_terms):
+        """Test submit_answer with correct answer."""
+        session = {
+            "session_id": "session_123",
+            "user_id": "user_123",
+            "questions_answered": 0,
+            "correct_count": 0,
+            "total_score": 0.0,
+            "correct_answers": {"q1": "a"},
+            "term_names": {"q1": "bussin"},
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "last_activity": datetime.now(timezone.utc).isoformat(),
+        }
+
+        mock_quiz_service.repository.get_quiz_session.return_value = session
+        mock_quiz_service.repository.get_term_by_slang.return_value = {"meaning": "Really good"}
+        mock_quiz_service.repository.update_quiz_session.return_value = True
+        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 1
+        mock_quiz_service.repository.update_quiz_statistics.return_value = None
+
+        answer_request = QuizAnswerRequest(
+            session_id="session_123",
+            question_id="q1",
+            selected_option="a",
+            time_taken_seconds=5.0
+        )
+
+        response = mock_quiz_service.submit_answer("user_123", answer_request)
+
+        assert isinstance(response, QuizAnswerResponse)
+        assert response.is_correct is True
+        assert response.points_earned > 0
+        assert response.running_stats.questions_answered == 1
+        assert response.running_stats.correct_count == 1
+        mock_quiz_service.repository.update_quiz_statistics.assert_called_once_with("bussin", True)
+
+    def test_submit_answer_incorrect(self, mock_quiz_service):
+        """Test submit_answer with incorrect answer."""
+        session = {
+            "session_id": "session_123",
+            "user_id": "user_123",
+            "questions_answered": 0,
+            "correct_count": 0,
+            "total_score": 0.0,
+            "correct_answers": {"q1": "a"},
+            "term_names": {"q1": "bussin"},
+            "status": "active",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "last_activity": datetime.now(timezone.utc).isoformat(),
+        }
+
+        mock_quiz_service.repository.get_quiz_session.return_value = session
+        mock_quiz_service.repository.get_term_by_slang.return_value = {"meaning": "Really good"}
+        mock_quiz_service.repository.update_quiz_session.return_value = True
+        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 1
+        mock_quiz_service.repository.update_quiz_statistics.return_value = None
+
+        answer_request = QuizAnswerRequest(
+            session_id="session_123",
+            question_id="q1",
+            selected_option="b",  # Wrong answer
+            time_taken_seconds=10.0
+        )
+
+        response = mock_quiz_service.submit_answer("user_123", answer_request)
+
+        assert response.is_correct is False
+        assert response.points_earned == 0.0
+        assert response.running_stats.correct_count == 0
+        mock_quiz_service.repository.update_quiz_statistics.assert_called_once_with("bussin", False)
+
+    def test_submit_answer_expired_session(self, mock_quiz_service):
+        """Test submit_answer with expired session."""
+        session = {
+            "session_id": "session_123",
+            "user_id": "user_123",
+            "status": "active",
+            "last_activity": (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat(),  # Expired
+        }
+
+        mock_quiz_service.repository.get_quiz_session.return_value = session
+        mock_quiz_service.repository.update_quiz_session.return_value = True
+
+        answer_request = QuizAnswerRequest(
+            session_id="session_123",
+            question_id="q1",
+            selected_option="a",
+            time_taken_seconds=5.0
         )
 
         with pytest.raises(ValidationError, match="expired"):
-            mock_quiz_service.submit_quiz("user_123", submission)
+            mock_quiz_service.submit_answer("user_123", answer_request)
 
-    def test_submit_quiz_partial_correct(self, mock_quiz_service):
-        """Test quiz submission with partial correct answers."""
-        challenge_id = "quiz_123"
-        user_id = "user_456"
-
-        # Mock active challenge
-        mock_quiz_service._active_challenges[challenge_id] = {
-            "user_id": user_id,
-            "correct_answers": {"q1": "a", "q2": "b"},
-            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
-            "terms": {"q1": "bussin", "q2": "cap"},
-            "difficulty": "beginner"
+    def test_get_session_progress(self, mock_quiz_service):
+        """Test get_session_progress returns current stats."""
+        session = {
+            "session_id": "session_123",
+            "user_id": "user_123",
+            "questions_answered": 5,
+            "correct_count": 4,
+            "total_score": 35.5,
+            "started_at": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat(),
         }
 
-        # Mock repository methods
-        mock_quiz_service.repository.save_quiz_result.return_value = True
-        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 2
-        mock_quiz_service.repository.get_term_by_slang.side_effect = [
-            {"meaning": "Really good"},
-            {"meaning": "Lie"}
-        ]
+        mock_quiz_service.repository.get_quiz_session.return_value = session
 
-        submission = QuizSubmissionRequest(
-            challenge_id=challenge_id,
-            answers=[
-                QuizAnswer(question_id="q1", selected="a"),  # Correct
-                QuizAnswer(question_id="q2", selected="c")   # Wrong
-            ],
-            time_taken_seconds=30
-        )
+        progress = mock_quiz_service.get_session_progress("user_123", "session_123")
 
-        result = mock_quiz_service.submit_quiz(user_id, submission)
+        assert isinstance(progress, QuizSessionProgress)
+        assert progress.questions_answered == 5
+        assert progress.correct_count == 4
+        assert progress.total_score == 35.5
+        assert progress.accuracy == 0.8  # 4/5
+        assert progress.time_spent_seconds > 0
 
-        assert result.correct_count == 1
-        assert result.total_questions == 2
-        assert result.score == 15  # 1 correct * 10 + time bonus
-        assert result.results[0].is_correct is True
-        assert result.results[1].is_correct is False
-
-    def test_submit_quiz_time_bonus(self, mock_quiz_service):
-        """Test quiz submission with time bonus."""
-        challenge_id = "quiz_123"
-        user_id = "user_456"
-
-        # Mock active challenge
-        mock_quiz_service._active_challenges[challenge_id] = {
-            "user_id": user_id,
-            "correct_answers": {"q1": "a"},
-            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
-            "terms": {"q1": "bussin"},
-            "difficulty": "beginner"
+    def test_end_session(self, mock_quiz_service):
+        """Test end_session saves results and marks session complete."""
+        session = {
+            "session_id": "session_123",
+            "user_id": "user_123",
+            "questions_answered": 5,
+            "correct_count": 4,
+            "total_score": 35.5,
+            "difficulty": "beginner",
+            "status": "active",
+            "started_at": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat(),
         }
 
-        # Mock repository methods
+        mock_quiz_service.repository.get_quiz_session.return_value = session
+        mock_quiz_service.repository.update_quiz_session.return_value = True
         mock_quiz_service.repository.save_quiz_result.return_value = True
-        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 2
-        mock_quiz_service.repository.get_term_by_slang.return_value = {"meaning": "Really good"}
 
-        submission = QuizSubmissionRequest(
-            challenge_id=challenge_id,
-            answers=[QuizAnswer(question_id="q1", selected="a")],
-            time_taken_seconds=30  # 30 seconds saved = 5 bonus points
+        result = mock_quiz_service.end_session("user_123", "session_123")
+
+        assert result.session_id == "session_123"
+        assert result.score == 35.5
+        assert result.correct_count == 4
+        assert result.total_questions == 5
+        mock_quiz_service.repository.save_quiz_result.assert_called_once()
+        # Verify session marked as completed
+        mock_quiz_service.repository.update_quiz_session.assert_any_call(
+            session_id="session_123",
+            status="completed"
         )
 
-        result = mock_quiz_service.submit_quiz(user_id, submission)
-
-        assert result.time_bonus_points == 5  # 30 seconds / 6 = 5 points
-        assert result.score == 15  # 10 base + 5 bonus
-
-    def test_submit_quiz_cleans_up_challenge(self, mock_quiz_service):
-        """Test that completed challenge is removed from active challenges."""
-        challenge_id = "quiz_123"
-        user_id = "user_456"
-
-        # Mock active challenge
-        mock_quiz_service._active_challenges[challenge_id] = {
-            "user_id": user_id,
-            "correct_answers": {"q1": "a"},
-            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
-            "terms": {"q1": "bussin"},
-            "difficulty": "beginner"
+    def test_end_session_no_questions(self, mock_quiz_service):
+        """Test end_session fails if no questions answered."""
+        session = {
+            "session_id": "session_123",
+            "user_id": "user_123",
+            "questions_answered": 0,
+            "status": "active",
         }
 
-        # Mock repository methods
-        mock_quiz_service.repository.save_quiz_result.return_value = True
-        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 2
-        mock_quiz_service.repository.get_term_by_slang.return_value = {"meaning": "Really good"}
+        mock_quiz_service.repository.get_quiz_session.return_value = session
 
-        submission = QuizSubmissionRequest(
-            challenge_id=challenge_id,
-            answers=[QuizAnswer(question_id="q1", selected="a")],
-            time_taken_seconds=45
-        )
+        with pytest.raises(ValidationError, match="no questions answered"):
+            mock_quiz_service.end_session("user_123", "session_123")
 
-        mock_quiz_service.submit_quiz(user_id, submission)
+    def test_answer_normalization(self, mock_quiz_service):
+        """Test answer normalization extracts first meaning and standardizes formatting."""
+        # Test semicolon separation - should extract first part only
+        assert mock_quiz_service._normalize_answer_text("Too long;didn't read") == "Too long"
+        assert mock_quiz_service._normalize_answer_text("Really good; awesome; amazing") == "Really good"
+        assert mock_quiz_service._normalize_answer_text("Really good; awesome") == "Really good"
 
-        # Challenge should be removed
-        assert challenge_id not in mock_quiz_service._active_challenges
+        # Test capitalization - sentence case
+        assert mock_quiz_service._normalize_answer_text("really good") == "Really good"
+        assert mock_quiz_service._normalize_answer_text("REALLY GOOD") == "Really good"
+        assert mock_quiz_service._normalize_answer_text("Really Good") == "Really good"
+        assert mock_quiz_service._normalize_answer_text("r") == "R"
+        assert mock_quiz_service._normalize_answer_text("") == ""
 
-    def test_submit_quiz_updates_term_statistics(self, mock_quiz_service):
-        """Test that quiz submission updates term statistics."""
-        challenge_id = "quiz_123"
-        user_id = "user_456"
+        # Test no semicolon - just capitalization
+        assert mock_quiz_service._normalize_answer_text("really awesome") == "Really awesome"
 
-        # Mock active challenge
-        mock_quiz_service._active_challenges[challenge_id] = {
-            "user_id": user_id,
-            "correct_answers": {"q1": "a"},
-            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
-            "terms": {"q1": "bussin"},
-            "difficulty": "beginner"
+    def test_per_question_scoring_fast_answer(self, mock_quiz_service):
+        """Test per-question scoring with fast answer."""
+        # Fast answer (5 seconds out of 30)
+        points = mock_quiz_service._calculate_question_points(is_correct=True, time_taken_seconds=5.0)
+        # Should be high points (close to max of 10)
+        assert points > 8.0
+        assert points <= 10.0
+
+    def test_per_question_scoring_slow_answer(self, mock_quiz_service):
+        """Test per-question scoring with slow answer."""
+        # Slow answer (25 seconds out of 30)
+        points = mock_quiz_service._calculate_question_points(is_correct=True, time_taken_seconds=25.0)
+        # Should be lower points but still above minimum
+        assert points > 1.0
+        assert points < 5.0
+
+    def test_per_question_scoring_incorrect(self, mock_quiz_service):
+        """Test per-question scoring returns 0 for incorrect answers."""
+        points = mock_quiz_service._calculate_question_points(is_correct=False, time_taken_seconds=5.0)
+        assert points == 0.0
+
+    def test_per_question_scoring_minimum_points(self, mock_quiz_service):
+        """Test per-question scoring ensures minimum 1 point."""
+        # Very slow answer (30+ seconds)
+        points = mock_quiz_service._calculate_question_points(is_correct=True, time_taken_seconds=35.0)
+        # Should still give minimum 1 point
+        assert points >= 1.0
+
+    def test_format_multiple_choice_normalizes_answers(self, mock_quiz_service):
+        """Test that _format_multiple_choice normalizes all options."""
+        term = {
+            "slang_term": "test",
+            "meaning": "really good; awesome",  # Has semicolon, lowercase
+            "quiz_category": "approval",
         }
 
-        # Mock repository methods
-        mock_quiz_service.repository.save_quiz_result.return_value = True
-        mock_quiz_service.repository.increment_daily_quiz_count.return_value = 2
-        mock_quiz_service.repository.get_term_by_slang.return_value = {"meaning": "Really good"}
+        question, correct_option = mock_quiz_service._format_multiple_choice(term, set())
 
-        submission = QuizSubmissionRequest(
-            challenge_id=challenge_id,
-            answers=[QuizAnswer(question_id="q1", selected="a")],
-            time_taken_seconds=45
-        )
+        # All options should be normalized
+        for option in question.options:
+            # Should not contain semicolon (first part extracted)
+            assert ";" not in option.text
+            # First letter should be uppercase (sentence case)
+            assert option.text[0].isupper()
+            # Rest should be lowercase
+            if len(option.text) > 1:
+                assert option.text[1:].islower() or option.text[1:] == ""
 
-        mock_quiz_service.submit_quiz(user_id, submission)
+    def test_generate_wrong_options_avoids_duplicates(self, mock_quiz_service):
+        """Test that wrong options avoid duplicates and correct answer."""
+        term = {
+            "slang_term": "test",
+            "meaning": "Really good",
+            "quiz_category": "approval",
+        }
+        used_options = {"Bad", "Okay"}
 
-        # Should update statistics for the term
-        mock_quiz_service.repository.update_quiz_statistics.assert_called_once_with("bussin", True)
+        result = mock_quiz_service._generate_wrong_options(term, used_options, existing=[])
+
+        assert len(result) == 3
+        assert "Really good" not in result  # Should not include correct answer
+        # Should not include already used options (if normalized)
+        normalized_used = {mock_quiz_service._normalize_answer_text(opt) for opt in used_options}
+        normalized_result = [mock_quiz_service._normalize_answer_text(opt) for opt in result]
+        for opt in normalized_used:
+            assert opt not in normalized_result

@@ -330,7 +330,7 @@ class TestSlangSubmissionRepository:
         with patch('repositories.slang_submission_repository.get_config_service') as mock_get_config:
             with patch('repositories.slang_submission_repository.aws_services') as mock_aws_services:
                 mock_get_config.return_value = mock_config
-                mock_config._get_env_var.return_value = "lingible-slang-submissions-test"
+                mock_config._get_env_var.return_value = "lingible-terms-test"
 
                 mock_table = Mock()
                 mock_aws_services.get_table.return_value = mock_table

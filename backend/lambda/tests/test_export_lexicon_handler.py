@@ -31,7 +31,10 @@ class TestExportLexiconHandler:
                 "last_used_at": "2025-09-23T00:00:00Z",
                 "times_translated": 150,
                 "lexicon_momentum": 1.2,
-                "lexicon_categories": ["approval", "food"]
+                "lexicon_categories": ["approval", "food"],
+                "first_attested": "2020-05-15",
+                "first_attested_confidence": "high",
+                "attestation_note": "Test attestation note"
             },
             {
                 "PK": "TERM#cap",
@@ -97,6 +100,10 @@ class TestExportLexiconHandler:
         assert result["sources"]["runtime"] == 150
         assert result["momentum"] == 1.2
         assert result["categories"] == ["approval", "food"]
+        # Check attestation fields are included
+        assert result["first_attested"] == "2020-05-15"
+        assert result["first_attested_confidence"] == "high"
+        assert result["attestation_note"] == "Test attestation note"
 
     def test_format_term_for_lexicon_user_source(self, sample_approved_terms):
         """Test formatting user submission term for export."""
@@ -298,3 +305,14 @@ class TestExportLexiconHandler:
             assert "sources" in formatted
             assert "momentum" in formatted
             assert "categories" in formatted
+
+            # Check attestation fields if present in source term
+            if term.get("first_attested"):
+                assert "first_attested" in formatted
+                assert formatted["first_attested"] == term["first_attested"]
+            if term.get("first_attested_confidence"):
+                assert "first_attested_confidence" in formatted
+                assert formatted["first_attested_confidence"] == term["first_attested_confidence"]
+            if term.get("attestation_note"):
+                assert "attestation_note" in formatted
+                assert formatted["attestation_note"] == term["attestation_note"]

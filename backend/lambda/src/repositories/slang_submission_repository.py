@@ -25,7 +25,7 @@ class SlangSubmissionRepository:
     def __init__(self) -> None:
         """Initialize slang submission repository."""
         self.config_service = get_config_service()
-        self.table_name = self.config_service._get_env_var("SLANG_SUBMISSIONS_TABLE")
+        self.table_name = self.config_service._get_env_var("TERMS_TABLE")
         self.table = aws_services.get_table(self.table_name)
 
     def generate_submission_id(self) -> str:

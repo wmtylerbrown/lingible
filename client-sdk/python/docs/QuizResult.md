@@ -5,14 +5,12 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**challenge_id** | **str** | Challenge ID |
-**score** | **int** | Total score achieved |
-**total_possible** | **int** | Maximum possible score |
+**session_id** | **str** | Session ID |
+**score** | **float** | Total score achieved |
+**total_possible** | **float** | Maximum possible score |
 **correct_count** | **int** | Number of correct answers |
 **total_questions** | **int** | Total number of questions |
-**time_taken_seconds** | **int** | Time taken to complete |
-**time_bonus_points** | **int** | Bonus points for fast completion |
-**results** | [**List[QuizQuestionResult]**](QuizQuestionResult.md) | Per-question results |
+**time_taken_seconds** | **float** | Time taken to complete |
 **share_text** | **str** | Text for sharing results |
 **share_url** | **str** | URL for sharing results (future feature) | [optional]
 

@@ -1,4 +1,4 @@
-"""One-time script to import default_lexicon.json into slang_terms table."""
+"""One-time script to import updated_lexicon.json into slang_terms table."""
 
 import json
 import os
@@ -52,56 +52,59 @@ def map_categories(lexicon_categories: list) -> str:
     return QuizCategory.GENERAL
 
 
-def generate_wrong_options(term_data: Dict[str, Any]) -> list:
-    """Generate plausible wrong answer options for quiz."""
-    # Use similar terms from the same category as wrong answers
-    wrong_options = []
+def parse_attestation_date(item: Dict[str, Any]) -> str:
+    """Parse first_attested date with fallback to first_seen.
 
-    # Generic wrong answers based on common mistakes
-    generic_wrongs = [
-        "Very busy",
-        "Broken or damaged",
-        "Confused",
-        "Tired",
-        "Excited",
-        "Angry",
-        "Happy",
-        "Sad",
-        "Cool",
-        "Weird",
-        "Funny",
-        "Serious",
-        "Fast",
-        "Slow",
-        "Big",
-        "Small",
-    ]
+    Returns YYYY-MM-DD formatted date string.
+    """
+    # Try first_attested first
+    first_attested = item.get("first_attested")
+    if first_attested:
+        # Validate format is YYYY-MM-DD
+        try:
+            # Simple validation - check it's YYYY-MM-DD format
+            parts = first_attested.split("-")
+            if len(parts) == 3 and all(p.isdigit() for p in parts):
+                return first_attested
+        except (AttributeError, ValueError):
+            pass
 
-    # Add category-specific wrong answers
-    category = map_categories(term_data.get("categories", []))
-    if category == QuizCategory.FOOD:
-        wrong_options.extend(["Delicious", "Spicy", "Sweet", "Sour"])
-    elif category == QuizCategory.EMOTION:
-        wrong_options.extend(["Happy", "Sad", "Angry", "Excited"])
-    elif category == QuizCategory.APPROVAL:
-        wrong_options.extend(["Good", "Great", "Excellent", "Perfect"])
+    # Fallback to first_seen
+    first_seen = item.get("first_seen", "2000-01-01")
+    try:
+        parts = first_seen.split("-")
+        if len(parts) == 3 and all(p.isdigit() for p in parts):
+            return first_seen
+    except (AttributeError, ValueError):
+        pass
 
-    # Add generic wrongs
-    wrong_options.extend(generic_wrongs)
+    # Default fallback
+    return "2000-01-01"
 
-    # Remove duplicates and limit to 3
-    wrong_options = list(dict.fromkeys(wrong_options))[:3]
 
-    return wrong_options
+def build_gsi2_sort_key(attestation_date: str, confidence: float, term: str) -> str:
+    """Build GSI2SK sort key prioritizing newer terms.
+
+    Format: {reverse_date:08d}#{confidence:04d}#{term}
+    - reverse_date: YYYYMMDD as integer (newer dates = higher numbers for descending sort)
+    - confidence: confidence score as 4-digit integer (0-100)
+    - term: term name for lexicographic tie-breaking
+
+    Example: "2021-11-01" with 85% confidence, term "mid" → "20211101#0085#mid"
+    """
+    # Convert YYYY-MM-DD to YYYYMMDD integer
+    reverse_date = int(attestation_date.replace("-", ""))
+    confidence_score = int(confidence * 100)
+    return f"{reverse_date:08d}#{confidence_score:04d}#{term}"
 
 
 @tracer.trace_method("migrate_lexicon")
 def migrate_lexicon():
-    """Import all terms from default_lexicon.json."""
+    """Import all terms from updated_lexicon.json."""
     try:
         # Load lexicon data
         lexicon_path = os.path.join(
-            os.path.dirname(__file__), "..", "data", "lexicons", "default_lexicon.json"
+            os.path.dirname(__file__), "..", "data", "lexicons", "updated_lexicon.json"
         )
 
         with open(lexicon_path, "r", encoding="utf-8") as f:
@@ -125,8 +128,15 @@ def migrate_lexicon():
                 difficulty = estimate_difficulty(item)
                 category = map_categories(item.get("categories", []))
 
-                # Generate wrong options for quiz
-                wrong_options = generate_wrong_options(item)
+                # Note: Wrong options now generated from category pools at runtime
+                # No need to generate/store per-term wrong options
+
+                # Parse attestation date (prioritizes first_attested, falls back to first_seen)
+                attestation_date = parse_attestation_date(item)
+                confidence = item.get("confidence", 0.85)
+
+                # Build GSI2SK with date-based prioritization
+                gsi2sk = build_gsi2_sort_key(attestation_date, confidence, item["term"])
 
                 # Create term data
                 term_data = {
@@ -152,21 +162,25 @@ def migrate_lexicon():
                     "lexicon_variants": item.get("variants", [item["term"]]),
                     "lexicon_pos": item.get("pos", "phrase"),
                     "lexicon_tags": item.get("tags", []),
-                    "lexicon_confidence": Decimal(str(item.get("confidence", 0.85))),
+                    "lexicon_confidence": Decimal(str(confidence)),
                     "lexicon_age_rating": item.get("age_rating", "E"),
                     "lexicon_content_flags": item.get("content_flags", []),
                     "lexicon_categories": item.get("categories", []),
                     "lexicon_momentum": Decimal(str(item.get("momentum", 1.0))),
+                    # Attestation fields (new)
+                    "first_attested": attestation_date,
+                    "first_attested_confidence": item.get("first_attested_confidence"),
+                    "attestation_note": item.get("attestation_note"),
                     # Quiz fields
                     "is_quiz_eligible": True,
                     "quiz_difficulty": difficulty,
                     "quiz_category": category,
-                    "quiz_wrong_options": wrong_options,
+                    # Note: quiz_wrong_options removed - now using category-based pools
                     "times_in_quiz": 0,
                     "quiz_accuracy_rate": Decimal("0.5"),  # Start with neutral accuracy
                     # Usage statistics
                     "times_translated": 0,
-                    "popularity_score": int(item.get("confidence", 0.85) * 100),
+                    "popularity_score": int(confidence * 100),
                     "last_used_at": f"{item.get('last_seen', '2023-01-01')}T00:00:00Z",
                     "exported_to_s3": False,
                     "last_exported_at": None,
@@ -174,7 +188,7 @@ def migrate_lexicon():
                     "GSI1PK": "STATUS#approved",
                     "GSI1SK": f"{item.get('first_seen', '2023-01-01')}T00:00:00Z",
                     "GSI2PK": f"QUIZ#{difficulty}",
-                    "GSI2SK": f"{int(item.get('confidence', 0.85) * 100):04d}#{item['term']}",
+                    "GSI2SK": gsi2sk,  # Date-prioritized sort key
                     "GSI3PK": f"CATEGORY#{category}",
                     "GSI3SK": item["term"],
                     "GSI4PK": "SOURCE#lexicon",

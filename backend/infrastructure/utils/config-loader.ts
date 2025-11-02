@@ -54,8 +54,7 @@ export interface InfrastructureConfig {
   tables: {
     users_table: { name: string };
     translations_table: { name: string };
-    trending_table: { name: string };
-    slang_submissions_table: { name: string };
+    terms_table: { name: string };
   };
   apple: {
     client_id: string;

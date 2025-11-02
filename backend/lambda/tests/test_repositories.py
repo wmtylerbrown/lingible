@@ -769,8 +769,8 @@ class TestTrendingRepository:
             mock_scan.return_value = {
                 'Items': [
                     {
-                        'PK': f'TRENDING#{term.term.upper()}',
-                        'SK': 'TERM',
+                        'PK': f'TERM#{term.term.lower()}',
+                        'SK': 'METADATA#trending',
                         'term': term.term,
                         'definition': term.definition,
                         'category': term.category,
@@ -808,8 +808,8 @@ class TestTrendingRepository:
             mock_query.return_value = {
                 'Items': [
                     {
-                        'PK': f'TRENDING#{slang_term.term.upper()}',
-                        'SK': 'TERM',
+                        'PK': f'TERM#{slang_term.term.lower()}',
+                        'SK': 'METADATA#trending',
                         'term': slang_term.term,
                         'definition': slang_term.definition,
                         'category': slang_term.category,
@@ -826,12 +826,16 @@ class TestTrendingRepository:
                 ]
             }
 
-            # Get only slang terms
+            # Get only slang terms (uses GSI8)
             result = trending_repository.get_trending_terms(category=TrendingCategory.SLANG)
 
             assert len(result) == 1
             assert result[0].category == TrendingCategory.SLANG
             assert result[0].term == "no cap"
+            # Verify GSI8 was used for category query
+            assert mock_query.called
+            call_kwargs = mock_query.call_args[1] if mock_query.call_args else {}
+            assert call_kwargs.get('IndexName') == 'GSI8'
 
     def test_get_trending_terms_active_only(self, trending_repository, sample_trending_term):
         """Test getting only active trending terms."""
@@ -839,13 +843,13 @@ class TestTrendingRepository:
         active_term = sample_trending_term
         inactive_term = sample_trending_term.model_copy(update={"term": "old term", "is_active": False})
 
-        # Mock the query operation to return only active terms
+        # Mock the query operation using GSI7 for active terms
         with patch.object(trending_repository.table, 'query') as mock_query:
             mock_query.return_value = {
                 'Items': [
                     {
-                        'PK': f'TRENDING#{active_term.term.upper()}',
-                        'SK': 'TERM',
+                        'PK': f'TERM#{active_term.term.lower()}',
+                        'SK': 'METADATA#trending',
                         'term': active_term.term,
                         'definition': active_term.definition,
                         'category': active_term.category,
@@ -858,16 +862,22 @@ class TestTrendingRepository:
                         'example_usage': active_term.example_usage,
                         'origin': active_term.origin,
                         'related_terms': active_term.related_terms,
+                        'GSI7PK': 'TRENDING#True',
+                        'GSI7SK': active_term.popularity_score,
                     }
                 ]
             }
 
-            # Get only active terms
+            # Get only active terms (uses GSI7)
             result = trending_repository.get_trending_terms(active_only=True)
 
             assert len(result) == 1
             assert result[0].is_active is True
             assert result[0].term == "no cap"
+            # Verify GSI7 was used (query should be called with GSI7 index)
+            assert mock_query.called
+            call_kwargs = mock_query.call_args[1] if mock_query.call_args else {}
+            assert call_kwargs.get('IndexName') == 'GSI7'
 
     def test_increment_search_count(self, trending_repository, sample_trending_term):
         """Test incrementing search count for a trending term."""

@@ -17,9 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from lingible_client.models.quiz_question_result import QuizQuestionResult
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,17 +26,15 @@ class QuizResult(BaseModel):
     """
     QuizResult
     """ # noqa: E501
-    challenge_id: StrictStr = Field(description="Challenge ID")
-    score: StrictInt = Field(description="Total score achieved")
-    total_possible: StrictInt = Field(description="Maximum possible score")
+    session_id: StrictStr = Field(description="Session ID")
+    score: Union[StrictFloat, StrictInt] = Field(description="Total score achieved")
+    total_possible: Union[StrictFloat, StrictInt] = Field(description="Maximum possible score")
     correct_count: StrictInt = Field(description="Number of correct answers")
     total_questions: StrictInt = Field(description="Total number of questions")
-    time_taken_seconds: StrictInt = Field(description="Time taken to complete")
-    time_bonus_points: StrictInt = Field(description="Bonus points for fast completion")
-    results: List[QuizQuestionResult] = Field(description="Per-question results")
+    time_taken_seconds: Union[StrictFloat, StrictInt] = Field(description="Time taken to complete")
     share_text: StrictStr = Field(description="Text for sharing results")
     share_url: Optional[StrictStr] = Field(default=None, description="URL for sharing results (future feature)")
-    __properties: ClassVar[List[str]] = ["challenge_id", "score", "total_possible", "correct_count", "total_questions", "time_taken_seconds", "time_bonus_points", "results", "share_text", "share_url"]
+    __properties: ClassVar[List[str]] = ["session_id", "score", "total_possible", "correct_count", "total_questions", "time_taken_seconds", "share_text", "share_url"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -78,13 +75,6 @@ class QuizResult(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in results (list)
-        _items = []
-        if self.results:
-            for _item_results in self.results:
-                if _item_results:
-                    _items.append(_item_results.to_dict())
-            _dict['results'] = _items
         # set to None if share_url (nullable) is None
         # and model_fields_set contains the field
         if self.share_url is None and "share_url" in self.model_fields_set:
@@ -102,14 +92,12 @@ class QuizResult(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "challenge_id": obj.get("challenge_id"),
+            "session_id": obj.get("session_id"),
             "score": obj.get("score"),
             "total_possible": obj.get("total_possible"),
             "correct_count": obj.get("correct_count"),
             "total_questions": obj.get("total_questions"),
             "time_taken_seconds": obj.get("time_taken_seconds"),
-            "time_bonus_points": obj.get("time_bonus_points"),
-            "results": [QuizQuestionResult.from_dict(_item) for _item in obj["results"]] if obj.get("results") is not None else None,
             "share_text": obj.get("share_text"),
             "share_url": obj.get("share_url")
         })

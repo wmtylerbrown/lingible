@@ -37,7 +37,10 @@ class TestMigrationScript:
                     "last_seen": "2025-09-23",
                     "sources": {"reddit": 0, "youtube": 0, "runtime": 0},
                     "momentum": 1.2,
-                    "categories": ["approval", "food"]
+                    "categories": ["approval", "food"],
+                    "first_attested": "2020-05-15",
+                    "first_attested_confidence": "high",
+                    "attestation_note": "Test attestation note"
                 },
                 {
                     "term": "cap",
@@ -55,7 +58,9 @@ class TestMigrationScript:
                     "last_seen": "2025-09-23",
                     "sources": {"reddit": 0, "youtube": 0, "runtime": 0},
                     "momentum": 0.8,
-                    "categories": ["disapproval"]
+                    "categories": ["disapproval"],
+                    "first_attested": "2018-01-01",
+                    "first_attested_confidence": "high"
                 }
             ]
         }
@@ -145,54 +150,70 @@ class TestMigrationScript:
         result = map_categories(["food", "approval"])
         assert result == QuizCategory.FOOD
 
-    def test_generate_wrong_options_basic(self):
-        """Test wrong option generation."""
-        from scripts.migrate_lexicon import generate_wrong_options
+    def test_parse_attestation_date_with_first_attested(self):
+        """Test parsing attestation date with first_attested field."""
+        from scripts.migrate_lexicon import parse_attestation_date
 
-        term_data = {
-            "categories": ["food"],
-            "gloss": "Really good"
-        }
+        item = {"first_attested": "2021-11-01", "first_seen": "2023-01-01"}
+        result = parse_attestation_date(item)
+        assert result == "2021-11-01"
 
-        result = generate_wrong_options(term_data)
+    def test_parse_attestation_date_fallback_to_first_seen(self):
+        """Test parsing attestation date falls back to first_seen."""
+        from scripts.migrate_lexicon import parse_attestation_date
 
-        assert len(result) == 3
-        assert "Really good" not in result  # Should not include correct answer
-        # Should include food-specific wrong answers
-        assert any(opt in result for opt in ["Delicious", "Spicy", "Sweet", "Sour"])
+        item = {"first_seen": "2023-01-01"}
+        result = parse_attestation_date(item)
+        assert result == "2023-01-01"
 
-    def test_generate_wrong_options_category_specific(self):
-        """Test wrong option generation for specific categories."""
-        from scripts.migrate_lexicon import generate_wrong_options
+    def test_parse_attestation_date_default_fallback(self):
+        """Test parsing attestation date uses default when both missing."""
+        from scripts.migrate_lexicon import parse_attestation_date
 
-        # Emotion category
-        term_data = {
-            "categories": ["emotion"],
-            "gloss": "Happy"
-        }
+        item = {}
+        result = parse_attestation_date(item)
+        assert result == "2000-01-01"
 
-        result = generate_wrong_options(term_data)
+    def test_parse_attestation_date_invalid_format(self):
+        """Test parsing attestation date handles invalid format."""
+        from scripts.migrate_lexicon import parse_attestation_date
 
-        assert len(result) == 3
-        assert "Happy" not in result
-        assert any(opt in result for opt in ["Sad", "Angry", "Excited"])
+        # Invalid format should fall back
+        item = {"first_attested": "invalid-date", "first_seen": "2023-01-01"}
+        result = parse_attestation_date(item)
+        assert result == "2023-01-01"
 
-    def test_generate_wrong_options_generic_fallback(self):
-        """Test wrong option generation with generic fallback."""
-        from scripts.migrate_lexicon import generate_wrong_options
+    def test_build_gsi2_sort_key(self):
+        """Test GSI2SK sort key building with date prioritization."""
+        from scripts.migrate_lexicon import build_gsi2_sort_key
 
-        # Unknown category
-        term_data = {
-            "categories": ["unknown"],
-            "gloss": "Special meaning"
-        }
+        result = build_gsi2_sort_key("2021-11-01", 0.85, "mid")
+        # Format: {reverse_date:08d}#{confidence:04d}#{term}
+        assert result == "20211101#0085#mid"
 
-        result = generate_wrong_options(term_data)
+    def test_build_gsi2_sort_key_older_term(self):
+        """Test GSI2SK sort key for older term sorts lower."""
+        from scripts.migrate_lexicon import build_gsi2_sort_key
 
-        assert len(result) == 3
-        assert "Special meaning" not in result
-        # Should include generic options
-        assert any(opt in result for opt in ["Very busy", "Broken or damaged", "Confused"])
+        older = build_gsi2_sort_key("2018-01-01", 0.95, "cap")
+        newer = build_gsi2_sort_key("2021-11-01", 0.85, "mid")
+
+        # Newer date should sort higher (descending order)
+        assert newer > older
+        assert older == "20180101#0095#cap"
+        assert newer == "20211101#0085#mid"
+
+    def test_build_gsi2_sort_key_same_date_different_confidence(self):
+        """Test GSI2SK sort key for same date sorts by confidence."""
+        from scripts.migrate_lexicon import build_gsi2_sort_key
+
+        higher_conf = build_gsi2_sort_key("2021-11-01", 0.95, "mid")
+        lower_conf = build_gsi2_sort_key("2021-11-01", 0.85, "cap")
+
+        # Higher confidence should sort higher
+        assert higher_conf > lower_conf
+        assert higher_conf == "20211101#0095#mid"
+        assert lower_conf == "20211101#0085#cap"
 
     @patch('scripts.migrate_lexicon.SlangTermRepository')
     def test_migrate_lexicon_success(self, mock_repo_class, temp_lexicon_file, sample_lexicon_data):
@@ -268,13 +289,22 @@ class TestMigrationScript:
                     assert first_call["is_quiz_eligible"] is True
                     assert first_call["quiz_difficulty"] == QuizDifficulty.BEGINNER
                     assert first_call["quiz_category"] == QuizCategory.APPROVAL
-                    assert len(first_call["quiz_wrong_options"]) == 3
+                    # Note: quiz_wrong_options removed - now using category pools
 
                     # Check GSI fields
                     assert first_call["GSI1PK"] == "STATUS#approved"
                     assert first_call["GSI2PK"] == "QUIZ#beginner"
+                    # GSI2SK should be date-prioritized format: YYYYMMDD#confidence#term
+                    # Uses first_attested (2020-05-15) if present, not first_seen
+                    assert first_call["GSI2SK"] == "20200515#0095#bussin"
                     assert first_call["GSI3PK"] == "CATEGORY#approval"
                     assert first_call["GSI4PK"] == "SOURCE#lexicon"
+
+                    # Check attestation fields
+                    assert "first_attested" in first_call
+                    assert first_call["first_attested"] == "2020-05-15"  # from first_attested field
+                    assert first_call["first_attested_confidence"] == "high"
+                    assert first_call["attestation_note"] == "Test attestation note"
 
     @patch('scripts.migrate_lexicon.SlangTermRepository')
     def test_migrate_lexicon_handles_missing_fields(self, mock_repo_class, temp_lexicon_file):
@@ -317,6 +347,9 @@ class TestMigrationScript:
                     # Should have defaults for missing fields
                     assert call_args["lexicon_confidence"] == 0.85
                     assert call_args["lexicon_momentum"] == 1.0
+                    # Should have first_attested (falls back to first_seen or default)
+                    assert "first_attested" in call_args
+                    assert call_args["first_attested"] == "2023-01-01"  # from first_seen
 
     def test_migrate_lexicon_removes_none_values(self):
         """Test that None values are removed from term data."""

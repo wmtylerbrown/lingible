@@ -12,7 +12,7 @@ from .translations import TranslationRequest
 from .subscriptions import UserUpgradeRequest, AppleWebhookRequest
 from .users import AccountDeletionRequest
 from .slang import SlangSubmissionRequest
-from .quiz import QuizSubmissionRequest
+from .quiz import QuizAnswerRequest, QuizEndRequest
 
 
 class TranslationEvent(BaseModel):
@@ -413,44 +413,66 @@ class CustomAPIGatewayProxyEventModel(APIGatewayProxyEventModel):
     )
 
 
-class QuizChallengeEvent(BaseModel):
-    """Typed event for quiz challenge handler."""
-
-    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    user_id: str = Field(
-        ..., description="User ID from Cognito token (guaranteed by envelope)"
-    )
-    request_id: str = Field(
-        ..., description="Request ID for tracing (guaranteed by envelope)"
-    )
-
-    # Query parameters for quiz challenge
-    difficulty: Optional[str] = Field("beginner", description="Quiz difficulty level")
-    challenge_type: Optional[str] = Field(
-        "multiple_choice", description="Type of quiz challenge"
-    )
-    question_count: Optional[int] = Field(
-        10, ge=1, le=50, description="Number of questions"
-    )
-
-
-class QuizSubmissionEvent(BaseModel):
-    """Typed event for quiz submission handler."""
-
-    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
-    request_body: QuizSubmissionRequest = Field(..., description="Parsed request body")
-    user_id: str = Field(
-        ..., description="User ID from Cognito token (guaranteed by envelope)"
-    )
-    request_id: str = Field(
-        ..., description="Request ID for tracing (guaranteed by envelope)"
-    )
-
-
 class QuizHistoryEvent(BaseModel):
     """Typed event for quiz history handler."""
 
     event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+
+class QuizQuestionEvent(BaseModel):
+    """Typed event for GET /quiz/question handler (stateless API)."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+    difficulty: Optional[str] = Field(
+        default=None, description="Quiz difficulty from query parameter"
+    )
+
+
+class QuizAnswerEvent(BaseModel):
+    """Typed event for POST /quiz/answer handler (stateless API)."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_body: QuizAnswerRequest = Field(..., description="Parsed request body")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+
+
+class QuizProgressEvent(BaseModel):
+    """Typed event for GET /quiz/progress handler (stateless API)."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    user_id: str = Field(
+        ..., description="User ID from Cognito token (guaranteed by envelope)"
+    )
+    request_id: str = Field(
+        ..., description="Request ID for tracing (guaranteed by envelope)"
+    )
+    session_id: Optional[str] = Field(
+        default=None, description="Session ID from query parameter"
+    )
+
+
+class QuizEndEvent(BaseModel):
+    """Typed event for POST /quiz/end handler (stateless API)."""
+
+    event: Dict[str, Any] = Field(..., description="Raw API Gateway event")
+    request_body: QuizEndRequest = Field(..., description="Parsed request body")
     user_id: str = Field(
         ..., description="User ID from Cognito token (guaranteed by envelope)"
     )

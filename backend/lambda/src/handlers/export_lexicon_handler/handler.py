@@ -61,7 +61,16 @@ def format_term_for_lexicon(dynamo_item: Dict[str, Any]) -> Dict[str, Any]:
         },
         "momentum": momentum,
         "categories": dynamo_item.get("lexicon_categories", ["slang"]),
+        # Attestation fields (include if present)
     }
+
+    # Add attestation fields if they exist
+    if dynamo_item.get("first_attested"):
+        result["first_attested"] = dynamo_item["first_attested"]
+    if dynamo_item.get("first_attested_confidence"):
+        result["first_attested_confidence"] = dynamo_item["first_attested_confidence"]
+    if dynamo_item.get("attestation_note"):
+        result["attestation_note"] = dynamo_item["attestation_note"]
 
     # Ensure all Decimal values are converted
     return convert_decimals_to_floats(result)
@@ -73,7 +82,7 @@ repository = SlangTermRepository()
 
 # Lambda handler entry point - standalone utility function or SNS-triggered
 @tracer.trace_lambda
-def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
+def handler(event: Dict[str, Any], context: LambdaContext) -> Dict[str, Any]:
     """Export approved terms to S3 in lexicon format.
 
     Handles both:

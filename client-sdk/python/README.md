@@ -97,9 +97,11 @@ Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *AdminApi* | [**slang_admin_approve_submission_id_post**](docs/AdminApi.md#slang_admin_approve_submission_id_post) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
 *AdminApi* | [**slang_admin_reject_submission_id_post**](docs/AdminApi.md#slang_admin_reject_submission_id_post) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
-*QuizApi* | [**quiz_challenge_get**](docs/QuizApi.md#quiz_challenge_get) | **GET** /quiz/challenge | Get a quiz challenge
+*QuizApi* | [**quiz_answer_post**](docs/QuizApi.md#quiz_answer_post) | **POST** /quiz/answer | Submit answer for one question (stateless API)
+*QuizApi* | [**quiz_end_post**](docs/QuizApi.md#quiz_end_post) | **POST** /quiz/end | End quiz session and get final results (stateless API)
 *QuizApi* | [**quiz_history_get**](docs/QuizApi.md#quiz_history_get) | **GET** /quiz/history | Get quiz history and eligibility
-*QuizApi* | [**quiz_submit_post**](docs/QuizApi.md#quiz_submit_post) | **POST** /quiz/submit | Submit quiz answers
+*QuizApi* | [**quiz_progress_get**](docs/QuizApi.md#quiz_progress_get) | **GET** /quiz/progress | Get current quiz session progress (stateless API)
+*QuizApi* | [**quiz_question_get**](docs/QuizApi.md#quiz_question_get) | **GET** /quiz/question | Get next quiz question (stateless API)
 *SlangApi* | [**slang_admin_approve_submission_id_post**](docs/SlangApi.md#slang_admin_approve_submission_id_post) | **POST** /slang/admin/approve/{submission_id} | Admin approve slang submission
 *SlangApi* | [**slang_admin_reject_submission_id_post**](docs/SlangApi.md#slang_admin_reject_submission_id_post) | **POST** /slang/admin/reject/{submission_id} | Admin reject slang submission
 *SlangApi* | [**slang_pending_get**](docs/SlangApi.md#slang_pending_get) | **GET** /slang/pending | Get pending slang submissions
@@ -125,21 +127,21 @@ Class | Method | HTTP request | Description
  - [AccountDeletionResponseCleanupSummary](docs/AccountDeletionResponseCleanupSummary.md)
  - [AdminApprovalResponse](docs/AdminApprovalResponse.md)
  - [AppleWebhookRequest](docs/AppleWebhookRequest.md)
- - [ChallengeType](docs/ChallengeType.md)
  - [ErrorResponse](docs/ErrorResponse.md)
  - [HealthResponse](docs/HealthResponse.md)
  - [PaginationInfo](docs/PaginationInfo.md)
  - [PendingSubmissionsResponse](docs/PendingSubmissionsResponse.md)
- - [QuizAnswer](docs/QuizAnswer.md)
- - [QuizChallenge](docs/QuizChallenge.md)
- - [QuizChallengeScoring](docs/QuizChallengeScoring.md)
+ - [QuizAnswerRequest](docs/QuizAnswerRequest.md)
+ - [QuizAnswerResponse](docs/QuizAnswerResponse.md)
  - [QuizDifficulty](docs/QuizDifficulty.md)
+ - [QuizEndRequest](docs/QuizEndRequest.md)
  - [QuizHistory](docs/QuizHistory.md)
  - [QuizOption](docs/QuizOption.md)
  - [QuizQuestion](docs/QuizQuestion.md)
+ - [QuizQuestionResponse](docs/QuizQuestionResponse.md)
  - [QuizQuestionResult](docs/QuizQuestionResult.md)
  - [QuizResult](docs/QuizResult.md)
- - [QuizSubmissionRequest](docs/QuizSubmissionRequest.md)
+ - [QuizSessionProgress](docs/QuizSessionProgress.md)
  - [SlangSubmission](docs/SlangSubmission.md)
  - [SlangSubmissionRequest](docs/SlangSubmissionRequest.md)
  - [SlangSubmissionResponse](docs/SlangSubmissionResponse.md)

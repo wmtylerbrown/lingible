@@ -19,10 +19,13 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictStr, field_validator
 from typing import Optional
 from typing_extensions import Annotated
-from lingible_client.models.quiz_challenge import QuizChallenge
+from lingible_client.models.quiz_answer_request import QuizAnswerRequest
+from lingible_client.models.quiz_answer_response import QuizAnswerResponse
+from lingible_client.models.quiz_end_request import QuizEndRequest
 from lingible_client.models.quiz_history import QuizHistory
+from lingible_client.models.quiz_question_response import QuizQuestionResponse
 from lingible_client.models.quiz_result import QuizResult
-from lingible_client.models.quiz_submission_request import QuizSubmissionRequest
+from lingible_client.models.quiz_session_progress import QuizSessionProgress
 
 from lingible_client.api_client import ApiClient, RequestSerialized
 from lingible_client.api_response import ApiResponse
@@ -43,11 +46,9 @@ class QuizApi:
 
 
     @validate_call
-    def quiz_challenge_get(
+    def quiz_answer_post(
         self,
-        difficulty: Annotated[Optional[StrictStr], Field(description="Quiz difficulty level")] = None,
-        type: Annotated[Optional[StrictStr], Field(description="Type of quiz challenge")] = None,
-        count: Annotated[Optional[Annotated[int, Field(le=50, strict=True, ge=1)]], Field(description="Number of questions in the quiz (1-50)")] = None,
+        quiz_answer_request: QuizAnswerRequest,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -60,17 +61,13 @@ class QuizApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> QuizChallenge:
-        """Get a quiz challenge
+    ) -> QuizAnswerResponse:
+        """Submit answer for one question (stateless API)
 
-        Generate a new quiz challenge for the authenticated user.  **Free Tier Features:** - Limited to 3 quizzes per day - Basic difficulty levels - Standard question count (10 questions)  **Premium Tier Features:** - Unlimited quizzes per day - All difficulty levels (beginner, intermediate, advanced) - Customizable question count (1-50 questions) - Multiple challenge types
+        Submit an answer for a single question and receive immediate feedback with running statistics.  **Response includes:** - Whether the answer was correct - Points earned (time-based scoring) - Explanation of the correct answer - Running statistics (score, accuracy, time spent)  **Scoring:** - Points decrease based on time taken (faster = more points) - Maximum 10 points per question - Minimum 1 point even if timer expires - Incorrect answers earn 0 points
 
-        :param difficulty: Quiz difficulty level
-        :type difficulty: str
-        :param type: Type of quiz challenge
-        :type type: str
-        :param count: Number of questions in the quiz (1-50)
-        :type count: int
+        :param quiz_answer_request: (required)
+        :type quiz_answer_request: QuizAnswerRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -93,10 +90,8 @@ class QuizApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._quiz_challenge_get_serialize(
-            difficulty=difficulty,
-            type=type,
-            count=count,
+        _param = self._quiz_answer_post_serialize(
+            quiz_answer_request=quiz_answer_request,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -104,10 +99,9 @@ class QuizApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "QuizChallenge",
+            '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
             '400': "ErrorResponse",
-            '403': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -121,11 +115,9 @@ class QuizApi:
 
 
     @validate_call
-    def quiz_challenge_get_with_http_info(
+    def quiz_answer_post_with_http_info(
         self,
-        difficulty: Annotated[Optional[StrictStr], Field(description="Quiz difficulty level")] = None,
-        type: Annotated[Optional[StrictStr], Field(description="Type of quiz challenge")] = None,
-        count: Annotated[Optional[Annotated[int, Field(le=50, strict=True, ge=1)]], Field(description="Number of questions in the quiz (1-50)")] = None,
+        quiz_answer_request: QuizAnswerRequest,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -138,17 +130,13 @@ class QuizApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[QuizChallenge]:
-        """Get a quiz challenge
+    ) -> ApiResponse[QuizAnswerResponse]:
+        """Submit answer for one question (stateless API)
 
-        Generate a new quiz challenge for the authenticated user.  **Free Tier Features:** - Limited to 3 quizzes per day - Basic difficulty levels - Standard question count (10 questions)  **Premium Tier Features:** - Unlimited quizzes per day - All difficulty levels (beginner, intermediate, advanced) - Customizable question count (1-50 questions) - Multiple challenge types
+        Submit an answer for a single question and receive immediate feedback with running statistics.  **Response includes:** - Whether the answer was correct - Points earned (time-based scoring) - Explanation of the correct answer - Running statistics (score, accuracy, time spent)  **Scoring:** - Points decrease based on time taken (faster = more points) - Maximum 10 points per question - Minimum 1 point even if timer expires - Incorrect answers earn 0 points
 
-        :param difficulty: Quiz difficulty level
-        :type difficulty: str
-        :param type: Type of quiz challenge
-        :type type: str
-        :param count: Number of questions in the quiz (1-50)
-        :type count: int
+        :param quiz_answer_request: (required)
+        :type quiz_answer_request: QuizAnswerRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -171,10 +159,8 @@ class QuizApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._quiz_challenge_get_serialize(
-            difficulty=difficulty,
-            type=type,
-            count=count,
+        _param = self._quiz_answer_post_serialize(
+            quiz_answer_request=quiz_answer_request,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -182,10 +168,9 @@ class QuizApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "QuizChallenge",
+            '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
             '400': "ErrorResponse",
-            '403': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -199,11 +184,9 @@ class QuizApi:
 
 
     @validate_call
-    def quiz_challenge_get_without_preload_content(
+    def quiz_answer_post_without_preload_content(
         self,
-        difficulty: Annotated[Optional[StrictStr], Field(description="Quiz difficulty level")] = None,
-        type: Annotated[Optional[StrictStr], Field(description="Type of quiz challenge")] = None,
-        count: Annotated[Optional[Annotated[int, Field(le=50, strict=True, ge=1)]], Field(description="Number of questions in the quiz (1-50)")] = None,
+        quiz_answer_request: QuizAnswerRequest,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -217,16 +200,12 @@ class QuizApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Get a quiz challenge
+        """Submit answer for one question (stateless API)
 
-        Generate a new quiz challenge for the authenticated user.  **Free Tier Features:** - Limited to 3 quizzes per day - Basic difficulty levels - Standard question count (10 questions)  **Premium Tier Features:** - Unlimited quizzes per day - All difficulty levels (beginner, intermediate, advanced) - Customizable question count (1-50 questions) - Multiple challenge types
+        Submit an answer for a single question and receive immediate feedback with running statistics.  **Response includes:** - Whether the answer was correct - Points earned (time-based scoring) - Explanation of the correct answer - Running statistics (score, accuracy, time spent)  **Scoring:** - Points decrease based on time taken (faster = more points) - Maximum 10 points per question - Minimum 1 point even if timer expires - Incorrect answers earn 0 points
 
-        :param difficulty: Quiz difficulty level
-        :type difficulty: str
-        :param type: Type of quiz challenge
-        :type type: str
-        :param count: Number of questions in the quiz (1-50)
-        :type count: int
+        :param quiz_answer_request: (required)
+        :type quiz_answer_request: QuizAnswerRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -249,10 +228,8 @@ class QuizApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._quiz_challenge_get_serialize(
-            difficulty=difficulty,
-            type=type,
-            count=count,
+        _param = self._quiz_answer_post_serialize(
+            quiz_answer_request=quiz_answer_request,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -260,10 +237,9 @@ class QuizApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "QuizChallenge",
+            '200': "QuizAnswerResponse",
             '401': "ErrorResponse",
             '400': "ErrorResponse",
-            '403': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -272,11 +248,9 @@ class QuizApi:
         return response_data.response
 
 
-    def _quiz_challenge_get_serialize(
+    def _quiz_answer_post_serialize(
         self,
-        difficulty,
-        type,
-        count,
+        quiz_answer_request,
         _request_auth,
         _content_type,
         _headers,
@@ -299,21 +273,11 @@ class QuizApi:
 
         # process the path parameters
         # process the query parameters
-        if difficulty is not None:
-
-            _query_params.append(('difficulty', difficulty))
-
-        if type is not None:
-
-            _query_params.append(('type', type))
-
-        if count is not None:
-
-            _query_params.append(('count', count))
-
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if quiz_answer_request is not None:
+            _body_params = quiz_answer_request
 
 
         # set the HTTP header `Accept`
@@ -324,6 +288,19 @@ class QuizApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [
@@ -331,8 +308,288 @@ class QuizApi:
         ]
 
         return self.api_client.param_serialize(
-            method='GET',
-            resource_path='/quiz/challenge',
+            method='POST',
+            resource_path='/quiz/answer',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def quiz_end_post(
+        self,
+        quiz_end_request: QuizEndRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> QuizResult:
+        """End quiz session and get final results (stateless API)
+
+        End the current quiz session and receive final results. Saves the session to history for lifetime statistics tracking.  **Post-End Actions:** - Session marked as completed - Results saved to quiz history - Statistics aggregated for user profile - Shareable result text generated
+
+        :param quiz_end_request: (required)
+        :type quiz_end_request: QuizEndRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._quiz_end_post_serialize(
+            quiz_end_request=quiz_end_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QuizResult",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def quiz_end_post_with_http_info(
+        self,
+        quiz_end_request: QuizEndRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[QuizResult]:
+        """End quiz session and get final results (stateless API)
+
+        End the current quiz session and receive final results. Saves the session to history for lifetime statistics tracking.  **Post-End Actions:** - Session marked as completed - Results saved to quiz history - Statistics aggregated for user profile - Shareable result text generated
+
+        :param quiz_end_request: (required)
+        :type quiz_end_request: QuizEndRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._quiz_end_post_serialize(
+            quiz_end_request=quiz_end_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QuizResult",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def quiz_end_post_without_preload_content(
+        self,
+        quiz_end_request: QuizEndRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """End quiz session and get final results (stateless API)
+
+        End the current quiz session and receive final results. Saves the session to history for lifetime statistics tracking.  **Post-End Actions:** - Session marked as completed - Results saved to quiz history - Statistics aggregated for user profile - Shareable result text generated
+
+        :param quiz_end_request: (required)
+        :type quiz_end_request: QuizEndRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._quiz_end_post_serialize(
+            quiz_end_request=quiz_end_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QuizResult",
+            '400': "ErrorResponse",
+            '401': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _quiz_end_post_serialize(
+        self,
+        quiz_end_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if quiz_end_request is not None:
+            _body_params = quiz_end_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/quiz/end',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -598,9 +855,9 @@ class QuizApi:
 
 
     @validate_call
-    def quiz_submit_post(
+    def quiz_progress_get(
         self,
-        quiz_submission_request: QuizSubmissionRequest,
+        session_id: Annotated[StrictStr, Field(description="Quiz session identifier")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -613,13 +870,13 @@ class QuizApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> QuizResult:
-        """Submit quiz answers
+    ) -> QuizSessionProgress:
+        """Get current quiz session progress (stateless API)
 
-        Submit answers for a quiz challenge and receive results.  The challenge must be valid and not expired. Results include: - Score and accuracy - Per-question feedback - Explanations for each term - Shareable result text
+        Get current progress statistics for an active quiz session.  Returns: - Questions answered so far - Correct count and accuracy - Total score accumulated - Time spent on quiz
 
-        :param quiz_submission_request: (required)
-        :type quiz_submission_request: QuizSubmissionRequest
+        :param session_id: Quiz session identifier (required)
+        :type session_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -642,8 +899,8 @@ class QuizApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._quiz_submit_post_serialize(
-            quiz_submission_request=quiz_submission_request,
+        _param = self._quiz_progress_get_serialize(
+            session_id=session_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -651,10 +908,9 @@ class QuizApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "QuizResult",
-            '401': "ErrorResponse",
+            '200': "QuizSessionProgress",
             '400': "ErrorResponse",
-            '404': "ErrorResponse",
+            '401': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -668,9 +924,9 @@ class QuizApi:
 
 
     @validate_call
-    def quiz_submit_post_with_http_info(
+    def quiz_progress_get_with_http_info(
         self,
-        quiz_submission_request: QuizSubmissionRequest,
+        session_id: Annotated[StrictStr, Field(description="Quiz session identifier")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -683,13 +939,13 @@ class QuizApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[QuizResult]:
-        """Submit quiz answers
+    ) -> ApiResponse[QuizSessionProgress]:
+        """Get current quiz session progress (stateless API)
 
-        Submit answers for a quiz challenge and receive results.  The challenge must be valid and not expired. Results include: - Score and accuracy - Per-question feedback - Explanations for each term - Shareable result text
+        Get current progress statistics for an active quiz session.  Returns: - Questions answered so far - Correct count and accuracy - Total score accumulated - Time spent on quiz
 
-        :param quiz_submission_request: (required)
-        :type quiz_submission_request: QuizSubmissionRequest
+        :param session_id: Quiz session identifier (required)
+        :type session_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -712,8 +968,8 @@ class QuizApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._quiz_submit_post_serialize(
-            quiz_submission_request=quiz_submission_request,
+        _param = self._quiz_progress_get_serialize(
+            session_id=session_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -721,10 +977,9 @@ class QuizApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "QuizResult",
-            '401': "ErrorResponse",
+            '200': "QuizSessionProgress",
             '400': "ErrorResponse",
-            '404': "ErrorResponse",
+            '401': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -738,9 +993,9 @@ class QuizApi:
 
 
     @validate_call
-    def quiz_submit_post_without_preload_content(
+    def quiz_progress_get_without_preload_content(
         self,
-        quiz_submission_request: QuizSubmissionRequest,
+        session_id: Annotated[StrictStr, Field(description="Quiz session identifier")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -754,12 +1009,12 @@ class QuizApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Submit quiz answers
+        """Get current quiz session progress (stateless API)
 
-        Submit answers for a quiz challenge and receive results.  The challenge must be valid and not expired. Results include: - Score and accuracy - Per-question feedback - Explanations for each term - Shareable result text
+        Get current progress statistics for an active quiz session.  Returns: - Questions answered so far - Correct count and accuracy - Total score accumulated - Time spent on quiz
 
-        :param quiz_submission_request: (required)
-        :type quiz_submission_request: QuizSubmissionRequest
+        :param session_id: Quiz session identifier (required)
+        :type session_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -782,8 +1037,8 @@ class QuizApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._quiz_submit_post_serialize(
-            quiz_submission_request=quiz_submission_request,
+        _param = self._quiz_progress_get_serialize(
+            session_id=session_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -791,10 +1046,9 @@ class QuizApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "QuizResult",
-            '401': "ErrorResponse",
+            '200': "QuizSessionProgress",
             '400': "ErrorResponse",
-            '404': "ErrorResponse",
+            '401': "ErrorResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -803,9 +1057,9 @@ class QuizApi:
         return response_data.response
 
 
-    def _quiz_submit_post_serialize(
+    def _quiz_progress_get_serialize(
         self,
-        quiz_submission_request,
+        session_id,
         _request_auth,
         _content_type,
         _headers,
@@ -828,11 +1082,13 @@ class QuizApi:
 
         # process the path parameters
         # process the query parameters
+        if session_id is not None:
+
+            _query_params.append(('session_id', session_id))
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
-        if quiz_submission_request is not None:
-            _body_params = quiz_submission_request
 
 
         # set the HTTP header `Accept`
@@ -843,19 +1099,6 @@ class QuizApi:
                 ]
             )
 
-        # set the HTTP header `Content-Type`
-        if _content_type:
-            _header_params['Content-Type'] = _content_type
-        else:
-            _default_content_type = (
-                self.api_client.select_header_content_type(
-                    [
-                        'application/json'
-                    ]
-                )
-            )
-            if _default_content_type is not None:
-                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [
@@ -863,8 +1106,277 @@ class QuizApi:
         ]
 
         return self.api_client.param_serialize(
-            method='POST',
-            resource_path='/quiz/submit',
+            method='GET',
+            resource_path='/quiz/progress',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def quiz_question_get(
+        self,
+        difficulty: Annotated[Optional[StrictStr], Field(description="Quiz difficulty level")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> QuizQuestionResponse:
+        """Get next quiz question (stateless API)
+
+        Get the next question for the current quiz session. Creates a new session if none exists or if the previous session has expired (>15 minutes inactive).  **Features:** - No upfront question count required - Automatic session management - Validates free tier daily question limits - Returns single question with normalized answer options  **Session Management:** - One active session per user - Auto-expires after 15 minutes of inactivity - Sessions auto-cleanup via DynamoDB TTL (24 hours)
+
+        :param difficulty: Quiz difficulty level
+        :type difficulty: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._quiz_question_get_serialize(
+            difficulty=difficulty,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QuizQuestionResponse",
+            '401': "ErrorResponse",
+            '403': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def quiz_question_get_with_http_info(
+        self,
+        difficulty: Annotated[Optional[StrictStr], Field(description="Quiz difficulty level")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[QuizQuestionResponse]:
+        """Get next quiz question (stateless API)
+
+        Get the next question for the current quiz session. Creates a new session if none exists or if the previous session has expired (>15 minutes inactive).  **Features:** - No upfront question count required - Automatic session management - Validates free tier daily question limits - Returns single question with normalized answer options  **Session Management:** - One active session per user - Auto-expires after 15 minutes of inactivity - Sessions auto-cleanup via DynamoDB TTL (24 hours)
+
+        :param difficulty: Quiz difficulty level
+        :type difficulty: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._quiz_question_get_serialize(
+            difficulty=difficulty,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QuizQuestionResponse",
+            '401': "ErrorResponse",
+            '403': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def quiz_question_get_without_preload_content(
+        self,
+        difficulty: Annotated[Optional[StrictStr], Field(description="Quiz difficulty level")] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Get next quiz question (stateless API)
+
+        Get the next question for the current quiz session. Creates a new session if none exists or if the previous session has expired (>15 minutes inactive).  **Features:** - No upfront question count required - Automatic session management - Validates free tier daily question limits - Returns single question with normalized answer options  **Session Management:** - One active session per user - Auto-expires after 15 minutes of inactivity - Sessions auto-cleanup via DynamoDB TTL (24 hours)
+
+        :param difficulty: Quiz difficulty level
+        :type difficulty: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._quiz_question_get_serialize(
+            difficulty=difficulty,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QuizQuestionResponse",
+            '401': "ErrorResponse",
+            '403': "ErrorResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _quiz_question_get_serialize(
+        self,
+        difficulty,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        # process the query parameters
+        if difficulty is not None:
+
+            _query_params.append(('difficulty', difficulty))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'BearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/quiz/question',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

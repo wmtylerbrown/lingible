@@ -1,6 +1,6 @@
 # Active Context - Lingible
 
-## Current Focus: Quiz System Implementation & Gamification Features (2025-10-15)
+## Current Focus: Lexicon Enhancement & Quiz System Optimization (2025-11-02)
 
 ### ✅ **COMPLETED: Slang Crowdsourcing with AI Validation (2025-10-11)**
 - **AI-Powered Validation**: Complete integration of Tavily web search + AWS Bedrock (Claude) for intelligent slang validation
@@ -41,6 +41,17 @@
 - **Consistent Interface**: Uniform commands for all secret types (create, update, info, delete, list)
 - **Documentation**: Comprehensive README updates with new workflow
 - **Better UX**: Clear indication of configured vs missing secrets
+
+### ✅ **COMPLETED: Lexicon Update with Attestation Fields & Quiz Prioritization (2025-11-02)**
+- **Updated Lexicon**: Migrated to `updated_lexicon.json` with 409 terms, incorporating new attestation fields
+- **Attestation Fields**: Added support for `first_attested`, `first_attested_confidence`, and `attestation_note` throughout system
+- **Date-Based Quiz Prioritization**: GSI2 sort key now uses `{YYYYMMDD}#{confidence}#{term}` format to prioritize newer slang terms
+- **Approval Process Enhancement**: Approved user submissions now automatically get attestation fields (submission date) and quiz eligibility
+- **Table Consolidation**: Merged `trendingTable` into unified `termsTable` to reduce costs and simplify architecture
+- **GSI Cost Optimization**: Reduced storage costs by changing projections from `ALL` to `INCLUDE` or `KEYS_ONLY` where appropriate
+- **Migration Success**: Successfully migrated 409 terms with 100% success rate, all attestation fields preserved
+- **Export Integration**: Lexicon export handler includes attestation fields, ensuring S3 exports are complete
+- **Quiz Selection**: Newer terms (by `first_attested` date) are now prioritized in quiz selection while maintaining variety
 
 ### ✅ **COMPLETED: Test-Driven Development (TDD) Rule Implementation (2024-12-19)**
 - **Mandatory TDD Workflow**: Red-Green-Refactor process for all backend development
