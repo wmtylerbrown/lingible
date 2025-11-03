@@ -569,3 +569,10 @@
 - **Import Organization**: Fixed mid-function import anti-pattern by moving all imports to top of files
 - **Pydantic Integration**: Leveraged Pydantic's built-in type coercion for model field conversion
 - **Build Success**: All changes compile successfully with improved type safety
+
+### ✅ **Decimal Serialization Pattern Consistency & Pyright Configuration (2025-11-02)**
+- **Pattern Alignment**: Reverted recursive serialization in base.py to follow repository-level Decimal conversion pattern (consistent with SlangTermRepository)
+- **UserRepository Tests**: Added comprehensive tests for Decimal-to-int conversion in `get_daily_quiz_count` and `increment_daily_quiz_count` methods
+- **Test Fixture Fix**: Fixed `user_repository` fixture to properly patch `get_config_service` with correct import path
+- **Pyright Configuration**: Added `reportCallIssue: "none"` to suppress Pydantic "No parameter named" false positives in model constructors
+- **Code Quality**: All tests passing, deployment successful, changes committed and pushed
