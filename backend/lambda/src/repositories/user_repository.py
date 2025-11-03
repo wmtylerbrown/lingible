@@ -1,6 +1,7 @@
 """User repository for user-related data operations."""
 
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 from typing import Optional
 
 from models.users import User, UserTier
@@ -352,7 +353,11 @@ class UserRepository:
             )
 
             if "Item" in response:
-                return response["Item"].get("quiz_count", 0)
+                quiz_count = response["Item"].get("quiz_count", 0)
+                # Convert Decimal to int (DynamoDB returns numbers as Decimal)
+                if isinstance(quiz_count, Decimal):
+                    return int(quiz_count)
+                return int(quiz_count) if quiz_count else 0
             return 0
 
         except Exception as e:
@@ -397,7 +402,11 @@ class UserRepository:
                 ReturnValues="UPDATED_NEW",
             )
 
-            return response["Attributes"].get("quiz_count", 1)
+            quiz_count = response["Attributes"].get("quiz_count", 1)
+            # Convert Decimal to int (DynamoDB returns numbers as Decimal)
+            if isinstance(quiz_count, Decimal):
+                return int(quiz_count)
+            return int(quiz_count) if quiz_count else 1
 
         except Exception as e:
             logger.log_error(

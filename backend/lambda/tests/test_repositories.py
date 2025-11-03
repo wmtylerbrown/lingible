@@ -23,12 +23,13 @@ class TestUserRepository:
     @pytest.fixture
     def user_repository(self, mock_dynamodb_table, mock_config):
         """Create UserRepository with mocked dependencies."""
-        with patch('src.repositories.user_repository.aws_services') as mock_aws_services:
-            mock_table = Mock()
-            mock_aws_services.dynamodb_resource.Table.return_value = mock_table
-            repo = UserRepository()
-            repo.table = mock_table
-            return repo
+        with patch('repositories.user_repository.aws_services') as mock_aws_services:
+            with patch('repositories.user_repository.get_config_service', return_value=mock_config):
+                mock_table = Mock()
+                mock_aws_services.dynamodb_resource.Table.return_value = mock_table
+                repo = UserRepository()
+                repo.table = mock_table
+                yield repo
 
     def test_create_user(self, user_repository, sample_user):
         """Test creating a new user."""
@@ -518,12 +519,30 @@ class TestUserRepository:
         result = user_repository.get_daily_quiz_count("user_123", "2024-12-19")
 
         assert result == 3
+        assert isinstance(result, int)  # Ensure it's an int, not Decimal
         user_repository.table.get_item.assert_called_once_with(
             Key={
                 "PK": "USER#user_123",
                 "SK": "QUIZ_DAILY#2024-12-19",
             }
         )
+
+    def test_get_daily_quiz_count_converts_decimal(self, user_repository):
+        """Test get_daily_quiz_count converts Decimal from DynamoDB to int."""
+        from decimal import Decimal
+
+        user_repository.table.get_item.return_value = {
+            "Item": {
+                "PK": "USER#user_123",
+                "SK": "QUIZ_DAILY#2024-12-19",
+                "quiz_count": Decimal("10")  # DynamoDB returns Decimal
+            }
+        }
+
+        result = user_repository.get_daily_quiz_count("user_123", "2024-12-19")
+
+        assert result == 10
+        assert isinstance(result, int)  # Must be int, not Decimal
 
     def test_get_daily_quiz_count_handles_error(self, user_repository):
         """Test get_daily_quiz_count handles errors gracefully."""
@@ -589,6 +608,32 @@ class TestUserRepository:
             result = user_repository.increment_daily_quiz_count("user_123")
 
             assert result == 4
+            assert isinstance(result, int)  # Ensure it's an int, not Decimal
+
+    def test_increment_daily_quiz_count_converts_decimal(self, user_repository):
+        """Test increment_daily_quiz_count converts Decimal from DynamoDB to int."""
+        from datetime import datetime, timezone, timedelta
+        from decimal import Decimal
+        from unittest.mock import patch
+
+        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+            today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+            today_date = today.date()
+
+            mock_datetime.now.return_value = today
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            # DynamoDB returns Decimal
+            user_repository.table.update_item.return_value = {
+                "Attributes": {
+                    "quiz_count": Decimal("15")
+                }
+            }
+
+            result = user_repository.increment_daily_quiz_count("user_123")
+
+            assert result == 15
+            assert isinstance(result, int)  # Must be int, not Decimal
 
     def test_increment_daily_quiz_count_handles_error(self, user_repository):
         """Test increment_daily_quiz_count handles errors gracefully."""

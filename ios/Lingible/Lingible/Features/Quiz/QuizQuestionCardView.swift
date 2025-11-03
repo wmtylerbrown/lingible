@@ -32,13 +32,25 @@ struct QuizQuestionCardView: View {
 
                     // Slang Term Highlight
                     Text("'\(question.slangTerm)'")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundColor(.lingiblePrimary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.lingiblePrimary.opacity(0.1))
-                        .cornerRadius(8)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.lingiblePrimary.opacity(0.15),
+                                    Color.lingiblePrimary.opacity(0.08)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.lingiblePrimary.opacity(0.3), lineWidth: 2)
+                        )
                 }
 
                 // Context Hint (optional)
@@ -116,11 +128,21 @@ struct QuizQuestionCardView: View {
                     }
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: Color(.label).opacity(0.1), radius: 8, x: 0, y: 4)
-            .padding(.horizontal)
+            .padding(24)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(.systemBackground),
+                        Color.lingiblePrimary.opacity(0.02)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .cornerRadius(20)
+            .shadow(color: Color.lingiblePrimary.opacity(0.15), radius: 12, x: 0, y: 6)
+            .shadow(color: Color(.label).opacity(0.05), radius: 4, x: 0, y: 2)
+            .padding(.horizontal, 20)
         }
         .onAppear {
             // Check if question timed out
@@ -220,13 +242,37 @@ struct QuizQuestionCardView: View {
                         .foregroundColor(.white)
                 }
             }
-            .padding()
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.lingiblePrimary : Color(.systemBackground))
-            .cornerRadius(12)
+            .background(
+                Group {
+                    if isSelected {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.lingiblePrimary,
+                                Color.lingiblePrimary.opacity(0.8)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    } else {
+                        Color(.systemBackground)
+                    }
+                }
+            )
+            .cornerRadius(14)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.clear : Color.gray.opacity(0.3), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(
+                        isSelected ? Color.clear : Color.lingiblePrimary.opacity(0.2),
+                        lineWidth: 2
+                    )
+            )
+            .shadow(
+                color: isSelected ? Color.lingiblePrimary.opacity(0.3) : Color.clear,
+                radius: isSelected ? 8 : 0,
+                x: 0,
+                y: isSelected ? 4 : 0
             )
         }
         .disabled(isDisabled)

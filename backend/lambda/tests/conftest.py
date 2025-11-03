@@ -263,7 +263,7 @@ def mock_config():
             return env_vars.get(key, "")
 
         mock_config.get_config.side_effect = mock_get_config
-        mock_config._get_env_var = mock_get_env_var
+        mock_config._get_env_var = Mock(side_effect=mock_get_env_var)
         mock_config_class.return_value = mock_config
         yield mock_config
 

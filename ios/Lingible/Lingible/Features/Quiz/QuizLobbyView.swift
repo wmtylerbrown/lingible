@@ -3,32 +3,71 @@ import LingibleAPI
 
 struct QuizLobbyView: View {
     @ObservedObject var viewModel: QuizViewModel
+    @EnvironmentObject var appCoordinator: AppCoordinator
+    @State private var showingUpgradePrompt = false
+
+    private var userTier: UsageResponse.Tier {
+        appCoordinator.userUsage?.tier ?? .free
+    }
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Stats Card
-                    if let history = viewModel.quizHistory {
-                        statsCard(history: history)
+            ZStack {
+                Color.lingibleBackground
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    // Header with upgrade button
+                    EnhancedHeader.logoOnly(
+                        userTier: userTier,
+                        onUpgradeTap: {
+                            if userTier == .free {
+                                showingUpgradePrompt = true
+                            }
+                        }
+                    )
+
+                    // Banner Ad (for free users only)
+                    if let adManager = appCoordinator.adManager, adManager.shouldShowBanner {
+                        adManager.createBannerAdView()
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 10)
                     }
 
-                    // Start Quiz Button
-                    startQuizButton
+                    // Scrollable content area
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            // Stats Card
+                            if let history = viewModel.quizHistory {
+                                statsCard(history: history)
+                            }
 
-                    // Error Message
-                    if let errorMessage = viewModel.errorMessage {
-                        errorCard(message: errorMessage)
+                            // Start Quiz Button
+                            startQuizButton
+
+                            // Error Message
+                            if let errorMessage = viewModel.errorMessage {
+                                errorCard(message: errorMessage)
+                            }
+                        }
+                        .padding()
+                        .padding(.top, 20)
                     }
                 }
-                .padding()
             }
-            .navigationTitle("Quiz")
-            .background(Color.lingibleBackground)
+            .navigationBarHidden(true)
             .onAppear {
                 Task {
                     await viewModel.loadQuizHistory()
                 }
+            }
+            .sheet(isPresented: $showingUpgradePrompt) {
+                UpgradePromptView(
+                    translationCount: nil,
+                    onUpgrade: {},
+                    onDismiss: { showingUpgradePrompt = false },
+                    userUsage: appCoordinator.userUsage
+                )
             }
         }
     }

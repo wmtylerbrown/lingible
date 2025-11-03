@@ -27,6 +27,7 @@ final class QuizViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var currentScreen: QuizScreen = .lobby
+    @Published var showingInterstitial: Bool = false
 
     // MARK: - Private Properties
     private let quizService: QuizServiceProtocol
@@ -133,11 +134,18 @@ final class QuizViewModel: ObservableObject {
             lastAnswerResponse = response
             sessionProgress = response.runningStats
 
-            // Show feedback briefly, then fetch next question
+            // Show feedback briefly, then show interstitial
             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds for feedback
 
-            // Clear feedback and fetch next question
+            // Clear feedback and show interstitial
             lastAnswerResponse = nil
+            showingInterstitial = true
+
+            // Show interstitial for 2.5 seconds
+            try? await Task.sleep(nanoseconds: 2_500_000_000) // 2.5 seconds for interstitial
+
+            // Hide interstitial and fetch next question
+            showingInterstitial = false
             await getNextQuestion()
 
         } catch {
@@ -254,10 +262,14 @@ final class QuizViewModel: ObservableObject {
             // Update progress
             sessionProgress = response.runningStats
 
-            // Show feedback briefly
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds for "Time's up!" message
+            // Show interstitial for timed out questions too
+            showingInterstitial = true
 
-            // Fetch next question
+            // Show interstitial for 2.5 seconds
+            try? await Task.sleep(nanoseconds: 2_500_000_000) // 2.5 seconds for interstitial
+
+            // Hide interstitial and fetch next question
+            showingInterstitial = false
             await getNextQuestion()
 
         } catch {
@@ -307,6 +319,7 @@ final class QuizViewModel: ObservableObject {
         questionTimeRemaining.removeAll()
         timedOutQuestions.removeAll()
         quizResult = nil
+        showingInterstitial = false
     }
 
     func returnToLobby() {
