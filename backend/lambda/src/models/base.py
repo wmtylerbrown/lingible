@@ -3,8 +3,9 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class HTTPStatus(Enum):
@@ -36,16 +37,23 @@ class ErrorCode(Enum):
     INVALID_TOKEN = "AUTH_001"
     TOKEN_EXPIRED = "AUTH_002"
     INSUFFICIENT_PERMISSIONS = "AUTH_003"
+    AUTHENTICATION_ERROR = "AUTH_001"
+    AUTHORIZATION_ERROR = "AUTH_003"
 
     # Validation errors
     INVALID_INPUT = "VAL_001"
     MISSING_REQUIRED_FIELD = "VAL_002"
     INVALID_FORMAT = "VAL_003"
+    VALIDATION_ERROR = "VAL_001"
 
     # Resource errors
     RESOURCE_NOT_FOUND = "RES_001"
     RESOURCE_ALREADY_EXISTS = "RES_002"
     RESOURCE_CONFLICT = "RES_003"
+
+    # Business logic (legacy aliases)
+    BUSINESS_LOGIC_ERROR = "BIZ_003"
+    SUBSCRIPTION_REQUIRED = "BIZ_004"
 
     # Business logic errors
     USAGE_LIMIT_EXCEEDED = "BIZ_001"
@@ -56,6 +64,7 @@ class ErrorCode(Enum):
     DATABASE_ERROR = "SYS_001"
     EXTERNAL_SERVICE_ERROR = "SYS_002"
     INTERNAL_ERROR = "SYS_003"
+    SYSTEM_ERROR = "SYS_003"
 
     # Rate limiting errors
     RATE_LIMIT_EXCEEDED = "RATE_001"
@@ -64,11 +73,48 @@ class ErrorCode(Enum):
 class LingibleBaseModel(BaseModel):
     """Base model for all Lingible models with automatic serialization handling."""
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_input(cls, data: Any) -> Any:
+        """Normalize inbound data prior to model construction."""
+        if isinstance(data, Mapping):
+            return {key: cls.__normalize_value(value) for key, value in data.items()}
+        if isinstance(data, Sequence) and not isinstance(data, (str, bytes, bytearray)):
+            return [cls.__normalize_value(item) for item in data]
+        return cls.__normalize_value(data)
+
+    @classmethod
+    def __normalize_value(cls, value: Any) -> Any:
+        """Recursively normalize raw DynamoDB-style values."""
+        if isinstance(value, LingibleBaseModel):
+            return value
+        if isinstance(value, Mapping):
+            normalized: MutableMapping[Any, Any] = {}
+            for key, inner in value.items():
+                normalized[key] = cls.__normalize_value(inner)
+            return dict(normalized)
+        if isinstance(value, Sequence) and not isinstance(
+            value, (str, bytes, bytearray)
+        ):
+            return [cls.__normalize_value(item) for item in value]
+        if isinstance(value, set):
+            return [cls.__normalize_value(item) for item in value]
+        if isinstance(value, Decimal):
+            # Preserve integers when possible, otherwise cast to float.
+            if value == value.to_integral_value():
+                return int(value)
+            return float(value)
+        if isinstance(value, str):
+            lowered = value.lower()
+            if lowered in {"true", "false"}:
+                return lowered == "true"
+        return value
+
     class Config:
         """Pydantic configuration for consistent serialization."""
 
-        # Use enum values instead of enum objects
-        use_enum_values = True
+        # Preserve enum types internally for stronger typing
+        use_enum_values = False
         # Validate assignment to catch type errors early
         validate_assignment = True
         # Allow population by field name or alias
@@ -82,33 +128,30 @@ class LingibleBaseModel(BaseModel):
         }
 
     def serialize_model(self) -> Dict[str, Any]:
-        """Custom serializer that handles Decimal, datetime, and nested Pydantic models.
+        """Convert the model into a JSON-serializable dictionary."""
+        raw_data = self.model_dump(mode="python", by_alias=True)
+        return {key: self._serialize_value(value) for key, value in raw_data.items()}
 
-        Note: This is NOT a @model_serializer because we want to preserve Pydantic's
-        built-in serialization (which handles enums and field aliases correctly) and
-        then post-process for special types like Decimal and datetime.
-        """
-        # Use Pydantic's model_dump to get proper enum serialization and field aliases
-        # This ensures enums are converted to their values (due to use_enum_values=True)
-        # and field aliases are respected (snake_case for API responses)
-        result = self.model_dump(mode="python", by_alias=True)
-
-        # Post-process to handle types that need special serialization
-        for field_name, field_value in result.items():
-            if isinstance(field_value, Decimal):
-                result[field_name] = float(field_value)
-            elif isinstance(field_value, datetime):
-                result[field_name] = field_value.isoformat()
-            elif isinstance(field_value, list):
-                # Handle lists of Pydantic models or other objects
-                result[field_name] = [
-                    item.serialize_model() if hasattr(item, "serialize_model") else item
-                    for item in field_value
-                ]
-            elif hasattr(field_value, "serialize_model"):
-                # Handle nested Pydantic models
-                result[field_name] = field_value.serialize_model()
-        return result
+    @classmethod
+    def _serialize_value(cls, value: Any) -> Any:
+        """Recursively normalize nested values for JSON serialization."""
+        if isinstance(value, LingibleBaseModel):
+            return value.serialize_model()
+        if isinstance(value, Mapping):
+            return {key: cls._serialize_value(inner) for key, inner in value.items()}
+        if isinstance(value, Sequence) and not isinstance(
+            value, (str, bytes, bytearray)
+        ):
+            return [cls._serialize_value(item) for item in value]
+        if isinstance(value, set):
+            return [cls._serialize_value(item) for item in value]
+        if isinstance(value, Decimal):
+            return int(value) if value == value.to_integral_value() else float(value)
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, Enum):
+            return value.value
+        return value
 
     def to_json(self) -> str:
         """Convert model to JSON string with proper serialization."""
@@ -118,6 +161,44 @@ class LingibleBaseModel(BaseModel):
     def to_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary with proper serialization."""
         return self.serialize_model()
+
+    def to_dynamodb(self) -> Dict[str, Any]:
+        """Convert model to DynamoDB-compatible dictionary.
+
+        Converts float values to Decimal (DynamoDB requirement) while preserving
+        other types. This is the inverse of _normalize_input which converts
+        Decimal to float when reading from DynamoDB.
+
+        Returns:
+            Dictionary suitable for DynamoDB put_item/update_item operations
+        """
+        raw_data = self.model_dump(mode="python", by_alias=True)
+        return {key: self._to_dynamodb_value(value) for key, value in raw_data.items()}
+
+    @classmethod
+    def _to_dynamodb_value(cls, value: Any) -> Any:
+        """Recursively convert values to DynamoDB-compatible types."""
+        if isinstance(value, LingibleBaseModel):
+            return value.to_dynamodb()
+        if isinstance(value, Mapping):
+            return {key: cls._to_dynamodb_value(inner) for key, inner in value.items()}
+        if isinstance(value, Sequence) and not isinstance(
+            value, (str, bytes, bytearray)
+        ):
+            return [cls._to_dynamodb_value(item) for item in value]
+        if isinstance(value, set):
+            return [cls._to_dynamodb_value(item) for item in value]
+        if isinstance(value, float):
+            # Convert float to Decimal for DynamoDB (DynamoDB doesn't support float)
+            return Decimal(str(value))
+        if isinstance(value, Decimal):
+            # Already Decimal, keep as-is
+            return value
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, Enum):
+            return value.value
+        return value
 
 
 class BaseResponse(LingibleBaseModel):
@@ -166,5 +247,3 @@ class HealthResponse(LingibleBaseModel):
     """Health check response model."""
 
     status: str = Field(..., description="Service status (healthy, unhealthy, etc.)")
-    version: str = Field(..., description="Application version")
-    timestamp: datetime = Field(..., description="Health check timestamp")

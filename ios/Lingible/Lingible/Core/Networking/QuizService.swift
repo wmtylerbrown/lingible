@@ -68,8 +68,22 @@ final class QuizService: QuizServiceProtocol {
         // Get access token using AuthenticationService
         let accessToken = try await authenticationService.getAuthToken()
 
+        // Debug: Log token info
+        print("🔍 QuizService.getNextQuestion: Token length: \(accessToken.count)")
+        print("🔍 QuizService.getNextQuestion: Token preview: \(String(accessToken.prefix(50)))...")
+        let tokenParts = accessToken.components(separatedBy: ".")
+        print("🔍 QuizService.getNextQuestion: Token parts: \(tokenParts.count)")
+
         // Configure API client with auth token
         configureAPIClient(with: accessToken)
+
+        // Debug: Verify header was set
+        if let setHeader = LingibleAPIAPI.customHeaders["Authorization"] {
+            print("🔍 QuizService.getNextQuestion: Authorization header set (length: \(setHeader.count))")
+            print("🔍 QuizService.getNextQuestion: Header preview: \(String(setHeader.prefix(60)))...")
+        } else {
+            print("❌ QuizService.getNextQuestion: Authorization header NOT set!")
+        }
 
         // Convert QuizDifficulty to API enum (default to beginner)
         let apiDifficulty: QuizAPI.Difficulty_quizQuestionGet? = {
@@ -229,8 +243,19 @@ final class QuizService: QuizServiceProtocol {
     }
 
     private func configureAPIClient(with accessToken: String) {
+        // Validate token format before setting header
+        let tokenParts = accessToken.components(separatedBy: ".")
+        if tokenParts.count != 3 {
+            print("⚠️ QuizService: Invalid token format - expected JWT with 3 parts, got \(tokenParts.count) parts")
+            print("⚠️ QuizService: Token preview: \(String(accessToken.prefix(50)))...")
+        } else {
+            print("✅ QuizService: Token format valid (3 parts)")
+        }
+
         // Configure the global API client with authorization header
-        LingibleAPIAPI.customHeaders["Authorization"] = "Bearer \(accessToken)"
+        let authHeader = "Bearer \(accessToken)"
+        LingibleAPIAPI.customHeaders["Authorization"] = authHeader
+        print("🔑 QuizService: Set Authorization header (length: \(authHeader.count))")
     }
 
     // MARK: - Error Parsing
@@ -272,7 +297,9 @@ final class QuizService: QuizServiceProtocol {
 
                 // Try to parse as ModelErrorResponse to get structured error info
                 do {
-                    let errorResponse = try JSONDecoder().decode(ModelErrorResponse.self, from: data)
+                    let decoder = JSONDecoder()
+                    decoder.dateDecodingStrategy = .iso8601
+                    let errorResponse = try decoder.decode(ModelErrorResponse.self, from: data)
                     print("🔍 QuizService.parseError: ✅ Successfully parsed ModelErrorResponse")
                     print("🔍 QuizService.parseError: - errorCode: '\(errorResponse.errorCode)'")
                     print("🔍 QuizService.parseError: - statusCode: \(errorResponse.statusCode)")

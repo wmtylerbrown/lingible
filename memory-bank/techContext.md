@@ -54,11 +54,15 @@
 - **Lambda Layers**: Unified dependencies layer architecture
 
 ### **Database:**
-- **Primary**: DynamoDB with single-table design
+- **Primary**: DynamoDB with multi-table design
 - **Tables**:
-  - `lingible-users-{env}` (users, subscriptions, usage)
-  - `lingible-translations-{env}` (translation history)
-- **Access Patterns**: Optimized for user-centric queries
+  - `UsersTable` - User profiles, usage limits, quiz sessions
+  - `TranslationsTable` - Translation history
+  - `SubmissionsTable` - User slang submissions and moderation
+  - `LexiconTable` - Canonical lexicon entries with quiz metadata
+  - `TrendingTable` - Trending analytics (90-day TTL)
+- **Access Patterns**: Optimized indexes for each table's specific query patterns
+- **Documentation**: See `docs/database-schema.md` for complete schema and index definitions
 
 ### **Authentication & Security:**
 - **Identity Provider**: AWS Cognito
@@ -97,6 +101,11 @@ backend/
 ├── infrastructure/         # AWS CDK infrastructure
 └── requirements.txt        # Dependencies
 ```
+
+- **Repository Conventions**:
+  - Repositories construct and return strongly typed Pydantic models (no raw `dict` payloads).
+  - Shared normalization (Decimal → int/float, singleton → list, enum coercion) lives in `LingibleBaseModel`.
+  - Model-level validators handle domain-specific coercion so repositories just pass DynamoDB items through.
 
 ### **Handler Organization:**
 - **Independent Deployment**: Each handler in its own directory
@@ -159,10 +168,11 @@ tests/
 - **Performance**: Unified dependencies layer reduces package size
 
 ### **Database Optimization:**
-- **Single-Table Design**: Efficient DynamoDB access patterns
-- **Partition Key Strategy**: User-centric data distribution
-- **GSI Optimization**: Optimized for common query patterns
-- **TTL Management**: Automatic data expiration
+- **Multi-Table Design**: Dedicated tables for different data domains
+- **Partition Key Strategy**: Optimized per-table for specific access patterns
+- **GSI Optimization**: Right-sized projections (KEYS_ONLY, INCLUDE) for cost efficiency
+- **TTL Management**: Automatic data expiration for trending and temporary data
+- **Documentation**: See `docs/database-schema.md` for complete table and index specifications
 
 ### **Caching Strategy:**
 - **DynamoDB DAX**: Read performance optimization

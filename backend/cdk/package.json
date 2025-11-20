@@ -1,0 +1,41 @@
+{
+  "name": "lingible-infrastructure-v2",
+  "version": "0.1.0",
+  "description": "Next-generation AWS CDK infrastructure for Lingible",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf cdk.out dist artifacts node_modules ../../website/build && find . -name '*.js' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.d.ts' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.js.map' -not -path './node_modules/*' -not -path './scripts/*' -delete",
+    "watch": "tsc -w -p tsconfig.json",
+    "cdk": "cdk",
+    "presynth": "npm run build && npm run build:lambdas && npm run build:website",
+    "synth": "cdk synth",
+    "synth:dev": "npm run synth -- --context environment=dev",
+    "synth:prod": "npm run synth -- --context environment=prod",
+    "prediff": "npm run build && npm run build:lambdas && npm run build:website",
+    "diff": "cdk diff",
+    "diff:dev": "npm run diff -- --context environment=dev",
+    "diff:prod": "npm run diff -- --context environment=prod",
+    "predeploy": "npm run build && npm run build:lambdas && npm run build:website",
+    "deploy": "cdk deploy --all --require-approval broadening",
+    "deploy:dev": "npm run deploy -- --context environment=dev --require-approval never",
+    "deploy:prod": "npm run deploy -- --context environment=prod",
+    "lint": "eslint . --ext .ts",
+    "secrets": "node scripts/manage-secrets.js",
+    "build:lambdas": "node scripts/build-lambda-packages.js",
+    "build:website": "../../.venv/bin/python ../../website/build.py"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.213.0",
+    "constructs": "^10.4.2",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/node": "20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "~5.0.0"
+  }
+}

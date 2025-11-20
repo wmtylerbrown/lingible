@@ -777,7 +777,7 @@ Implemented a complete authorization system with API Gateway authorizers and Lam
 ### **🔐 Authorization Components:**
 - **API Gateway Authorizer**: `backend/src/handlers/authorizer.py` - JWT validation at API Gateway level
 - **Authorization Decorators**: `backend/src/utils/authorization.py` - Fine-grained Lambda-level authorization
-- **Authorization Guide**: `backend/docs/authorization-guide.md` - Comprehensive documentation
+- **Security Documentation**: `docs/security.md` - Security practices and authorization
 
 ### **🔧 Key Features:**
 1. **✅ JWT Token Validation**
@@ -806,7 +806,7 @@ Implemented a complete authorization system with API Gateway authorizers and Lam
 - `backend/src/utils/authorization.py` - Authorization decorators and utilities
 - `backend/src/handlers/translate_handler.py` - Updated with authorization
 - `backend/requirements.txt` - Added PyJWT and cryptography dependencies
-- `backend/docs/authorization-guide.md` - Comprehensive documentation
+- `docs/security.md` - Security practices and authorization documentation
 
 ### **🧪 Testing:**
 - ✅ Authorization decorators implemented

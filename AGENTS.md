@@ -26,31 +26,33 @@ pip install -r backend/lambda/requirements.txt
 ### Dependencies
 - **Backend**: Use Poetry from `backend/lambda/` directory with activated venv
 - **Add dependency**: `cd backend/lambda && poetry add <package> && poetry lock && poetry install`
-- **Infrastructure**: Use npm from `backend/infrastructure/` directory
+- **Infrastructure**: Use npm from `backend/cdk/` directory
 
 ## Testing Instructions
 
 ### Running Tests
 ```bash
 # Always run from backend/lambda directory
+# NOTE: tests/ directory is deprecated, use tests_v2/ for all new tests
 cd backend/lambda
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/
+ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/
 
 # With coverage
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/ --cov=src --cov-report=html
+ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/ --cov=src --cov-report=html
 
 # Specific test file
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/test_services.py -v
+ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/test_services.py -v
 ```
 
 ### Test Requirements (CRITICAL)
 - **TDD Mandatory**: All new code must follow Red-Green-Refactor workflow
-- **Coverage**: 90% minimum, 100% for critical logic
+- **Coverage**: 90% minimum for repositories, 50%+ for services, 90%+ for translation/user/quiz services
 - **Test Types**: Use actual Pydantic models, not mocks
 - **Fixtures**: Build reusable fixtures in conftest.py
 - **AWS Mocking**: Use moto for DynamoDB, Cognito, Secrets Manager
 - **Fake Credentials**: Default fixture sets fake AWS credentials (never use real ones)
-- **NO Test Code in src/**: All test code belongs in tests/ directory only
+- **NO Test Code in src/**: All test code belongs in tests_v2/ directory only
+- **Deprecated**: The `tests/` directory is deprecated - all new tests go in `tests_v2/`
 
 ## Backend Deployment
 
@@ -59,7 +61,7 @@ ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/test_services.p
 # NEVER use direct cdk deploy commands
 # ALWAYS use package.json scripts
 
-cd backend/infrastructure
+cd backend/cdk
 npm run deploy:dev    # Development deployment
 npm run deploy:prod   # Production deployment
 npm run build         # Build Lambda packages
@@ -148,6 +150,34 @@ from models.user import User
 from services.user_service import UserService
 ```
 
+### DynamoDB Float/Decimal Conversion (CRITICAL)
+DynamoDB does not support Python `float` types - it requires `Decimal`. The `LingibleBaseModel` provides automatic conversion:
+
+```python
+# ✅ CORRECT - Use to_dynamodb() when writing to DynamoDB
+item = model.to_dynamodb()  # Converts float → Decimal
+repository.table.put_item(Item=item)
+
+# ✅ CORRECT - serialize_model() for API responses (converts Decimal → float)
+api_response = model.serialize_model()  # Converts Decimal → float
+
+# ✅ CORRECT - _normalize_input() automatically converts Decimal → float when reading
+user = User(**dynamodb_item)  # Decimal values automatically converted to float
+
+# ❌ WRONG - Don't manually convert in repositories
+item["score"] = Decimal(str(score))  # Use model.to_dynamodb() instead
+
+# ❌ WRONG - Don't store float directly
+repository.table.put_item(Item={"score": 85.5})  # Will fail - use Decimal
+```
+
+**Key Points**:
+- Models use `float` for API compatibility
+- `to_dynamodb()` converts float → Decimal for storage
+- `serialize_model()` converts Decimal → float for API responses
+- `_normalize_input()` converts Decimal → float when reading from DB
+- Repositories should use `LingibleBaseModel._to_dynamodb_value()` for individual values
+
 ### Authorization Pattern
 - **Use HandlerAuthorization wrapper**: Never implement validation yourself
 - **Services handle user logic**: Pass user_id to services, not handlers
@@ -156,7 +186,8 @@ from services.user_service import UserService
 ### Configuration
 - **No hardcoded values**: Read from config service or SSM
 - **Tier limits**: Read from `config/tier-limits.json`, never hardcode
-- **Secrets**: Use AWS Secrets Manager, never hardcode
+- **Secrets/Parameters**: Use AWS Systems Manager Parameter Store (SecureString) for most secrets, Secrets Manager only for Cognito
+- **Parameter naming**: Use format `/lingible/{env}/secrets/{name}` (e.g., `/lingible/dev/secrets/apple-iap-private-key`)
 - **Cognito IDs**: Pass through config service
 
 ## Common Workflows
@@ -165,12 +196,17 @@ from services.user_service import UserService
 1. Update OpenAPI spec first
 2. Update TypeScript types
 3. Regenerate SDKs
-4. Create handler in `backend/lambda/src/handlers/<name>_api/`
-5. Write tests (TDD: Red-Green-Refactor)
+4. Create handler in `backend/lambda/src/handlers/<name>_api/` (API handlers end with `_api`)
+5. Write tests in `tests_v2/` directory (TDD: Red-Green-Refactor)
 6. Create/update service layer
 7. Create/update repository layer
-8. Update CDK stack to wire handler
+8. Update CDK construct to wire handler
 9. Deploy to dev and test
+
+### Handler Naming Conventions
+- **API handlers**: End with `_api` (e.g., `quiz_question_api`, `translate_api`)
+- **Async handlers**: End with `_async` (e.g., `slang_validation_async`, `export_lexicon_async`)
+- **Cognito triggers**: Use descriptive names (e.g., `cognito_post_confirmation_trigger`)
 
 ### Adding New Model Fields
 1. Define in `backend/lambda/src/models/`
@@ -190,7 +226,7 @@ poetry lock
 poetry install
 
 # Infrastructure
-cd backend/infrastructure
+cd backend/cdk
 npm install <package>
 ```
 
@@ -219,16 +255,16 @@ date +%Y-%m-%d_%H:%M:%S
 ```bash
 # Format code
 cd backend/lambda
-black src/ tests/
+black src/ tests_v2/
 
 # Lint code
-flake8 src/ tests/
+flake8 src/ tests_v2/
 
 # Type check
 mypy src/
 
 # Run tests
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/ --cov=src
+ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/ --cov=src
 ```
 
 ### Flake8 Configuration
@@ -244,18 +280,24 @@ ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/ --cov=src
 - **Token validation**: Properly validate JWT tokens
 
 ### Secrets Management
-- **Private keys**: Store in Secrets Manager, not environment variables or code
-- **CDK secrets**: Read from secure place, never embed in code
-- **Apple credentials**: Use Secrets Manager for App Store keys
+- **Parameter Store**: Use AWS Systems Manager Parameter Store (SecureString) for most secrets
+- **Secrets Manager**: Only for Cognito User Pool credentials (required by Cognito)
+- **Parameter naming**: `/lingible/{env}/secrets/{name}` format
+- **Management script**: Use `backend/cdk/scripts/manage-secrets.js` to create/update parameters
+- **CDK secrets**: Read from Parameter Store, never embed in code
+- **Apple credentials**: Use Parameter Store for App Store keys
 
 ## Common Gotchas
 
 ### Python
 - ❌ Don't use `.value` on Pydantic enums (use `str()`)
-- ❌ Don't put imports in middle of files
+- ❌ Don't put imports in middle of files (all imports at top)
 - ❌ Don't return dicts (return typed models)
 - ❌ Don't create orchestration services for circular deps (fix the deps)
 - ❌ Don't hardcode tier limits (use config/tier-limits.json)
+- ❌ Don't store float in DynamoDB (use `model.to_dynamodb()` to convert float → Decimal)
+- ✅ Use `LingibleBaseModel.to_dynamodb()` for DynamoDB writes (converts float → Decimal)
+- ✅ Use `LingibleBaseModel.serialize_model()` for API responses (converts Decimal → float)
 
 ### Testing
 - ❌ Don't use real AWS credentials in tests
@@ -290,13 +332,14 @@ ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/ --cov=src
 backend/
 ├── lambda/
 │   ├── src/
-│   │   ├── handlers/        # Lambda entry points (13 handlers)
+│   │   ├── handlers/        # Lambda entry points (API, async, triggers)
 │   │   ├── services/        # Business logic
 │   │   ├── repositories/    # Data access
 │   │   ├── models/          # Pydantic models
 │   │   └── utils/           # Shared utilities
-│   └── tests/               # Test suite
-└── infrastructure/          # AWS CDK code
+│   ├── tests_v2/            # Test suite (tests/ is deprecated)
+│   └── tests/               # Deprecated - use tests_v2/
+└── cdk/                     # AWS CDK infrastructure
 
 shared/
 ├── api/
@@ -365,10 +408,10 @@ logger.info("Translation completed", extra={
 
 ```bash
 # Test everything
-cd backend/lambda && ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests/
+cd backend/lambda && ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/
 
 # Deploy backend
-cd backend/infrastructure && npm run deploy:dev
+cd backend/cdk && npm run deploy:dev
 
 # Build iOS
 cd ios/Lingible && ./build_app.sh dev
@@ -381,7 +424,7 @@ cd ios && ./regenerate-client-sdk.sh
 cd backend/lambda && poetry add <package> && poetry lock && poetry install
 
 # Code quality
-cd backend/lambda && black src/ tests/ && flake8 src/ tests/ && mypy src/
+cd backend/lambda && black src/ tests_v2/ && flake8 src/ tests_v2/ && mypy src/
 ```
 
 ---

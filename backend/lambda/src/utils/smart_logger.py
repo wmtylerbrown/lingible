@@ -1,6 +1,7 @@
 """Smart logging configuration with cost optimization and enhanced debugging."""
 
 import json
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.logging import correlation_paths
@@ -219,8 +220,6 @@ class SmartLogger:
 
     def _get_timestamp(self) -> str:
         """Get current timestamp for debug logging."""
-        from datetime import datetime, timezone
-
         return datetime.now(timezone.utc).isoformat()
 
 

@@ -1,8 +1,8 @@
 {
   "version": "1",
   "auth": {
-    "user_pool_id": "us-east-1_65YoJgNVi",
-    "user_pool_client_id": "68n1e6i3fs8m802c5nf5fc94re",
+    "user_pool_id": "us-east-1_3JPwmkZVx",
+    "user_pool_client_id": "111p0iocooqb9stvot57143ua3",
     "aws_region": "us-east-1",
     "oauth": {
       "domain": "auth.dev.lingible.com",

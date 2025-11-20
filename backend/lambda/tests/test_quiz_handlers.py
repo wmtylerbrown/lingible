@@ -7,12 +7,8 @@ from datetime import datetime, timezone, timedelta
 
 from src.models.quiz import (
     QuizHistory,
-    QuizChallenge,
     QuizResult,
     QuizDifficulty,
-    ChallengeType,
-    QuizSubmissionRequest,
-    QuizAnswer,
     QuizQuestionResponse,
     QuizAnswerRequest,
     QuizAnswerResponse,
@@ -70,11 +66,7 @@ class TestQuizHistoryAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 200
-            body = json.loads(response["body"])
-            assert isinstance(body, str)  # Should be JSON string from to_json()
-
-            # Parse the JSON body to verify structure
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["user_id"] == "test_user_123"
             assert body_dict["total_quizzes"] == 10
             assert body_dict["average_score"] == 85.5
@@ -102,8 +94,7 @@ class TestQuizHistoryAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 200
-            body = json.loads(response["body"])
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["can_take_quiz"] is False
             assert "limit" in body_dict["reason"].lower()
 
@@ -117,8 +108,7 @@ class TestQuizHistoryAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 500
-            body = json.loads(response["body"])
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["success"] is False
             assert "error" in body_dict or "message" in body_dict
 
@@ -180,8 +170,7 @@ class TestQuizQuestionAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 200
-            body = json.loads(response["body"])
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["session_id"] == "session_123"
             assert body_dict["question"]["slang_term"] == "bussin"
             assert len(body_dict["question"]["options"]) == 4
@@ -281,8 +270,7 @@ class TestQuizAnswerAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 200
-            body = json.loads(response["body"])
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["is_correct"] is True
             assert body_dict["points_earned"] == 8.5
             assert body_dict["running_stats"]["questions_answered"] == 1
@@ -309,8 +297,7 @@ class TestQuizAnswerAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 200
-            body = json.loads(response["body"])
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["is_correct"] is False
             assert body_dict["points_earned"] == 0.0
 
@@ -359,8 +346,7 @@ class TestQuizProgressAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 200
-            body = json.loads(response["body"])
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["questions_answered"] == 5
             assert body_dict["correct_count"] == 4
             assert body_dict["total_score"] == 35.5
@@ -384,7 +370,7 @@ class TestQuizProgressAPIHandler:
         response = handler(event, {})
 
         # Should return validation error
-        assert response["statusCode"] == 400
+        assert response["statusCode"] == 422
 
 
 class TestQuizEndAPIHandler:
@@ -434,8 +420,7 @@ class TestQuizEndAPIHandler:
             response = handler(sample_event, {})
 
             assert response["statusCode"] == 200
-            body = json.loads(response["body"])
-            body_dict = json.loads(body)
+            body_dict = json.loads(response["body"])
             assert body_dict["session_id"] == "session_123"
             assert body_dict["score"] == 35.5
             assert body_dict["correct_count"] == 4

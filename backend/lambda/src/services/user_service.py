@@ -16,7 +16,6 @@ from utils.exceptions import ValidationError
 from utils.timezone_utils import get_central_midnight_tomorrow, is_new_day_central_time
 from utils.aws_services import get_cognito_client
 from repositories.user_repository import UserRepository
-from repositories.slang_term_repository import SlangTermRepository
 
 
 class UserService:
@@ -26,6 +25,7 @@ class UserService:
         """Initialize user service."""
         self.config_service = get_config_service()
         self.repository = UserRepository()
+        self.user_repository = self.repository
         self.usage_config = self.config_service.get_config(UsageLimitsConfig)
 
     @tracer.trace_method("create_user")
@@ -225,11 +225,10 @@ class UserService:
     @tracer.trace_method("delete_user")
     def delete_user(self, user_id: str) -> None:
         """Delete a user and all associated data from both DynamoDB and Cognito."""
-        # Step 1: Delete quiz data from termsTable (sessions and history)
-        quiz_repo = SlangTermRepository()
-        quiz_repo.delete_user_quiz_data(user_id)
+        # Step 1: Delete quiz-related data from usersTable
+        self.repository.delete_all_quiz_data(user_id)
 
-        # Step 2: Delete user data from DynamoDB (includes quiz daily counts)
+        # Step 2: Delete user profile/usage data from DynamoDB
         self.repository.delete_user(user_id)
 
         # Step 3: Delete user from Cognito

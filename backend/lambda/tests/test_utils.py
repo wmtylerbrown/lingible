@@ -16,10 +16,10 @@ from src.utils.exceptions import (
 )
 from src.utils.response import create_model_response, create_error_response
 from src.utils.envelopes import (
-    AuthenticatedAPIGatewayEnvelope,
     TranslationEnvelope,
     SimpleAuthenticatedEnvelope,
-    PathParameterEnvelope
+    PathParameterEnvelope,
+    TranslationHistoryEnvelope,
 )
 from src.utils.config import ConfigService
 from src.utils.smart_logger import SmartLogger
@@ -41,7 +41,7 @@ class TestExceptions:
         exception = BusinessLogicError("Business rule violation")
 
         assert str(exception) == "Business rule violation"
-        assert exception.error_code == ErrorCode.BUSINESS_LOGIC_ERROR
+        assert exception.error_code == ErrorCode.USAGE_LIMIT_EXCEEDED.value
         assert exception.status_code == 400
 
     def test_validation_error(self):
@@ -233,7 +233,7 @@ class TestEnvelopes:
             "body": '{"text": "Hello", "direction": "english_to_genz"}'
         }
 
-        envelope = AuthenticatedAPIGatewayEnvelope()
+        envelope = SimpleAuthenticatedEnvelope()
         parsed_event = envelope.parse(event)
 
         assert parsed_event.user_id == "test_user_123"
@@ -356,9 +356,9 @@ class TestEnvelopes:
             }
         }
 
-        envelope = AuthenticatedAPIGatewayEnvelope()
+        envelope = SimpleAuthenticatedEnvelope()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(AuthenticationError):
             envelope.parse(event)
 
     def test_envelope_missing_user_id(self):
@@ -380,9 +380,9 @@ class TestEnvelopes:
             }
         }
 
-        envelope = AuthenticatedAPIGatewayEnvelope()
+        envelope = SimpleAuthenticatedEnvelope()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(AuthenticationError):
             envelope.parse(event)
 
 
@@ -443,16 +443,16 @@ class TestSmartLogger:
 
         assert logger.service_name == "test-service"
 
-    @patch('src.utils.logging.logger')
+    @patch('src.utils.smart_logger.Logger')
     def test_log_business_event(self, mock_logger):
         """Test logging business events."""
         logger = SmartLogger("test-service")
 
         logger.log_business_event("user_created", {"user_id": "test_123"})
 
-        mock_logger.info.assert_called_once()
+        mock_logger.return_value.info.assert_called_once()
 
-    @patch('src.utils.logging.logger')
+    @patch('src.utils.smart_logger.Logger')
     def test_log_error(self, mock_logger):
         """Test logging errors."""
         logger = SmartLogger("test-service")
@@ -460,25 +460,34 @@ class TestSmartLogger:
 
         logger.log_error(error, {"operation": "test"})
 
-        mock_logger.error.assert_called_once()
+        mock_logger.return_value.error.assert_called_once()
 
-    @patch('src.utils.logging.logger')
+    @patch('src.utils.smart_logger.Logger')
     def test_log_request(self, mock_logger):
         """Test logging requests."""
         logger = SmartLogger("test-service")
 
-        logger.log_request("POST", "/translate", {"user_id": "test_123"})
+        logger.log_request(
+            {
+                "httpMethod": "POST",
+                "path": "/translate",
+                "headers": {},
+                "queryStringParameters": {"user_id": "test_123"},
+            }
+        )
 
-        mock_logger.info.assert_called_once()
+        mock_logger.return_value.info.assert_called_once()
 
-    @patch('src.utils.logging.logger')
+    @patch('src.utils.smart_logger.Logger')
     def test_log_response(self, mock_logger):
         """Test logging responses."""
         logger = SmartLogger("test-service")
 
-        logger.log_response(200, {"success": True})
+        logger.log_response(
+            {"statusCode": 200, "body": json.dumps({"success": True})}, 15.0
+        )
 
-        mock_logger.info.assert_called_once()
+        mock_logger.return_value.info.assert_called_once()
 
 
 class TestErrorCodes:
@@ -486,11 +495,11 @@ class TestErrorCodes:
 
     def test_error_code_values(self):
         """Test ErrorCode enum values."""
-        assert ErrorCode.VALIDATION_ERROR.value == "VALIDATION_ERROR"
-        assert ErrorCode.BUSINESS_LOGIC_ERROR.value == "BUSINESS_LOGIC_ERROR"
-        assert ErrorCode.AUTHENTICATION_ERROR.value == "AUTHENTICATION_ERROR"
-        assert ErrorCode.AUTHORIZATION_ERROR.value == "AUTHORIZATION_ERROR"
-        assert ErrorCode.SYSTEM_ERROR.value == "SYSTEM_ERROR"
-        assert ErrorCode.RATE_LIMIT_EXCEEDED.value == "RATE_LIMIT_EXCEEDED"
-        assert ErrorCode.USAGE_LIMIT_EXCEEDED.value == "USAGE_LIMIT_EXCEEDED"
-        assert ErrorCode.SUBSCRIPTION_REQUIRED.value == "SUBSCRIPTION_REQUIRED"
+        assert ErrorCode.VALIDATION_ERROR.value == "VAL_001"
+        assert ErrorCode.BUSINESS_LOGIC_ERROR.value == "BIZ_003"
+        assert ErrorCode.AUTHENTICATION_ERROR.value == "AUTH_001"
+        assert ErrorCode.AUTHORIZATION_ERROR.value == "AUTH_003"
+        assert ErrorCode.SYSTEM_ERROR.value == "SYS_003"
+        assert ErrorCode.RATE_LIMIT_EXCEEDED.value == "RATE_001"
+        assert ErrorCode.USAGE_LIMIT_EXCEEDED.value == "BIZ_001"
+        assert ErrorCode.SUBSCRIPTION_REQUIRED.value == "BIZ_004"

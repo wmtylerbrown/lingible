@@ -2,6 +2,7 @@
 
 import pytest
 from datetime import datetime, timezone
+from decimal import Decimal
 from pydantic import ValidationError
 
 from src.models.users import User, UserTier, UserStatus
@@ -85,14 +86,17 @@ class TestTranslationModel:
             direction=TranslationDirection.ENGLISH_TO_GENZ,
             model_used="anthropic.claude-3-sonnet-20240229-v1:0",
             confidence_score=0.95,
-            created_at="2024-01-01T00:00:00Z"
+            created_at="2024-01-01T00:00:00Z",
+            daily_used=1,
+            daily_limit=10,
+            tier=UserTier.FREE,
         )
 
         assert translation.translation_id == "trans_789"
         assert translation.original_text == "Hello world"
         assert translation.translated_text == "Hola mundo"
         assert translation.direction == "english_to_genz"
-        assert translation.confidence_score == 0.95
+        assert translation.confidence_score == Decimal("0.95")
 
     def test_translation_with_optional_fields(self):
         """Test creating a translation with optional fields."""
@@ -104,7 +108,10 @@ class TestTranslationModel:
             model_used="anthropic.claude-3-sonnet-20240229-v1:0",
             confidence_score=0.95,
             created_at="2024-01-01T00:00:00Z",
-            processing_time_ms=150
+            processing_time_ms=150,
+            daily_used=5,
+            daily_limit=20,
+            tier=UserTier.PREMIUM,
         )
 
         assert translation.processing_time_ms == 150
@@ -114,13 +121,15 @@ class TestTranslationModel:
         with pytest.raises(ValidationError):
             Translation(
                 translation_id="trans_789",
-                user_id="test_user_123",
                 original_text="Hello world",
                 translated_text="Hola mundo",
                 direction=TranslationDirection.ENGLISH_TO_GENZ,
                 model_used="anthropic.claude-3-sonnet-20240229-v1:0",
                 confidence_score=1.5,  # Invalid: > 1
-                created_at="2024-01-01T00:00:00Z"
+                created_at="2024-01-01T00:00:00Z",
+                daily_used=0,
+                daily_limit=5,
+                tier=UserTier.FREE,
             )
 
 
@@ -173,13 +182,11 @@ class TestEventModels:
                 direction=TranslationDirection.ENGLISH_TO_GENZ
             ),
             user_id="test_user_123",
-            username="testuser",
             request_id="req_123",
             timestamp="2024-01-01T00:00:00Z"
         )
 
         assert event.user_id == "test_user_123"
-        assert event.username == "testuser"
         assert event.request_id == "req_123"
         assert event.request_body.text == "Hello world"
         assert event.request_body.direction == "english_to_genz"
@@ -189,19 +196,16 @@ class TestEventModels:
         event = SimpleAuthenticatedEvent(
             event={},
             user_id="test_user_123",
-            username="testuser",
             request_id="req_123"
         )
 
         assert event.user_id == "test_user_123"
-        assert event.username == "testuser"
 
     def test_path_parameter_event(self):
         """Test PathParameterEvent."""
         event = PathParameterEvent(
             event={},
             user_id="test_user_123",
-            username="testuser",
             request_id="req_123",
             path_parameters={"id": "trans_789"}
         )

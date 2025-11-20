@@ -1,8 +1,11 @@
 """Quiz models for slang learning games."""
 
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import Dict, List, Optional
+
+from datetime import datetime
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 from .base import LingibleBaseModel
 
@@ -143,6 +146,71 @@ class QuizSessionProgress(LingibleBaseModel):
         ge=0.0, le=1.0, description="Current accuracy rate (0.0 to 1.0)"
     )
     time_spent_seconds: float = Field(description="Total time spent on quiz so far")
+
+
+class QuizSessionStatus(str, Enum):
+    """Quiz session lifecycle status."""
+
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
+class QuizSessionRecord(LingibleBaseModel):
+    """Stored quiz session record."""
+
+    session_id: str = Field(description="Session identifier")
+    user_id: str = Field(description="User identifier")
+    difficulty: QuizDifficulty = Field(
+        default=QuizDifficulty.BEGINNER, description="Selected quiz difficulty"
+    )
+    status: QuizSessionStatus = Field(
+        default=QuizSessionStatus.ACTIVE, description="Session status"
+    )
+    questions_answered: int = Field(
+        default=0, ge=0, description="Number of questions answered"
+    )
+    correct_count: int = Field(
+        default=0, ge=0, description="Number of questions answered correctly"
+    )
+    total_score: float = Field(
+        default=0.0, ge=0.0, description="Accumulated score during session"
+    )
+    correct_answers: Dict[str, str] = Field(
+        default_factory=dict, description="Map of question_id to correct answer"
+    )
+    term_names: Dict[str, str] = Field(
+        default_factory=dict, description="Map of question_id to slang term name"
+    )
+    used_wrong_options: List[str] = Field(
+        default_factory=list, description="Answer options used as distractors"
+    )
+    started_at: datetime = Field(
+        default_factory=datetime.utcnow, description="When the session started"
+    )
+    last_activity: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Most recent interaction timestamp",
+    )
+
+
+class QuizStats(LingibleBaseModel):
+    """Aggregated quiz statistics for a user."""
+
+    total_quizzes: int = Field(default=0, ge=0, description="Total quizzes taken")
+    total_correct: int = Field(default=0, ge=0, description="Total correct answers")
+    total_questions: int = Field(default=0, ge=0, description="Total questions faced")
+    average_score: float = Field(
+        default=0.0, ge=0.0, description="Average score percentage"
+    )
+    best_score: float = Field(
+        default=0.0, ge=0.0, description="Best score percentage achieved"
+    )
+    accuracy_rate: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Ratio of correct answers to questions attempted",
+    )
 
 
 class QuizEndRequest(BaseModel):

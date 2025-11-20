@@ -28,6 +28,7 @@ final class QuizViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var currentScreen: QuizScreen = .lobby
     @Published var showingInterstitial: Bool = false
+    @Published var showingUpgradePrompt: Bool = false
 
     // MARK: - Private Properties
     private let quizService: QuizServiceProtocol
@@ -320,6 +321,7 @@ final class QuizViewModel: ObservableObject {
         timedOutQuestions.removeAll()
         quizResult = nil
         showingInterstitial = false
+        showingUpgradePrompt = false // Reset upgrade prompt flag
     }
 
     func returnToLobby() {
@@ -344,6 +346,12 @@ final class QuizViewModel: ObservableObject {
                 errorMessage = quizError.localizedDescription
                 // Return to lobby if daily limit reached
                 returnToLobby()
+                // Show upgrade prompt after returning to lobby
+                // Use async dispatch to ensure UI has updated before showing sheet
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second delay
+                    showingUpgradePrompt = true
+                }
             case .unauthorized:
                 errorMessage = "Please sign in to take quizzes"
                 returnToLobby()

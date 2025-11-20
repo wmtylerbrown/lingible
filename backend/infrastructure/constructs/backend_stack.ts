@@ -306,6 +306,7 @@ export class BackendStack extends Construct {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.DESTROY, // For development
       pointInTimeRecovery: true,
+      timeToLiveAttribute: 'ttl',
     });
 
     // Translations table
@@ -367,8 +368,7 @@ export class BackendStack extends Construct {
     // DynamoDB only allows one GSI creation/deletion per update
     // Projection changes can be done incrementally (one GSI at a time)
 
-    // GSI2 - Quiz queries by difficulty
-    // Optimized: INCLUDE projection for quiz-relevant fields only
+    // GSI2 - Quiz eligibility queries by difficulty
     this.termsTable.addGlobalSecondaryIndex({
       indexName: 'GSI2',
       partitionKey: {
@@ -381,13 +381,22 @@ export class BackendStack extends Construct {
       },
       projectionType: dynamodb.ProjectionType.INCLUDE,
       nonKeyAttributes: [
-        'slang_term', 'meaning', 'quiz_difficulty', 'quiz_category',
-        'is_quiz_eligible', 'example_usage'
+        'term',
+        'gloss',
+        'meaning',
+        'examples',
+        'tags',
+        'category',
+        'quiz_category',
+        'quiz_difficulty',
+        'is_quiz_eligible',
+        'created_at',
+        'confidence',
+        'momentum',
       ],
     });
 
-    // GSI3 - Category queries (fallback only, rarely used)
-    // Optimized: KEYS_ONLY - can fetch full item if needed via GetItem
+    // GSI3 - Quiz term lookups by category
     this.termsTable.addGlobalSecondaryIndex({
       indexName: 'GSI3',
       partitionKey: {
@@ -398,7 +407,21 @@ export class BackendStack extends Construct {
         name: 'GSI3SK',
         type: dynamodb.AttributeType.STRING,
       },
-      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        'term',
+        'gloss',
+        'meaning',
+        'examples',
+        'tags',
+        'category',
+        'quiz_category',
+        'quiz_difficulty',
+        'is_quiz_eligible',
+        'created_at',
+        'confidence',
+        'momentum',
+      ],
     });
 
     // GSI4 - Source queries
@@ -417,36 +440,6 @@ export class BackendStack extends Construct {
       nonKeyAttributes: [
         'slang_term', 'meaning', 'source', 'user_id', 'created_at', 'status'
       ],
-    });
-
-    // GSI5 - Quiz history queries (for user quiz history)
-    // Keep ALL: Complex nested structure, used frequently
-    this.termsTable.addGlobalSecondaryIndex({
-      indexName: 'GSI5',
-      partitionKey: {
-        name: 'GSI5PK',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'GSI5SK',
-        type: dynamodb.AttributeType.STRING,
-      },
-      projectionType: dynamodb.ProjectionType.ALL,
-    });
-
-    // GSI6 - Quiz session lookup by session_id
-    // Keep ALL: Session has many dynamic fields, used frequently
-    this.termsTable.addGlobalSecondaryIndex({
-      indexName: 'GSI6',
-      partitionKey: {
-        name: 'GSI6PK',
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'GSI6SK',
-        type: dynamodb.AttributeType.STRING,
-      },
-      projectionType: dynamodb.ProjectionType.ALL,
     });
 
     // GSI7 - Trending terms by popularity (merged from trending table)
@@ -489,6 +482,15 @@ export class BackendStack extends Construct {
       ],
     });
 
+    // ValidationStatusIndex - LLM validation workflow queries
+    this.termsTable.addGlobalSecondaryIndex({
+      indexName: 'ValidationStatusIndex',
+      partitionKey: {
+        name: 'llm_validation_status',
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
   }
 
   private createLexiconBucket(bucketName: string): void {
@@ -855,7 +857,7 @@ export class BackendStack extends Construct {
     this.userAccountDeletionLambda = new lambda.Function(this, 'UserAccountDeletionLambda', {
       functionName: `lingible-user-account-deletion-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.user_account_deletion.handler'),
+      code: this.createHandlerPackage('src.handlers.user_account_deletion_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-account-deletion',
         ...baseEnvironmentVariables,
@@ -897,7 +899,7 @@ export class BackendStack extends Construct {
     this.translationHistoryLambda = new lambda.Function(this, 'TranslationHistoryLambda', {
       functionName: `lingible-translation-history-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.get_translation_history.handler'),
+      code: this.createHandlerPackage('src.handlers.get_translation_history_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-translation-history',
         ...baseEnvironmentVariables,
@@ -913,7 +915,7 @@ export class BackendStack extends Construct {
     this.deleteTranslationLambda = new lambda.Function(this, 'DeleteTranslationLambda', {
       functionName: `lingible-delete-translation-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.delete_translation.handler'),
+      code: this.createHandlerPackage('src.handlers.delete_translation_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-delete-translation',
         ...baseEnvironmentVariables,
@@ -929,7 +931,7 @@ export class BackendStack extends Construct {
     this.deleteAllTranslationsLambda = new lambda.Function(this, 'DeleteAllTranslationsLambda', {
       functionName: `lingible-delete-all-translations-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.delete_translations.handler'),
+      code: this.createHandlerPackage('src.handlers.delete_translations_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-delete-all-translations',
         ...baseEnvironmentVariables,
@@ -1067,7 +1069,7 @@ export class BackendStack extends Construct {
     this.slangValidationProcessorLambda = new lambda.Function(this, 'SlangValidationProcessorLambda', {
       functionName: `lingible-slang-validation-processor-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.slang_validation_processor.handler'),
+      code: this.createHandlerPackage('src.handlers.slang_validation_async.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-slang-validation-processor',
         ...baseEnvironmentVariables,
@@ -1100,7 +1102,7 @@ export class BackendStack extends Construct {
     this.exportLexiconLambda = new lambda.Function(this, 'ExportLexiconLambda', {
       functionName: `lingible-export-lexicon-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.export_lexicon_handler.handler'),
+      code: this.createHandlerPackage('src.handlers.export_lexicon_async.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-export-lexicon',
         ...baseEnvironmentVariables,
@@ -1200,7 +1202,7 @@ export class BackendStack extends Construct {
     this.appleWebhookLambda = new lambda.Function(this, 'AppleWebhookLambda', {
       functionName: `lingible-apple-webhook-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.apple_webhook.handler'),
+      code: this.createHandlerPackage('src.handlers.apple_webhook_api.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-apple-webhook',
         ...baseEnvironmentVariables,
@@ -1228,7 +1230,7 @@ export class BackendStack extends Construct {
     this.postConfirmationLambda = new lambda.Function(this, 'PostConfirmationLambda', {
       functionName: `lingible-post-confirmation-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.cognito_post_confirmation.handler'),
+      code: this.createHandlerPackage('src.handlers.cognito_post_confirmation_trigger.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-post-confirmation',
         ...baseEnvironmentVariables,
@@ -1247,7 +1249,7 @@ export class BackendStack extends Construct {
     this.userDataCleanupLambda = new lambda.Function(this, 'UserDataCleanupLambda', {
       functionName: `lingible-user-data-cleanup-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.user_data_cleanup.handler'),
+      code: this.createHandlerPackage('src.handlers.user_data_cleanup_async.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-user-data-cleanup',
         ...baseEnvironmentVariables,
@@ -1274,7 +1276,7 @@ export class BackendStack extends Construct {
     this.trendingJobLambda = new lambda.Function(this, 'TrendingJobLambda', {
       functionName: `lingible-trending-job-${environment}`,
       handler: 'handler.handler',
-      code: this.createHandlerPackage('src.handlers.trending_job.handler'),
+      code: this.createHandlerPackage('src.handlers.trending_job_async.handler'),
       environment: {
         POWERTOOLS_SERVICE_NAME: 'lingible-trending-job',
         ...baseEnvironmentVariables,

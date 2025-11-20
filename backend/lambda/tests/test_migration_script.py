@@ -1,13 +1,15 @@
 """Tests for lexicon migration script."""
 
-import pytest
 import json
 import os
 import tempfile
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
+from decimal import Decimal
+from unittest.mock import MagicMock, Mock, patch
 
-from models.quiz import QuizDifficulty, QuizCategory
+import pytest
+
+from models.quiz import QuizCategory, QuizDifficulty
 
 
 class TestMigrationScript:
@@ -79,7 +81,7 @@ class TestMigrationScript:
 
     @pytest.fixture
     def mock_repository(self):
-        """Mock SlangTermRepository."""
+        """Mock LexiconRepository."""
         mock_repo = Mock()
         mock_repo.create_lexicon_term.return_value = True
         return mock_repo
@@ -118,7 +120,7 @@ class TestMigrationScript:
         # No confidence or momentum provided
         item = {}
         result = estimate_difficulty(item)
-        # Should default to intermediate (0.85 * 1.0 = 0.85)
+        # Should default to beginner (0.85 * 1.0 = 0.85)
         assert result == QuizDifficulty.BEGINNER
 
     def test_map_categories_known_category(self):
@@ -215,7 +217,7 @@ class TestMigrationScript:
         assert higher_conf == "20211101#0095#mid"
         assert lower_conf == "20211101#0085#cap"
 
-    @patch('scripts.migrate_lexicon.SlangTermRepository')
+    @patch('scripts.migrate_lexicon.LexiconRepository')
     def test_migrate_lexicon_success(self, mock_repo_class, temp_lexicon_file, sample_lexicon_data):
         """Test successful lexicon migration."""
         mock_repo = Mock()
@@ -238,7 +240,7 @@ class TestMigrationScript:
                     assert failed == 0
                     assert mock_repo.create_lexicon_term.call_count == 2
 
-    @patch('scripts.migrate_lexicon.SlangTermRepository')
+    @patch('scripts.migrate_lexicon.LexiconRepository')
     def test_migrate_lexicon_with_failures(self, mock_repo_class, temp_lexicon_file, sample_lexicon_data):
         """Test lexicon migration with some failures."""
         mock_repo = Mock()
@@ -260,7 +262,7 @@ class TestMigrationScript:
                     assert imported == 1
                     assert failed == 1
 
-    @patch('scripts.migrate_lexicon.SlangTermRepository')
+    @patch('scripts.migrate_lexicon.LexiconRepository')
     def test_migrate_lexicon_term_data_structure(self, mock_repo_class, temp_lexicon_file, sample_lexicon_data):
         """Test that migrated term data has correct structure."""
         mock_repo = Mock()
@@ -306,7 +308,7 @@ class TestMigrationScript:
                     assert first_call["first_attested_confidence"] == "high"
                     assert first_call["attestation_note"] == "Test attestation note"
 
-    @patch('scripts.migrate_lexicon.SlangTermRepository')
+    @patch('scripts.migrate_lexicon.LexiconRepository')
     def test_migrate_lexicon_handles_missing_fields(self, mock_repo_class, temp_lexicon_file):
         """Test migration handles missing optional fields."""
         # Lexicon data with minimal fields
@@ -345,7 +347,7 @@ class TestMigrationScript:
                     assert call_args["slang_term"] == "minimal"
                     assert call_args["meaning"] == "Basic meaning"
                     # Should have defaults for missing fields
-                    assert call_args["lexicon_confidence"] == 0.85
+                    assert call_args["lexicon_confidence"] == Decimal("0.85")
                     assert call_args["lexicon_momentum"] == 1.0
                     # Should have first_attested (falls back to first_seen or default)
                     assert "first_attested" in call_args

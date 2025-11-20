@@ -85,17 +85,17 @@ class TestValidationProcessorHandler:
         auto_approve_validation_result,
     ):
         """Test handler auto-approves high-confidence submissions."""
-        from handlers.slang_validation_processor.handler import lambda_handler
+        from handlers.slang_validation_async.handler import handler
 
         # Mock dependencies
         with patch(
-            "handlers.slang_validation_processor.handler.SlangValidationService"
+            "handlers.slang_validation_async.handler.SlangValidationService"
         ) as mock_validation_service_class:
             with patch(
-                "handlers.slang_validation_processor.handler.SlangSubmissionService"
+                "handlers.slang_validation_async.handler.SlangSubmissionService"
             ) as mock_submission_service_class:
                 with patch(
-                    "handlers.slang_validation_processor.handler.SlangSubmissionRepository"
+                    "handlers.slang_validation_async.handler.SubmissionsRepository"
                 ) as mock_repo_class:
                     # Setup mocks
                     mock_repo = Mock()
@@ -118,7 +118,7 @@ class TestValidationProcessorHandler:
                     mock_submission_service_class.return_value = mock_submission_service
 
                     # Execute handler
-                    result = lambda_handler(sample_validation_event, Mock())
+                    result = handler(sample_validation_event, Mock())
 
                     # Assertions
                     assert result["statusCode"] == 200
@@ -151,16 +151,16 @@ class TestValidationProcessorHandler:
         manual_review_validation_result,
     ):
         """Test handler routes low-confidence submissions to manual review."""
-        from handlers.slang_validation_processor.handler import lambda_handler
+        from handlers.slang_validation_async.handler import handler
 
         with patch(
-            "handlers.slang_validation_processor.handler.SlangValidationService"
+            "handlers.slang_validation_async.handler.SlangValidationService"
         ) as mock_validation_service_class:
             with patch(
-                "handlers.slang_validation_processor.handler.SlangSubmissionService"
+                "handlers.slang_validation_async.handler.SlangSubmissionService"
             ) as mock_submission_service_class:
                 with patch(
-                    "handlers.slang_validation_processor.handler.SlangSubmissionRepository"
+                    "handlers.slang_validation_async.handler.SubmissionsRepository"
                 ) as mock_repo_class:
                     # Setup mocks
                     mock_repo = Mock()
@@ -182,7 +182,7 @@ class TestValidationProcessorHandler:
                     mock_submission_service_class.return_value = mock_submission_service
 
                     # Execute handler
-                    result = lambda_handler(sample_validation_event, Mock())
+                    result = handler(sample_validation_event, Mock())
 
                     # Assertions
                     assert result["statusCode"] == 200
@@ -199,22 +199,22 @@ class TestValidationProcessorHandler:
 
     def test_handler_submission_not_found(self, sample_validation_event):
         """Test handler returns 404 when submission doesn't exist."""
-        from handlers.slang_validation_processor.handler import lambda_handler
+        from handlers.slang_validation_async.handler import handler
 
         with patch(
-            "handlers.slang_validation_processor.handler.SlangValidationService"
+            "handlers.slang_validation_async.handler.SlangValidationService"
         ):
             with patch(
-                "handlers.slang_validation_processor.handler.SlangSubmissionService"
+                "handlers.slang_validation_async.handler.SlangSubmissionService"
             ):
                 with patch(
-                    "handlers.slang_validation_processor.handler.SlangSubmissionRepository"
+                    "handlers.slang_validation_async.handler.SubmissionsRepository"
                 ) as mock_repo_class:
                     mock_repo = Mock()
                     mock_repo.get_submission_by_id.return_value = None
                     mock_repo_class.return_value = mock_repo
 
-                    result = lambda_handler(sample_validation_event, Mock())
+                    result = handler(sample_validation_event, Mock())
 
                     assert result["statusCode"] == 404
                     body = json.loads(result["body"])
@@ -224,7 +224,7 @@ class TestValidationProcessorHandler:
         self, sample_validation_event, sample_submission
     ):
         """Test handler uses fallback validation on error."""
-        from handlers.slang_validation_processor.handler import lambda_handler
+        from handlers.slang_validation_async.handler import handler
 
         fallback_result = LLMValidationResult(
             is_valid=True,
@@ -236,13 +236,13 @@ class TestValidationProcessorHandler:
         )
 
         with patch(
-            "handlers.slang_validation_processor.handler.SlangValidationService"
+            "handlers.slang_validation_async.handler.SlangValidationService"
         ) as mock_validation_service_class:
             with patch(
-                "handlers.slang_validation_processor.handler.SlangSubmissionService"
+                "handlers.slang_validation_async.handler.SlangSubmissionService"
             ):
                 with patch(
-                    "handlers.slang_validation_processor.handler.SlangSubmissionRepository"
+                    "handlers.slang_validation_async.handler.SubmissionsRepository"
                 ) as mock_repo_class:
                     # Setup mocks
                     mock_repo = Mock()
@@ -259,7 +259,7 @@ class TestValidationProcessorHandler:
                     mock_validation_service_class.return_value = mock_validation_service
 
                     # Execute handler
-                    result = lambda_handler(sample_validation_event, Mock())
+                    result = handler(sample_validation_event, Mock())
 
                     # Assertions
                     assert result["statusCode"] == 500
@@ -347,7 +347,7 @@ class TestSlangSubmissionConfig:
         from services.slang_submission_service import SlangSubmissionService
 
         with patch(
-            "services.slang_submission_service.SlangSubmissionRepository"
+            "services.slang_submission_service.SlangTermRepository"
         ) as mock_repo_class:
             with patch(
                 "services.slang_submission_service.UserService"
@@ -387,7 +387,7 @@ class TestAsyncSubmissionFlow:
         from services.slang_submission_service import SlangSubmissionService
 
         with patch(
-            "services.slang_submission_service.SlangSubmissionRepository"
+            "services.slang_submission_service.SlangTermRepository"
         ) as mock_repo_class:
             with patch(
                 "services.slang_submission_service.UserService"
@@ -476,7 +476,7 @@ class TestAsyncSubmissionFlow:
 
         # Verify response is PENDING (not APPROVED or REJECTED)
         assert response.status == ApprovalStatus.PENDING
-        assert "checking it out now" in response.message.lower()
+        assert "community will vote" in response.message.lower()
 
 
 class TestValidationServiceAttributes:

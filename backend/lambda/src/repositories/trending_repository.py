@@ -1,7 +1,7 @@
 """Trending repository for trending terms data operations."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from decimal import Decimal
 
 from models.trending import TrendingTerm, TrendingCategory
@@ -16,48 +16,84 @@ class TrendingRepository:
 
     def __init__(self) -> None:
         """Initialize trending repository."""
-        self.config_service = get_config_service()
-        self.table_name = self.config_service._get_env_var("TERMS_TABLE")
+        config_service = get_config_service()
+        self.table_name = config_service._get_env_var("TRENDING_TABLE")
         self.table = aws_services.get_table(self.table_name)
+
+    def _item_to_trending_term(self, item: Dict[str, Any]) -> Optional[TrendingTerm]:
+        try:
+            is_active_raw = item.get("is_active_flag", item.get("is_active", True))
+            if isinstance(is_active_raw, str):
+                is_active = is_active_raw.lower().endswith("true")
+            else:
+                is_active = bool(is_active_raw)
+            return TrendingTerm(
+                term=item["term"],
+                definition=item["definition"],
+                category=item["category"],
+                popularity_score=self._to_decimal(
+                    item.get("popularity_score", Decimal("0"))
+                ),
+                search_count=int(item.get("search_count", 0)),
+                translation_count=int(item.get("translation_count", 0)),
+                first_seen=item["first_seen"],
+                last_updated=item["last_updated"],
+                is_active=is_active,
+                example_usage=item.get("example_usage"),
+                origin=item.get("origin"),
+                related_terms=item.get("related_terms", []),
+            )
+        except KeyError as exc:
+            logger.log_error(
+                exc,
+                {
+                    "operation": "_item_to_trending_term",
+                    "item": item,
+                },
+            )
+            return None
+
+    def _base_item(self, term: TrendingTerm) -> Dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        category_value = (
+            term.category.value
+            if isinstance(term.category, TrendingCategory)
+            else str(term.category)
+        )
+        item = {
+            "PK": f"TERM#{term.term.lower()}",
+            "SK": "METADATA#trending",
+            "term": term.term,
+            "definition": term.definition,
+            "category": category_value,
+            "popularity_score": term.popularity_score,  # Already Decimal, no conversion needed
+            "search_count": term.search_count,
+            "translation_count": term.translation_count,
+            "first_seen": term.first_seen.isoformat(),
+            "last_updated": term.last_updated.isoformat(),
+            "is_active": f"ACTIVE#{term.is_active}",
+            "is_active_flag": term.is_active,
+            "example_usage": term.example_usage,
+            "origin": term.origin,
+            "related_terms": term.related_terms,
+            "ttl": int(now.timestamp() + (90 * 24 * 60 * 60)),
+        }
+        return {k: v for k, v in item.items() if v is not None}
+
+    def _to_decimal(self, value: Any) -> Decimal:
+        if isinstance(value, Decimal):
+            return value
+        return Decimal(str(value))
 
     @tracer.trace_database_operation("create", "trending")
     def create_trending_term(self, term: TrendingTerm) -> bool:
         """Create a new trending term record."""
         try:
-            item = {
-                "PK": f"TERM#{term.term.lower()}",
-                "SK": "METADATA#trending",
-                "term": term.term,
-                "definition": term.definition,
-                "category": term.category,
-                "popularity_score": Decimal(str(term.popularity_score)),
-                "search_count": term.search_count,
-                "translation_count": term.translation_count,
-                "first_seen": term.first_seen.isoformat(),
-                "last_updated": term.last_updated.isoformat(),
-                "is_active": str(term.is_active),
-                "example_usage": term.example_usage,
-                "origin": term.origin,
-                "related_terms": term.related_terms,
-                "ttl": int(
-                    datetime.now(timezone.utc).timestamp() + (90 * 24 * 60 * 60)
-                ),  # 90 days TTL for trending data
-                # GSI fields for trending queries
-                "GSI7PK": f"TRENDING#{str(term.is_active)}",
-                "GSI7SK": term.popularity_score,
-                "GSI8PK": f"TRENDING#{term.category}",
-                "GSI8SK": term.popularity_score,
-            }
-
-            # Remove None values
-            item = {k: v for k, v in item.items() if v is not None}
-
-            self.table.put_item(Item=item)
+            self.table.put_item(Item=self._base_item(term))
             return True
-
-        except Exception as e:
+        except Exception as exc:
             logger.log_error(
-                e,
+                exc,
                 {
                     "operation": "create_trending_term",
                     "term": term.term,
@@ -80,20 +116,10 @@ class TrendingRepository:
                 return None
 
             item = response["Item"]
-            return TrendingTerm(
-                term=item["term"],
-                definition=item["definition"],
-                category=TrendingCategory(item["category"]),
-                popularity_score=item["popularity_score"],
-                search_count=item["search_count"],
-                translation_count=item["translation_count"],
-                first_seen=datetime.fromisoformat(item["first_seen"]),
-                last_updated=datetime.fromisoformat(item["last_updated"]),
-                is_active=item["is_active"] == "True",
-                example_usage=item.get("example_usage"),
-                origin=item.get("origin"),
-                related_terms=item.get("related_terms", []),
-            )
+            trending_term = self._item_to_trending_term(item)
+            if trending_term is None:
+                return None
+            return trending_term
 
         except Exception as e:
             logger.log_error(
@@ -109,26 +135,24 @@ class TrendingRepository:
     def update_trending_term(self, term: TrendingTerm) -> bool:
         """Update trending term record."""
         try:
+            category_value = (
+                term.category.value
+                if isinstance(term.category, TrendingCategory)
+                else str(term.category)
+            )
             item = {
                 "PK": f"TERM#{term.term.lower()}",
                 "SK": "METADATA#trending",
                 "term": term.term,
                 "definition": term.definition,
-                "category": term.category,
-                "popularity_score": Decimal(str(term.popularity_score)),
+                "category": category_value,
+                "popularity_score": term.popularity_score,  # Already Decimal, no conversion needed
                 "search_count": term.search_count,
                 "translation_count": term.translation_count,
                 "first_seen": term.first_seen.isoformat(),
                 "last_updated": term.last_updated.isoformat(),
-                "is_active": str(term.is_active),
-                "example_usage": term.example_usage,
-                "origin": term.origin,
-                "related_terms": term.related_terms,
-                # GSI fields for trending queries
-                "GSI7PK": f"TRENDING#{str(term.is_active)}",
-                "GSI7SK": term.popularity_score,
-                "GSI8PK": f"TRENDING#{term.category}",
-                "GSI8SK": term.popularity_score,
+                "is_active": f"ACTIVE#{term.is_active}",
+                "is_active_flag": term.is_active,
             }
 
             # Remove None values
@@ -156,62 +180,50 @@ class TrendingRepository:
     ) -> List[TrendingTerm]:
         """Get list of trending terms with optional filtering."""
         try:
-            # Use GSI for querying by category and popularity
-            # GSI7: by is_active (popularity), GSI8: by category (popularity)
             if category:
-                index_name = "GSI8"
-                key_condition = "GSI8PK = :category"
-                expression_values: dict = {":category": f"TRENDING#{category}"}
-                # Add filter for active terms when using category index
+                category_value = (
+                    category.value
+                    if isinstance(category, TrendingCategory)
+                    else str(category)
+                )
+                expression_values: Dict[str, Any] = {":category": category_value}
+                query_params: Dict[str, Any] = {
+                    "IndexName": "TrendingCategoryIndex",
+                    "KeyConditionExpression": "category = :category",
+                    "ExpressionAttributeValues": expression_values,
+                    "Limit": limit,
+                    "ScanIndexForward": False,
+                }
                 if active_only:
-                    filter_expression = "is_active = :is_active"
-                    expression_values[":is_active"] = str(active_only)
+                    expression_values[":is_active"] = "ACTIVE#True"
+                    query_params["FilterExpression"] = "is_active = :is_active"
+                response = self.table.query(**query_params)
             else:
-                index_name = "GSI7"
-                key_condition = "GSI7PK = :is_active"
-                expression_values = {":is_active": f"TRENDING#{str(active_only)}"}
-                filter_expression = None
-
-            query_params = {
-                "IndexName": index_name,
-                "KeyConditionExpression": key_condition,
-                "ExpressionAttributeValues": expression_values,
-                "ScanIndexForward": False,  # Sort by popularity score descending
-                "Limit": limit,
-            }
-
-            if filter_expression:
-                query_params["FilterExpression"] = filter_expression
-
-            response = self.table.query(**query_params)
+                response = self.table.query(
+                    IndexName="TrendingActiveIndex",
+                    KeyConditionExpression="is_active = :is_active",
+                    ExpressionAttributeValues={":is_active": f"ACTIVE#{active_only}"},
+                    Limit=limit,
+                    ScanIndexForward=False,
+                )
 
             terms = []
             for item in response.get("Items", []):
-                try:
-                    term = TrendingTerm(
-                        term=item["term"],
-                        definition=item["definition"],
-                        category=TrendingCategory(item["category"]),
-                        popularity_score=item["popularity_score"],
-                        search_count=item["search_count"],
-                        translation_count=item["translation_count"],
-                        first_seen=datetime.fromisoformat(item["first_seen"]),
-                        last_updated=datetime.fromisoformat(item["last_updated"]),
-                        is_active=item["is_active"] == "True",
-                        example_usage=item.get("example_usage"),
-                        origin=item.get("origin"),
-                        related_terms=item.get("related_terms", []),
+                source_item = item
+                if (
+                    ("first_seen" not in item or "last_updated" not in item)
+                    and "PK" in item
+                    and "SK" in item
+                ):
+                    source_item = (
+                        self.table.get_item(
+                            Key={"PK": item["PK"], "SK": item["SK"]}
+                        ).get("Item")
+                        or item
                     )
+                term = self._item_to_trending_term(source_item)
+                if term is not None:
                     terms.append(term)
-                except Exception as e:
-                    logger.log_error(
-                        e,
-                        {
-                            "operation": "parse_trending_term",
-                            "item": item,
-                        },
-                    )
-                    continue
 
             return terms
 
@@ -247,17 +259,19 @@ class TrendingRepository:
                 UpdateExpression=(
                     "SET search_count = if_not_exists(search_count, :zero) + :one, "
                     "last_updated = :updated_at, "
-                    "GSI7PK = :gsi7pk, GSI7SK = :gsi7sk, "
-                    "GSI8PK = :gsi8pk, GSI8SK = :gsi8sk"
+                    "is_active = :is_active, "
+                    "category = :category"
                 ),
                 ExpressionAttributeValues={
                     ":zero": 0,
                     ":one": 1,
                     ":updated_at": datetime.now(timezone.utc).isoformat(),
-                    ":gsi7pk": f"TRENDING#{str(existing_term.is_active)}",
-                    ":gsi7sk": existing_term.popularity_score,
-                    ":gsi8pk": f"TRENDING#{existing_term.category}",
-                    ":gsi8sk": existing_term.popularity_score,
+                    ":is_active": f"ACTIVE#{existing_term.is_active}",
+                    ":category": (
+                        existing_term.category.value
+                        if isinstance(existing_term.category, TrendingCategory)
+                        else str(existing_term.category)
+                    ),
                 },
             )
             return True
@@ -293,17 +307,19 @@ class TrendingRepository:
                 UpdateExpression=(
                     "SET translation_count = if_not_exists(translation_count, :zero) + :one, "
                     "last_updated = :updated_at, "
-                    "GSI7PK = :gsi7pk, GSI7SK = :gsi7sk, "
-                    "GSI8PK = :gsi8pk, GSI8SK = :gsi8sk"
+                    "is_active = :is_active, "
+                    "category = :category"
                 ),
                 ExpressionAttributeValues={
                     ":zero": 0,
                     ":one": 1,
                     ":updated_at": datetime.now(timezone.utc).isoformat(),
-                    ":gsi7pk": f"TRENDING#{str(existing_term.is_active)}",
-                    ":gsi7sk": existing_term.popularity_score,
-                    ":gsi8pk": f"TRENDING#{existing_term.category}",
-                    ":gsi8sk": existing_term.popularity_score,
+                    ":is_active": f"ACTIVE#{existing_term.is_active}",
+                    ":category": (
+                        existing_term.category.value
+                        if isinstance(existing_term.category, TrendingCategory)
+                        else str(existing_term.category)
+                    ),
                 },
             )
             return True
@@ -324,9 +340,9 @@ class TrendingRepository:
         try:
             # Get total count of active trending terms
             response = self.table.query(
-                IndexName="GSI7",
-                KeyConditionExpression="GSI7PK = :is_active",
-                ExpressionAttributeValues={":is_active": "TRENDING#True"},
+                IndexName="TrendingActiveIndex",
+                KeyConditionExpression="is_active = :is_active",
+                ExpressionAttributeValues={":is_active": "ACTIVE#True"},
                 Select="COUNT",
             )
 
@@ -336,13 +352,13 @@ class TrendingRepository:
             category_counts = {}
             for category in TrendingCategory:
                 response = self.table.query(
-                    IndexName="GSI8",
-                    KeyConditionExpression="GSI8PK = :category",
-                    FilterExpression="is_active = :is_active",
+                    IndexName="TrendingCategoryIndex",
+                    KeyConditionExpression="category = :category",
                     ExpressionAttributeValues={
-                        ":category": f"TRENDING#{category}",
-                        ":is_active": "True",
+                        ":category": category.value,
+                        ":is_active": "ACTIVE#True",
                     },
+                    FilterExpression="is_active = :is_active",
                     Select="COUNT",
                 )
                 category_counts[category] = response.get("Count", 0)

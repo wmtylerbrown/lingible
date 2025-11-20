@@ -2,8 +2,18 @@
 
 import pytest
 import json
+import os
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
+
+from models.slang import (
+    SlangTerm,
+    PartOfSpeech,
+    ApprovalStatus,
+    AgeRating,
+    QuizCategory,
+    QuizDifficulty,
+)
 
 
 class TestExportLexiconHandler:
@@ -13,50 +23,71 @@ class TestExportLexiconHandler:
     def sample_approved_terms(self):
         """Sample approved terms for testing."""
         return [
-            {
-                "PK": "TERM#bussin",
-                "SK": "SOURCE#lexicon#bussin",
-                "slang_term": "bussin",
-                "meaning": "Really good",
-                "example_usage": "That pizza was bussin!",
-                "status": "approved",
-                "source": "lexicon",
-                "lexicon_variants": ["bussin", "BUSSIN"],
-                "lexicon_pos": "adj",
-                "lexicon_tags": ["food", "approval"],
-                "lexicon_confidence": 0.95,
-                "lexicon_age_rating": "E",
-                "lexicon_content_flags": [],
-                "created_at": "2023-01-01T00:00:00Z",
-                "last_used_at": "2025-09-23T00:00:00Z",
-                "times_translated": 150,
-                "lexicon_momentum": 1.2,
-                "lexicon_categories": ["approval", "food"],
-                "first_attested": "2020-05-15",
-                "first_attested_confidence": "high",
-                "attestation_note": "Test attestation note"
-            },
-            {
-                "PK": "TERM#cap",
-                "SK": "SOURCE#user#sub_456",
-                "slang_term": "cap",
-                "meaning": "Lie",
-                "example_usage": "That's cap!",
-                "status": "approved",
-                "source": "user_submission",
-                "lexicon_variants": ["cap", "CAP"],
-                "lexicon_pos": "noun",
-                "lexicon_tags": ["disapproval"],
-                "lexicon_confidence": 0.88,
-                "lexicon_age_rating": "E",
-                "lexicon_content_flags": [],
-                "created_at": "2023-02-01T00:00:00Z",
-                "last_used_at": "2025-09-23T00:00:00Z",
-                "times_translated": 75,
-                "lexicon_momentum": 0.8,
-                "lexicon_categories": ["disapproval"]
-            }
+            SlangTerm(
+                term="bussin",
+                gloss="Really good",
+                variants=["bussin", "BUSSIN"],
+                pos=PartOfSpeech.ADJECTIVE,
+                examples=["That pizza was bussin!"],
+                tags=["food", "approval"],
+                status=ApprovalStatus.APPROVED,
+                confidence=0.95,
+                regions=[],
+                age_rating=AgeRating.EVERYONE,
+                content_flags=[],
+                first_seen="2023-01-01",
+                last_seen="2025-09-23",
+                sources={"reddit": 0, "youtube": 0, "runtime": 150},
+                momentum=1.2,
+                categories=["approval", "food"],
+                first_attested="2020-05-15",
+                first_attested_confidence="high",
+                attestation_note="Test attestation note",
+                is_quiz_eligible=True,
+                quiz_category=QuizCategory.APPROVAL,
+                quiz_difficulty=QuizDifficulty.BEGINNER,
+            ),
+            SlangTerm(
+                term="cap",
+                gloss="Lie",
+                variants=["cap", "CAP"],
+                pos=PartOfSpeech.NOUN,
+                examples=["That's cap!"],
+                tags=["disapproval"],
+                status=ApprovalStatus.APPROVED,
+                confidence=0.88,
+                regions=[],
+                age_rating=AgeRating.EVERYONE,
+                content_flags=[],
+                first_seen="2023-02-01",
+                last_seen="2025-09-23",
+                sources={"runtime": 75},
+                momentum=0.8,
+                categories=["disapproval"],
+                is_quiz_eligible=True,
+                quiz_category=QuizCategory.DISAPPROVAL,
+                quiz_difficulty=QuizDifficulty.BEGINNER,
+            ),
         ]
+
+    @pytest.fixture(autouse=True)
+    def set_required_env(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TERMS_TABLE": "test-terms-table",
+                "LEXICON_S3_BUCKET": "lingible-slang-lexicon-test",
+                "LEXICON_S3_KEY": "lexicon.json",
+            },
+        ):
+            # Ensure repository cache is cleared between tests
+            from handlers.export_lexicon_handler import handler as handler_module
+
+            handler_module._repository_instance = None
+            try:
+                yield
+            finally:
+                handler_module._repository_instance = None
 
     @pytest.fixture
     def mock_context(self):
@@ -69,7 +100,7 @@ class TestExportLexiconHandler:
 
     @pytest.fixture
     def mock_repository(self):
-        """Mock SlangTermRepository."""
+        """Mock LexiconRepository."""
         mock_repo = Mock()
         return mock_repo
 
@@ -88,7 +119,7 @@ class TestExportLexiconHandler:
 
         assert result["term"] == "bussin"
         assert result["variants"] == ["bussin", "BUSSIN"]
-        assert result["pos"] == "adj"
+        assert result["pos"] == "adjective"
         assert result["gloss"] == "Really good"
         assert result["examples"] == ["That pizza was bussin!"]
         assert result["tags"] == ["food", "approval"]
@@ -138,9 +169,9 @@ class TestExportLexiconHandler:
         assert result["confidence"] == 0.85  # Default value
         assert result["sources"]["runtime"] == 0
 
-    @patch('handlers.export_lexicon_handler.handler.SlangTermRepository')
+    @patch('handlers.export_lexicon_async.handler.LexiconRepository')
     @patch('handlers.export_lexicon_handler.handler.aws_services')
-    def test_lambda_handler_success(self, mock_aws_services, mock_repo_class,
+    def test_handler_success(self, mock_aws_services, mock_repo_class,
                                    sample_approved_terms, mock_context):
         """Test successful lexicon export."""
         # Setup mocks
@@ -153,10 +184,10 @@ class TestExportLexiconHandler:
 
         # Mock environment
         with patch.dict('os.environ', {'ENVIRONMENT': 'test'}):
-            from handlers.export_lexicon_handler.handler import lambda_handler
+            from handlers.export_lexicon_handler.handler import handler
 
             event = {}
-            result = lambda_handler(event, mock_context)
+            result = handler(event, mock_context)
 
             # Verify response
             assert result["statusCode"] == 200
@@ -182,9 +213,9 @@ class TestExportLexiconHandler:
             assert uploaded_data["items"][0]["term"] == "bussin"
             assert uploaded_data["items"][1]["term"] == "cap"
 
-    @patch('handlers.export_lexicon_handler.handler.SlangTermRepository')
+    @patch('handlers.export_lexicon_async.handler.LexiconRepository')
     @patch('handlers.export_lexicon_handler.handler.aws_services')
-    def test_lambda_handler_no_terms(self, mock_aws_services, mock_repo_class, mock_context):
+    def test_handler_no_terms(self, mock_aws_services, mock_repo_class, mock_context):
         """Test export with no approved terms."""
         # Setup mocks
         mock_repo = Mock()
@@ -195,10 +226,10 @@ class TestExportLexiconHandler:
         mock_aws_services.s3_client = mock_s3_client
 
         with patch.dict('os.environ', {'ENVIRONMENT': 'test'}):
-            from handlers.export_lexicon_handler.handler import lambda_handler
+            from handlers.export_lexicon_handler.handler import handler
 
             event = {}
-            result = lambda_handler(event, mock_context)
+            result = handler(event, mock_context)
 
             assert result["statusCode"] == 200
             body = json.loads(result["body"])
@@ -207,9 +238,9 @@ class TestExportLexiconHandler:
             # Should still upload to S3
             mock_s3_client.put_object.assert_called_once()
 
-    @patch('handlers.export_lexicon_handler.handler.SlangTermRepository')
+    @patch('handlers.export_lexicon_async.handler.LexiconRepository')
     @patch('handlers.export_lexicon_handler.handler.aws_services')
-    def test_lambda_handler_format_error(self, mock_aws_services, mock_repo_class, mock_context):
+    def test_handler_format_error(self, mock_aws_services, mock_repo_class, mock_context):
         """Test export with term formatting error."""
         # Setup mocks with malformed term
         mock_repo = Mock()
@@ -226,19 +257,19 @@ class TestExportLexiconHandler:
         mock_aws_services.s3_client = mock_s3_client
 
         with patch.dict('os.environ', {'ENVIRONMENT': 'test'}):
-            from handlers.export_lexicon_handler.handler import lambda_handler
+            from handlers.export_lexicon_handler.handler import handler
 
             event = {}
-            result = lambda_handler(event, mock_context)
+            result = handler(event, mock_context)
 
             # Should still succeed but with fewer terms
             assert result["statusCode"] == 200
             body = json.loads(result["body"])
             assert body["terms_exported"] == 0  # Malformed term skipped
 
-    @patch('handlers.export_lexicon_handler.handler.SlangTermRepository')
+    @patch('handlers.export_lexicon_async.handler.LexiconRepository')
     @patch('handlers.export_lexicon_handler.handler.aws_services')
-    def test_lambda_handler_s3_error(self, mock_aws_services, mock_repo_class,
+    def test_handler_s3_error(self, mock_aws_services, mock_repo_class,
                                     sample_approved_terms, mock_context):
         """Test export with S3 upload error."""
         # Setup mocks
@@ -251,18 +282,18 @@ class TestExportLexiconHandler:
         mock_aws_services.s3_client = mock_s3_client
 
         with patch.dict('os.environ', {'ENVIRONMENT': 'test'}):
-            from handlers.export_lexicon_handler.handler import lambda_handler
+            from handlers.export_lexicon_handler.handler import handler
 
             event = {}
-            result = lambda_handler(event, mock_context)
+            result = handler(event, mock_context)
 
             assert result["statusCode"] == 500
             body = json.loads(result["body"])
             assert "Export failed" in body["message"]
             assert "S3 upload failed" in body["error"]
 
-    @patch('handlers.export_lexicon_handler.handler.SlangTermRepository')
-    def test_lambda_handler_repository_error(self, mock_repo_class, mock_context):
+    @patch('handlers.export_lexicon_async.handler.LexiconRepository')
+    def test_handler_repository_error(self, mock_repo_class, mock_context):
         """Test export with repository error."""
         # Setup mocks
         mock_repo = Mock()
@@ -270,10 +301,10 @@ class TestExportLexiconHandler:
         mock_repo_class.return_value = mock_repo
 
         with patch.dict('os.environ', {'ENVIRONMENT': 'test'}):
-            from handlers.export_lexicon_handler.handler import lambda_handler
+            from handlers.export_lexicon_handler.handler import handler
 
             event = {}
-            result = lambda_handler(event, mock_context)
+            result = handler(event, mock_context)
 
             assert result["statusCode"] == 500
             body = json.loads(result["body"])
@@ -307,12 +338,12 @@ class TestExportLexiconHandler:
             assert "categories" in formatted
 
             # Check attestation fields if present in source term
-            if term.get("first_attested"):
+            if term.first_attested:
                 assert "first_attested" in formatted
-                assert formatted["first_attested"] == term["first_attested"]
-            if term.get("first_attested_confidence"):
+                assert formatted["first_attested"] == term.first_attested
+            if term.first_attested_confidence:
                 assert "first_attested_confidence" in formatted
-                assert formatted["first_attested_confidence"] == term["first_attested_confidence"]
-            if term.get("attestation_note"):
+                assert formatted["first_attested_confidence"] == term.first_attested_confidence
+            if term.attestation_note:
                 assert "attestation_note" in formatted
-                assert formatted["attestation_note"] == term["attestation_note"]
+                assert formatted["attestation_note"] == term.attestation_note

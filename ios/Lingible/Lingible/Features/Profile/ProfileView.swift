@@ -627,7 +627,9 @@ struct ProfileView: View {
             // Try to parse the response data as ModelErrorResponse for structured error handling
             if let data = data {
                 do {
-                    let errorResponse = try JSONDecoder().decode(ModelErrorResponse.self, from: data)
+                    let decoder = JSONDecoder()
+                    decoder.dateDecodingStrategy = .iso8601
+                    let errorResponse = try decoder.decode(ModelErrorResponse.self, from: data)
                     switch errorResponse.errorCode {
                     case "ACTIVE_SUBSCRIPTION_EXISTS":
                         // Show subscription warning alert

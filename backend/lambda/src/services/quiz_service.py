@@ -3,7 +3,6 @@
 import uuid
 import random
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import List, Optional, Dict, Set
 
 from models.quiz import (
@@ -17,10 +16,12 @@ from models.quiz import (
     QuizAnswerRequest,
     QuizAnswerResponse,
     QuizSessionProgress,
+    QuizSessionStatus,
 )
+from models.slang import SlangTerm
 from models.config import QuizConfig
 from models.users import UserTier
-from repositories.slang_term_repository import SlangTermRepository
+from repositories.lexicon_repository import LexiconRepository
 from repositories.user_repository import UserRepository
 from services.user_service import UserService
 from utils.config import get_config_service
@@ -37,7 +38,7 @@ class QuizService:
     _pools_loaded: bool = False
 
     def __init__(self):
-        self.repository = SlangTermRepository()
+        self.repository = LexiconRepository()
         self.user_repository = UserRepository()
         self.user_service = UserService()
         self.config = get_config_service().get_config(QuizConfig)
@@ -98,40 +99,82 @@ class QuizService:
         if not can_take_quiz:
             reason = f"Daily limit of {self.config.free_daily_limit} quizzes reached. Upgrade to Premium for unlimited quizzes!"
 
-        # Get user stats
-        stats = self.repository.get_user_quiz_stats(user_id)
+        # Get finalized user stats (from completed quizzes)
+        stats = self.user_repository.get_quiz_stats(user_id)
+
+        # Check if there's an active session and include its stats
+        active_session = self.user_repository.get_active_quiz_session(user_id)
+        if active_session and active_session.questions_answered > 0:
+            # Include active session stats in the totals
+            # Note: These are temporary until the session is ended and finalized
+            total_questions = stats.total_questions + active_session.questions_answered
+            total_correct = stats.total_correct + active_session.correct_count
+
+            # Calculate accuracy including active session
+            accuracy_rate = (
+                (float(total_correct) / float(total_questions))
+                if total_questions > 0
+                else 0.0
+            )
+
+            # For average score, we only use finalized quizzes (active session not yet finalized)
+            # But we can show the active session's current score as context
+            average_score = stats.average_score  # Only finalized quizzes
+
+            # Best score could potentially include active session if it's better
+            active_session_score_pct = (
+                (
+                    active_session.total_score
+                    / (active_session.questions_answered * 10.0)
+                    * 100
+                )
+                if active_session.questions_answered > 0
+                else 0.0
+            )
+            best_score = max(stats.best_score, active_session_score_pct)
+        else:
+            # No active session, use finalized stats only
+            total_questions = stats.total_questions
+            total_correct = stats.total_correct
+            accuracy_rate = stats.accuracy_rate
+            average_score = stats.average_score
+            best_score = stats.best_score
 
         return QuizHistory(
             user_id=user_id,
-            total_quizzes=stats.get("total_quizzes", 0),
-            average_score=stats.get("average_score", 0.0),
-            best_score=stats.get("best_score", 0),
-            total_correct=stats.get("total_correct", 0),
-            total_questions=stats.get("total_questions", 0),
-            accuracy_rate=stats.get("accuracy_rate", 0.0),
+            total_quizzes=stats.total_quizzes,  # Only completed quizzes count
+            average_score=average_score,  # Only finalized quizzes
+            best_score=best_score,
+            total_correct=total_correct,  # Includes active session if present
+            total_questions=total_questions,  # Includes active session if present
+            accuracy_rate=round(accuracy_rate, 3),
             quizzes_today=quizzes_today,
             can_take_quiz=can_take_quiz,
             reason=reason,
         )
 
     def _format_multiple_choice(
-        self, term: dict, used_wrong_options: Set[str]
+        self, term: SlangTerm, used_wrong_options: Set[str]
     ) -> tuple[QuizQuestion, str]:
         """Format a term as multiple choice question. Returns (question, correct_option_id).
 
         Args:
-            term: Term dictionary with meaning, slang_term, etc.
+            term: SlangTerm with meaning, slang_term, etc.
             used_wrong_options: Set of normalized wrong options already used in this session
         """
         # Normalize correct answer
-        correct_meaning = self._normalize_answer_text(term["meaning"])
+        correct_meaning = self._normalize_answer_text(term.meaning)
 
         # Get category for pool lookup
-        category = term.get("quiz_category", "general")
+        category_value = (
+            term.quiz_category.value
+            if isinstance(term.quiz_category, QuizCategory)
+            else str(term.quiz_category)
+        )
 
         # Get wrong options from category pool
         wrong_options = self._get_wrong_options_from_pool(
-            category, used_wrong_options, term["meaning"]
+            category_value, used_wrong_options, term.meaning
         )
 
         # Fallback to dynamic generation if pool doesn't have enough options
@@ -146,56 +189,92 @@ class QuizService:
 
         normalized_wrong = wrong_options[:3]
 
-        # Create options (all normalized for consistency)
-        all_options = [
-            QuizOption(id="a", text=correct_meaning),
-            QuizOption(id="b", text=normalized_wrong[0]),
-            QuizOption(id="c", text=normalized_wrong[1]),
-            QuizOption(id="d", text=normalized_wrong[2]),
+        # Safety check: ensure wrong options don't accidentally match correct answer
+        # This should never happen due to filtering, but double-check
+        for i, wrong_option in enumerate(normalized_wrong):
+            if wrong_option == correct_meaning:
+                logger.log_error(
+                    Exception("Wrong option matches correct answer - filtering bug"),
+                    {
+                        "term": term.slang_term,
+                        "correct_meaning": correct_meaning,
+                        "wrong_option_index": i,
+                        "wrong_option": wrong_option,
+                    },
+                )
+                # Replace with a safe fallback
+                normalized_wrong[i] = "Unknown"
+
+        # Create options WITHOUT IDs first (we'll assign IDs after shuffling)
+        # This ensures the correct answer can end up at any position (a, b, c, or d)
+        option_texts = [
+            correct_meaning,
+            normalized_wrong[0],
+            normalized_wrong[1],
+            normalized_wrong[2],
         ]
 
-        # Shuffle options but remember which one is correct
-        random.shuffle(all_options)
+        # Shuffle the texts to randomize order
+        random.shuffle(option_texts)
 
-        # Find the correct option ID after shuffling
+        # Now create QuizOption objects with IDs assigned based on shuffled position
+        # This way, the correct answer can be at any ID (a, b, c, or d)
+        all_options = [
+            QuizOption(id="a", text=option_texts[0]),
+            QuizOption(id="b", text=option_texts[1]),
+            QuizOption(id="c", text=option_texts[2]),
+            QuizOption(id="d", text=option_texts[3]),
+        ]
+
+        # Find which option has the correct answer text (after shuffling and ID assignment)
         correct_option_id = None
         for option in all_options:
             if option.text == correct_meaning:
                 correct_option_id = option.id
                 break
 
+        # This should never fail - the correct answer text must be in the options
+        if correct_option_id is None:
+            # Log all option texts for debugging
+            option_details = [(opt.id, opt.text, repr(opt.text)) for opt in all_options]
+            raise ValidationError(
+                f"CRITICAL: Failed to find correct option after shuffle. "
+                f"Correct meaning: '{correct_meaning}' (repr: {repr(correct_meaning)}). "
+                f"Options: {option_details}"
+            )
+
         question = QuizQuestion(
             question_id=f"q_{uuid.uuid4().hex[:12]}",
-            slang_term=term["slang_term"],
-            question_text=f"What does '{term['slang_term']}' mean?",
+            slang_term=term.slang_term,
+            question_text=f"What does '{term.slang_term}' mean?",
             options=all_options,
-            context_hint=term.get("example_usage"),
+            context_hint=term.example_usage,
         )
 
-        return question, correct_option_id or "a"
+        return question, correct_option_id
 
     def _generate_wrong_options(
-        self, term: dict, used_wrong_options: Set[str]
+        self, term: SlangTerm, used_wrong_options: Set[str]
     ) -> List[str]:
         """Generate plausible wrong answers using category-based approach (fallback when pools unavailable).
 
         Args:
-            term: Term dictionary
+            term: SlangTerm
             used_wrong_options: Set of normalized wrong options already used in session
         """
         needed = 3
-        normalized_correct = self._normalize_answer_text(term["meaning"])
+        normalized_correct = self._normalize_answer_text(term.meaning)
 
         # Strategy A: Try to get from similar category terms first
         similar_terms = self.repository.get_terms_by_category(
-            term.get("quiz_category", "general"), limit=20  # Get more for variety
+            term.quiz_category, limit=20  # Get more for variety
         )
 
         category_options = []
         for t in similar_terms:
-            if t["slang_term"] == term["slang_term"]:
+            if t.slang_term == term.slang_term:
                 continue
-            normalized_meaning = self._normalize_answer_text(t["meaning"])
+            normalized_meaning = self._normalize_answer_text(t.meaning)
             # Avoid correct answer and used options
             if (
                 normalized_meaning != normalized_correct
@@ -370,6 +449,35 @@ class QuizService:
         if not self.check_question_eligibility(user_id):
             today = datetime.now(timezone.utc).date().isoformat()
             questions_today = self.user_repository.get_daily_quiz_count(user_id, today)
+
+            # End any active session if user has answered questions, so progress is saved
+            active_session = self.user_repository.get_active_quiz_session(user_id)
+            if active_session and active_session.questions_answered > 0:
+                questions_answered = int(active_session.questions_answered)
+                correct_count = int(active_session.correct_count)
+                total_score = float(active_session.total_score)
+                total_possible = float(questions_answered * 10.0)
+
+                self.user_repository.finalize_quiz_session(
+                    user_id=user_id,
+                    session_id=active_session.session_id,
+                    questions_answered=questions_answered,
+                    correct_count=correct_count,
+                    total_score=total_score,
+                    total_possible=total_possible,
+                )
+
+                logger.log_business_event(
+                    "quiz_session_ended_due_to_limit",
+                    {
+                        "user_id": user_id,
+                        "session_id": active_session.session_id,
+                        "questions_answered": questions_answered,
+                        "correct_count": correct_count,
+                        "total_score": total_score,
+                    },
+                )
+
             raise UsageLimitExceededError(
                 limit_type="quiz_questions",
                 current_usage=questions_today,
@@ -378,29 +486,31 @@ class QuizService:
             )
 
         # Get or create session
-        session = self.repository.get_active_quiz_session(user_id)
+        session = self.user_repository.get_active_quiz_session(user_id)
         if not session:
             # Create new session
             session_id = f"session_{uuid.uuid4().hex[:16]}"
-            self.repository.create_quiz_session(
-                session_id=session_id,
+            self.user_repository.create_quiz_session(
                 user_id=user_id,
+                session_id=session_id,
                 difficulty=difficulty.value,
             )
-            session = self.repository.get_quiz_session(session_id)
+            session = self.user_repository.get_quiz_session(user_id, session_id)
             if not session:
                 raise ValidationError("Failed to create quiz session")
         else:
-            session_id = session["session_id"]
+            session_id = session.session_id
             # Ensure difficulty matches (use session difficulty)
-            difficulty = QuizDifficulty(session.get("difficulty", "beginner"))
+            if isinstance(session.difficulty, QuizDifficulty):
+                difficulty = session.difficulty
+            else:
+                difficulty = QuizDifficulty(session.difficulty)
 
         # Get used wrong options from session to avoid duplicates
-        used_wrong_options_list = session.get("used_wrong_options", [])
-        used_wrong_options: Set[str] = set(used_wrong_options_list)
+        used_wrong_options: Set[str] = set(session.used_wrong_options)
 
         # Get terms already used in this session to avoid repeats
-        current_term_names = dict(session.get("term_names", {}))
+        current_term_names = dict(session.term_names)
         used_term_names = set(current_term_names.values())
 
         # Get a quiz term, excluding already used terms
@@ -436,13 +546,14 @@ class QuizService:
         new_used_wrong_options = list(used_wrong_options) + wrong_options_texts
 
         # Update session with new question data
-        current_correct_answers = dict(session.get("correct_answers", {}))
+        current_correct_answers = dict(session.correct_answers)
         current_correct_answers[question.question_id] = correct_option_id
         # Create a copy of current_term_names for updating (avoid mutating original)
         current_term_names = dict(current_term_names)
-        current_term_names[question.question_id] = term["slang_term"]
+        current_term_names[question.question_id] = term.slang_term
 
-        self.repository.update_quiz_session(
+        self.user_repository.update_quiz_session(
+            user_id=user_id,
             session_id=session_id,
             correct_answers=current_correct_answers,
             term_names=current_term_names,
@@ -467,25 +578,27 @@ class QuizService:
     ) -> QuizAnswerResponse:
         """Submit answer for one question and return immediate feedback."""
         # Load session
-        session = self.repository.get_quiz_session(answer_request.session_id)
+        session = self.user_repository.get_quiz_session(
+            user_id, answer_request.session_id
+        )
         if not session:
             raise ValidationError("Invalid or expired session")
 
-        if session["user_id"] != user_id:
+        if session.user_id != user_id:
             raise ValidationError("Session does not belong to this user")
 
-        if session.get("status") != "active":
+        if session.status != QuizSessionStatus.ACTIVE:
             raise ValidationError("Session is not active")
 
         # Check expiration
-        last_activity = datetime.fromisoformat(
-            session.get("last_activity", datetime.now(timezone.utc).isoformat())
-        )
+        last_activity = session.last_activity
+        if not isinstance(last_activity, datetime):
+            last_activity = datetime.fromisoformat(str(last_activity))
         if (
             datetime.now(timezone.utc) - last_activity
         ).total_seconds() > 900:  # 15 minutes
-            self.repository.update_quiz_session(
-                answer_request.session_id, status="expired"
+            self.user_repository.update_quiz_session(
+                user_id=user_id, session_id=answer_request.session_id, status="expired"
             )
             raise ValidationError("Session has expired")
 
@@ -497,6 +610,33 @@ class QuizService:
         is_premium = user is not None and user.tier != UserTier.FREE
 
         if not is_premium and questions_today >= self.config.free_daily_limit:
+            # End the session if user has answered any questions, so progress is saved
+            if session.questions_answered > 0:
+                questions_answered = int(session.questions_answered)
+                correct_count = int(session.correct_count)
+                total_score = float(session.total_score)
+                total_possible = float(questions_answered * 10.0)
+
+                self.user_repository.finalize_quiz_session(
+                    user_id=user_id,
+                    session_id=answer_request.session_id,
+                    questions_answered=questions_answered,
+                    correct_count=correct_count,
+                    total_score=total_score,
+                    total_possible=total_possible,
+                )
+
+                logger.log_business_event(
+                    "quiz_session_ended_due_to_limit",
+                    {
+                        "user_id": user_id,
+                        "session_id": answer_request.session_id,
+                        "questions_answered": questions_answered,
+                        "correct_count": correct_count,
+                        "total_score": total_score,
+                    },
+                )
+
             raise UsageLimitExceededError(
                 limit_type="quiz_questions",
                 current_usage=questions_today,
@@ -505,7 +645,7 @@ class QuizService:
             )
 
         # Validate answer
-        correct_answers = session.get("correct_answers", {})
+        correct_answers = session.correct_answers
         correct_option = correct_answers.get(answer_request.question_id)
         if not correct_option:
             raise ValidationError("Question not found in session")
@@ -519,34 +659,24 @@ class QuizService:
         )
 
         # Get term for explanation
-        term_names = session.get("term_names", {})
+        term_names = session.term_names
         slang_term = term_names.get(answer_request.question_id)
         term = self.repository.get_term_by_slang(slang_term) if slang_term else None
-        explanation = (
-            term.get("meaning", "Term not found") if term else "Term not found"
-        )
+        explanation = term.meaning if term else "Term not found"
         # Normalize explanation
         explanation = self._normalize_answer_text(explanation)
 
         # Update session stats
-        # Ensure values are proper types before arithmetic (repository should convert, but defensive)
-        questions_answered = session.get("questions_answered", 0)
-        correct_count = session.get("correct_count", 0)
-        current_score = session.get("total_score", 0.0)
-
-        # Convert to proper types if needed (repository should handle this, but defensive)
-        if isinstance(questions_answered, (Decimal, float)):
-            questions_answered = int(questions_answered)
-        if isinstance(correct_count, (Decimal, float)):
-            correct_count = int(correct_count)
-        if isinstance(current_score, Decimal):
-            current_score = float(current_score)
+        questions_answered = session.questions_answered
+        correct_count = session.correct_count
+        current_score = session.total_score
 
         new_questions_answered = questions_answered + 1
         new_correct_count = correct_count + (1 if is_correct else 0)
         new_total_score = current_score + points_earned
 
-        self.repository.update_quiz_session(
+        self.user_repository.update_quiz_session(
+            user_id=user_id,
             session_id=answer_request.session_id,
             questions_answered=new_questions_answered,
             correct_count=new_correct_count,
@@ -568,9 +698,9 @@ class QuizService:
         )
 
         # Calculate time spent (we'll need to track this in session, but for now estimate)
-        started_at = datetime.fromisoformat(
-            session.get("started_at", datetime.now(timezone.utc).isoformat())
-        )
+        started_at = session.started_at
+        if not isinstance(started_at, datetime):
+            started_at = datetime.fromisoformat(str(started_at))
         time_spent = (datetime.now(timezone.utc) - started_at).total_seconds()
 
         running_stats = QuizSessionProgress(
@@ -604,24 +734,16 @@ class QuizService:
         self, user_id: str, session_id: str
     ) -> QuizSessionProgress:
         """Get current progress for a quiz session."""
-        session = self.repository.get_quiz_session(session_id)
+        session = self.user_repository.get_quiz_session(user_id, session_id)
         if not session:
             raise ValidationError("Session not found")
 
-        if session["user_id"] != user_id:
+        if session.user_id != user_id:
             raise ValidationError("Session does not belong to this user")
 
-        questions_answered = session.get("questions_answered", 0)
-        correct_count = session.get("correct_count", 0)
-        total_score = session.get("total_score", 0.0)
-
-        # Ensure values are proper types before arithmetic/division
-        if isinstance(questions_answered, (Decimal, float)):
-            questions_answered = int(questions_answered)
-        if isinstance(correct_count, (Decimal, float)):
-            correct_count = int(correct_count)
-        if isinstance(total_score, Decimal):
-            total_score = float(total_score)
+        questions_answered = session.questions_answered
+        correct_count = session.correct_count
+        total_score = session.total_score
 
         accuracy = (
             float(correct_count) / float(questions_answered)
@@ -629,9 +751,9 @@ class QuizService:
             else 0.0
         )
 
-        started_at = datetime.fromisoformat(
-            session.get("started_at", datetime.now(timezone.utc).isoformat())
-        )
+        started_at = session.started_at
+        if not isinstance(started_at, datetime):
+            started_at = datetime.fromisoformat(str(started_at))
         time_spent = (datetime.now(timezone.utc) - started_at).total_seconds()
 
         return QuizSessionProgress(
@@ -645,36 +767,21 @@ class QuizService:
     @tracer.trace_method("end_session")
     def end_session(self, user_id: str, session_id: str) -> QuizResult:
         """End quiz session and return final results."""
-        session = self.repository.get_quiz_session(session_id)
+        session = self.user_repository.get_quiz_session(user_id, session_id)
         if not session:
             raise ValidationError("Session not found")
 
-        if session["user_id"] != user_id:
+        if session.user_id != user_id:
             raise ValidationError("Session does not belong to this user")
 
-        if session.get("status") == "completed":
+        if session.status == QuizSessionStatus.COMPLETED:
             raise ValidationError("Session already completed")
 
-        # Calculate final stats
-        # Ensure all values are proper Python types (defensive conversion from Decimal/float)
+        # Calculate final stats using strongly typed session data
 
-        questions_answered = session.get("questions_answered", 0)
-        if isinstance(questions_answered, (Decimal, float)):
-            questions_answered = int(questions_answered)
-        else:
-            questions_answered = int(questions_answered) if questions_answered else 0
-
-        correct_count = session.get("correct_count", 0)
-        if isinstance(correct_count, (Decimal, float)):
-            correct_count = int(correct_count)
-        else:
-            correct_count = int(correct_count) if correct_count else 0
-
-        total_score = session.get("total_score", 0.0)
-        if isinstance(total_score, Decimal):
-            total_score = float(total_score)
-        else:
-            total_score = float(total_score) if total_score else 0.0
+        questions_answered = int(session.questions_answered)
+        correct_count = int(session.correct_count)
+        total_score = float(session.total_score)
 
         if questions_answered == 0:
             raise ValidationError("Cannot end session with no questions answered")
@@ -683,27 +790,19 @@ class QuizService:
         total_possible = float(questions_answered * 10.0)
 
         # Calculate time taken
-        started_at = datetime.fromisoformat(
-            session.get("started_at", datetime.now(timezone.utc).isoformat())
-        )
+        started_at = session.started_at
+        if not isinstance(started_at, datetime):
+            started_at = datetime.fromisoformat(str(started_at))
         time_taken_seconds = (datetime.now(timezone.utc) - started_at).total_seconds()
 
-        # Mark session as completed
-        self.repository.update_quiz_session(session_id=session_id, status="completed")
-
-        # Save to history
-        self.repository.save_quiz_result(
-            user_id,
-            {
-                "quiz_id": session_id,
-                "score": total_score,
-                "total_possible": total_possible,
-                "correct_count": correct_count,
-                "total_questions": questions_answered,
-                "time_taken_seconds": time_taken_seconds,
-                "difficulty": session.get("difficulty", "beginner"),
-                "challenge_type": "multiple_choice",
-            },
+        # Update aggregates and clean up session data
+        self.user_repository.finalize_quiz_session(
+            user_id=user_id,
+            session_id=session_id,
+            questions_answered=questions_answered,
+            correct_count=correct_count,
+            total_score=total_score,
+            total_possible=total_possible,
         )
 
         # Round scores to whole numbers to avoid floating point precision issues

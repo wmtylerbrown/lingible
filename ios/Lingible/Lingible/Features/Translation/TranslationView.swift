@@ -528,7 +528,9 @@ struct TranslationView: View {
                 if let data = data {
                     // Try to parse as ModelErrorResponse to get structured error info
                     do {
-                        let errorResponse = try JSONDecoder().decode(ModelErrorResponse.self, from: data)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        let errorResponse = try decoder.decode(ModelErrorResponse.self, from: data)
 
                         // Use the structured error response to show user-friendly message
                         let errorCode = errorResponse.errorCode

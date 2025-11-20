@@ -2,12 +2,23 @@
 
 import pytest
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from models.slang import (
-    SlangTerm, SlangLexicon, TranslationResult, TranslationSpan,
-    QualityMetrics, SlangTranslationResult, SlangTranslationDensity,
-    LexiconStats, AgeRating, AgeFilterMode, PartOfSpeech, ApprovalStatus,
-    SourceType, SlangSense
+    SlangTerm,
+    SlangLexicon,
+    SlangTranslationResponse,
+    TranslationSpan,
+    LLMValidationResult,
+    LLMValidationEvidence,
+    SlangSubmission,
+    AgeRating,
+    AgeFilterMode,
+    PartOfSpeech,
+    ApprovalStatus,
+    SourceType,
+    SlangSense,
+    SubmissionContext,
 )
 
 
@@ -102,79 +113,58 @@ class TestSlangModels:
         assert span.gloss == "excellent"
         assert span.length == 4
 
-    def test_translation_result_creation(self):
-        """Test TranslationResult model creation."""
-        spans = [
-            TranslationSpan(
-                start=0,
-                end=4,
-                surface="fire",
-                source=SourceType.LEXEME,
-                canonical="fire",
-                gloss="excellent"
+    def test_slang_translation_response_creation(self):
+        """Test SlangTranslationResponse model creation."""
+        response = SlangTranslationResponse(
+            translated="That's excellent",
+            confidence=Decimal("0.92"),
+            applied_terms=["fire"],
+        )
+
+        assert response.translated == "That's excellent"
+        assert response.confidence == Decimal("0.92")
+        assert response.applied_terms == ["fire"]
+
+    def test_llm_validation_result_creation(self):
+        """Test LLMValidationResult model creation."""
+        evidence = [
+            LLMValidationEvidence(
+                source="https://example.com",
+                example="That's fire means it's great.",
             )
         ]
 
-        result = TranslationResult(
-            input="That's fire",
-            translated="That's excellent",
-            annotated="That's [fire: excellent]",
-            matches=spans,
-            coverage=0.5
+        result = LLMValidationResult(
+            is_valid=True,
+            confidence=Decimal("0.88"),
+            evidence=evidence,
+            recommended_definition="Excellent or amazing",
+            usage_score=8,
+            validated_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
         )
 
-        assert result.input == "That's fire"
-        assert result.translated == "That's excellent"
-        assert len(result.matches) == 1
-        assert result.coverage == 0.5
+        assert result.is_valid is True
+        assert result.confidence == Decimal("0.88")
+        assert len(result.evidence) == 1
+        assert result.usage_score == 8
 
-    def test_slang_translation_result_creation(self):
-        """Test SlangTranslationResult model creation."""
-        result = SlangTranslationResult(
-            input="That's excellent",
-            output="That's fire",
-            density=SlangTranslationDensity.MEDIUM,
-            applied=[]
+    def test_slang_submission_creation(self):
+        """Test SlangSubmission model creation."""
+        submission = SlangSubmission(
+            submission_id="sub_123",
+            user_id="user_123",
+            slang_term="fire",
+            meaning="Excellent, amazing",
+            example_usage="That track is fire",
+            context=SubmissionContext.MANUAL,
+            status=ApprovalStatus.PENDING,
+            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
         )
 
-        assert result.input == "That's excellent"
-        assert result.output == "That's fire"
-        assert result.density == SlangTranslationDensity.MEDIUM
-        assert len(result.applied) == 0
-
-    def test_lexicon_stats_creation(self):
-        """Test LexiconStats model creation."""
-        stats = LexiconStats(
-            total_terms=100,
-            version="1.0.0",
-            generated_at="2024-01-01T00:00:00Z",
-            age_ratings={"E": 80, "T13": 15, "M18": 5},
-            categories={"music": 30, "general": 70},
-            confidence_distribution={"high": 60, "medium": 30, "low": 10},
-            avg_confidence=0.85
-        )
-
-        assert stats.total_terms == 100
-        assert stats.version == "1.0.0"
-        assert stats.age_ratings["E"] == 80
-        assert stats.categories["music"] == 30
-        assert stats.avg_confidence == 0.85
-
-    def test_quality_metrics_creation(self):
-        """Test QualityMetrics model creation."""
-        metrics = QualityMetrics(
-            grammar_score=2,
-            issues={"repeated_word": 1, "double_punct": 1},
-            similarity=0.95,
-            bpw_orig=4.5,
-            bpw_clean=4.2
-        )
-
-        assert metrics.grammar_score == 2
-        assert metrics.issues["repeated_word"] == 1
-        assert metrics.similarity == 0.95
-        assert metrics.bpw_orig == 4.5
-        assert metrics.bpw_clean == 4.2
+        assert submission.submission_id == "sub_123"
+        assert submission.slang_term == "fire"
+        assert submission.status == ApprovalStatus.PENDING
+        assert submission.context == SubmissionContext.MANUAL
 
     def test_enum_values(self):
         """Test enum values are correct."""
@@ -203,11 +193,6 @@ class TestSlangModels:
         # Source types
         assert SourceType.LEXEME == "lexeme"
         assert SourceType.TEMPLATE == "template"
-
-        # Translation density
-        assert SlangTranslationDensity.LIGHT == "light"
-        assert SlangTranslationDensity.MEDIUM == "medium"
-        assert SlangTranslationDensity.HEAVY == "heavy"
 
     def test_model_validation(self):
         """Test model validation works correctly."""

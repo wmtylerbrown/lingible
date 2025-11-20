@@ -4,7 +4,6 @@ import LingibleAPI
 struct QuizLobbyView: View {
     @ObservedObject var viewModel: QuizViewModel
     @EnvironmentObject var appCoordinator: AppCoordinator
-    @State private var showingUpgradePrompt = false
 
     private var userTier: UsageResponse.Tier {
         appCoordinator.userUsage?.tier ?? .free
@@ -22,7 +21,7 @@ struct QuizLobbyView: View {
                         userTier: userTier,
                         onUpgradeTap: {
                             if userTier == .free {
-                                showingUpgradePrompt = true
+                                viewModel.showingUpgradePrompt = true
                             }
                         }
                     )
@@ -61,11 +60,11 @@ struct QuizLobbyView: View {
                     await viewModel.loadQuizHistory()
                 }
             }
-            .sheet(isPresented: $showingUpgradePrompt) {
+            .sheet(isPresented: $viewModel.showingUpgradePrompt) {
                 UpgradePromptView(
                     translationCount: nil,
                     onUpgrade: {},
-                    onDismiss: { showingUpgradePrompt = false },
+                    onDismiss: { viewModel.showingUpgradePrompt = false },
                     userUsage: appCoordinator.userUsage
                 )
             }
@@ -83,7 +82,7 @@ struct QuizLobbyView: View {
                 statItem(title: "Quizzes", value: "\(history.totalQuizzes)")
                 statItem(title: "Best Score", value: "\(history.bestScore)")
                 statItem(title: "Avg Score", value: String(format: "%.0f", history.averageScore))
-                statItem(title: "Accuracy", value: String(format: "%.0f%%", history.accuracyRate))
+                statItem(title: "Accuracy", value: String(format: "%.0f%%", history.accuracyRate * 100))
             }
 
             Divider()

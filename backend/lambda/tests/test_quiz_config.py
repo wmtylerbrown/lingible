@@ -1,35 +1,32 @@
 """Tests for QuizConfig model and integration."""
 
-import pytest
 import os
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 from models.config import QuizConfig
+from utils.config import ConfigurationError
 
 
 class TestQuizConfig:
     """Test QuizConfig model and configuration service integration."""
 
-    def test_quiz_config_defaults(self):
-        """Test QuizConfig default values."""
-        config = QuizConfig()
-
-        assert config.free_daily_limit == 3
-        assert config.premium_unlimited is True
-        assert config.questions_per_quiz == 10
-        assert config.time_limit_seconds == 60
-        assert config.points_per_correct == 10
-        assert config.enable_time_bonus is True
+    def test_quiz_config_requires_all_fields(self):
+        """QuizConfig should raise ValidationError when required fields missing."""
+        with pytest.raises(ValidationError):
+            QuizConfig()
 
     def test_quiz_config_custom_values(self):
-        """Test QuizConfig with custom values."""
+        """Test QuizConfig with explicit values."""
         config = QuizConfig(
             free_daily_limit=5,
             premium_unlimited=False,
             questions_per_quiz=15,
             time_limit_seconds=90,
             points_per_correct=15,
-            enable_time_bonus=False
+            enable_time_bonus=False,
         )
 
         assert config.free_daily_limit == 5
@@ -39,29 +36,17 @@ class TestQuizConfig:
         assert config.points_per_correct == 15
         assert config.enable_time_bonus is False
 
-    def test_quiz_config_validation(self):
-        """Test QuizConfig field validation."""
-        # Test with valid values
-        config = QuizConfig(
-            free_daily_limit=1,
-            questions_per_quiz=1,
-            time_limit_seconds=1,
-            points_per_correct=1
-        )
-
-        assert config.free_daily_limit == 1
-        assert config.questions_per_quiz == 1
-        assert config.time_limit_seconds == 1
-        assert config.points_per_correct == 1
-
     def test_config_service_loads_quiz_config(self):
         """Test ConfigService can load QuizConfig from environment."""
         from utils.config import ConfigService
 
         # Set environment variables
         os.environ["QUIZ_FREE_DAILY_LIMIT"] = "5"
+        os.environ["QUIZ_PREMIUM_UNLIMITED"] = "false"
         os.environ["QUIZ_QUESTIONS_PER_QUIZ"] = "15"
         os.environ["QUIZ_TIME_LIMIT_SECONDS"] = "90"
+        os.environ["QUIZ_POINTS_PER_CORRECT"] = "12"
+        os.environ["QUIZ_ENABLE_TIME_BONUS"] = "true"
         os.environ["ENVIRONMENT"] = "test"
 
         try:
@@ -69,16 +54,20 @@ class TestQuizConfig:
             quiz_config = config_service.get_config(QuizConfig)
 
             assert quiz_config.free_daily_limit == 5
+            assert quiz_config.premium_unlimited is False
             assert quiz_config.questions_per_quiz == 15
             assert quiz_config.time_limit_seconds == 90
-            assert quiz_config.points_per_correct == 10  # Default value
-            assert quiz_config.enable_time_bonus is True  # Default value
+            assert quiz_config.points_per_correct == 12
+            assert quiz_config.enable_time_bonus is True
 
         finally:
             # Cleanup
             os.environ.pop("QUIZ_FREE_DAILY_LIMIT", None)
+            os.environ.pop("QUIZ_PREMIUM_UNLIMITED", None)
             os.environ.pop("QUIZ_QUESTIONS_PER_QUIZ", None)
             os.environ.pop("QUIZ_TIME_LIMIT_SECONDS", None)
+            os.environ.pop("QUIZ_POINTS_PER_CORRECT", None)
+            os.environ.pop("QUIZ_ENABLE_TIME_BONUS", None)
 
     def test_config_service_quiz_config_defaults(self):
         """Test ConfigService uses defaults when env vars not set."""
@@ -86,24 +75,26 @@ class TestQuizConfig:
 
         # Ensure environment variables are not set
         os.environ.pop("QUIZ_FREE_DAILY_LIMIT", None)
+        os.environ.pop("QUIZ_PREMIUM_UNLIMITED", None)
         os.environ.pop("QUIZ_QUESTIONS_PER_QUIZ", None)
         os.environ.pop("QUIZ_TIME_LIMIT_SECONDS", None)
+        os.environ.pop("QUIZ_POINTS_PER_CORRECT", None)
+        os.environ.pop("QUIZ_ENABLE_TIME_BONUS", None)
         os.environ["ENVIRONMENT"] = "test"
 
         try:
             config_service = ConfigService()
-            quiz_config = config_service.get_config(QuizConfig)
-
-            # Should use default values
-            assert quiz_config.free_daily_limit == 3
-            assert quiz_config.questions_per_quiz == 10
-            assert quiz_config.time_limit_seconds == 60
+            with pytest.raises(ConfigurationError):
+                config_service.get_config(QuizConfig)
 
         finally:
             # Cleanup
             os.environ.pop("QUIZ_FREE_DAILY_LIMIT", None)
+            os.environ.pop("QUIZ_PREMIUM_UNLIMITED", None)
             os.environ.pop("QUIZ_QUESTIONS_PER_QUIZ", None)
             os.environ.pop("QUIZ_TIME_LIMIT_SECONDS", None)
+            os.environ.pop("QUIZ_POINTS_PER_CORRECT", None)
+            os.environ.pop("QUIZ_ENABLE_TIME_BONUS", None)
 
     def test_config_service_quiz_config_invalid_values(self):
         """Test ConfigService handles invalid environment variable values."""
@@ -111,8 +102,11 @@ class TestQuizConfig:
 
         # Set invalid environment variables
         os.environ["QUIZ_FREE_DAILY_LIMIT"] = "invalid"
+        os.environ["QUIZ_PREMIUM_UNLIMITED"] = "true"
         os.environ["QUIZ_QUESTIONS_PER_QUIZ"] = "not_a_number"
         os.environ["QUIZ_TIME_LIMIT_SECONDS"] = "also_invalid"
+        os.environ["QUIZ_POINTS_PER_CORRECT"] = "10"
+        os.environ["QUIZ_ENABLE_TIME_BONUS"] = "true"
         os.environ["ENVIRONMENT"] = "test"
 
         try:
@@ -125,13 +119,19 @@ class TestQuizConfig:
         finally:
             # Cleanup
             os.environ.pop("QUIZ_FREE_DAILY_LIMIT", None)
+            os.environ.pop("QUIZ_PREMIUM_UNLIMITED", None)
             os.environ.pop("QUIZ_QUESTIONS_PER_QUIZ", None)
             os.environ.pop("QUIZ_TIME_LIMIT_SECONDS", None)
+            os.environ.pop("QUIZ_POINTS_PER_CORRECT", None)
+            os.environ.pop("QUIZ_ENABLE_TIME_BONUS", None)
 
     @patch.dict(os.environ, {
         "QUIZ_FREE_DAILY_LIMIT": "0",
+        "QUIZ_PREMIUM_UNLIMITED": "false",
         "QUIZ_QUESTIONS_PER_QUIZ": "0",
         "QUIZ_TIME_LIMIT_SECONDS": "0",
+        "QUIZ_POINTS_PER_CORRECT": "0",
+        "QUIZ_ENABLE_TIME_BONUS": "false",
         "ENVIRONMENT": "test"
     })
     def test_config_service_quiz_config_edge_values(self):
@@ -142,24 +142,30 @@ class TestQuizConfig:
         quiz_config = config_service.get_config(QuizConfig)
 
         assert quiz_config.free_daily_limit == 0
+        assert quiz_config.premium_unlimited is False
         assert quiz_config.questions_per_quiz == 0
         assert quiz_config.time_limit_seconds == 0
+        assert quiz_config.points_per_correct == 0
+        assert quiz_config.enable_time_bonus is False
 
     def test_quiz_config_serialization(self):
         """Test QuizConfig can be serialized to JSON."""
         config = QuizConfig(
             free_daily_limit=5,
+            premium_unlimited=True,
             questions_per_quiz=15,
-            time_limit_seconds=90
+            time_limit_seconds=90,
+            points_per_correct=10,
+            enable_time_bonus=True,
         )
 
         # Should be able to convert to dict
         config_dict = config.model_dump()
 
         assert config_dict["free_daily_limit"] == 5
+        assert config_dict["premium_unlimited"] is True
         assert config_dict["questions_per_quiz"] == 15
         assert config_dict["time_limit_seconds"] == 90
-        assert config_dict["premium_unlimited"] is True
         assert config_dict["points_per_correct"] == 10
         assert config_dict["enable_time_bonus"] is True
 
@@ -185,7 +191,14 @@ class TestQuizConfig:
 
     def test_quiz_config_field_descriptions(self):
         """Test QuizConfig field descriptions are present."""
-        config = QuizConfig()
+        config = QuizConfig(
+            free_daily_limit=5,
+            premium_unlimited=True,
+            questions_per_quiz=15,
+            time_limit_seconds=90,
+            points_per_correct=10,
+            enable_time_bonus=True,
+        )
         schema = config.model_json_schema()
 
         # Check that descriptions are present in schema

@@ -27,7 +27,7 @@ class TestSlangSubmissionService:
     @pytest.fixture
     def submission_service(self, mock_config):
         """Create SlangSubmissionService with mocked dependencies."""
-        with patch('services.slang_submission_service.SlangSubmissionRepository') as mock_repo_class:
+        with patch('services.slang_submission_service.SubmissionsRepository') as mock_repo_class:
             with patch('services.slang_submission_service.UserService') as mock_user_service_class:
                 with patch('services.slang_submission_service.get_config_service') as mock_get_config:
                     with patch('services.slang_submission_service.aws_services') as mock_aws_services:
@@ -103,7 +103,7 @@ class TestSlangSubmissionService:
                     assert isinstance(result, SlangSubmissionResponse)
                     assert result.submission_id == "sub_123456"
                     assert result.status == ApprovalStatus.PENDING
-                    assert "we appreciate your help" in result.message.lower()
+                    assert "community will vote" in result.message.lower()
 
                     # Verify submission was created
                     mock_repo.create_submission.assert_called_once()
@@ -317,159 +317,3 @@ class TestSlangSubmissionService:
                 meaning="x" * 501,  # Over 500 char limit
                 context=SubmissionContext.MANUAL,
             )
-
-
-class TestSlangSubmissionRepository:
-    """Test SlangSubmissionRepository."""
-
-    @pytest.fixture
-    def submission_repository(self, mock_config):
-        """Create SlangSubmissionRepository with mocked dependencies."""
-        from repositories.slang_submission_repository import SlangSubmissionRepository
-
-        with patch('repositories.slang_submission_repository.get_config_service') as mock_get_config:
-            with patch('repositories.slang_submission_repository.aws_services') as mock_aws_services:
-                mock_get_config.return_value = mock_config
-                mock_config._get_env_var.return_value = "lingible-terms-test"
-
-                mock_table = Mock()
-                mock_aws_services.get_table.return_value = mock_table
-
-                repo = SlangSubmissionRepository()
-                return repo
-
-    def test_generate_submission_id(self, submission_repository):
-        """Test submission ID generation."""
-        submission_id = submission_repository.generate_submission_id()
-
-        assert submission_id.startswith("sub_")
-        assert len(submission_id) == 20  # sub_ + 16 hex chars
-
-    def test_create_submission(self, submission_repository):
-        """Test creating a submission."""
-        submission = SlangSubmission(
-            submission_id="sub_test123",
-            user_id="user_123",
-            slang_term="test",
-            meaning="test meaning",
-            example_usage="test example",
-            context=SubmissionContext.MANUAL,
-            status=ApprovalStatus.PENDING,
-            created_at=datetime.now(timezone.utc),
-        )
-
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.put_item.return_value = {}
-
-            result = submission_repository.create_submission(submission)
-
-            assert result is True
-            mock_table.put_item.assert_called_once()
-
-            # Verify the item structure
-            call_args = mock_table.put_item.call_args
-            item = call_args.kwargs['Item']
-            assert item['PK'] == f"SUBMISSION#{submission.submission_id}"
-            assert item['SK'] == f"USER#{submission.user_id}"
-            assert item['GSI1PK'] == "STATUS#pending"  # str(enum) returns the value
-
-    def test_get_submission(self, submission_repository):
-        """Test retrieving a submission."""
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.get_item.return_value = {
-                'Item': {
-                    'submission_id': 'sub_123',
-                    'user_id': 'user_123',
-                    'slang_term': 'test',
-                    'meaning': 'test meaning',
-                    'context': 'manual',
-                    'status': 'pending',
-                    'created_at': datetime.now(timezone.utc).isoformat(),
-                }
-            }
-
-            result = submission_repository.get_submission("sub_123", "user_123")
-
-            assert result is not None
-            assert result.submission_id == "sub_123"
-            assert result.slang_term == "test"
-
-    def test_get_pending_submissions(self, submission_repository):
-        """Test querying pending submissions."""
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.query.return_value = {
-                'Items': [
-                    {
-                        'submission_id': 'sub_1',
-                        'user_id': 'user_1',
-                        'slang_term': 'term1',
-                        'meaning': 'meaning1',
-                        'context': 'manual',
-                        'status': 'pending',
-                        'created_at': datetime.now(timezone.utc).isoformat(),
-                    },
-                    {
-                        'submission_id': 'sub_2',
-                        'user_id': 'user_2',
-                        'slang_term': 'term2',
-                        'meaning': 'meaning2',
-                        'context': 'translation_failure',
-                        'status': 'pending',
-                        'created_at': datetime.now(timezone.utc).isoformat(),
-                    }
-                ]
-            }
-
-            result = submission_repository.get_pending_submissions(limit=50)
-
-            assert len(result) == 2
-            assert result[0].submission_id == "sub_1"
-            assert result[1].submission_id == "sub_2"
-
-    def test_update_submission_status(self, submission_repository):
-        """Test updating submission status."""
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.update_item.return_value = {}
-
-            result = submission_repository.update_submission_status(
-                "sub_123", "user_123", ApprovalStatus.APPROVED, "admin_user"
-            )
-
-            assert result is True
-            mock_table.update_item.assert_called_once()
-
-    def test_check_duplicate_submission_finds_duplicate(self, submission_repository):
-        """Test that duplicate checking works."""
-        with patch.object(submission_repository, 'get_user_submissions') as mock_get:
-            # Return a recent submission with the same term
-            mock_submissions = [
-                Mock(
-                    slang_term="bussin",
-                    created_at=datetime.now(timezone.utc)
-                )
-            ]
-            mock_get.return_value = mock_submissions
-
-            result = submission_repository.check_duplicate_submission(
-                "user_123", "bussin", days=7
-            )
-
-            assert result is True
-
-    def test_check_duplicate_submission_allows_different_term(self, submission_repository):
-        """Test that duplicate checking allows different terms."""
-        with patch.object(submission_repository, 'get_user_submissions') as mock_get:
-            # Return submissions with different terms
-            mock_submissions = [
-                Mock(
-                    slang_term="other_term",
-                    created_at=datetime.now(timezone.utc)
-                )
-            ]
-            mock_get.return_value = mock_submissions
-
-            result = submission_repository.check_duplicate_submission(
-                "user_123", "bussin", days=7
-            )
-
-            assert result is False

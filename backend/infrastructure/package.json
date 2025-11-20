@@ -32,7 +32,7 @@
     "destroy:hosted-zones:prod": "cdk destroy Lingible-Prod-HostedZones --context environment=prod",
     "get-dns-info": "node scripts/get-dns-info.js",
     "build-lambda-packages": "node scripts/build-lambda-packages.js",
-    "clean": "rm -rf cdk.out dist lambda-layer lambda-packages lambda-*-layer lambda-hashes.json && find . -name '*.js' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.d.ts' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.js.map' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.tsbuildinfo' -delete",
+    "clean": "rm -rf cdk.out dist lambda-layer lambda-packages lambda-*-layer lambda-hashes.json ../website/build && find . -name '*.js' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.d.ts' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.js.map' -not -path './node_modules/*' -not -path './scripts/*' -delete && find . -name '*.tsbuildinfo' -delete",
     "clean:all": "npm run clean && rm -rf node_modules package-lock.json",
     "clean:python": "find . -name '*.pyc' -delete && find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true && find . -name '.pytest_cache' -type d -exec rm -rf {} + 2>/dev/null || true && find . -name '.mypy_cache' -type d -exec rm -rf {} + 2>/dev/null || true && find . -name '.coverage' -delete && find . -name 'htmlcov' -type d -exec rm -rf {} + 2>/dev/null || true",
     "clean:system": "find . -name '.DS_Store' -delete && find . -name 'Thumbs.db' -delete && find . -name '*.log' -delete && find . -name '*.tmp' -delete && find . -name '*.swp' -delete && find . -name '*.swo' -delete",

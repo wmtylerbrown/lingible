@@ -88,10 +88,11 @@ src/
 ## Repository Patterns
 
 ### DynamoDB Design
-- **Single Table**: Efficient single-table design with consistent patterns
-- **Partition Keys**: Strategic partition key design for even distribution
-- **Sort Keys**: Efficient querying with sort key optimization
-- **GSIs**: Global secondary indexes for alternative access patterns
+- **Multi-Table**: Dedicated tables for different data domains (Users, Translations, Submissions, Lexicon, Trending)
+- **Partition Keys**: Optimized per-table for specific access patterns
+- **Sort Keys**: Efficient querying with sort key optimization per table
+- **GSIs**: Right-sized projections (KEYS_ONLY, INCLUDE) for cost-efficient alternative access patterns
+- **Documentation**: See `docs/database-schema.md` for complete table and index specifications
 
 ### Data Access
 - **CRUD Operations**: Standard create, read, update, delete operations

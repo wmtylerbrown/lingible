@@ -4,12 +4,16 @@ Slang translation models following Lingible patterns.
 
 from __future__ import annotations
 
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
+
 from decimal import Decimal
 from datetime import datetime
-from pydantic import Field, field_validator
 from enum import Enum
+
+from pydantic import Field, field_validator
+
 from .base import LingibleBaseModel
+from .quiz import QuizCategory, QuizDifficulty
 
 
 class AgeRating(str, Enum):
@@ -101,8 +105,12 @@ class SlangTerm(LingibleBaseModel):
     content_flags: List[str] = Field(
         default_factory=list, description="Content warnings"
     )
-    first_seen: str = Field(..., description="First observation date")
-    last_seen: str = Field(..., description="Last observation date")
+    first_seen: Optional[str] = Field(
+        default=None, description="First observation date (YYYY-MM-DD)"
+    )
+    last_seen: Optional[str] = Field(
+        default=None, description="Most recent observation date (YYYY-MM-DD)"
+    )
     sources: Dict[str, int] = Field(
         default_factory=dict, description="Source frequency counts"
     )
@@ -113,6 +121,36 @@ class SlangTerm(LingibleBaseModel):
     senses: Optional[List["SlangSense"]] = Field(
         default=None, description="Multiple senses/meanings"
     )
+    # Quiz metadata
+    is_quiz_eligible: bool = Field(
+        default=False, description="Whether this term is eligible for quizzes"
+    )
+    quiz_category: QuizCategory = Field(
+        default=QuizCategory.GENERAL, description="Quiz category classification"
+    )
+    quiz_difficulty: QuizDifficulty = Field(
+        default=QuizDifficulty.BEGINNER, description="Quiz difficulty classification"
+    )
+    first_attested: Optional[str] = Field(
+        default=None, description="First attested date for quiz usage"
+    )
+    first_attested_confidence: Optional[str] = Field(
+        default=None, description="Confidence in first attested metadata"
+    )
+    attestation_note: Optional[str] = Field(
+        default=None, description="Additional attestation notes"
+    )
+    quiz_accuracy_rate: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Historical quiz accuracy rate for this term",
+    )
+    times_in_quiz: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Number of times the term has appeared in quizzes",
+    )
 
     @field_validator("confidence")
     @classmethod
@@ -121,6 +159,158 @@ class SlangTerm(LingibleBaseModel):
         if not 0.0 <= v <= 1.0:
             raise ValueError("confidence must be between 0.0 and 1.0")
         return v
+
+    @field_validator(
+        "variants",
+        "examples",
+        "tags",
+        "regions",
+        "content_flags",
+        "categories",
+        mode="before",
+    )
+    @classmethod
+    def ensure_list_of_strings(cls, value: Optional[Any]) -> List[str]:
+        """Ensure list-based fields are normalized to lists of strings."""
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item) for item in value if item is not None]
+        if isinstance(value, (set, tuple)):
+            return [str(item) for item in value if item is not None]
+        return [str(value)]
+
+    @field_validator("sources", mode="before")
+    @classmethod
+    def ensure_sources(cls, value: Optional[Any]) -> Dict[str, int]:
+        """Normalize sources mapping to str->int."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            return {}
+        normalized: Dict[str, int] = {}
+        for key, raw in value.items():
+            if raw is None:
+                continue
+            try:
+                normalized[str(key)] = int(raw)
+            except (TypeError, ValueError):
+                continue
+        return normalized
+
+    @field_validator("pos", mode="before")
+    @classmethod
+    def ensure_part_of_speech(cls, value: Optional[Any]) -> PartOfSpeech:
+        if isinstance(value, PartOfSpeech):
+            return value
+        if value is None or value == "":
+            return PartOfSpeech.PHRASE
+        try:
+            return PartOfSpeech(str(value))
+        except ValueError:
+            return PartOfSpeech.PHRASE
+
+    @field_validator("age_rating", mode="before")
+    @classmethod
+    def ensure_age_rating(cls, value: Optional[Any]) -> AgeRating:
+        if isinstance(value, AgeRating):
+            return value
+        if value is None or value == "":
+            return AgeRating.EVERYONE
+        try:
+            return AgeRating(str(value))
+        except ValueError:
+            return AgeRating.EVERYONE
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def ensure_status(cls, value: Optional[Any]) -> ApprovalStatus:
+        if isinstance(value, ApprovalStatus):
+            return value
+        if value is None or value == "":
+            return ApprovalStatus.APPROVED
+        try:
+            return ApprovalStatus(str(value))
+        except ValueError:
+            return ApprovalStatus.APPROVED
+
+    @field_validator("momentum", mode="before")
+    @classmethod
+    def ensure_float(cls, value: Optional[Any]) -> float:
+        """Ensure float fields accept numeric strings/decimals."""
+        if value is None:
+            return 1.0
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            raise ValueError("momentum must be convertible to float")
+
+    @field_validator("quiz_accuracy_rate", mode="before")
+    @classmethod
+    def validate_quiz_accuracy(cls, value: Optional[Any]) -> Optional[float]:
+        """Ensure quiz accuracy is a float when provided."""
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            raise ValueError("quiz_accuracy_rate must be convertible to float")
+
+    @field_validator("times_in_quiz", mode="before")
+    @classmethod
+    def validate_times_in_quiz(cls, value: Optional[Any]) -> Optional[int]:
+        """Ensure times_in_quiz is an int when provided."""
+        if value is None:
+            return None
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            raise ValueError("times_in_quiz must be convertible to int")
+
+    @field_validator("quiz_category", mode="before")
+    @classmethod
+    def validate_quiz_category(cls, value: Any) -> QuizCategory:
+        """Coerce quiz category into QuizCategory enum."""
+        if isinstance(value, QuizCategory):
+            return value
+        if value is None or value == "":
+            return QuizCategory.GENERAL
+        if hasattr(value, "value"):
+            return QuizCategory(value.value)
+        return QuizCategory(str(value))
+
+    @field_validator("quiz_difficulty", mode="before")
+    @classmethod
+    def validate_quiz_difficulty(cls, value: Any) -> QuizDifficulty:
+        """Coerce quiz difficulty into QuizDifficulty enum."""
+        if isinstance(value, QuizDifficulty):
+            return value
+        if value is None or value == "":
+            return QuizDifficulty.BEGINNER
+        if hasattr(value, "value"):
+            return QuizDifficulty(value.value)
+        return QuizDifficulty(str(value))
+
+    @property
+    def slang_term(self) -> str:
+        """Canonical slang term alias."""
+        return self.term
+
+    @property
+    def meaning(self) -> str:
+        """Convenience alias for gloss."""
+        return self.gloss
+
+    @property
+    def example_usage(self) -> Optional[str]:
+        """Return the primary example usage if available."""
+        return self.examples[0] if self.examples else None
 
 
 class SlangSense(LingibleBaseModel):

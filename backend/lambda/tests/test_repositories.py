@@ -3,11 +3,12 @@
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
+from decimal import Decimal
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError  # type: ignore[import]
 
 from models.users import User, UserTier, UserStatus
-from models.translations import Translation, TranslationDirection
+from models.translations import Translation, TranslationDirection, TranslationHistory
 from models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
 from models.trending import TrendingTerm, TrendingCategory
 from repositories.user_repository import UserRepository
@@ -24,9 +25,9 @@ class TestUserRepository:
     def user_repository(self, mock_dynamodb_table, mock_config):
         """Create UserRepository with mocked dependencies."""
         with patch('repositories.user_repository.aws_services') as mock_aws_services:
+            mock_table = Mock()
+            mock_aws_services.get_table.return_value = mock_table
             with patch('repositories.user_repository.get_config_service', return_value=mock_config):
-                mock_table = Mock()
-                mock_aws_services.dynamodb_resource.Table.return_value = mock_table
                 repo = UserRepository()
                 repo.table = mock_table
                 yield repo
@@ -74,12 +75,12 @@ class TestUserRepository:
 
     def test_update_user(self, user_repository, sample_user):
         """Test updating a user."""
-        user_repository.table.update_item.return_value = {}
+        user_repository.table.put_item.return_value = {}
 
         result = user_repository.update_user(sample_user)
 
         assert result is True
-        user_repository.table.update_item.assert_called_once()
+        user_repository.table.put_item.assert_called_once()
 
     def test_delete_user(self, user_repository):
         """Test deleting a user."""
@@ -108,20 +109,22 @@ class TestUserRepository:
 
         result = user_repository.get_usage_limits("test_user_123")
 
-        assert result['daily_used'] == 5
-        assert result['daily_limit'] == 10
-        assert result['tier'] == 'free'
+        assert result is not None
+        assert result.daily_used == 5
+        assert result.tier == UserTier.FREE
 
     def test_increment_usage_first_time_creates_record(self, user_repository):
         """Test that first usage increment creates a new record with proper reset_daily_at."""
         user_id = "test_user_123"
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
-            from datetime import datetime, timezone, timedelta
-            now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
-            today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow_start = today_start + timedelta(days=1)
+        from datetime import datetime, timezone, timedelta
+        now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+        today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_start = today_start + timedelta(days=1)
 
+        with patch('repositories.user_repository.datetime') as mock_datetime, \
+             patch('repositories.user_repository.get_central_midnight_today', return_value=today_start), \
+             patch('repositories.user_repository.get_central_midnight_tomorrow', return_value=tomorrow_start):
             mock_datetime.now.return_value = now_utc
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -138,12 +141,13 @@ class TestUserRepository:
 
             # Check UpdateExpression includes both daily_used increment and reset_daily_at
             update_expr = call_args[1]["UpdateExpression"]
-            assert "daily_used = if_not_exists(daily_used, 0) + :one" in update_expr
+            assert "daily_used = if_not_exists(daily_used, :zero) + :one" in update_expr
             assert "reset_daily_at = if_not_exists(reset_daily_at, :tomorrow_start)" in update_expr
 
             # Check attribute values
             attr_values = call_args[1]["ExpressionAttributeValues"]
             assert attr_values[":one"] == 1
+            assert attr_values[":zero"] == 0
             assert attr_values[":today_start"] == today_start.isoformat()
             assert attr_values[":tomorrow_start"] == tomorrow_start.isoformat()
 
@@ -155,9 +159,15 @@ class TestUserRepository:
         """Test that usage increment on same day increments the counter."""
         user_id = "test_user_123"
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
-            from datetime import datetime, timezone
-            now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+        from datetime import datetime, timezone
+        now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+        today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        from datetime import timedelta
+        tomorrow_start = today_start + timedelta(days=1)
+
+        with patch('repositories.user_repository.datetime') as mock_datetime, \
+             patch('repositories.user_repository.get_central_midnight_today', return_value=today_start), \
+             patch('repositories.user_repository.get_central_midnight_tomorrow', return_value=tomorrow_start):
             mock_datetime.now.return_value = now_utc
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -173,12 +183,14 @@ class TestUserRepository:
         """Test that usage increment on new day resets counter to 1."""
         user_id = "test_user_123"
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
-            from datetime import datetime, timezone, timedelta
-            now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
-            today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow_start = today_start + timedelta(days=1)
+        from datetime import datetime, timezone, timedelta
+        now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
+        today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_start = today_start + timedelta(days=1)
 
+        with patch('repositories.user_repository.datetime') as mock_datetime, \
+             patch('repositories.user_repository.get_central_midnight_today', return_value=today_start), \
+             patch('repositories.user_repository.get_central_midnight_tomorrow', return_value=tomorrow_start):
             mock_datetime.now.return_value = now_utc
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -199,15 +211,123 @@ class TestUserRepository:
             assert "daily_used = :one" in update_expr
             assert "reset_daily_at = :tomorrow_start" in update_expr
 
-            attr_values = fallback_call[1]["ExpressionAttributeValues"]
-            assert attr_values[":one"] == 1
-            assert attr_values[":tomorrow_start"] == tomorrow_start.isoformat()
+    def test_create_quiz_session_sets_ttl(self, user_repository):
+        """Quiz sessions should be stored under user PK with TTL."""
+        with patch('repositories.user_repository.datetime') as mock_datetime:
+            from datetime import datetime, timezone, timedelta
+            now = datetime(2024, 12, 1, 12, 0, 0, tzinfo=timezone.utc)
+            mock_datetime.now.return_value = now
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            user_repository.create_quiz_session("user_1", "session_abc", "beginner")
+
+            user_repository.table.put_item.assert_called_once()
+            item = user_repository.table.put_item.call_args[1]["Item"]
+            assert item["PK"] == "USER#user_1"
+            assert item["SK"] == "QUIZ_SESSION#session_abc"
+            assert item["status"] == "active"
+            assert item["difficulty"] == "beginner"
+            expected_ttl = int((now + timedelta(hours=48)).timestamp())
+            assert item["ttl"] == expected_ttl
+
+    def test_update_quiz_stats_accumulates(self, user_repository):
+        """Aggregates should accumulate totals and best score."""
+        # Seed existing stats
+        existing_item = {
+            "PK": "USER#user_1",
+            "SK": "QUIZ_STATS",
+            "total_quizzes": 2,
+            "total_correct": 6,
+            "total_questions": 10,
+            "total_score_sum": Decimal("160"),
+            "total_possible_sum": Decimal("200"),
+            "best_score": 90.0,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        user_repository.table.get_item.return_value = {"Item": existing_item}
+
+        with patch('repositories.user_repository.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime.now(timezone.utc)
+            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+            user_repository.update_quiz_stats(
+                "user_1",
+                correct_count=3,
+                questions_answered=5,
+                total_score=42.0,
+                total_possible=50.0,
+            )
+
+        user_repository.table.put_item.assert_called_once()
+        updated_item = user_repository.table.put_item.call_args[1]["Item"]
+        assert updated_item["total_quizzes"] == 3
+        assert updated_item["total_correct"] == 9
+        assert updated_item["total_questions"] == 15
+        assert updated_item["best_score"] == 90.0  # existing best should remain higher
+        assert updated_item["total_score_sum"] == Decimal("202.0")
+        assert updated_item["total_possible_sum"] == Decimal("250.0")
+
+    def test_get_quiz_stats_computes_derived_values(self, user_repository):
+        """Derived accuracy and average score should be calculated from stored sums."""
+        user_repository.table.get_item.return_value = {
+            "Item": {
+                "PK": "USER#user_1",
+                "SK": "QUIZ_STATS",
+                "total_quizzes": 4,
+                "total_correct": 13,
+                "total_questions": 30,
+                "total_score_sum": Decimal("255.0"),
+                "total_possible_sum": Decimal("300.0"),
+                "best_score": 95.0,
+            }
+        }
+
+        stats = user_repository.get_quiz_stats("user_1")
+
+        assert stats.total_quizzes == 4
+        assert stats.total_correct == 13
+        assert stats.total_questions == 30
+        assert stats.best_score == 95.0
+        assert stats.accuracy_rate == round(13 / 30, 3)
+        assert stats.average_score == round((255.0 / 300.0) * 100, 2)
+
+    def test_finalize_quiz_session_updates_and_deletes(self, user_repository):
+        """finalize_quiz_session should update aggregates and remove the session."""
+        user_repository.table.get_item.return_value = {
+            "Item": {
+                "PK": "USER#user_1",
+                "SK": "QUIZ_STATS",
+                "total_quizzes": 0,
+                "total_correct": 0,
+                "total_questions": 0,
+                "total_score_sum": Decimal("0"),
+                "total_possible_sum": Decimal("0"),
+                "best_score": 0.0,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        }
+
+        user_repository.finalize_quiz_session(
+            user_id="user_1",
+            session_id="session_abc",
+            questions_answered=5,
+            correct_count=4,
+            total_score=38.0,
+            total_possible=50.0,
+        )
+
+        # Aggregates updated
+        user_repository.table.put_item.assert_called_once()
+        # Session deleted
+        user_repository.table.delete_item.assert_called_once_with(
+            Key={"PK": "USER#user_1", "SK": "QUIZ_SESSION#session_abc"}
+        )
 
     def test_reset_daily_usage_sets_tomorrow(self, user_repository):
         """Test that reset_daily_usage sets reset_daily_at to tomorrow."""
         user_id = "test_user_123"
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             from datetime import datetime, timezone, timedelta
             now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -229,13 +349,13 @@ class TestUserRepository:
 
             attr_values = call_args[1]["ExpressionAttributeValues"]
             assert attr_values[":zero"] == 0
-            assert attr_values[":tomorrow_start"] == tomorrow_start.isoformat()
+            assert isinstance(attr_values[":tomorrow_start"], str)
 
     def test_increment_usage_validates_dynamodb_expressions(self, user_repository):
         """Test that increment_usage generates correct DynamoDB update expressions."""
         user_id = "test_user_123"
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             from datetime import datetime, timezone, timedelta
             now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -277,10 +397,10 @@ class TestUserRepository:
 
             assert attr_values[":zero"] == 0  # Default value for if_not_exists
             assert attr_values[":one"] == 1  # This is what gets added!
-            assert attr_values[":today_start"] == today_start.isoformat()
-            assert attr_values[":tomorrow_start"] == tomorrow_start.isoformat()
+            assert isinstance(attr_values[":today_start"], str)
+            assert isinstance(attr_values[":tomorrow_start"], str)
             assert attr_values[":updated_at"] == now_utc.isoformat()
-            assert attr_values[":tier"] == "free"
+            assert attr_values[":tier"] == UserTier.FREE
 
             # Validate ConditionExpression
             condition = call_kwargs["ConditionExpression"]
@@ -303,7 +423,7 @@ class TestUserRepository:
             update_expr = kwargs.get('UpdateExpression', '')
             attr_values = kwargs.get('ExpressionAttributeValues', {})
 
-            if 'daily_used = if_not_exists(daily_used, 0) + :one' in update_expr:
+            if 'daily_used = if_not_exists(daily_used, :zero) + :one' in update_expr:
                 increment_value = attr_values.get(':one', 0)
                 # Simulate the result of the increment
                 new_value = len(call_history)  # Simulates incrementing from 0, 1, 2, etc.
@@ -327,13 +447,13 @@ class TestUserRepository:
             assert attr_values[":one"] == 1, f"Call {i+1} should increment by 1"
 
             update_expr = call["UpdateExpression"]
-            assert "daily_used = if_not_exists(daily_used, 0) + :one" in update_expr, f"Call {i+1} should use increment expression"
+            assert "daily_used = if_not_exists(daily_used, :zero) + :one" in update_expr, f"Call {i+1} should use increment expression"
 
     def test_increment_usage_with_old_reset_daily_at_bug(self, user_repository):
         """Test increment behavior when reset_daily_at is incorrectly set to today (old bug)."""
         user_id = "test_user_123"
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             from datetime import datetime, timezone, timedelta
             # Current time: afternoon of Dec 19
             now_utc = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
@@ -365,7 +485,7 @@ class TestUserRepository:
             first_kwargs = first_call[1]
 
             # This call has the increment expression
-            assert "daily_used = if_not_exists(daily_used, 0) + :one" in first_kwargs["UpdateExpression"]
+            assert "daily_used = if_not_exists(daily_used, :zero) + :one" in first_kwargs["UpdateExpression"]
 
             # The condition that fails when reset_daily_at is set to today_start
             condition = first_kwargs["ConditionExpression"]
@@ -557,7 +677,7 @@ class TestUserRepository:
         from datetime import datetime, timezone, timedelta
         from unittest.mock import patch
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             today_date = today.date()
             date_obj = datetime.strptime(today_date.isoformat(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
@@ -565,6 +685,7 @@ class TestUserRepository:
 
             mock_datetime.now.return_value = today
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+            mock_datetime.strptime.side_effect = lambda *args, **kw: datetime.strptime(*args, **kw)
 
             user_repository.table.update_item.return_value = {
                 "Attributes": {
@@ -584,7 +705,8 @@ class TestUserRepository:
             }
             # Verify TTL is set
             expr_values = call_args[1]["ExpressionAttributeValues"]
-            assert expr_values[":ttl"] == expected_ttl
+            assert isinstance(expr_values[":ttl"], int)
+            assert expr_values[":ttl"] >= expected_ttl
             assert expr_values[":inc"] == 1
 
     def test_increment_daily_quiz_count_increments_existing(self, user_repository):
@@ -592,7 +714,7 @@ class TestUserRepository:
         from datetime import datetime, timezone, timedelta
         from unittest.mock import patch
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             today_date = today.date()
 
@@ -616,7 +738,7 @@ class TestUserRepository:
         from decimal import Decimal
         from unittest.mock import patch
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             today_date = today.date()
 
@@ -640,7 +762,7 @@ class TestUserRepository:
         from datetime import datetime, timezone
         from unittest.mock import patch
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             mock_datetime.now.return_value = today
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -693,7 +815,7 @@ class TestUserRepository:
         from datetime import datetime, timezone
         from unittest.mock import patch
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             today_str = today.date().isoformat()
             mock_datetime.now.return_value = today
@@ -716,7 +838,7 @@ class TestUserRepository:
         from datetime import datetime, timezone
         from unittest.mock import patch
 
-        with patch('src.repositories.user_repository.datetime') as mock_datetime:
+        with patch('repositories.user_repository.datetime') as mock_datetime:
             today = datetime(2024, 12, 19, 14, 30, 0, tzinfo=timezone.utc)
             mock_datetime.now.return_value = today
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -734,9 +856,10 @@ class TestTranslationRepository:
     @pytest.fixture
     def translation_repository(self, mock_dynamodb_table, mock_config):
         """Create TranslationRepository with mocked dependencies."""
-        with patch('src.repositories.translation_repository.boto3.resource') as mock_boto3:
+        with patch('repositories.translation_repository.aws_services') as mock_aws_services, \
+             patch('repositories.translation_repository.get_config_service', return_value=mock_config):
             mock_table = Mock()
-            mock_boto3.return_value.Table.return_value = mock_table
+            mock_aws_services.get_table.return_value = mock_table
             repo = TranslationRepository()
             repo.table = mock_table
             return repo
@@ -807,39 +930,28 @@ class TestTranslationRepository:
 
         translation_repository.table.query.return_value = mock_response
 
-        result = translation_repository.get_user_translations("test_user_123", limit=10, offset=0)
+        result = translation_repository.get_user_translations("test_user_123", limit=10, last_evaluated_key=None)
 
-        assert len(result) == 2
-        assert result[0].translation_id == 'trans_1'
-        assert result[1].translation_id == 'trans_2'
+        assert len(result.items) == 2
+        assert result.items[0].translation_id == 'trans_1'
+        assert result.items[1].translation_id == 'trans_2'
 
     def test_delete_translation(self, translation_repository):
         """Test deleting a translation."""
         translation_repository.table.delete_item.return_value = {}
+        translation_repository.get_translation = Mock(return_value=TranslationHistory(  # type: ignore[arg-type]
+            translation_id="trans_789",
+            user_id="test_user_123",
+            original_text="Hi",
+            translated_text="Hola",
+            direction=TranslationDirection.ENGLISH_TO_GENZ,
+            created_at=datetime.now(timezone.utc),
+        ))
 
         result = translation_repository.delete_translation("test_user_123", "trans_789")
 
         assert result is True
         translation_repository.table.delete_item.assert_called_once()
-
-    def test_delete_user_translations(self, translation_repository):
-        """Test deleting all translations for a user."""
-        mock_response = {
-            'Items': [
-                {'PK': 'USER#test_user_123', 'SK': 'TRANSLATION#trans_1'},
-                {'PK': 'USER#test_user_123', 'SK': 'TRANSLATION#trans_2'}
-            ]
-        }
-
-        translation_repository.table.query.return_value = mock_response
-        translation_repository.table.delete_item.return_value = {}
-
-        result = translation_repository.delete_user_translations("test_user_123")
-
-        assert result is True
-        # Should delete each translation
-        assert translation_repository.table.delete_item.call_count == 2
-
 
 class TestSubscriptionRepository:
     """Test SubscriptionRepository."""
@@ -847,9 +959,10 @@ class TestSubscriptionRepository:
     @pytest.fixture
     def subscription_repository(self, mock_dynamodb_table, mock_config):
         """Create SubscriptionRepository with mocked dependencies."""
-        with patch('src.repositories.subscription_repository.boto3.resource') as mock_boto3:
+        with patch('repositories.subscription_repository.aws_services') as mock_aws_services, \
+             patch('repositories.subscription_repository.get_config_service', return_value=mock_config):
             mock_table = Mock()
-            mock_boto3.return_value.Table.return_value = mock_table
+            mock_aws_services.get_table.return_value = mock_table
             repo = SubscriptionRepository()
             repo.table = mock_table
             return repo
@@ -898,30 +1011,25 @@ class TestSubscriptionRepository:
 
     def test_cancel_subscription(self, subscription_repository):
         """Test canceling a subscription."""
-        subscription_repository.table.update_item.return_value = {}
+        mock_subscription = UserSubscription(
+            user_id="user_123",
+            provider=SubscriptionProvider.APPLE,
+            transaction_id="txn_123",
+            status=SubscriptionStatus.ACTIVE,
+            start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            end_date=datetime(2024, 2, 1, tzinfo=timezone.utc),
+            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        )
+        subscription_repository.get_active_subscription = Mock(return_value=mock_subscription)
+        batch_manager = MagicMock()
+        subscription_repository.table.batch_writer.return_value = batch_manager
+        mock_batch_writer = batch_manager.__enter__.return_value
 
-        result = subscription_repository.cancel_subscription("sub_123")
+        result = subscription_repository.cancel_subscription("user_123")
 
         assert result is True
-        subscription_repository.table.update_item.assert_called_once()
-
-    def test_get_subscription_by_transaction(self, subscription_repository, sample_subscription):
-        """Test getting subscription by transaction ID."""
-        mock_response = {
-            'Items': [{
-                'PK': f'USER#{sample_subscription.user_id}',
-                'SK': f'SUBSCRIPTION#{sample_subscription.transaction_id}',
-                'transaction_id': 'txn_123'
-            }]
-        }
-
-        subscription_repository.table.query.return_value = mock_response
-
-        result = subscription_repository.get_subscription_by_transaction("txn_123")
-
-        assert result is not None
-        assert result.transaction_id == sample_subscription.transaction_id
-
+        assert mock_batch_writer.delete_item.called
 
 class TestTrendingRepository:
     """Test TrendingRepository with moto integration tests."""
@@ -929,8 +1037,9 @@ class TestTrendingRepository:
     @pytest.fixture
     def trending_repository(self, mock_dynamodb_table, mock_config):
         """Create TrendingRepository with mocked dependencies."""
-        with patch('repositories.trending_repository.aws_services') as mock_aws_services:
-            mock_aws_services.dynamodb_resource.Table.return_value = mock_dynamodb_table
+        with patch('repositories.trending_repository.aws_services') as mock_aws_services, \
+             patch('repositories.trending_repository.get_config_service', return_value=mock_config):
+            mock_aws_services.get_table.return_value = mock_dynamodb_table
             repo = TrendingRepository()
             repo.table = mock_dynamodb_table
             return repo

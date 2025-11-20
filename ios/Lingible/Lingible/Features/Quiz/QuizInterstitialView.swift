@@ -5,6 +5,10 @@ struct QuizInterstitialView: View {
     @State private var animatedTerms: [AnimatedTerm] = []
     @State private var currentMessage: String = ""
     @State private var timer: Timer?
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var glowIntensity: Double = 0.3
+    @State private var gradientOffset: Double = 0.0
+    @State private var animationTimer: Timer?
 
     // Slang words for background animation (same as SplashView)
     private let slangTerms = [
@@ -48,6 +52,7 @@ struct QuizInterstitialView: View {
                         y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
                     )
                     .blur(radius: 20)
+                    .zIndex(0)
             }
 
             // Animated slang words (background layer)
@@ -62,18 +67,41 @@ struct QuizInterstitialView: View {
                     .animation(.easeInOut(duration: term.duration), value: term.opacity)
                     .animation(.easeInOut(duration: term.duration), value: term.scale)
                     .animation(.easeInOut(duration: term.duration), value: term.rotation)
+                    .zIndex(1)
             }
 
             // Centered status message (foreground)
             VStack(spacing: 16) {
                 Text(currentMessage)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.lingiblePrimary)
+                    .font(.headline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.lingiblePrimary,
+                                Color.lingibleSecondary,
+                                Color.lingiblePrimary.opacity(0.8)
+                            ]),
+                            startPoint: UnitPoint(
+                                x: 0.5 + gradientOffset,
+                                y: 0
+                            ),
+                            endPoint: UnitPoint(
+                                x: 0.5 - gradientOffset,
+                                y: 1
+                            )
+                        )
+                    )
                     .multilineTextAlignment(.center)
+                    .scaleEffect(pulseScale)
+                    .shadow(color: Color.lingiblePrimary.opacity(glowIntensity), radius: 8, x: 0, y: 0)
                     .transition(.opacity.combined(with: .scale))
             }
+            .padding(20)
+            .background(.ultraThinMaterial)
+            .cornerRadius(16)
             .padding(.horizontal, 40)
+            .zIndex(10)
         }
         .onAppear {
             selectRandomMessage()
@@ -112,11 +140,44 @@ struct QuizInterstitialView: View {
         timer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
             addNewTerm()
         }
+
+        // Start pulse and glow animations
+        startPulseAnimation()
+        startGradientAnimation()
     }
 
     private func stopAnimations() {
         timer?.invalidate()
         timer = nil
+        animationTimer?.invalidate()
+        animationTimer = nil
+    }
+
+    private func startPulseAnimation() {
+        // Gentle pulse animation: 1.0 → 1.015 over 2.5 seconds (very subtle)
+        withAnimation(
+            .easeInOut(duration: 2.5)
+            .repeatForever(autoreverses: true)
+        ) {
+            pulseScale = 1.015
+        }
+
+        // Glow intensity animation: 0.3 → 0.5 → 0.3 over 1.5 seconds (subtle)
+        withAnimation(
+            .easeInOut(duration: 1.5)
+            .repeatForever(autoreverses: true)
+        ) {
+            glowIntensity = 0.5
+        }
+    }
+
+    private func startGradientAnimation() {
+        // Gradient shift animation: slow color transition
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            withAnimation(.linear(duration: 0.05)) {
+                gradientOffset = (gradientOffset + 0.02).truncatingRemainder(dividingBy: 1.0)
+            }
+        }
     }
 
     private func addNewTerm() {

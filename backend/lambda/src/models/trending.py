@@ -2,9 +2,12 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
+
 from decimal import Decimal
-from pydantic import Field
+
+from pydantic import Field, field_validator
+
 from .base import LingibleBaseModel
 
 if TYPE_CHECKING:
@@ -51,6 +54,17 @@ class TrendingTerm(LingibleBaseModel):
     related_terms: List[str] = Field(
         default_factory=list, description="Related slang terms"
     )
+
+    @field_validator("related_terms", mode="before")
+    @classmethod
+    def ensure_related_terms(cls, value: Optional[object]) -> List[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item) for item in value if item is not None]
+        if isinstance(value, (set, tuple)):
+            return [str(item) for item in value if item is not None]
+        return [str(value)]
 
     def to_api_response(
         self, user_tier: "UserTier" = UserTier.FREE

@@ -5,7 +5,6 @@ struct QuizActiveView: View {
     @ObservedObject var viewModel: QuizViewModel
     @EnvironmentObject var appCoordinator: AppCoordinator
     @State private var showExitConfirmation: Bool = false
-    @State private var showingUpgradePrompt = false
 
     private var userTier: UsageResponse.Tier {
         appCoordinator.userUsage?.tier ?? .free
@@ -18,14 +17,14 @@ struct QuizActiveView: View {
 
             VStack(spacing: 0) {
                 // Header with upgrade button
-                EnhancedHeader.logoOnly(
-                    userTier: userTier,
-                    onUpgradeTap: {
-                        if userTier == .free {
-                            showingUpgradePrompt = true
-                        }
-                    }
-                )
+                        EnhancedHeader.logoOnly(
+                            userTier: userTier,
+                            onUpgradeTap: {
+                                if userTier == .free {
+                                    viewModel.showingUpgradePrompt = true
+                                }
+                            }
+                        )
 
                 // Banner Ad (for free users only)
                 if let adManager = appCoordinator.adManager, adManager.shouldShowBanner {
@@ -85,11 +84,11 @@ struct QuizActiveView: View {
                 Text("Are you sure you want to exit? Your progress will be saved.")
             }
         }
-        .sheet(isPresented: $showingUpgradePrompt) {
+        .sheet(isPresented: $viewModel.showingUpgradePrompt) {
             UpgradePromptView(
                 translationCount: nil,
                 onUpgrade: {},
-                onDismiss: { showingUpgradePrompt = false },
+                onDismiss: { viewModel.showingUpgradePrompt = false },
                 userUsage: appCoordinator.userUsage
             )
         }

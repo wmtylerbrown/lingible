@@ -18,7 +18,8 @@ from models.slang import (
 )
 from models.config import SlangSubmissionConfig
 from models.users import UserTier
-from repositories.slang_term_repository import SlangTermRepository
+from repositories.submissions_repository import SubmissionsRepository
+from services.slang_validation_service import SlangValidationService
 from services.user_service import UserService
 from utils.smart_logger import logger
 from utils.tracing import tracer
@@ -41,11 +42,12 @@ class SlangSubmissionService:
 
     def __init__(self) -> None:
         """Initialize slang submission service."""
-        self.repository = SlangTermRepository()
+        self.repository = SubmissionsRepository()
         self.user_service = UserService()
         self.config_service = get_config_service()
         self.submission_config = self.config_service.get_config(SlangSubmissionConfig)
         self.sns_client = aws_services.sns_client
+        self.validation_service = SlangValidationService()
 
     @tracer.trace_method("submit_slang")
     def submit_slang(
@@ -127,13 +129,50 @@ class SlangSubmissionService:
             },
         )
 
-        # Publish to validation topic for async validation
-        self._publish_validation_request(submission)
+        # Run automated validation
+        validation_result = self.validation_service.validate_submission(submission)
+        self.repository.update_validation_result(
+            submission_id, user_id, validation_result
+        )
+        validation_status = self.validation_service.determine_status(validation_result)
+
+        # Determine outcome based on validation
+        if self.validation_service.should_auto_approve(validation_result):
+            self.repository.update_approval_status(
+                submission_id,
+                user_id,
+                SlangSubmissionStatus.AUTO_APPROVED,
+                ApprovalType.LLM_AUTO,
+            )
+            response_status = ApprovalStatus.APPROVED
+            response_message = "Great news! Your submission was auto-approved based on outstanding confidence."
+        elif validation_status == SlangSubmissionStatus.REJECTED:
+            self.repository.update_approval_status(
+                submission_id,
+                user_id,
+                SlangSubmissionStatus.REJECTED,
+                ApprovalType.LLM_AUTO,
+            )
+            response_status = ApprovalStatus.REJECTED
+            response_message = "Thanks for the submission, but we're not sure this is Gen Z slang. Keep the ideas coming!"
+        else:
+            # Mark as validated and send for community voting
+            self.repository.update_approval_status(
+                submission_id,
+                user_id,
+                SlangSubmissionStatus.VALIDATED,
+                ApprovalType.LLM_AUTO,
+            )
+            self._publish_validation_request(submission)
+            response_status = ApprovalStatus.PENDING
+            response_message = (
+                "Thanks for the submission! The community will vote on it soon."
+            )
 
         return SlangSubmissionResponse(
             submission_id=submission_id,
-            status=ApprovalStatus.PENDING,
-            message="Thanks for the submission! We're checking it out now. No cap, we appreciate your help!",
+            status=response_status,
+            message=response_message,
             created_at=submission.created_at,
         )
 
@@ -373,8 +412,6 @@ class SlangSubmissionService:
         try:
             topic_arn = self.submission_config.submissions_topic_arn
 
-            from datetime import datetime, timezone
-
             message = {
                 "submission_id": submission.submission_id,
                 "user_id": submission.user_id,
@@ -434,13 +471,13 @@ class SlangSubmissionService:
                 "submission_id": submission.submission_id,
                 "user_id": submission.user_id,
                 "slang_term": submission.slang_term,
-                "context": submission.context,
+                "context": submission.context.value,
             }
 
             self.sns_client.publish(
                 TopicArn=topic_arn,
                 Message=json.dumps(message),
-                Subject="Slang Validation Request",
+                Subject=f"Slang Validation Request: {submission.slang_term}",
             )
 
             logger.log_business_event(
@@ -493,7 +530,12 @@ class SlangSubmissionService:
             raise ValidationError("You've already upvoted this submission!")
 
         # Add the upvote
-        success = self.repository.upvote_submission(submission_id, voter_user_id)
+        if hasattr(self.repository, "add_upvote"):
+            success = self.repository.add_upvote(
+                submission_id, submission.user_id, voter_user_id
+            )
+        else:
+            success = self.repository.upvote_submission(submission_id, voter_user_id)
         if not success:
             raise BusinessLogicError("Failed to add upvote. Please try again.")
 
@@ -531,7 +573,9 @@ class SlangSubmissionService:
         Returns:
             PendingSubmissionsResponse with list of submissions
         """
-        submissions = self.repository.get_validated_submissions_for_voting(limit=limit)
+        submissions = self.repository.get_by_validation_status(
+            SlangSubmissionStatus.VALIDATED, limit
+        )
 
         return PendingSubmissionsResponse(
             submissions=submissions,

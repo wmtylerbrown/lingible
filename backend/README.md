@@ -27,10 +27,13 @@ backend/
 │   ├── pyproject.toml      # Poetry dependencies
 │   ├── poetry.lock         # Locked dependencies
 │   └── cleanup.sh          # Lambda cleanup script
-├── infrastructure/         # AWS CDK infrastructure
-│   ├── constructs/         # CDK constructs
-│   ├── scripts/           # Build scripts
-│   └── lambda-layer/      # Shared code layer
+├── cdk/                    # AWS CDK infrastructure
+│   ├── src/
+│   │   ├── constructs/     # CDK constructs (Shared, Data, Async, Api)
+│   │   ├── stacks/         # CloudFormation stacks (Backend, Website)
+│   │   └── components/     # Reusable CDK components
+│   ├── scripts/            # Build and management scripts
+│   └── artifacts/          # Lambda build artifacts
 ├── scripts/               # Backend utility scripts
 │   └── setup-poetry.sh    # Poetry setup script
 └── docs/                  # Backend documentation
@@ -79,7 +82,7 @@ poetry add --group dev pytest  # Dev dependency
 
 ### Local Development
 ```bash
-cd backend/infrastructure
+cd backend/cdk
 npm install
 npm run build              # Build TypeScript and Lambda packages
 ```
@@ -92,6 +95,8 @@ npm run deploy:dev
 # Deploy to production
 npm run deploy:prod
 ```
+
+**Stack Structure**: The infrastructure uses a single `BackendStack` that combines all backend resources (Lambda layers, DynamoDB tables, SNS topics, Cognito, API Gateway) to avoid CloudFormation cross-stack reference issues. Logical separation is maintained through internal constructs in `src/constructs/`. The `WebsiteStack` remains separate as it has no dependencies.
 
 ### Build Process
 1. **Poetry Export**: Generates `requirements.txt` from `pyproject.toml`

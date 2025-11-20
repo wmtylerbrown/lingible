@@ -8,7 +8,7 @@ import boto3
 from moto import mock_aws
 
 from models.users import User, UserTier, UserStatus
-from models.translations import Translation, TranslationDirection, TranslationRequest
+from models.translations import Translation, TranslationHistory, TranslationDirection, TranslationRequest
 from models.subscriptions import UserSubscription, SubscriptionStatus, SubscriptionProvider
 from models.events import TranslationEvent, SimpleAuthenticatedEvent, PathParameterEvent
 from models.trending import TrendingTerm, TrendingCategory, TrendingJobRequest
@@ -23,6 +23,43 @@ def fake_aws_credentials():
     original_session_token = os.environ.get('AWS_SESSION_TOKEN')
     original_region = os.environ.get('AWS_DEFAULT_REGION')
     original_log_level = os.environ.get('LOG_LEVEL')
+    original_environment = os.environ.get('ENVIRONMENT')
+    original_app_name = os.environ.get('APP_NAME')
+    original_users_table = os.environ.get('USERS_TABLE')
+    original_terms_table = os.environ.get('TERMS_TABLE')
+    original_translations_table = os.environ.get('TRANSLATIONS_TABLE')
+
+    original_quiz_free_limit = os.environ.get('QUIZ_FREE_DAILY_LIMIT')
+    original_quiz_questions_per_quiz = os.environ.get('QUIZ_QUESTIONS_PER_QUIZ')
+    original_quiz_time_limit = os.environ.get('QUIZ_TIME_LIMIT_SECONDS')
+    original_quiz_points_per_correct = os.environ.get('QUIZ_POINTS_PER_CORRECT')
+    original_quiz_enable_time_bonus = os.environ.get('QUIZ_ENABLE_TIME_BONUS')
+    original_quiz_premium_unlimited = os.environ.get('QUIZ_PREMIUM_UNLIMITED')
+
+    original_sensitive_patterns = os.environ.get('SENSITIVE_FIELD_PATTERNS')
+    original_llm_model_id = os.environ.get('LLM_MODEL_ID')
+    original_llm_max_tokens = os.environ.get('LLM_MAX_TOKENS')
+    original_llm_temperature = os.environ.get('LLM_TEMPERATURE')
+    original_llm_top_p = os.environ.get('LLM_TOP_P')
+    original_llm_low_confidence = os.environ.get('LLM_LOW_CONFIDENCE_THRESHOLD')
+    original_lexicon_bucket = os.environ.get('LEXICON_S3_BUCKET')
+    original_lexicon_key = os.environ.get('LEXICON_S3_KEY')
+    original_age_max_rating = os.environ.get('AGE_MAX_RATING')
+    original_age_filter_mode = os.environ.get('AGE_FILTER_MODE')
+
+    original_slang_auto_approval = os.environ.get('SLANG_VALIDATION_AUTO_APPROVAL_ENABLED')
+    original_free_daily_translations = os.environ.get('FREE_DAILY_TRANSLATIONS')
+    original_premium_daily_translations = os.environ.get('PREMIUM_DAILY_TRANSLATIONS')
+    original_free_max_text_length = os.environ.get('FREE_MAX_TEXT_LENGTH')
+    original_premium_max_text_length = os.environ.get('PREMIUM_MAX_TEXT_LENGTH')
+    original_free_history_days = os.environ.get('FREE_HISTORY_RETENTION_DAYS')
+    original_premium_history_days = os.environ.get('PREMIUM_HISTORY_RETENTION_DAYS')
+    original_tavily_api_key = os.environ.get('TAVILY_API_KEY')
+    original_slang_auto_threshold = os.environ.get('SLANG_VALIDATION_AUTO_APPROVAL_THRESHOLD')
+    original_slang_web_search_enabled = os.environ.get('SLANG_VALIDATION_WEB_SEARCH_ENABLED')
+    original_slang_max_search_results = os.environ.get('SLANG_VALIDATION_MAX_SEARCH_RESULTS')
+    original_slang_submission_topic = os.environ.get('SLANG_SUBMISSIONS_TOPIC_ARN')
+    original_slang_validation_topic = os.environ.get('SLANG_VALIDATION_REQUEST_TOPIC_ARN')
 
     # Set fake credentials and test environment
     os.environ['AWS_ACCESS_KEY_ID'] = 'fake_access_key'
@@ -31,6 +68,43 @@ def fake_aws_credentials():
     os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
     os.environ['LOG_LEVEL'] = 'INFO'
     os.environ['ENABLE_TRACING'] = 'false'
+    os.environ['ENVIRONMENT'] = 'test'
+    os.environ['APP_NAME'] = 'lingible-backend-tests'
+    os.environ['USERS_TABLE'] = 'test-users-table'
+    os.environ['TERMS_TABLE'] = 'test-terms-table'
+    os.environ['TRANSLATIONS_TABLE'] = 'test-translations-table'
+
+    os.environ['QUIZ_FREE_DAILY_LIMIT'] = '3'
+    os.environ['QUIZ_QUESTIONS_PER_QUIZ'] = '10'
+    os.environ['QUIZ_TIME_LIMIT_SECONDS'] = '60'
+    os.environ['QUIZ_POINTS_PER_CORRECT'] = '10'
+    os.environ['QUIZ_ENABLE_TIME_BONUS'] = 'true'
+    os.environ['QUIZ_PREMIUM_UNLIMITED'] = 'false'
+
+    os.environ['SENSITIVE_FIELD_PATTERNS'] = '["authorization","cookie"]'
+    os.environ['LLM_MODEL_ID'] = 'anthropic.claude-3-haiku-20240307-v1:0'
+    os.environ['LLM_MAX_TOKENS'] = '4000'
+    os.environ['LLM_TEMPERATURE'] = '0.7'
+    os.environ['LLM_TOP_P'] = '0.9'
+    os.environ['LLM_LOW_CONFIDENCE_THRESHOLD'] = '0.3'
+    os.environ['LEXICON_S3_BUCKET'] = 'test-lexicon-bucket'
+    os.environ['LEXICON_S3_KEY'] = 'lexicon.json'
+    os.environ['AGE_MAX_RATING'] = 'M18'
+    os.environ['AGE_FILTER_MODE'] = 'skip'
+
+    os.environ['SLANG_VALIDATION_AUTO_APPROVAL_ENABLED'] = 'true'
+    os.environ['SLANG_VALIDATION_AUTO_APPROVAL_THRESHOLD'] = '0.85'
+    os.environ['SLANG_VALIDATION_WEB_SEARCH_ENABLED'] = 'false'
+    os.environ['SLANG_VALIDATION_MAX_SEARCH_RESULTS'] = '3'
+    os.environ['SLANG_SUBMISSIONS_TOPIC_ARN'] = 'arn:aws:sns:us-east-1:123456789012:submissions'
+    os.environ['SLANG_VALIDATION_REQUEST_TOPIC_ARN'] = 'arn:aws:sns:us-east-1:123456789012:validation'
+    os.environ['FREE_DAILY_TRANSLATIONS'] = '5'
+    os.environ['PREMIUM_DAILY_TRANSLATIONS'] = '50'
+    os.environ['FREE_MAX_TEXT_LENGTH'] = '280'
+    os.environ['PREMIUM_MAX_TEXT_LENGTH'] = '2000'
+    os.environ['FREE_HISTORY_RETENTION_DAYS'] = '7'
+    os.environ['PREMIUM_HISTORY_RETENTION_DAYS'] = '365'
+    os.environ['TAVILY_API_KEY'] = 'fake-tavily-key'
 
     yield
 
@@ -59,6 +133,176 @@ def fake_aws_credentials():
         os.environ['LOG_LEVEL'] = original_log_level
     else:
         os.environ.pop('LOG_LEVEL', None)
+
+    if original_environment is not None:
+        os.environ['ENVIRONMENT'] = original_environment
+    else:
+        os.environ.pop('ENVIRONMENT', None)
+
+    if original_app_name is not None:
+        os.environ['APP_NAME'] = original_app_name
+    else:
+        os.environ.pop('APP_NAME', None)
+
+    if original_users_table is not None:
+        os.environ['USERS_TABLE'] = original_users_table
+    else:
+        os.environ.pop('USERS_TABLE', None)
+
+    if original_terms_table is not None:
+        os.environ['TERMS_TABLE'] = original_terms_table
+    else:
+        os.environ.pop('TERMS_TABLE', None)
+
+    if original_translations_table is not None:
+        os.environ['TRANSLATIONS_TABLE'] = original_translations_table
+    else:
+        os.environ.pop('TRANSLATIONS_TABLE', None)
+
+    if original_quiz_free_limit is not None:
+        os.environ['QUIZ_FREE_DAILY_LIMIT'] = original_quiz_free_limit
+    else:
+        os.environ.pop('QUIZ_FREE_DAILY_LIMIT', None)
+
+    if original_quiz_questions_per_quiz is not None:
+        os.environ['QUIZ_QUESTIONS_PER_QUIZ'] = original_quiz_questions_per_quiz
+    else:
+        os.environ.pop('QUIZ_QUESTIONS_PER_QUIZ', None)
+
+    if original_quiz_time_limit is not None:
+        os.environ['QUIZ_TIME_LIMIT_SECONDS'] = original_quiz_time_limit
+    else:
+        os.environ.pop('QUIZ_TIME_LIMIT_SECONDS', None)
+
+    if original_quiz_points_per_correct is not None:
+        os.environ['QUIZ_POINTS_PER_CORRECT'] = original_quiz_points_per_correct
+    else:
+        os.environ.pop('QUIZ_POINTS_PER_CORRECT', None)
+
+    if original_quiz_enable_time_bonus is not None:
+        os.environ['QUIZ_ENABLE_TIME_BONUS'] = original_quiz_enable_time_bonus
+    else:
+        os.environ.pop('QUIZ_ENABLE_TIME_BONUS', None)
+
+    if original_quiz_premium_unlimited is not None:
+        os.environ['QUIZ_PREMIUM_UNLIMITED'] = original_quiz_premium_unlimited
+    else:
+        os.environ.pop('QUIZ_PREMIUM_UNLIMITED', None)
+
+    if original_sensitive_patterns is not None:
+        os.environ['SENSITIVE_FIELD_PATTERNS'] = original_sensitive_patterns
+    else:
+        os.environ.pop('SENSITIVE_FIELD_PATTERNS', None)
+
+    if original_llm_model_id is not None:
+        os.environ['LLM_MODEL_ID'] = original_llm_model_id
+    else:
+        os.environ.pop('LLM_MODEL_ID', None)
+
+    if original_llm_max_tokens is not None:
+        os.environ['LLM_MAX_TOKENS'] = original_llm_max_tokens
+    else:
+        os.environ.pop('LLM_MAX_TOKENS', None)
+
+    if original_llm_temperature is not None:
+        os.environ['LLM_TEMPERATURE'] = original_llm_temperature
+    else:
+        os.environ.pop('LLM_TEMPERATURE', None)
+
+    if original_llm_top_p is not None:
+        os.environ['LLM_TOP_P'] = original_llm_top_p
+    else:
+        os.environ.pop('LLM_TOP_P', None)
+
+    if original_llm_low_confidence is not None:
+        os.environ['LLM_LOW_CONFIDENCE_THRESHOLD'] = original_llm_low_confidence
+    else:
+        os.environ.pop('LLM_LOW_CONFIDENCE_THRESHOLD', None)
+
+    if original_lexicon_bucket is not None:
+        os.environ['LEXICON_S3_BUCKET'] = original_lexicon_bucket
+    else:
+        os.environ.pop('LEXICON_S3_BUCKET', None)
+
+    if original_lexicon_key is not None:
+        os.environ['LEXICON_S3_KEY'] = original_lexicon_key
+    else:
+        os.environ.pop('LEXICON_S3_KEY', None)
+
+    if original_age_max_rating is not None:
+        os.environ['AGE_MAX_RATING'] = original_age_max_rating
+    else:
+        os.environ.pop('AGE_MAX_RATING', None)
+
+    if original_age_filter_mode is not None:
+        os.environ['AGE_FILTER_MODE'] = original_age_filter_mode
+    else:
+        os.environ.pop('AGE_FILTER_MODE', None)
+
+    if original_slang_auto_approval is not None:
+        os.environ['SLANG_VALIDATION_AUTO_APPROVAL_ENABLED'] = original_slang_auto_approval
+    else:
+        os.environ.pop('SLANG_VALIDATION_AUTO_APPROVAL_ENABLED', None)
+
+    if original_slang_auto_threshold is not None:
+        os.environ['SLANG_VALIDATION_AUTO_APPROVAL_THRESHOLD'] = original_slang_auto_threshold
+    else:
+        os.environ.pop('SLANG_VALIDATION_AUTO_APPROVAL_THRESHOLD', None)
+
+    if original_slang_web_search_enabled is not None:
+        os.environ['SLANG_VALIDATION_WEB_SEARCH_ENABLED'] = original_slang_web_search_enabled
+    else:
+        os.environ.pop('SLANG_VALIDATION_WEB_SEARCH_ENABLED', None)
+
+    if original_slang_max_search_results is not None:
+        os.environ['SLANG_VALIDATION_MAX_SEARCH_RESULTS'] = original_slang_max_search_results
+    else:
+        os.environ.pop('SLANG_VALIDATION_MAX_SEARCH_RESULTS', None)
+
+    if original_slang_submission_topic is not None:
+        os.environ['SLANG_SUBMISSIONS_TOPIC_ARN'] = original_slang_submission_topic
+    else:
+        os.environ.pop('SLANG_SUBMISSIONS_TOPIC_ARN', None)
+
+    if original_slang_validation_topic is not None:
+        os.environ['SLANG_VALIDATION_REQUEST_TOPIC_ARN'] = original_slang_validation_topic
+    else:
+        os.environ.pop('SLANG_VALIDATION_REQUEST_TOPIC_ARN', None)
+
+    if original_free_daily_translations is not None:
+        os.environ['FREE_DAILY_TRANSLATIONS'] = original_free_daily_translations
+    else:
+        os.environ.pop('FREE_DAILY_TRANSLATIONS', None)
+
+    if original_premium_daily_translations is not None:
+        os.environ['PREMIUM_DAILY_TRANSLATIONS'] = original_premium_daily_translations
+    else:
+        os.environ.pop('PREMIUM_DAILY_TRANSLATIONS', None)
+
+    if original_free_max_text_length is not None:
+        os.environ['FREE_MAX_TEXT_LENGTH'] = original_free_max_text_length
+    else:
+        os.environ.pop('FREE_MAX_TEXT_LENGTH', None)
+
+    if original_premium_max_text_length is not None:
+        os.environ['PREMIUM_MAX_TEXT_LENGTH'] = original_premium_max_text_length
+    else:
+        os.environ.pop('PREMIUM_MAX_TEXT_LENGTH', None)
+
+    if original_free_history_days is not None:
+        os.environ['FREE_HISTORY_RETENTION_DAYS'] = original_free_history_days
+    else:
+        os.environ.pop('FREE_HISTORY_RETENTION_DAYS', None)
+
+    if original_premium_history_days is not None:
+        os.environ['PREMIUM_HISTORY_RETENTION_DAYS'] = original_premium_history_days
+    else:
+        os.environ.pop('PREMIUM_HISTORY_RETENTION_DAYS', None)
+
+    if original_tavily_api_key is not None:
+        os.environ['TAVILY_API_KEY'] = original_tavily_api_key
+    else:
+        os.environ.pop('TAVILY_API_KEY', None)
 
 
 @pytest.fixture
@@ -99,7 +343,7 @@ def sample_premium_user():
 @pytest.fixture
 def sample_translation():
     """Sample translation for testing."""
-    return Translation(
+    return TranslationHistory(
         translation_id="trans_789",
         user_id="test_user_123",
         original_text="Hello world",
@@ -107,7 +351,7 @@ def sample_translation():
         direction=TranslationDirection.ENGLISH_TO_GENZ,
         model_used="anthropic.claude-3-sonnet-20240229-v1:0",
         confidence_score=0.95,
-        created_at="2024-01-01T00:00:00Z"
+        created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
     )
 
 
@@ -259,6 +503,12 @@ def mock_config():
                 "TERMS_TABLE": "test-terms-table",
                 "LOG_LEVEL": "INFO",
                 "ENABLE_TRACING": "false",
+                "FREE_DAILY_TRANSLATIONS": "10",
+                "PREMIUM_DAILY_TRANSLATIONS": "100",
+                "FREE_MAX_TEXT_LENGTH": "100",
+                "PREMIUM_MAX_TEXT_LENGTH": "500",
+                "FREE_HISTORY_RETENTION_DAYS": "7",
+                "PREMIUM_HISTORY_RETENTION_DAYS": "90",
             }
             return env_vars.get(key, "")
 

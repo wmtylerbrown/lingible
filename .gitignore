@@ -215,6 +215,8 @@ backend/infrastructure/lambda-hashes.json
 backend/infrastructure/lambda-dependencies-layer/
 backend/infrastructure/lambda-*-layer/
 backend/infrastructure/utils/config-loader.js
+backend/cdk/artifacts/
+website/build/
 
 # Local development
 .env.local

@@ -9,7 +9,7 @@ import json
 import os
 from typing import Type, TypeVar
 
-from aws_lambda_powertools.utilities.parameters import get_secret
+from aws_lambda_powertools.utilities.parameters import get_secret, get_parameter
 from aws_lambda_powertools import Logger
 
 from models.config import (
@@ -93,6 +93,27 @@ class ConfigService:
                 f"Failed to retrieve secret '{secret_name}' key '{key}': {e}"
             )
 
+    def _get_ssm_secure_parameter(self, parameter_name: str) -> str:
+        """
+        Get an encrypted parameter from AWS Systems Manager Parameter Store.
+
+        Args:
+            parameter_name: The full parameter path
+
+        Returns:
+            The decrypted parameter value
+
+        Raises:
+            ConfigurationError: If the parameter cannot be retrieved
+        """
+        try:
+            return get_parameter(parameter_name, decrypt=True, max_age=5)
+        except Exception as e:
+            logger.error(f"Failed to retrieve parameter '{parameter_name}': {e}")
+            raise ConfigurationError(
+                f"Failed to retrieve parameter '{parameter_name}': {e}"
+            )
+
     def get_config(self, config_type: Type[T]) -> T:
         """
         Get a typed configuration object.
@@ -137,11 +158,9 @@ class ConfigService:
                 enable_tracing=self._get_env_var("ENABLE_TRACING").lower() == "true",
             )  # type: ignore
         elif config_type == AppleConfig:
-            # Load Apple In-App Purchase credentials from Secrets Manager
-            private_key_name = f"lingible-apple-iap-private-key-{self.environment}"
-
-            private_key = self._get_secrets_manager_secret(
-                private_key_name, "privateKey"
+            # Load Apple In-App Purchase credentials from Parameter Store
+            private_key = self._get_ssm_secure_parameter(
+                f"/lingible/{self.environment}/secrets/apple-iap-private-key"
             )
 
             # Get Apple credentials from environment variables (set by CDK)
@@ -177,11 +196,11 @@ class ConfigService:
                 ),
             )  # type: ignore
         elif config_type == SlangValidationConfig:
-            # Try to get Tavily API key from Secrets Manager
+            # Try to get Tavily API key from Parameter Store
             tavily_api_key = ""
             try:
-                secret_name = f"lingible-tavily-api-key-{self.environment}"
-                tavily_api_key = self._get_secrets_manager_secret(secret_name, "apiKey")
+                parameter_name = f"/lingible/{self.environment}/secrets/tavily-api-key"
+                tavily_api_key = self._get_ssm_secure_parameter(parameter_name)
             except Exception as e:
                 # Log but don't fail - validation will work without web search
                 logger.debug(f"Tavily API key not found, web search disabled: {e}")

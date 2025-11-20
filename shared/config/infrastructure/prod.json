@@ -13,6 +13,15 @@
     "translations_table": {
       "name": "lingible-translations-prod"
     },
+    "submissions_table": {
+      "name": "lingible-submissions-prod"
+    },
+    "lexicon_table": {
+      "name": "lingible-lexicon-prod"
+    },
+    "trending_table": {
+      "name": "lingible-trending-prod"
+    },
     "terms_table": {
       "name": "lingible-terms-prod"
     }

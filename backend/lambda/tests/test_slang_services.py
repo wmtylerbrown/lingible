@@ -4,99 +4,21 @@ import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from models.slang import (
-    SlangTerm, SlangLexicon, TranslationSpan,
-    SlangTranslationResponse, SlangTranslationDensity,
-    LexiconStats, AgeRating, AgeFilterMode, PartOfSpeech, ApprovalStatus
+    SlangTerm,
+    TranslationSpan,
+    AgeRating,
+    AgeFilterMode,
+    PartOfSpeech,
+    ApprovalStatus,
+    SourceType,
 )
 from services.slang_lexicon_service import SlangLexiconService
 from services.slang_matching_service import SlangMatchingService, RuntimeTemplate
 from services.slang_llm_service import SlangLLMService
-from models.config import SlangConfig
-
-
-class TestSlangModels:
-    """Test slang Pydantic models."""
-
-    def test_slang_term_creation(self):
-        """Test SlangTerm model creation and validation."""
-        term = SlangTerm(
-            term="fire",
-            gloss="excellent, amazing",
-            examples=["That song is fire"],
-            first_seen="2024-01-01",
-            last_seen="2024-01-01"
-        )
-
-        assert term.term == "fire"
-        assert term.gloss == "excellent, amazing"
-        assert term.age_rating == AgeRating.EVERYONE
-        assert term.status == ApprovalStatus.APPROVED
-        assert term.pos == PartOfSpeech.PHRASE
-        assert term.confidence == 0.8
-
-    def test_slang_lexicon_creation(self):
-        """Test SlangLexicon model creation."""
-        terms = [
-            SlangTerm(
-                term="fire",
-                gloss="excellent",
-                first_seen="2024-01-01",
-                last_seen="2024-01-01"
-            )
-        ]
-
-        lexicon = SlangLexicon(
-            version="1.0.0",
-            generated_at="2024-01-01T00:00:00Z",
-            count=1,
-            items=terms
-        )
-
-        assert lexicon.count == 1
-        assert len(lexicon.items) == 1
-        assert lexicon.items[0].term == "fire"
-
-    def test_translation_result_creation(self):
-        """Test TranslationResult model creation."""
-        spans = [
-            TranslationSpan(
-                start=0,
-                end=4,
-                surface="fire",
-                source="lexeme",
-                canonical="fire",
-                gloss="excellent"
-            )
-        ]
-
-        result = TranslationResult(
-            input="That's fire",
-            translated="That's excellent",
-            annotated="That's [fire: excellent]",
-            matches=spans,
-            coverage=0.5
-        )
-
-        assert result.input == "That's fire"
-        assert result.translated == "That's excellent"
-        assert len(result.matches) == 1
-        assert result.coverage == 0.5
-
-    def test_slang_translation_result_creation(self):
-        """Test SlangTranslationResult model creation."""
-        result = SlangTranslationResult(
-            input="That's excellent",
-            output="That's fire",
-            density=SlangTranslationDensity.MEDIUM,
-            applied=[]
-        )
-
-        assert result.input == "That's excellent"
-        assert result.output == "That's fire"
-        assert result.density == SlangTranslationDensity.MEDIUM
-        assert len(result.applied) == 0
+from models.config import LLMConfig
 
 
 class TestSlangLexiconService:
@@ -152,7 +74,12 @@ class TestSlangLexiconService:
     @pytest.fixture
     def slang_config(self):
         """Create SlangConfig for testing."""
-        return SlangConfig(
+        return LLMConfig(
+            model="anthropic.claude-3-sonnet-20240229-v1:0",
+            max_tokens=1000,
+            temperature=0.7,
+            top_p=0.9,
+            low_confidence_threshold=Decimal("0.2"),
             lexicon_s3_bucket="test-bucket",
             lexicon_s3_key="test/lexicon.json",
             lexicon_local_path="",
@@ -185,48 +112,20 @@ class TestSlangLexiconService:
         assert lexicon.items[0].term == "fire"
         assert lexicon.items[1].term == "no cap"
 
-    def test_load_lexicon_from_local(self, slang_config, mock_lexicon_data, tmp_path):
-        """Test loading lexicon from local file."""
-        # Create temporary lexicon file
-        lexicon_file = tmp_path / "lexicon.json"
-        lexicon_file.write_text(json.dumps(mock_lexicon_data))
-
-        # Update config to use local path
-        slang_config.lexicon_local_path = str(lexicon_file)
-
-        service = SlangLexiconService(slang_config)
-        lexicon = service.load_lexicon()
-
-        assert lexicon.count == 2
-        assert len(lexicon.items) == 2
-
-    def test_get_lexicon_stats(self, slang_config, mock_lexicon_data):
-        """Test getting lexicon statistics."""
-        with patch('services.slang_lexicon_service.aws_services') as mock_aws_services:
-            # Mock S3 response
-            mock_response = {
-                'Body': Mock()
-            }
-            mock_response['Body'].read.return_value = json.dumps(mock_lexicon_data).encode('utf-8')
-            mock_aws_services.s3_client.get_object.return_value = mock_response
-
-            service = SlangLexiconService(slang_config)
-            stats = service.get_lexicon_stats()
-
-            assert isinstance(stats, LexiconStats)
-            assert stats.total_terms == 2
-            assert stats.version == "1.0.0"
-            assert stats.age_ratings["E"] == 2  # Both terms are E rated
-
-
 class TestSlangMatchingService:
     """Test SlangMatchingService."""
 
     @pytest.fixture
     def slang_config(self):
         """Create SlangConfig for testing."""
-        return SlangConfig(
+        return LLMConfig(
+            model="anthropic.claude-3-sonnet-20240229-v1:0",
+            max_tokens=1000,
+            temperature=0.7,
+            top_p=0.9,
+            low_confidence_threshold=Decimal("0.2"),
             lexicon_s3_bucket="test-bucket",
+            lexicon_s3_key="test/lexicon.json",
             age_max_rating=AgeRating.MATURE_18,
             age_filter_mode=AgeFilterMode.SKIP
         )
@@ -383,6 +282,13 @@ class TestSlangLLMService:
         """Create LLMConfig for testing."""
         from models.config import LLMConfig
         return LLMConfig(
+            lexicon_s3_bucket="test-bucket",
+            lexicon_s3_key="test/lexicon.json",
+            lexicon_local_path="",
+            titan_model_id="amazon.titan-embed-text-v2:0",
+            low_confidence_threshold=Decimal("0.2"),
+            age_max_rating=AgeRating.MATURE_18,
+            age_filter_mode=AgeFilterMode.SKIP,
             model="anthropic.claude-3-sonnet-20240229-v1:0",
             max_tokens=1000,
             temperature=0.7,
@@ -398,8 +304,10 @@ class TestSlangLLMService:
                 canonical="rizz",
                 start=15,
                 end=19,
+                surface="rizz",
+                source=SourceType.LEXEME,
                 gloss="charisma;flirting skill",
-                confidence=0.9
+                confidence=0.9,
             )
         ]
 

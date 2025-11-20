@@ -2,10 +2,17 @@
 
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
+from models.base import LingibleBaseModel
 from models.users import User, UserTier
 from models.translations import UsageLimit
+from models.quiz import (
+    QuizSessionRecord,
+    QuizSessionStatus,
+    QuizStats,
+    QuizDifficulty,
+)
 from utils.smart_logger import logger
 from utils.tracing import tracer
 from utils.aws_services import aws_services
@@ -20,6 +27,10 @@ from utils.exceptions import SystemError
 class UserRepository:
     """Repository for user data operations."""
 
+    QUIZ_SESSION_PREFIX = "QUIZ_SESSION#"
+    QUIZ_STATS_SK = "QUIZ_STATS"
+    SESSION_TTL_HOURS = 48
+
     def __init__(self) -> None:
         """Initialize user repository."""
         self.config_service = get_config_service()
@@ -27,7 +38,7 @@ class UserRepository:
         self.table = aws_services.get_table(self.table_name)
 
     @tracer.trace_database_operation("create", "users")
-    def create_user(self, user: User) -> None:
+    def create_user(self, user: User) -> bool:
         """Create a new user record."""
         try:
             # Convert User object to DynamoDB item format
@@ -42,6 +53,7 @@ class UserRepository:
 
             self.table.put_item(Item=item)
             # Don't log every user creation - it's a routine operation
+            return True
 
         except Exception as e:
             logger.log_error(
@@ -81,7 +93,7 @@ class UserRepository:
             return None
 
     @tracer.trace_database_operation("update", "users")
-    def update_user(self, user: User) -> None:
+    def update_user(self, user: User) -> bool:
         """Update user record."""
         try:
             # Update the updated_at timestamp
@@ -99,6 +111,7 @@ class UserRepository:
 
             self.table.put_item(Item=item)
             # Don't log every user update - it's a routine operation
+            return True
 
         except Exception as e:
             logger.log_error(
@@ -111,7 +124,7 @@ class UserRepository:
             raise SystemError(f"Failed to update user {user.user_id}")
 
     @tracer.trace_database_operation("update", "users")
-    def update_usage_limits(self, user_id: str, usage: UsageLimit) -> None:
+    def update_usage_limits(self, user_id: str, usage: UsageLimit) -> bool:
         """Update user usage limits."""
         try:
             item = {
@@ -128,6 +141,7 @@ class UserRepository:
 
             self.table.put_item(Item=item)
             # Don't log every usage limit update - it's a routine operation
+            return True
 
         except Exception as e:
             logger.log_error(
@@ -178,7 +192,7 @@ class UserRepository:
             return None
 
     @tracer.trace_database_operation("update", "users")
-    def increment_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> None:
+    def increment_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> bool:
         """Atomically increment usage counter and reset if needed."""
         try:
             now = datetime.now(timezone.utc)
@@ -224,6 +238,7 @@ class UserRepository:
 
                 # Successfully reset and incremented (new day)
                 # Don't log every usage increment - it's a routine operation
+            return True
 
         except Exception as e:
             logger.log_error(
@@ -236,7 +251,7 @@ class UserRepository:
             raise SystemError(f"Failed to increment usage for user {user_id}")
 
     @tracer.trace_database_operation("update", "users")
-    def reset_daily_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> None:
+    def reset_daily_usage(self, user_id: str, tier: UserTier = UserTier.FREE) -> bool:
         """Reset daily usage counter to 0."""
         try:
             now = datetime.now(timezone.utc)
@@ -257,6 +272,7 @@ class UserRepository:
             )
 
             # Don't log every usage reset - it's a routine operation
+            return True
 
         except Exception as e:
             logger.log_error(
@@ -269,7 +285,7 @@ class UserRepository:
             raise SystemError(f"Failed to reset usage for user {user_id}")
 
     @tracer.trace_database_operation("delete", "users")
-    def delete_user(self, user_id: str) -> None:
+    def delete_user(self, user_id: str) -> bool:
         """Delete user and all associated data."""
         try:
             # Delete user profile
@@ -330,6 +346,7 @@ class UserRepository:
                     "user_id": user_id,
                 },
             )
+            return True
 
         except Exception as e:
             logger.log_error(
@@ -439,6 +456,377 @@ class UserRepository:
                 },
             )
             return False
+
+    # ===== Quiz Session & Stats Methods =====
+
+    def _quiz_session_sk(self, session_id: str) -> str:
+        return f"{self.QUIZ_SESSION_PREFIX}{session_id}"
+
+    def _session_ttl(self) -> int:
+        return int(
+            (
+                datetime.now(timezone.utc) + timedelta(hours=self.SESSION_TTL_HOURS)
+            ).timestamp()
+        )
+
+    def _deserialize_quiz_session(self, item: Dict[str, Any]) -> QuizSessionRecord:
+        now = datetime.now(timezone.utc)
+        raw_difficulty = item.get("difficulty")
+        difficulty: QuizDifficulty
+        if isinstance(raw_difficulty, QuizDifficulty):
+            difficulty = raw_difficulty
+        elif raw_difficulty:
+            try:
+                difficulty = QuizDifficulty(str(raw_difficulty))
+            except ValueError:
+                difficulty = QuizDifficulty.BEGINNER
+        else:
+            difficulty = QuizDifficulty.BEGINNER
+        raw_status = item.get("status", QuizSessionStatus.ACTIVE.value)
+        try:
+            status = (
+                raw_status
+                if isinstance(raw_status, QuizSessionStatus)
+                else QuizSessionStatus(str(raw_status))
+            )
+        except ValueError:
+            status = QuizSessionStatus.ACTIVE
+        return QuizSessionRecord(
+            session_id=item["session_id"],
+            user_id=item["user_id"],
+            difficulty=difficulty,
+            status=status,
+            questions_answered=item.get("questions_answered", 0),
+            correct_count=item.get("correct_count", 0),
+            total_score=item.get("total_score", 0.0),
+            correct_answers=item.get("correct_answers", {}),
+            term_names=item.get("term_names", {}),
+            used_wrong_options=item.get("used_wrong_options", []),
+            started_at=item.get("started_at", now),
+            last_activity=item.get("last_activity", now),
+        )
+
+    @tracer.trace_database_operation("create", "quiz_session")
+    def create_quiz_session(
+        self, user_id: str, session_id: str, difficulty: str
+    ) -> bool:
+        now = datetime.now(timezone.utc)
+        item: Dict[str, Any] = {
+            "PK": f"USER#{user_id}",
+            "SK": self._quiz_session_sk(session_id),
+            "session_id": session_id,
+            "user_id": user_id,
+            "difficulty": difficulty,
+            "status": "active",
+            "questions_answered": 0,
+            "correct_count": 0,
+            "total_score": LingibleBaseModel._to_dynamodb_value(0.0),
+            "correct_answers": {},
+            "term_names": {},
+            "used_wrong_options": [],
+            "started_at": now.isoformat(),
+            "last_activity": now.isoformat(),
+            "ttl": self._session_ttl(),
+        }
+        self.table.put_item(Item=item)
+        return True
+
+    @tracer.trace_database_operation("get", "active_quiz_session")
+    def get_active_quiz_session(self, user_id: str) -> Optional[QuizSessionRecord]:
+        response = self.table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{user_id}",
+                ":sk_prefix": self.QUIZ_SESSION_PREFIX,
+            },
+        )
+        items = response.get("Items", [])
+        active_sessions: List[Dict[str, Any]] = [
+            item for item in items if item.get("status", "active") == "active"
+        ]
+        if not active_sessions:
+            return None
+        active_sessions.sort(key=lambda x: x.get("last_activity", ""), reverse=True)
+        session = self._deserialize_quiz_session(active_sessions[0])
+
+        last_activity = session.last_activity
+        if isinstance(last_activity, datetime):
+            stale_seconds = (datetime.now(timezone.utc) - last_activity).total_seconds()
+            if stale_seconds > 900:
+                self.update_quiz_session(user_id, session.session_id, status="expired")
+                return None
+        return session
+
+    @tracer.trace_database_operation("get", "quiz_session")
+    def get_quiz_session(
+        self, user_id: str, session_id: str
+    ) -> Optional[QuizSessionRecord]:
+        response = self.table.get_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": self._quiz_session_sk(session_id),
+            }
+        )
+        item = response.get("Item")
+        if not item:
+            return None
+        return self._deserialize_quiz_session(item)
+
+    @tracer.trace_database_operation("update", "quiz_session")
+    def update_quiz_session(
+        self,
+        user_id: str,
+        session_id: str,
+        questions_answered: Optional[int] = None,
+        correct_count: Optional[int] = None,
+        total_score: Optional[float] = None,
+        correct_answers: Optional[Dict[str, str]] = None,
+        term_names: Optional[Dict[str, str]] = None,
+        used_wrong_options: Optional[List[str]] = None,
+        status: Optional[str] = None,
+        update_last_activity: bool = True,
+    ) -> None:
+        update_expr_parts: List[str] = []
+        expr_attr_values: Dict[str, Any] = {}
+        expr_attr_names: Dict[str, str] = {}
+
+        if questions_answered is not None:
+            update_expr_parts.append("questions_answered = :qa")
+            expr_attr_values[":qa"] = questions_answered
+
+        if correct_count is not None:
+            update_expr_parts.append("correct_count = :cc")
+            expr_attr_values[":cc"] = correct_count
+
+        if total_score is not None:
+            update_expr_parts.append("total_score = :ts")
+            expr_attr_values[":ts"] = LingibleBaseModel._to_dynamodb_value(total_score)
+
+        if correct_answers is not None:
+            update_expr_parts.append("correct_answers = :ca")
+            expr_attr_values[":ca"] = correct_answers
+
+        if term_names is not None:
+            update_expr_parts.append("term_names = :tn")
+            expr_attr_values[":tn"] = term_names
+
+        if used_wrong_options is not None:
+            update_expr_parts.append("used_wrong_options = :uwo")
+            expr_attr_values[":uwo"] = used_wrong_options
+
+        if status is not None:
+            update_expr_parts.append("#status = :status")
+            expr_attr_names["#status"] = "status"
+            expr_attr_values[":status"] = status
+
+        if update_last_activity:
+            update_expr_parts.append("last_activity = :la")
+            expr_attr_values[":la"] = datetime.now(timezone.utc).isoformat()
+
+        if not update_expr_parts:
+            return
+
+        update_expr_parts.append("#ttl = :ttl")
+        expr_attr_names["#ttl"] = "ttl"
+        expr_attr_values[":ttl"] = self._session_ttl()
+
+        update_expr = "SET " + ", ".join(update_expr_parts)
+        params: Dict[str, Any] = {
+            "Key": {
+                "PK": f"USER#{user_id}",
+                "SK": self._quiz_session_sk(session_id),
+            },
+            "UpdateExpression": update_expr,
+            "ExpressionAttributeValues": expr_attr_values,
+        }
+        if expr_attr_names:
+            params["ExpressionAttributeNames"] = expr_attr_names
+
+        self.table.update_item(**params)
+
+    @tracer.trace_database_operation("delete", "quiz_session")
+    def delete_quiz_session(self, user_id: str, session_id: str) -> bool:
+        self.table.delete_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": self._quiz_session_sk(session_id),
+            }
+        )
+        return True
+
+    def _get_quiz_stats_item(self, user_id: str) -> Dict[str, Any]:
+        response = self.table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": self.QUIZ_STATS_SK}
+        )
+        item = response.get("Item")
+        if not item:
+            return {
+                "PK": f"USER#{user_id}",
+                "SK": self.QUIZ_STATS_SK,
+                "total_quizzes": 0,
+                "total_correct": 0,
+                "total_questions": 0,
+                "total_score_sum": LingibleBaseModel._to_dynamodb_value(0.0),
+                "total_possible_sum": LingibleBaseModel._to_dynamodb_value(0.0),
+                "best_score": LingibleBaseModel._to_dynamodb_value(0.0),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        return item
+
+    @tracer.trace_database_operation("update", "quiz_stats")
+    def update_quiz_stats(
+        self,
+        user_id: str,
+        *,
+        correct_count: int,
+        questions_answered: int,
+        total_score: float,
+        total_possible: float,
+    ) -> QuizStats:
+        stats_item = self._get_quiz_stats_item(user_id)
+        total_quizzes = int(stats_item.get("total_quizzes", 0)) + 1
+        total_correct = int(stats_item.get("total_correct", 0)) + correct_count
+        total_questions = int(stats_item.get("total_questions", 0)) + questions_answered
+        total_score_sum = self._to_decimal(
+            stats_item.get("total_score_sum", 0)
+        ) + LingibleBaseModel._to_dynamodb_value(total_score)
+        total_possible_sum = self._to_decimal(
+            stats_item.get("total_possible_sum", 0)
+        ) + LingibleBaseModel._to_dynamodb_value(total_possible)
+
+        new_score_pct = (
+            (total_score / total_possible * 100) if total_possible > 0 else 0.0
+        )
+        existing_best = self._to_float(stats_item.get("best_score", 0.0))
+        best_score_float = max(existing_best, new_score_pct)
+
+        updated_item = {
+            "PK": f"USER#{user_id}",
+            "SK": self.QUIZ_STATS_SK,
+            "total_quizzes": total_quizzes,
+            "total_correct": total_correct,
+            "total_questions": total_questions,
+            "total_score_sum": total_score_sum,
+            "total_possible_sum": total_possible_sum,
+            "best_score": LingibleBaseModel._to_dynamodb_value(best_score_float),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self.table.put_item(Item=updated_item)
+        return QuizStats(
+            total_quizzes=total_quizzes,
+            total_correct=total_correct,
+            total_questions=total_questions,
+            average_score=(
+                round((float(total_score_sum) / float(total_possible_sum)) * 100, 2)
+                if total_possible_sum > 0
+                else 0.0
+            ),
+            best_score=best_score_float,
+            accuracy_rate=round(
+                (
+                    (float(total_correct) / float(total_questions))
+                    if total_questions > 0
+                    else 0.0
+                ),
+                3,
+            ),
+        )
+
+    @tracer.trace_database_operation("get", "quiz_stats")
+    def get_quiz_stats(self, user_id: str) -> QuizStats:
+        stats_item = self._get_quiz_stats_item(user_id)
+        total_quizzes = int(stats_item.get("total_quizzes", 0))
+        total_correct = int(stats_item.get("total_correct", 0))
+        total_questions = int(stats_item.get("total_questions", 0))
+        total_score_sum = self._to_float(stats_item.get("total_score_sum", 0.0))
+        total_possible_sum = self._to_float(stats_item.get("total_possible_sum", 0.0))
+
+        average_score = (
+            (total_score_sum / total_possible_sum) * 100
+            if total_possible_sum > 0
+            else 0.0
+        )
+        accuracy_rate = (
+            (float(total_correct) / float(total_questions))
+            if total_questions > 0
+            else 0.0
+        )
+
+        return QuizStats(
+            total_quizzes=total_quizzes,
+            total_correct=total_correct,
+            total_questions=total_questions,
+            average_score=round(average_score, 2),
+            best_score=float(stats_item.get("best_score", 0.0)),
+            accuracy_rate=round(accuracy_rate, 3),
+        )
+
+    @tracer.trace_database_operation("delete", "quiz_data")
+    def delete_all_quiz_data(self, user_id: str) -> None:
+        response = self.table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{user_id}",
+                ":sk_prefix": self.QUIZ_SESSION_PREFIX,
+            },
+        )
+        for item in response.get("Items", []):
+            self.table.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+
+        self.table.delete_item(Key={"PK": f"USER#{user_id}", "SK": self.QUIZ_STATS_SK})
+
+        response_daily = self.table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{user_id}",
+                ":sk_prefix": "QUIZ_DAILY#",
+            },
+        )
+        for item in response_daily.get("Items", []):
+            self.table.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+
+    def finalize_quiz_session(
+        self,
+        user_id: str,
+        session_id: str,
+        questions_answered: int,
+        correct_count: int,
+        total_score: float,
+        total_possible: float,
+    ) -> QuizStats:
+        stats = self.update_quiz_stats(
+            user_id,
+            correct_count=correct_count,
+            questions_answered=questions_answered,
+            total_score=total_score,
+            total_possible=total_possible,
+        )
+        self.delete_quiz_session(user_id, session_id)
+        return stats
+
+    @staticmethod
+    def _to_int(value: Any) -> int:
+        if isinstance(value, Decimal):
+            return int(float(value))
+        if isinstance(value, (int, float)):
+            return int(value)
+        return int(value) if value else 0
+
+    @staticmethod
+    def _to_float(value: Any) -> float:
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, (int, float)):
+            return float(value)
+        return float(value) if value else 0.0
+
+    @staticmethod
+    def _to_decimal(value: Any) -> Decimal:
+        if isinstance(value, Decimal):
+            return value
+        if isinstance(value, (int, float)):
+            return Decimal(str(value))
+        return Decimal(str(value)) if value is not None else Decimal("0")
 
     @tracer.trace_database_operation("update", "users")
     def increment_slang_submitted(self, user_id: str) -> bool:

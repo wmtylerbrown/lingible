@@ -270,7 +270,7 @@ class TestSlangUpvoting:
         """Create SlangSubmissionService with mocked dependencies."""
         from services.slang_submission_service import SlangSubmissionService
 
-        with patch('services.slang_submission_service.SlangSubmissionRepository') as mock_repo_class:
+        with patch('services.slang_submission_service.SubmissionsRepository') as mock_repo_class:
             with patch('services.slang_submission_service.UserService') as mock_user_service_class:
                 with patch('services.slang_submission_service.SlangValidationService') as mock_validation_class:
                     with patch('services.slang_submission_service.get_config_service') as mock_get_config:
@@ -399,7 +399,7 @@ class TestAdminApprovalFeatures:
         """Create SlangSubmissionService with mocked dependencies."""
         from services.slang_submission_service import SlangSubmissionService
 
-        with patch('services.slang_submission_service.SlangSubmissionRepository') as mock_repo_class:
+        with patch('services.slang_submission_service.SubmissionsRepository') as mock_repo_class:
             with patch('services.slang_submission_service.UserService') as mock_user_service_class:
                 with patch('services.slang_submission_service.SlangValidationService') as mock_validation_class:
                     with patch('services.slang_submission_service.get_config_service') as mock_get_config:
@@ -502,7 +502,7 @@ class TestAutoApprovalWorkflow:
         """Create SlangSubmissionService with mocked dependencies."""
         from services.slang_submission_service import SlangSubmissionService
 
-        with patch('services.slang_submission_service.SlangSubmissionRepository') as mock_repo_class:
+        with patch('services.slang_submission_service.SubmissionsRepository') as mock_repo_class:
             with patch('services.slang_submission_service.UserService') as mock_user_service_class:
                 with patch('services.slang_submission_service.SlangValidationService') as mock_validation_class:
                     with patch('services.slang_submission_service.get_config_service') as mock_get_config:
@@ -676,147 +676,3 @@ class TestAutoApprovalWorkflow:
                         assert isinstance(result, SlangSubmissionResponse)
                         assert result.status == ApprovalStatus.REJECTED
                         assert "not sure this is gen z slang" in result.message.lower()
-
-
-class TestSlangSubmissionRepository:
-    """Test new repository methods for validation and upvoting."""
-
-    @pytest.fixture
-    def submission_repository(self, mock_config):
-        """Create repository with mocked dependencies."""
-        from repositories.slang_submission_repository import SlangSubmissionRepository
-
-        with patch('repositories.slang_submission_repository.get_config_service') as mock_get_config:
-            with patch('repositories.slang_submission_repository.aws_services') as mock_aws_services:
-                mock_get_config.return_value = mock_config
-                mock_config._get_env_var.return_value = "lingible-terms-test"
-
-                mock_table = Mock()
-                mock_aws_services.get_table.return_value = mock_table
-
-                repo = SlangSubmissionRepository()
-                return repo
-
-    def test_add_upvote(self, submission_repository):
-        """Test adding an upvote."""
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.update_item.return_value = {}
-
-            result = submission_repository.add_upvote("sub_123", "owner_user", "voter_user")
-
-            assert result is True
-            mock_table.update_item.assert_called_once()
-
-            # Verify the update expression includes upvotes and upvoted_by
-            call_kwargs = mock_table.update_item.call_args.kwargs
-            assert "upvotes" in call_kwargs['UpdateExpression']
-            assert "upvoted_by" in call_kwargs['UpdateExpression']
-
-    def test_get_by_validation_status(self, submission_repository):
-        """Test querying by validation status."""
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.query.return_value = {
-                'Items': [
-                    {
-                        'submission_id': 'sub_1',
-                        'user_id': 'user_1',
-                        'slang_term': 'term1',
-                        'meaning': 'meaning1',
-                        'context': 'manual',
-                        'status': 'pending',
-                        'llm_validation_status': 'validated',
-                        'upvotes': 5,
-                        'created_at': datetime.now(timezone.utc).isoformat(),
-                    }
-                ]
-            }
-
-            result = submission_repository.get_by_validation_status(
-                SlangSubmissionStatus.VALIDATED, limit=50
-            )
-
-            assert len(result) == 1
-            assert result[0].llm_validation_status == SlangSubmissionStatus.VALIDATED
-
-            # Verify the query uses ValidationStatusIndex
-            call_kwargs = mock_table.query.call_args.kwargs
-            assert call_kwargs['IndexName'] == 'ValidationStatusIndex'
-
-    def test_update_validation_result(self, submission_repository):
-        """Test updating validation result."""
-        validation_result = LLMValidationResult(
-            is_valid=True,
-            confidence=Decimal("0.85"),
-            evidence=[
-                LLMValidationEvidence(source="test.com", example="test example")
-            ],
-            recommended_definition=None,
-            usage_score=8,
-            validated_at=datetime.now(timezone.utc),
-        )
-
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.update_item.return_value = {}
-
-            result = submission_repository.update_validation_result(
-                "sub_123", "user_123", validation_result
-            )
-
-            assert result is True
-            mock_table.update_item.assert_called_once()
-
-            # Verify the update includes confidence and result
-            call_kwargs = mock_table.update_item.call_args.kwargs
-            assert 'llm_confidence_score' in call_kwargs['UpdateExpression']
-            assert 'llm_validation_result' in call_kwargs['UpdateExpression']
-
-    def test_update_approval_status(self, submission_repository):
-        """Test updating approval status."""
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.update_item.return_value = {}
-
-            result = submission_repository.update_approval_status(
-                "sub_123",
-                "user_123",
-                SlangSubmissionStatus.ADMIN_APPROVED,
-                ApprovalType.ADMIN_MANUAL,
-                "admin_user",
-            )
-
-            assert result is True
-            mock_table.update_item.assert_called_once()
-
-            # Verify the update includes all fields
-            call_kwargs = mock_table.update_item.call_args.kwargs
-            assert 'llm_validation_status' in call_kwargs['UpdateExpression']
-            assert 'approval_type' in call_kwargs['UpdateExpression']
-            assert 'approved_by' in call_kwargs['UpdateExpression']
-
-    def test_get_submission_by_id(self, submission_repository):
-        """Test getting submission by ID only (without user_id)."""
-        with patch.object(submission_repository, 'table') as mock_table:
-            mock_table.query.return_value = {
-                'Items': [
-                    {
-                        'submission_id': 'sub_123',
-                        'user_id': 'user_123',
-                        'slang_term': 'test',
-                        'meaning': 'test meaning',
-                        'context': 'manual',
-                        'status': 'pending',
-                        'llm_validation_status': 'validated',
-                        'upvotes': 3,
-                        'created_at': datetime.now(timezone.utc).isoformat(),
-                    }
-                ]
-            }
-
-            result = submission_repository.get_submission_by_id("sub_123")
-
-            assert result is not None
-            assert result.submission_id == "sub_123"
-            assert result.user_id == "user_123"
-
-            # Verify query by PK only
-            call_kwargs = mock_table.query.call_args.kwargs
-            assert 'PK' in str(call_kwargs['KeyConditionExpression'])

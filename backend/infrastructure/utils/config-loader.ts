@@ -62,7 +62,10 @@ export interface InfrastructureConfig {
   tables: {
     users_table: { name: string };
     translations_table: { name: string };
-    terms_table: { name: string };
+    submissions_table: { name: string };
+    lexicon_table: { name: string };
+    trending_table: { name: string };
+    terms_table?: { name: string };
   };
   apple: {
     client_id: string;
