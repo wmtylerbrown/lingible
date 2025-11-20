@@ -315,7 +315,7 @@ except NotFoundError as e:
 
 ### Fixtures
 
-**Location**: `tests_v2/conftest.py`
+**Location**: `tests/conftest.py`
 
 ```python
 @pytest.fixture

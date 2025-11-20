@@ -33,15 +33,15 @@ pip install -r backend/lambda/requirements.txt
 ### Running Tests
 ```bash
 # Always run from backend/lambda directory
-# NOTE: tests/ directory is deprecated, use tests_v2/ for all new tests
+source .venv/bin/activate
 cd backend/lambda
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/
 
 # With coverage
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/ --cov=src --cov-report=html
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/ --cov=src --cov-report=html
 
 # Specific test file
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/test_services.py -v
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/test_services.py -v
 ```
 
 ### Test Requirements (CRITICAL)
@@ -51,8 +51,7 @@ ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/test_service
 - **Fixtures**: Build reusable fixtures in conftest.py
 - **AWS Mocking**: Use moto for DynamoDB, Cognito, Secrets Manager
 - **Fake Credentials**: Default fixture sets fake AWS credentials (never use real ones)
-- **NO Test Code in src/**: All test code belongs in tests_v2/ directory only
-- **Deprecated**: The `tests/` directory is deprecated - all new tests go in `tests_v2/`
+- **NO Test Code in src/**: All test code belongs in tests/ directory only
 
 ## Backend Deployment
 
@@ -197,7 +196,7 @@ repository.table.put_item(Item={"score": 85.5})  # Will fail - use Decimal
 2. Update TypeScript types
 3. Regenerate SDKs
 4. Create handler in `backend/lambda/src/handlers/<name>_api/` (API handlers end with `_api`)
-5. Write tests in `tests_v2/` directory (TDD: Red-Green-Refactor)
+5. Write tests in `tests/` directory (TDD: Red-Green-Refactor)
 6. Create/update service layer
 7. Create/update repository layer
 8. Update CDK construct to wire handler
@@ -255,16 +254,16 @@ date +%Y-%m-%d_%H:%M:%S
 ```bash
 # Format code
 cd backend/lambda
-black src/ tests_v2/
+black src/ tests/
 
 # Lint code
-flake8 src/ tests_v2/
+flake8 src/ tests/
 
 # Type check
 mypy src/
 
 # Run tests
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/ --cov=src
+ENVIRONMENT=test ../../.venv/bin/python -m pytest tests/ --cov=src
 ```
 
 ### Flake8 Configuration
@@ -337,8 +336,7 @@ backend/
 │   │   ├── repositories/    # Data access
 │   │   ├── models/          # Pydantic models
 │   │   └── utils/           # Shared utilities
-│   ├── tests_v2/            # Test suite (tests/ is deprecated)
-│   └── tests/               # Deprecated - use tests_v2/
+│   └── tests/               # Test suite
 └── cdk/                     # AWS CDK infrastructure
 
 shared/
@@ -408,7 +406,7 @@ logger.info("Translation completed", extra={
 
 ```bash
 # Test everything
-cd backend/lambda && ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/
+cd backend/lambda && ENVIRONMENT=test ../../.venv/bin/python -m pytest tests/
 
 # Deploy backend
 cd backend/cdk && npm run deploy:dev
@@ -424,7 +422,7 @@ cd ios && ./regenerate-client-sdk.sh
 cd backend/lambda && poetry add <package> && poetry lock && poetry install
 
 # Code quality
-cd backend/lambda && black src/ tests_v2/ && flake8 src/ tests_v2/ && mypy src/
+cd backend/lambda && black src/ tests/ && flake8 src/ tests/ && mypy src/
 ```
 
 ---

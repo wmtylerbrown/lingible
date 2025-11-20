@@ -43,10 +43,12 @@ See `docs/database-schema.md` for complete schema definitions.
 ## Development Workflow
 
 ### Testing
-- All tests in `backend/lambda/tests_v2/`
+- All tests in `backend/lambda/tests/` (unified directory after migration from `tests_v2/`)
 - Coverage targets: Repositories 90%+, Translation/User/Quiz services 90%+, Others 50%+
 - Use `moto` for AWS service mocking
 - TDD workflow: Red-Green-Refactor
+- 334 tests passing with comprehensive coverage
+- Individual test files for each handler, service, and utility module
 
 ### Code Quality
 - Type safety: All functions must have type hints

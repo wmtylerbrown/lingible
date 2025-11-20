@@ -1,6 +1,6 @@
 # Repository Responsibilities
 
-This document maps each DynamoDB table to its owning repository module(s) and describes access patterns and responsibilities. All repository tests belong in `backend/lambda/tests_v2/`.
+This document maps each DynamoDB table to its owning repository module(s) and describes access patterns and responsibilities. All repository tests belong in `backend/lambda/tests/`.
 
 ## Submissions Domain
 
@@ -17,7 +17,7 @@ This document maps each DynamoDB table to its owning repository module(s) and de
   - Create/update submissions, validation writes, admin approval, deduping
   - Used by `SlangSubmissionService`, async validation handler, admin APIs, upvote endpoints
 - **Notes**: Dedicated table enables tight TTL (optional) and removes write amplification from lexicon/trending workflows.
-- **Tests**: `tests_v2/test_submissions_repository.py` covering CRUD + index-based queries.
+- **Tests**: `tests/test_submissions_repository.py` covering CRUD + index-based queries.
 
 ## Lexicon & Quiz Domain
 
@@ -35,7 +35,7 @@ This document maps each DynamoDB table to its owning repository module(s) and de
   - Maintain attestation metadata and quiz statistics
   - Used by `QuizService`, export lexicon async job, migration scripts
 - **Notes**: Canonical data no longer competes with submissions; quiz metadata lives alongside lexicon entries with right-sized projections.
-- **Tests**: `tests_v2/test_lexicon_repository.py` validating lexicon CRUD and quiz index usage.
+- **Tests**: `tests/test_lexicon_repository.py` validating lexicon CRUD and quiz index usage.
 
 ## Trending Domain
 
@@ -51,7 +51,7 @@ This document maps each DynamoDB table to its owning repository module(s) and de
   - Increment counters (search/translation counts) with consistent TTL behavior
   - Used by `TrendingJob` async lambda + `trending_api`
 - **Notes**: TTL (90 days) keeps dataset lean and isolated from lexicon/submission churn.
-- **Tests**: `tests_v2/test_trending_repository.py` updated to target the new table fixture.
+- **Tests**: `tests/test_trending_repository.py` updated to target the new table fixture.
 
 ## Users Domain
 
@@ -66,7 +66,7 @@ This document maps each DynamoDB table to its owning repository module(s) and de
   - Profile management, usage counters, quiz stats
   - Optional future usage of `UsersTierIndex` for tier-based queries
 - **Limitations**: No way to list/filter users by tier, email, status without scans (future GSI may address this)
-- **Tests**: `tests_v2/test_user_repository.py` covers CRUD operations. Expand to cover tier-index queries if/when the index is added.
+- **Tests**: `tests/test_user_repository.py` covers CRUD operations. Expand to cover tier-index queries if/when the index is added.
 
 ## Translations Domain
 
@@ -81,7 +81,7 @@ This document maps each DynamoDB table to its owning repository module(s) and de
   - Per-user history storage
   - Potential future analytics index for global reporting (e.g., latest translations, per-model stats)
 - **Limitations**: No GSIs for global reporting without scans (future GSI may address this)
-- **Tests**: `tests_v2/test_translation_repository.py` covers CRUD and pagination.
+- **Tests**: `tests/test_translation_repository.py` covers CRUD and pagination.
 
 ## Shared Utilities / Services
 

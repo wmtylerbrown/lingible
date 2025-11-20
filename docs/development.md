@@ -57,7 +57,7 @@ python src/scripts/init_quiz_pools.py
 
 ### Test Structure
 
-**Test Directory**: `backend/lambda/tests_v2/`
+**Test Directory**: `backend/lambda/tests/`
 - All tests use `moto` for AWS service mocking
 - Fixtures in `conftest.py` for table schemas and AWS clients
 - No test code in `src/` directory
@@ -65,14 +65,15 @@ python src/scripts/init_quiz_pools.py
 ### Running Tests
 
 ```bash
+source .venv/bin/activate
 cd backend/lambda
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/
 
 # With coverage
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/ --cov=src --cov-report=html
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/ --cov=src --cov-report=html
 
 # Specific test file
-ENVIRONMENT=test PYTHONPATH=src .venv/bin/python -m pytest tests_v2/test_services.py -v
+ENVIRONMENT=test PYTHONPATH=src python -m pytest tests/test_services.py -v
 ```
 
 ### Test Requirements
@@ -174,12 +175,12 @@ from services.user_service import UserService
 **Black**:
 ```bash
 cd backend/lambda
-black src/ tests_v2/
+black src/ tests/
 ```
 
 **Flake8**:
 ```bash
-flake8 src/ tests_v2/
+flake8 src/ tests/
 # Non-test code: ignore only E501 (line too long)
 # Test code: ignore F401, F841, E402, E501
 ```

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
 from models.config import AppleConfig, SlangValidationConfig
 from utils import config as config_module
+from utils.config import ConfigService
 
 
 def _set_base_env(monkeypatch: pytest.MonkeyPatch) -> None:
