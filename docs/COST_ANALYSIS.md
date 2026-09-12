@@ -65,7 +65,7 @@ Live limits: 10 translations/day free (50-char max), 100 translations/day premiu
 | Premium (heavy) | 3,000 | 658 / 78 | $0.79 | $3.14 |
 
 Using the lighter, no-lexicon-match case instead (472/41 free, 493/43 premium) — plausibly the more
-common case given partial lexicon coverage — gives $0.05/month (free) and $2.12/month (premium) on
+common case given partial lexicon coverage — gives $0.20/month (free) and $2.12/month (premium) on
 Haiku 4.5, close to the spec's pre-implementation estimate of $0.20/$2.03.
 
 **Premium-tier heavy-user cost against $9.99/month subscription revenue: $2.12–$3.14/month on
@@ -82,7 +82,7 @@ trending generation once/day) and were not previously included in the free/premi
 comparison above, but are included here for completeness:
 
 - **Slang validation** (with web search results, the more expensive case — 500 in / 192 out):
-  ~$0.0011/submission on Haiku 4.5 (~$0.0003 on Claude 3 Haiku). At realistic submission volumes
+  ~$0.0015/submission on Haiku 4.5 (~$0.0004 on Claude 3 Haiku). At realistic submission volumes
   (tens to low hundreds/month), this is noise relative to translation volume.
 - **Trending-terms generation** (322 in / 2,710 out, once/day): ~$0.0139/run on Haiku 4.5
   (~$0.0035/run on Claude 3 Haiku) → ~$0.42/month on Haiku 4.5 (~$0.10/month on Claude 3 Haiku) for
