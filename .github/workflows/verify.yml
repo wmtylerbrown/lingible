@@ -45,8 +45,7 @@ jobs:
         run: ENVIRONMENT=test PYTHONPATH=src poetry run pytest tests/ -q
       - name: mypy
         working-directory: backend/lambda
-        # --explicit-package-bases: see scripts/verify for why this is required, not optional.
-        run: poetry run mypy --explicit-package-bases src/
+        run: poetry run mypy src/
       - name: flake8
         working-directory: backend/lambda
         run: poetry run flake8 src/
