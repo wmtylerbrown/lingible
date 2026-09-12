@@ -492,7 +492,7 @@ Generate 15-20 diverse trending terms across different categories. Make sure the
     def _call_bedrock_for_trending_terms(self, prompt: str) -> str:
         """Call Bedrock to generate trending terms."""
         try:
-            # Prepare the request body for Claude 3 Haiku
+            # Prepare the request body for the configured Anthropic model (see LLMConfig.model)
             request_body = {
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 4000,

@@ -17,6 +17,7 @@ import {
 } from '../types';
 import { createPythonLambda } from '../components/lambda/python-lambda';
 import { buildLambdaEnvironment } from '../components/lambda/environment';
+import { getBedrockInvokeModelResources } from '../components/bedrock/invoke-model-resources';
 
 export interface ApiConstructProps extends BaseStackProps {
   readonly shared: SharedResourceReferences;
@@ -254,9 +255,7 @@ export class ApiConstruct extends Construct {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ['bedrock:InvokeModel'],
-        resources: [
-          `arn:aws:bedrock:${this.ctx.infrastructure.bedrock.region}::foundation-model/${this.ctx.backend.llm.model}`,
-        ],
+        resources: getBedrockInvokeModelResources(this, this.ctx.infrastructure.bedrock.region, this.ctx.backend.llm.model),
       })
     );
 

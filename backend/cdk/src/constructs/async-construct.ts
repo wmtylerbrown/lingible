@@ -13,6 +13,7 @@ import {
 } from '../types';
 import { createPythonLambda } from '../components/lambda/python-lambda';
 import { buildLambdaEnvironment } from '../components/lambda/environment';
+import { getBedrockInvokeModelResources } from '../components/bedrock/invoke-model-resources';
 
 export interface AsyncConstructProps extends BaseStackProps {
   readonly shared: SharedResourceReferences;
@@ -89,7 +90,7 @@ export class AsyncConstruct extends Construct {
       .build();
     const tavilyParameterArn = this.getSsmParameterArn(this.getTavilyApiKeyParameterPath());
 
-    return createPythonLambda({
+    const slangValidationProcessor = createPythonLambda({
       scope: this,
       id: 'SlangValidationProcessor',
       functionName: `lingible-slang-validation-processor-${props.envContext.environment}`,
@@ -104,6 +105,18 @@ export class AsyncConstruct extends Construct {
         ssmParameters: [tavilyParameterArn],
       },
     });
+    slangValidationProcessor.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['bedrock:InvokeModel'],
+        resources: getBedrockInvokeModelResources(
+          this,
+          props.envContext.infrastructure.bedrock.region,
+          props.envContext.backend.llm.model
+        ),
+      })
+    );
+    return slangValidationProcessor;
   }
 
   private createExportLexiconLambda(props: AsyncConstructProps) {
@@ -169,7 +182,7 @@ export class AsyncConstruct extends Construct {
       .includeLlm()
       .build();
 
-    return createPythonLambda({
+    const trendingJobLambda = createPythonLambda({
       scope: this,
       id: 'TrendingJobLambda',
       functionName: `lingible-trending-job-${props.envContext.environment}`,
@@ -182,6 +195,18 @@ export class AsyncConstruct extends Construct {
         readOnlyTables: [props.data.usersTable],
       },
     });
+    trendingJobLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['bedrock:InvokeModel'],
+        resources: getBedrockInvokeModelResources(
+          this,
+          props.envContext.infrastructure.bedrock.region,
+          props.envContext.backend.llm.model
+        ),
+      })
+    );
+    return trendingJobLambda;
   }
 
   private createTrendingSchedules(props: AsyncConstructProps, trendingJobLambda: ReturnType<typeof createPythonLambda>) {

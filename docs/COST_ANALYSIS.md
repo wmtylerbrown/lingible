@@ -1,20 +1,107 @@
 # Lingible API Cost Analysis
 
-> **⚠️ STALE — needs a refresh.** This analysis was written in January 2024 against a much
-> shorter translation prompt and different tier limits than what's live today. It was lost from
-> `main` during the November 2025 repo reorganization and is restored here as a starting point,
-> not a current number. See [issue #9](https://github.com/wmtylerbrown/lingible/issues/9), which
-> now includes recomputing this doc against the actual current prompt
-> (`SlangLLMService._create_genz_to_english_prompt`, materially longer than the prompt this
-> analysis assumed), the actual current tier limits (`shared/config/backend/{dev,prod}.json`,
-> which differ from the limits below), and whichever Bedrock model that investigation lands on.
-> Do not use the dollar figures below for a current decision — use them only to understand the
-> cost *shape* (Bedrock dominates; API Gateway and Lambda are noise by comparison) and the
-> methodology, both of which still hold.
+> **Current as of September 2026** (post [issue #9](https://github.com/wmtylerbrown/lingible/issues/9),
+> the Bedrock model upgrade off Claude 3 Haiku). See "Current Cost Analysis" below for the live
+> numbers — real token counts measured against the actual production prompts, the actual live
+> tier limits, and `anthropic.claude-haiku-4-5-20251001-v1:0` (via the `us.` cross-region inference
+> profile). The "Historical: January 2024 Analysis" section further down is kept for the cost
+> *shape* and methodology it still illustrates (Bedrock dominates; API Gateway and Lambda are
+> noise by comparison) — its dollar figures are superseded and should not be used.
 
 ## Overview
 
-This document provides a comprehensive cost analysis for the Lingible API, including AWS service costs, user tier analysis, and business implications. The analysis is based on tier limits and AWS pricing as of January 2024.
+This document provides a comprehensive cost analysis for the Lingible API: AWS service costs, user
+tier analysis, and business implications, recomputed against the live prompts, live tier limits,
+and current Bedrock model (see "Current Cost Analysis" below).
+
+## Current Cost Analysis (Post Bedrock Model Upgrade — September 2026)
+
+Recomputed for [issue #9](https://github.com/wmtylerbrown/lingible/issues/9) against the actual
+production prompt-building code (`SlangLLMService._create_genz_to_english_prompt`,
+`_create_english_to_genz_prompt`, `SlangValidationService._create_validation_prompt`), the current
+live tier limits, and real Bedrock token usage — not estimated token counts. Token figures below
+are measured `usage.input_tokens`/`usage.output_tokens` from real `bedrock-runtime invoke-model`
+calls against `us.anthropic.claude-haiku-4-5-20251001-v1:0` in `us-east-1`, run against
+representative request text for each code path.
+
+### Bedrock pricing used
+
+| Model | Input ($/1M tokens) | Output ($/1M tokens) |
+|---|---|---|
+| Claude 3 Haiku (previous) | $0.25 | $1.25 |
+| Claude Haiku 4.5 (current) | $1.00 | $5.00 |
+
+Haiku 4.5 pricing confirmed against `claude.com/pricing` (Anthropic's Bedrock pricing matches its
+first-party API pricing for this model) on 2026-09-12 — a 4x increase over Claude 3 Haiku on both
+axes, matching the spec's cross-checked estimate.
+
+### Measured token counts per request
+
+| Code path | Case | Input tokens | Output tokens |
+|---|---|---|---|
+| GenZ→English translation | Free tier (≤50 chars), no lexicon match | 472 | 41 |
+| GenZ→English translation | Free tier (≤50 chars), with lexicon term mapping | 630 | 52 |
+| GenZ→English translation | Premium tier (≤100 chars), no lexicon match | 493 | ~43 |
+| GenZ→English translation | Premium tier (≤100 chars), with lexicon term mapping | 658 | 78 |
+| English→GenZ translation | Free tier (≤50 chars) | 350 | 52 |
+| English→GenZ translation | Premium tier (≤100 chars) | 378 | ~45 |
+| Slang-submission validation | No web search results | 347 | — |
+| Slang-submission validation | With 2 web search results | 500 | 192 |
+| Trending-terms generation (daily job) | Fixed prompt, 15–20 generated terms | 322 | 2,710 |
+
+GenZ→English costs more per request than English→GenZ because its prompt carries the fuller rules
+block, confidence-guideline coaching, and (when the lexicon matches) a term→gloss JSON block; a
+lexicon match adds ~150-280 input tokens and ~10-25 output tokens versus no match. These are the
+actual per-request drivers behind the cost table below, using the worst-case (lexicon-match)
+GenZ→English figures as the conservative per-translation estimate.
+
+### Free and premium tier monthly cost (heavy user, 30-day month)
+
+Live limits: 10 translations/day free (50-char max), 100 translations/day premium (100-char max).
+
+| Tier | Monthly translations | Conservative tokens/translation (in/out) | Claude 3 Haiku cost/month | Claude Haiku 4.5 cost/month |
+|---|---|---|---|---|
+| Free (heavy) | 300 | 630 / 52 | $0.07 | $0.27 |
+| Premium (heavy) | 3,000 | 658 / 78 | $0.79 | $3.14 |
+
+Using the lighter, no-lexicon-match case instead (472/41 free, 493/43 premium) — plausibly the more
+common case given partial lexicon coverage — gives $0.05/month (free) and $2.12/month (premium) on
+Haiku 4.5, close to the spec's pre-implementation estimate of $0.20/$2.03.
+
+**Premium-tier heavy-user cost against $9.99/month subscription revenue: $2.12–$3.14/month on
+Claude Haiku 4.5, still comfortably under 32% of revenue even in the conservative case** — a real,
+roughly 4x increase in per-request Bedrock cost, but not a threat to unit economics at current tier
+limits. This confirms the spec's Cost impact analysis: the tier limits were cut ~100x since Claude
+3 Haiku was chosen, leaving large unused cost headroom regardless of which current-generation
+Haiku-tier model is picked.
+
+### Slang validation and trending-job cost
+
+These run at much lower volume than translation (validation only on new slang submissions;
+trending generation once/day) and were not previously included in the free/premium unit-economics
+comparison above, but are included here for completeness:
+
+- **Slang validation** (with web search results, the more expensive case — 500 in / 192 out):
+  ~$0.0011/submission on Haiku 4.5 (~$0.0003 on Claude 3 Haiku). At realistic submission volumes
+  (tens to low hundreds/month), this is noise relative to translation volume.
+- **Trending-terms generation** (322 in / 2,710 out, once/day): ~$0.0139/run on Haiku 4.5
+  (~$0.0035/run on Claude 3 Haiku) → ~$0.42/month on Haiku 4.5 (~$0.10/month on Claude 3 Haiku) for
+  the daily scheduled job. Larger relative increase than translation because this path is almost
+  all output tokens, and output is the more expensive side of the 4x price increase, but the
+  absolute dollar amount stays small.
+
+### Conclusion
+
+The model upgrade is affordable at current tier limits and volume. Bedrock remains ~90%+ of
+per-request cost (see the historical section below for why that's structural, not model-specific);
+this change shifts that cost up roughly 4x per token without threatening premium-tier margin. No
+change to tier limits is warranted by this analysis alone.
+
+## Historical: January 2024 Analysis (superseded by "Current Cost Analysis" above)
+
+Kept for the cost *shape* and methodology it illustrates (Bedrock dominates; API Gateway and
+Lambda are noise by comparison) — every dollar figure below is superseded by the real-prompt,
+real-tier-limit numbers above and should not be used for a current decision.
 
 ## AWS Service Pricing (as of January 2024 — re-check current Bedrock pricing before relying on this)
 
@@ -209,7 +296,7 @@ worth confirming that reasoning explicitly once the numbers are recomputed, rath
 #### 2. Cost Optimization
 - **Prompt Engineering**: Reduce system prompt length — directly relevant to [issue #9](https://github.com/wmtylerbrown/lingible/issues/9) and [issue #10](https://github.com/wmtylerbrown/lingible/issues/10) (whether the lexicon hybrid still earns its cost).
 - **Caching**: Cache common slang translations.
-- **Model Selection**: A current-generation model may need less prompt scaffolding to hit the same quality bar, which is itself a token-cost reduction — part of [issue #9](https://github.com/wmtylerbrown/lingible/issues/9).
+- **Model Selection**: done — [issue #9](https://github.com/wmtylerbrown/lingible/issues/9) moved translation/validation off Claude 3 Haiku to Claude Haiku 4.5 (see "Current Cost Analysis" above). Prompt simplification (a stronger model may need less scaffolding) was explicitly deferred as a follow-up requiring its own quality evaluation, not bundled into that change.
 
 #### 3. Pricing Strategy
 - **Usage-based Pricing**: Charge per translation beyond limits.
@@ -218,7 +305,7 @@ worth confirming that reasoning explicitly once the numbers are recomputed, rath
 ## Recommendations
 
 ### Immediate
-- Recompute this entire document against the live prompt, live tier limits, and current Bedrock pricing (tracked in [issue #9](https://github.com/wmtylerbrown/lingible/issues/9)).
+- Done: this document is recomputed against the live prompt, live tier limits, and current Bedrock model/pricing (see "Current Cost Analysis" above; [issue #9](https://github.com/wmtylerbrown/lingible/issues/9)).
 - Set up CloudWatch cost alarms/budgets for Bedrock spend — none currently exist.
 
 ### Short-term
@@ -242,8 +329,10 @@ record that a human or agent actually looked, not just an assumption.
 
 | Date | Change | Cost impact |
 |---|---|---|
+| 2026-09-12 | `llm.model` changed from `anthropic.claude-3-haiku-20240307-v1:0` to `us.anthropic.claude-haiku-4-5-20251001-v1:0` ([issue #9](https://github.com/wmtylerbrown/lingible/issues/9)) | Full recompute above: ~4x per-token cost increase, heavy-user premium cost rises from ~$0.79/month to ~$2.12–$3.14/month against $9.99 revenue — affordable at current tier limits, not a threat to unit economics. |
 
 ---
 
-*Originally written: January 2024, against Claude 3 Haiku and the tier limits stated above.*
-*Restored to `main` and annotated: September 2026, after being dropped during the November 2025 repo reorganization. Dollar figures not yet re-verified against current prompt/limits/pricing.*
+*Originally written: January 2024, against Claude 3 Haiku and the tier limits stated in the historical section above.*
+*Restored to `main` and annotated: September 2026, after being dropped during the November 2025 repo reorganization.*
+*Recomputed with real measured token counts against the live prompt, live tier limits, and Claude Haiku 4.5: September 2026 ([issue #9](https://github.com/wmtylerbrown/lingible/issues/9)). See "Current Cost Analysis" above.*

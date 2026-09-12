@@ -21,6 +21,7 @@
     "deploy:dev": "npm run deploy -- --context environment=dev --require-approval never",
     "deploy:prod": "npm run deploy -- --context environment=prod",
     "lint": "eslint . --ext .ts",
+    "test": "npx ts-node --prefer-ts-exts scripts/verify-bedrock-resources.ts",
     "secrets": "node scripts/manage-secrets.js",
     "build:lambdas": "node scripts/build-lambda-packages.js",
     "build:website": "../../.venv/bin/python ../../website/build.py"

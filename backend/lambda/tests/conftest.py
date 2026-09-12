@@ -43,7 +43,7 @@ def pytest_configure(config: pytest.Config) -> None:  # type: ignore[override]
     # LLM configuration
     os.environ.setdefault("LEXICON_S3_BUCKET", "test-lexicon-bucket")
     os.environ.setdefault("LEXICON_S3_KEY", "lexicon.json")
-    os.environ.setdefault("LLM_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
+    os.environ.setdefault("LLM_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
     os.environ.setdefault("LLM_MAX_TOKENS", "4000")
     os.environ.setdefault("LLM_TEMPERATURE", "0.7")
     os.environ.setdefault("LLM_TOP_P", "0.9")
@@ -109,7 +109,7 @@ def configure_base_environment() -> Generator[None, None, None]:
         # LLM configuration
         os.environ.setdefault("LEXICON_S3_BUCKET", "test-lexicon-bucket")
         os.environ.setdefault("LEXICON_S3_KEY", "lexicon.json")
-        os.environ.setdefault("LLM_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
+        os.environ.setdefault("LLM_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
         os.environ.setdefault("LLM_MAX_TOKENS", "4000")
         os.environ.setdefault("LLM_TEMPERATURE", "0.7")
         os.environ.setdefault("LLM_TOP_P", "0.9")
@@ -430,7 +430,7 @@ def mock_config() -> Generator[Any, None, None]:
         def mock_get_config(config_type: Any, table_name: str | None = None) -> Any:
             if config_type == LLMConfig:
                 return LLMConfig(
-                    model="anthropic.claude-3-haiku-20240307-v1:0",
+                    model="us.anthropic.claude-haiku-4-5-20251001-v1:0",
                     max_tokens=1000,
                     temperature=0.7,
                     top_p=0.9,
