@@ -1,7 +1,7 @@
 ---
 id: SPEC-INFRA-MYPY-001
 title: Resolve the src package/mypy_path module-identity ambiguity at its root
-status: draft
+status: approved
 approval: autonomous
 confidence: medium
 risk: low
