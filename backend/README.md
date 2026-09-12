@@ -10,7 +10,7 @@ A serverless backend for translating GenZ slang to English and vice versa using 
 - **AWS Cognito** - User authentication and management
 - **AWS Bedrock** - AI translation service
 - **AWS CDK** - Infrastructure as Code
-- **Poetry** - Modern Python dependency management
+- **uv** - Fast, locked Python dependency management (`uv.lock`, hash-verified)
 
 ## 📁 Project Structure
 
@@ -24,8 +24,8 @@ backend/
 │   │   ├── repositories/   # Data access layer
 │   │   └── utils/          # Utility functions
 │   ├── tests/              # Test suite
-│   ├── pyproject.toml      # Poetry dependencies
-│   ├── poetry.lock         # Locked dependencies
+│   ├── pyproject.toml      # uv dependencies, ruff/mypy config
+│   ├── uv.lock             # Locked dependencies (hash-verified)
 │   └── cleanup.sh          # Lambda cleanup script
 ├── cdk/                    # AWS CDK infrastructure
 │   ├── src/
@@ -35,7 +35,7 @@ backend/
 │   ├── scripts/            # Build and management scripts
 │   └── artifacts/          # Lambda build artifacts
 ├── scripts/               # Backend utility scripts
-│   └── setup-poetry.sh    # Poetry setup script
+│   └── setup-uv.sh        # uv setup script
 └── docs/                  # Backend documentation
 ```
 
@@ -45,37 +45,30 @@ backend/
 - Python 3.13
 - Node.js 18+
 - AWS CLI configured
-- Poetry (installed via setup script)
+- uv (installed via setup script)
 
 ### Initial Setup
 ```bash
-# Setup Python virtual environment (first time)
-python3.13 -m venv .venv
-source .venv/bin/activate
-
-# Setup Poetry and dependencies
+# Setup uv and sync the repo-root .venv (first time)
 cd backend
-./scripts/setup-poetry.sh   # Install Poetry and dependencies
-poetry shell               # Activate Poetry environment
+./scripts/setup-uv.sh
+source ../.venv/bin/activate
 ```
 
 ### Development Workflow
 ```bash
-# Run tests
-poetry run pytest
+# From the repo root -- runs ruff format/check + mypy + pytest for backend/lambda
+.venv/bin/nox -s lint typecheck test
 
-# Run with coverage
-poetry run pytest --cov=src --cov-report=html
-
-# Type checking
-poetry run mypy src/
-
-# Linting
-poetry run flake8 src/
+# Or individually, from backend/lambda
+pytest
+mypy src/
+ruff check src/
+ruff format src/
 
 # Add dependencies
-poetry add boto3            # Runtime dependency
-poetry add --group dev pytest  # Dev dependency
+uv add boto3                    # Runtime dependency
+uv add --group dev pytest       # Dev dependency
 ```
 
 ## 🏗️ Build & Deployment
@@ -99,8 +92,9 @@ npm run deploy:prod
 **Stack Structure**: The infrastructure uses a single `BackendStack` that combines all backend resources (Lambda layers, DynamoDB tables, SNS topics, Cognito, API Gateway) to avoid CloudFormation cross-stack reference issues. Logical separation is maintained through internal constructs in `src/constructs/`. The `WebsiteStack` remains separate as it has no dependencies.
 
 ### Build Process
-1. **Poetry Export**: Generates `requirements.txt` from `pyproject.toml`
-2. **CDK Docker Bundling**: Installs dependencies in Lambda-compatible environment
+1. **uv export**: Generates each layer's `requirements.txt` from `pyproject.toml`/`uv.lock`
+2. **uv pip install**: Resolves prebuilt arm64/manylinux wheels for the Lambda runtime directly
+   (`--python-platform`/`--only-binary=:all:` -- no Docker daemon needed)
 3. **Lambda Layers**: Creates shared dependencies and code layers
 4. **Function Packaging**: Bundles individual handlers
 
@@ -139,15 +133,15 @@ npm run deploy:prod
 ### Running Tests
 ```bash
 # All tests
-poetry run pytest
+pytest
 
 # Specific test types
-poetry run pytest tests/unit/
-poetry run pytest tests/integration/
-poetry run pytest tests/handlers/
+pytest tests/unit/
+pytest tests/integration/
+pytest tests/handlers/
 
 # With coverage
-poetry run pytest --cov=src --cov-report=html
+pytest --cov=src --cov-report=html
 ```
 
 ## 🔧 Configuration
@@ -164,7 +158,6 @@ poetry run pytest --cov=src --cov-report=html
 
 ## 📚 Documentation
 
-- [`poetry-migration.md`](./docs/poetry-migration.md) - Poetry setup and usage
 - [`timezone-change-summary.md`](./docs/timezone-change-summary.md) - Timezone fixes
 - [`tier-storage-fix-summary.md`](./docs/tier-storage-fix-summary.md) - Performance optimizations
 - [`lambda-optimization.md`](./docs/lambda-optimization.md) - Lambda optimization guide
@@ -172,7 +165,7 @@ poetry run pytest --cov=src --cov-report=html
 ## 🚨 Important Rules
 
 1. **API Changes**: Always update OpenAPI spec and regenerate client SDKs
-2. **Dependencies**: Use Poetry for all dependency management
+2. **Dependencies**: Use uv for all dependency management
 3. **Testing**: Maintain 90%+ test coverage
 4. **Type Safety**: Use type hints throughout
 5. **Performance**: Optimize for frequent operations (get_user_usage)

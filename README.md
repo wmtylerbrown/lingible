@@ -17,7 +17,7 @@ This rule is MANDATORY and prevents API/client mismatches.
 - **AWS Cognito** - User authentication and management
 - **AWS Bedrock** - AI translation service
 - **AWS CDK** - Infrastructure as Code
-- **Poetry** - Modern Python dependency management
+- **uv** - Fast, locked Python dependency management
 
 ### iOS App (Swift/SwiftUI)
 - **SwiftUI** - Modern iOS interface
@@ -38,8 +38,8 @@ lingible/
 │   │   │   ├── repositories/ # Data access layer
 │   │   │   └── utils/      # Utility functions
 │   │   ├── tests/          # Test suite
-│   │   ├── pyproject.toml  # Poetry dependencies
-│   │   └── poetry.lock     # Locked dependencies
+│   │   ├── pyproject.toml  # uv dependencies
+│   │   └── uv.lock         # Locked dependencies (hash-verified)
 │   ├── infrastructure/     # AWS CDK infrastructure
 │   └── docs/              # Backend documentation
 ├── ios/                    # iOS Application
@@ -65,12 +65,12 @@ lingible/
 python3.13 -m venv .venv
 source .venv/bin/activate
 
-# Setup Poetry and dependencies
+# Setup uv and dependencies
 cd backend
-./scripts/setup-poetry.sh   # Setup Poetry (first time)
+./scripts/setup-uv.sh      # Setup uv (first time)
+source ../.venv/bin/activate
 cd lambda
-poetry shell               # Activate Poetry environment
-poetry run pytest          # Run tests
+pytest                     # Run tests
 ```
 
 ### iOS Development
@@ -109,9 +109,10 @@ npm run deploy:prod        # Deploy to production
 
 ## 🔧 Development
 
-### Backend (Poetry + CDK)
-- **Dependencies**: Managed with Poetry
-- **Build**: CDK uses Docker bundling
+### Backend (uv + CDK)
+- **Dependencies**: Managed with uv (`uv.lock`, hash-verified)
+- **Build**: `build-lambda-packages.js` resolves prebuilt Lambda-runtime wheels directly (`uv pip
+  install --python-platform ...`); no Docker daemon required
 - **Testing**: pytest with 90%+ coverage
 - **Type Safety**: Full type hints with mypy
 

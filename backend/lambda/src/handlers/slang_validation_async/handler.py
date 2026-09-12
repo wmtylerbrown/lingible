@@ -46,7 +46,6 @@ def handler(event: SlangValidationEvent, context: LambdaContext) -> Dict[str, An
         }
 
     try:
-
         # Validate the submission
         logger.log_business_event(
             "validation_started", {"submission_id": event.submission_id}

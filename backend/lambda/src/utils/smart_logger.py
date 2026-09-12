@@ -144,7 +144,9 @@ class SmartLogger:
             "performance_category": (
                 "fast"
                 if duration_ms < 100
-                else "slow" if duration_ms < 1000 else "very_slow"
+                else "slow"
+                if duration_ms < 1000
+                else "very_slow"
             ),
         }
 

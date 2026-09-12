@@ -1,7 +1,7 @@
 ---
 id: SPEC-INFRA-TOOLCHAIN-001
 title: Backend Python toolchain (uv + ruff + nox)
-status: approved
+status: implemented
 approval: autonomous
 confidence: high
 risk: medium
@@ -10,7 +10,7 @@ issue: 12
 security_review: false
 security_domains: []
 cost_review: false
-affected_docs: ["AGENTS.md", "backend/scripts/setup-poetry.sh", "scripts/verify"]
+affected_docs: ["AGENTS.md", "backend/scripts/setup-uv.sh", "scripts/verify"]
 derived_decisions: 6
 implementation_decisions: 6
 escalated_decisions: 0

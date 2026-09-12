@@ -11,20 +11,19 @@ This document covers development practices, testing strategies, and code quality
 - Activation: `source .venv/bin/activate`
 - Python Path: `PYTHONPATH=backend/lambda/src` for local development
 
-**Setup**:
+**Setup** (or just run `backend/scripts/setup-uv.sh`):
 ```bash
-cd /Users/tyler/mobile-app-aws-backend
-python -m venv .venv
+UV_PROJECT_ENVIRONMENT="$(pwd)/.venv" uv sync --project backend/lambda --all-extras
 source .venv/bin/activate
-pip install -r backend/lambda/requirements.txt
 ```
 
 ### Dependencies
 
 **Backend**:
-- Managed via Poetry (`backend/lambda/pyproject.toml`)
-- Install: `cd backend/lambda && poetry install`
-- Add dependency: `poetry add <package> && poetry lock && poetry install`
+- Managed via uv (`backend/lambda/pyproject.toml`, `backend/lambda/uv.lock` -- hash-verified)
+- Install: `cd backend/lambda && uv sync --all-extras` (with `UV_PROJECT_ENVIRONMENT` set to the
+  repo-root `.venv`, per above)
+- Add dependency: `uv add <package>` (relocks and syncs in one step)
 
 **Infrastructure**:
 - Node.js dependencies in `backend/cdk/package.json`
@@ -172,23 +171,20 @@ from services.user_service import UserService
 
 ### Code Formatting
 
-**Black**:
+**Ruff** (replaces Black + Flake8; config in `backend/lambda/pyproject.toml`'s `[tool.ruff]`,
+scoped to `src/` only):
 ```bash
 cd backend/lambda
-black src/ tests/
-```
-
-**Flake8**:
-```bash
-flake8 src/ tests/
-# Non-test code: ignore only E501 (line too long)
-# Test code: ignore F401, F841, E402, E501
+ruff format src/
+ruff check src/
 ```
 
 **MyPy**:
 ```bash
 mypy src/
 ```
+
+Or run all three (plus tests) via nox, from the repo root: `.venv/bin/nox -s lint typecheck test`.
 
 ## Logging
 
@@ -257,7 +253,9 @@ npm run diff:prod     # Diff prod stack
   - `npm run build:lambdas` (Lambda layer/package building)
   - `npm run build:website` (Static website build)
 
-**Docker Required**: Lambda bundling requires Docker Desktop running
+**Docker**: Only per-handler code bundling (`python-lambda.ts`) needs a running Docker daemon --
+the Lambda dependency layers resolve prebuilt wheels via `uv pip install --python-platform ...`
+directly (see `specs/backend-python-toolchain.md`)
 
 ### Manual DNS
 
@@ -335,7 +333,8 @@ def handler(event, context):
 ### CDK Build Failures
 
 **Problem**: Docker errors during synth
-**Solution**: Start Docker Desktop before running CDK commands
+**Solution**: Start Docker Desktop before running CDK commands (still needed for per-handler code
+bundling; the Lambda dependency layers no longer need it)
 
 ## Best Practices
 

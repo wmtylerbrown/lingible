@@ -27,34 +27,29 @@ switch, or pull first — do not silently deploy a stale or feature branch.
 Check for and install what's missing, in this order. Skip any step whose tool is already present
 and working:
 
-- **Python**: `python3.13 -m venv .venv && source .venv/bin/activate` at the repo root if `.venv`
-  doesn't exist (needed for `backend/cdk`'s `build:website` step, which shells out to
-  `../../.venv/bin/python`).
-- **Poetry** (`backend/lambda`): if `poetry` isn't on PATH, run `backend/scripts/setup-poetry.sh`.
-  Then `(cd backend/lambda && poetry install --no-interaction)`.
+- **uv** (`backend/lambda`): if `uv` isn't on PATH, run `backend/scripts/setup-uv.sh`. Then
+  `UV_PROJECT_ENVIRONMENT="$(pwd)/.venv" uv sync --project backend/lambda --all-extras` from the
+  repo root (creates/updates the repo-root `.venv` `AGENTS.md` documents, not a nested
+  `backend/lambda/.venv`).
 - **npm dependencies** (`backend/cdk`): `(cd backend/cdk && npm install --no-audit --no-fund)` if
   `backend/cdk/node_modules/.bin/tsc` is missing or `npm run build` fails with a missing-binary
   error (the `tsc: command not found` failure mode).
 - **AWS credentials**: confirm `aws sts get-caller-identity` succeeds before going further. If it
   fails, stop and tell the user to fix their local AWS credentials — do not attempt to configure
   credentials yourself.
-- **Docker**: `backend/cdk`'s Lambda-layer bundling (`SharedConstruct.createDependencyLayer`) runs
-  `pip install` inside a `public.ecr.aws/sam/build-python3.13` container so the installed wheels
-  match the Lambda runtime's actual OS/architecture — this needs a running Docker daemon, not just
-  the Docker CLI. `docker info` failing with `Cannot connect to the Docker daemon` means Docker
-  Desktop needs to be started; ask the user to start it rather than trying to start it yourself.
-- **`poetry export`**: `scripts/build-lambda-packages.js` shells out to `poetry export` to generate
-  each Lambda layer's `requirements.txt`. Poetry 2.x dropped `export` from the core CLI into a
-  plugin — if it fails with `The requested command export does not exist`, run
-  `poetry self add poetry-plugin-export` (once; it persists across repos) before continuing.
+
+`backend/cdk/scripts/build-lambda-packages.js` builds each Lambda dependency layer itself via
+`uv export`/`uv pip install --python-platform ...` (host-side, cross-platform wheel resolution, no
+compilation) — no Docker daemon is required for `npm run build:lambdas`, `cdk synth`, or
+`cdk deploy` (see `specs/backend-python-toolchain.md`).
 
 Report what you installed; don't silently skip a broken step.
 
 ## 3. Build and test
 
-Run `./scripts/verify` from the repo root (the same checks CI runs: backend pytest/mypy/flake8,
-CDK `tsc` build, spec consistency, Bedrock cost review). If it fails, stop, show the failure, and
-ask whether to fix it first or deploy anyway (deploying on a failing `verify` needs an explicit
+Run `./scripts/verify` from the repo root (the same checks CI runs: backend lint/typecheck/test via
+nox, CDK `tsc` build, spec consistency, Bedrock cost review). If it fails, stop, show the failure,
+and ask whether to fix it first or deploy anyway (deploying on a failing `verify` needs an explicit
 yes — never proceed past a failure silently).
 
 ## 4. Preview the change

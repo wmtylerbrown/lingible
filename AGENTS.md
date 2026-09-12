@@ -20,11 +20,9 @@ issue. Every change lands via PR against `main` — nothing is pushed to `main` 
 - **Environment Variable**: Set `ENVIRONMENT=test` for local testing
 
 ```bash
-# Complete setup from scratch
-cd /Users/tyler/mobile-app-aws-backend
-python -m venv .venv
+# Complete setup from scratch (or just run backend/scripts/setup-uv.sh)
+UV_PROJECT_ENVIRONMENT="$(pwd)/.venv" uv sync --project backend/lambda --all-extras
 source .venv/bin/activate
-pip install -r backend/lambda/requirements.txt
 ```
 
 ### Common Path Issues
@@ -33,8 +31,11 @@ pip install -r backend/lambda/requirements.txt
 - Use absolute imports, not relative: `from models.user import User` (not `from ..models.user`)
 
 ### Dependencies
-- **Backend**: Use Poetry from `backend/lambda/` directory with activated venv
-- **Add dependency**: `cd backend/lambda && poetry add <package> && poetry lock && poetry install`
+- **Backend**: Use `uv` from `backend/lambda/` directory (`UV_PROJECT_ENVIRONMENT` set to the
+  repo-root `.venv`, per above, so `uv sync`/`uv add` manage that shared venv rather than a nested
+  `backend/lambda/.venv`)
+- **Add dependency**: `cd backend/lambda && uv add <package>` (updates `pyproject.toml`, relocks
+  `uv.lock`, and syncs the venv in one step)
 - **Infrastructure**: Use npm from `backend/cdk/` directory
 
 ## Testing Instructions
@@ -228,10 +229,7 @@ repository.table.put_item(Item={"score": 85.5})  # Will fail - use Decimal
 ```bash
 # Backend
 cd backend/lambda
-source ../../.venv/bin/activate
-poetry add <package>
-poetry lock
-poetry install
+uv add <package>            # relocks uv.lock and syncs the repo-root .venv in one step
 
 # Infrastructure
 cd backend/cdk
@@ -261,23 +259,12 @@ date +%Y-%m-%d_%H:%M:%S
 
 ### Before Committing
 ```bash
-# Format code
-cd backend/lambda
-black src/ tests/
-
-# Lint code
-flake8 src/ tests/
-
-# Type check
-mypy src/
-
-# Run tests
-ENVIRONMENT=test ../../.venv/bin/python -m pytest tests/ --cov=src
+# From the repo root -- runs ruff format + ruff check + mypy + pytest for backend/lambda
+.venv/bin/nox -s lint typecheck test
 ```
 
-### Flake8 Configuration
-- **Non-test code**: Ignore only E501 (line too long)
-- **Test code**: Also ignore F401, F841, E402
+Ruff's config (formatting + lint) lives in `backend/lambda/pyproject.toml`'s `[tool.ruff]` table,
+scoped to `src/` only (matching the prior flake8 setup — `tests/` is not linted).
 
 ## Security Guidelines
 
@@ -428,10 +415,10 @@ cd client-sdk && ./regenerate-sdk.sh
 cd ios && ./regenerate-client-sdk.sh
 
 # Add Python dependency
-cd backend/lambda && poetry add <package> && poetry lock && poetry install
+cd backend/lambda && uv add <package>
 
 # Code quality
-cd backend/lambda && black src/ tests/ && flake8 src/ tests/ && mypy src/
+.venv/bin/nox -s lint typecheck
 ```
 
 ---

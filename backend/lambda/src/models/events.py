@@ -401,7 +401,9 @@ class CustomAPIGatewayEventAuthorizer(BaseModel):
 class CustomRequestContext(APIGatewayEventRequestContext):
     """Custom request context that extends the base one with our custom authorizer."""
 
-    authorizer: Optional[CustomAPIGatewayEventAuthorizer] = Field(None, description="Custom authorizer context")  # type: ignore[assignment]
+    authorizer: Optional[CustomAPIGatewayEventAuthorizer] = Field(
+        None, description="Custom authorizer context"
+    )  # type: ignore[assignment]
 
 
 class CustomAPIGatewayProxyEventModel(APIGatewayProxyEventModel):
