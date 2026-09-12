@@ -13,7 +13,10 @@ issue number. If none is given, ask which issue, or run `/pipeline` instead.
 `git fetch origin main`. Read the issue and its spec(s) (front matter `issue: <N>`, or the delta in
 the issue body for a change to an implemented capability). If the issue is not labeled `ready`, or
 carries an `in-progress:*` label, stop and say so. Otherwise add `in-progress:implement`, remove
-`ready`, and comment `Pipeline claimed <RFC3339 UTC>`. Tell the user which issue you are working.
+`ready`, and comment `Pipeline claimed <RFC3339 UTC>. Expected scope: <paths/dirs this will touch>`
+(a short, honest guess from the issue's own description or its capability's usual area in
+`ROADMAP.md` — other concurrent implement claims are checked against it). Tell the user which issue
+you are working.
 
 ## 2. Freshness
 
