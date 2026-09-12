@@ -17,7 +17,7 @@ flowchart LR
     P -->|human decision| H[Draft PR waits on a human]
     I -->|question| B[Issue: blocked]
     R -->|question| B
-    F[Issue: finding] -->|human triage| I
+    F[Issue: finding] -->|suggested needs-spec: any agent; else human| I
 ```
 
 Three skills, one entry point:
@@ -47,7 +47,7 @@ capability name from `ROADMAP.md` when one applies. Labels carry the queue state
 | `in-progress:implement` | an implement run has claimed it (see Claims) |
 | `in-progress:spec` | a spec run has claimed it (see Claims) |
 | `blocked` | a human decision is needed; the question is the latest comment |
-| `finding` | agent-discovered, out-of-scope; a human decides whether it becomes `needs-spec` |
+| `finding` | agent-discovered, out-of-scope; a `needs-spec`-suggested one may be relabeled by any agent, otherwise a human decides |
 
 "Done" is not a label: the implementing PR says `Closes #N` and GitHub closes the issue on merge.
 
@@ -73,16 +73,28 @@ first, the same way `/pipeline` does.
 ### Findings
 
 Anything real but outside the current issue's scope (a bug elsewhere, missing infra, a doc gap)
-becomes a new issue labeled `finding`, with enough detail to act on later. It is never fixed inline
-and never auto-drafted into a spec. A human triages findings by relabeling to `needs-spec` or
-closing them; no agent relabels a `finding` on its own judgment.
+becomes a new issue labeled `finding`, with enough detail to act on later.
 
 When filing a finding, append one line, `Suggested triage: needs-spec` or
 `Suggested triage: human-judgment-needed`, with a one-line reason. Suggest `needs-spec` only when
 the gap is in already-implemented or already-approved behavior and closing it involves no product,
 UX, cost, or architecture tradeoff — a pure omission, not a decision. Anything else, including
 every case that is merely convincing rather than clearly mechanical, gets
-`human-judgment-needed`. The suggestion speeds up triage; it never substitutes for it.
+`human-judgment-needed`.
+
+A finding suggested `needs-spec` may be relabeled `needs-spec` by any agent, without waiting for a
+human: the suggestion is itself the judgment call, made explicit and checkable in the finding's own
+text, so relabeling on it is mechanical, not a second decision. A finding suggested
+`human-judgment-needed` still needs an actual human to relabel or close it — no agent relabels one
+of those on its own judgment.
+
+Documentation-only findings — a gap whose fix touches no code, no spec behavior, and no test (a
+stale cross-reference between docs, a comment describing behavior that no longer exists, an example
+that no longer matches) — skip the finding issue entirely when it is more efficient not to file one.
+The session that discovers it may fix it directly, either folded into the PR already in flight
+(note it under "Findings fixed" in that PR's description) or as its own small follow-up PR.
+Anything with the slightest behavioral, product, or architectural weight is a real finding instead
+of this shortcut — this is for text that disagrees with itself, not for any actual functional gap.
 
 ## Specs are living contracts
 

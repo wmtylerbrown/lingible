@@ -43,9 +43,14 @@ Issues labeled `blocked` or `finding` are never picked. Issues that do not match
 capability (a change to an implemented capability, a promoted finding) have no dependencies and are
 eligible on their label alone, after the roadmap capabilities.
 
-If nothing is eligible in this lane, say so in one line. If any open issue carries `finding`, list
-them with their `Suggested triage:` line (or "none given" if missing) so a human can relabel in one
-pass, then end. This is the expected outcome of most unattended fires.
+Before picking, sweep open `finding` issues: relabel any with `Suggested triage: needs-spec` to
+`needs-spec` (they become eligible for this same pick, in table order alongside the rest). Leave
+`Suggested triage: human-judgment-needed` and unmarked findings untouched.
+
+If nothing is eligible in this lane, say so in one line. If any open issue still carries `finding`
+(i.e. `human-judgment-needed` or unmarked), list them with their `Suggested triage:` line (or "none
+given" if missing) so a human can triage in one pass, then end. This is the expected outcome of
+most unattended fires.
 
 ## 4. Run and end
 
