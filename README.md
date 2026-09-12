@@ -82,7 +82,7 @@ cd ios/Lingible
 
 ### Deployment
 ```bash
-cd backend/infrastructure
+cd backend/cdk
 npm run deploy:dev         # Deploy to dev environment
 npm run deploy:prod        # Deploy to production
 ```

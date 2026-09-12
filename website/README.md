@@ -49,7 +49,7 @@ The build script handles everything:
 
 The website is automatically deployed to AWS when you run:
 ```bash
-cd backend/infrastructure
+cd backend/cdk
 npm run build && npm run deploy:dev
 ```
 
