@@ -24,7 +24,11 @@ jobs:
       # setup-uv brings its own uv install/cache management -- installs the pinned uv version and,
       # with cache-dependency-glob, restores/saves its download cache keyed on the lock file's
       # content hash, replacing the old "Cache Poetry virtualenv" step.
-      - uses: astral-sh/setup-uv@v10
+      #
+      # astral-sh/setup-uv stopped publishing floating major/minor tags (@vN) at v8.0.0, so this is
+      # pinned to the exact release's commit SHA (its README's recommended form); the comment names
+      # the release. Bump by updating both together.
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.10"
           enable-cache: true
