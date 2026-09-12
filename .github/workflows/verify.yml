@@ -26,6 +26,17 @@ jobs:
           python-version: "3.13"
       - name: Install Poetry
         run: pip install poetry
+      # Poetry's own venv cache. Keyed on this file's content hash: an unchanged poetry.lock hits
+      # the cache and `poetry install` below becomes a near-no-op instead of reinstalling every
+      # dependency (including cryptography, which compiles from source and is the slowest part of
+      # a cold install) on every run. Path is Poetry's default venv location on Linux runners; if
+      # `poetry config virtualenvs.in-project` is ever turned on, this must move to
+      # backend/lambda/.venv instead.
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: poetry-venv-${{ runner.os }}-${{ hashFiles('backend/lambda/poetry.lock') }}
       - name: Install dependencies
         working-directory: backend/lambda
         run: poetry install --no-interaction
@@ -34,7 +45,8 @@ jobs:
         run: ENVIRONMENT=test PYTHONPATH=src poetry run pytest tests/ -q
       - name: mypy
         working-directory: backend/lambda
-        run: poetry run mypy src/
+        # --explicit-package-bases: see scripts/verify for why this is required, not optional.
+        run: poetry run mypy --explicit-package-bases src/
       - name: flake8
         working-directory: backend/lambda
         run: poetry run flake8 src/
@@ -46,6 +58,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/cdk/package-lock.json
       - name: Install dependencies
         working-directory: backend/cdk
         run: npm install --no-audit --no-fund
@@ -62,6 +76,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      # Not worth caching: a single `pip install pyyaml` (no lockfile for setup-python's cache: pip
+      # to key on) costs a couple of seconds, not worth the risk of it erroring on a missing
+      # dependency file.
       - run: pip install pyyaml
       - run: python3 scripts/check_specs.py
 

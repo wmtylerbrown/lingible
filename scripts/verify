@@ -28,7 +28,15 @@ echo "-- backend/lambda: pytest --"
 (cd backend/lambda && ENVIRONMENT=test PYTHONPATH=src poetry run pytest tests/ -q)
 
 echo "-- backend/lambda: mypy --"
-(cd backend/lambda && poetry run mypy src/)
+# --explicit-package-bases: backend/lambda/mypy.ini sets mypy_path = src (needed so bare imports
+# like `from models.user import User` resolve, matching the PYTHONPATH=src convention in AGENTS.md)
+# and src/ has its own __init__.py -- combined, a plain `mypy src/` reaches every file two ways
+# ("src.models.x" via the __init__.py chain, "models.x" via mypy_path) and mypy refuses with
+# "Source file found twice under different module names". This flag tells mypy to trust each file's
+# nearest explicit package base instead of resolving both paths. Confirmed as the actual fix (not a
+# workaround) locally: without it, `mypy src/` fails on every invocation regardless of which files
+# changed; with it, a clean run reports "Success: no issues found in 95 source files".
+(cd backend/lambda && poetry run mypy --explicit-package-bases src/)
 
 echo "-- backend/lambda: flake8 --"
 (cd backend/lambda && poetry run flake8 src/)
