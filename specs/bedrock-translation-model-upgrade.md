@@ -1,7 +1,7 @@
 ---
 id: SPEC-TRANSLATE-MODEL-001
 title: Upgrade the Bedrock translation/validation model off Claude 3 Haiku
-status: approved
+status: implemented
 approval: human_required
 confidence: medium
 risk: medium
@@ -14,7 +14,7 @@ affected_docs: [docs/COST_ANALYSIS.md]
 derived_decisions: 2
 implementation_decisions: 4
 escalated_decisions: 0
-security_test_ref: null
+security_test_ref: backend/cdk/scripts/verify-bedrock-resources.ts
 ---
 
 # Upgrade the Bedrock translation/validation model off Claude 3 Haiku

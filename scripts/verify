@@ -52,6 +52,9 @@ echo "-- backend/cdk: npm install --"
 echo "-- backend/cdk: build (tsc) --"
 (cd backend/cdk && npm run build)
 
+echo "-- backend/cdk: verify-bedrock-resources --"
+(cd backend/cdk && npm run test)
+
 echo "-- spec consistency --"
 python3 scripts/check_specs.py
 
