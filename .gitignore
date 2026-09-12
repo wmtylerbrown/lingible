@@ -193,28 +193,9 @@ yarn-error.log*
 # Node.js dependencies (but allow package.json and package-lock.json)
 node_modules/
 
-# Compiled JavaScript files from TypeScript
-backend/infrastructure/*.js
-backend/infrastructure/constructs/*.js
-backend/infrastructure/stacks/*.js
-backend/infrastructure/test/*.js
-
-# TypeScript declaration files
-backend/infrastructure/**/*.d.ts
-
-# Keep original JavaScript files in scripts directory
-!backend/infrastructure/scripts/*.js
-
 # Lambda deployment packages
 *.zip
 
-# Lambda build artifacts (from smart builder)
-backend/infrastructure/lambda-layer/
-backend/infrastructure/lambda-packages/
-backend/infrastructure/lambda-hashes.json
-backend/infrastructure/lambda-dependencies-layer/
-backend/infrastructure/lambda-*-layer/
-backend/infrastructure/utils/config-loader.js
 backend/cdk/artifacts/
 website/build/
 
