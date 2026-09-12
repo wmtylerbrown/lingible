@@ -38,6 +38,15 @@ and working:
 - **AWS credentials**: confirm `aws sts get-caller-identity` succeeds before going further. If it
   fails, stop and tell the user to fix their local AWS credentials — do not attempt to configure
   credentials yourself.
+- **Docker**: `backend/cdk`'s Lambda-layer bundling (`SharedConstruct.createDependencyLayer`) runs
+  `pip install` inside a `public.ecr.aws/sam/build-python3.13` container so the installed wheels
+  match the Lambda runtime's actual OS/architecture — this needs a running Docker daemon, not just
+  the Docker CLI. `docker info` failing with `Cannot connect to the Docker daemon` means Docker
+  Desktop needs to be started; ask the user to start it rather than trying to start it yourself.
+- **`poetry export`**: `scripts/build-lambda-packages.js` shells out to `poetry export` to generate
+  each Lambda layer's `requirements.txt`. Poetry 2.x dropped `export` from the core CLI into a
+  plugin — if it fails with `The requested command export does not exist`, run
+  `poetry self add poetry-plugin-export` (once; it persists across repos) before continuing.
 
 Report what you installed; don't silently skip a broken step.
 
@@ -75,9 +84,15 @@ npm run deploy:prod
 ```
 
 Stream the output. `deploy:prod` does not pass `--require-approval never`, so CDK itself may still
-prompt for approval on IAM/security-group changes — do not pre-approve that on the user's behalf by
-piping input; let it surface to them if it appears in the terminal, or explain that a security
-change needs their explicit approval if the command appears to hang waiting on it.
+prompt for approval on IAM/security-group changes. In a non-interactive session (no TTY attached),
+CDK cannot show that prompt at all — it fails outright with `Stack includes security-sensitive
+updates, but terminal (TTY) is not attached`, rather than hanging. When that happens and step 4
+already showed this exact diff and got the user's go-ahead in this conversation, ask once more,
+specifically: run `npx cdk deploy --all --context environment=prod --require-approval never` to
+bypass CDK's own prompt for this one invocation (since the diff was just reviewed and approved), or
+have the user run `npm run deploy:prod` themselves in their own interactive terminal so CDK can
+prompt them directly. Never pick the bypass yourself without asking — it's a live choice each time,
+not a standing default — and never pipe a fabricated "y" into CDK's prompt as a third option.
 
 ## 6. Verify
 
