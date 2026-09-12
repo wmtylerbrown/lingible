@@ -118,6 +118,20 @@ longer prompts, a materially more expensive model, removal of the lexicon-matchi
 without a replacement mitigation) the same as any other `ESCALATED` decision: it stops for a human
 rather than being decided autonomously, even when the code change itself is small.
 
+This is backed by a mechanical check, not just spec/review judgment:
+`scripts/check_bedrock_cost_review.py` (run by `./scripts/verify` and in CI) diffs against
+`origin/main` and fails whenever a known Bedrock-cost-relevant file changes
+(`slang_llm_service.py`, `slang_validation_service.py`, `trending_service.py`, `LLMConfig`, or the
+`llm`/`limits` blocks in `shared/config/backend/{dev,prod}.json`) without `docs/COST_ANALYSIS.md`
+also changing in the same diff — independent of whether a spec correctly predicted the change would
+touch Bedrock. A change with no real cost impact still needs a one-line entry in that doc's "Recent
+changes reviewed" table saying so; that's what satisfies the check. The script also scans every
+added line in the whole diff for Bedrock-call signatures (`invoke_model`, `bedrock_client`, etc.),
+so a genuinely new Bedrock call site in a file not yet on that known list is still caught — but an
+implementation that adds one **must** also add the file to that script's `WATCHED` list in the same
+PR (`agents/code-reviewer.md` blocks on this), so later changes to it are named explicitly rather
+than depending on the signature scan alone every time.
+
 ## Isolation principle
 
 Two roles exist to catch what the producing session cannot see about its own work:

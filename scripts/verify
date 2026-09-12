@@ -47,4 +47,7 @@ echo "-- backend/cdk: build (tsc) --"
 echo "-- spec consistency --"
 python3 scripts/check_specs.py
 
+echo "-- Bedrock cost review --"
+python3 scripts/check_bedrock_cost_review.py
+
 echo "== PASS =="

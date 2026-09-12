@@ -36,7 +36,13 @@ estimate from the actual prompt string and model in the diff — do not accept t
 unverified. Confirm `docs/COST_ANALYSIS.md` was updated if the spec said it needed to be, and that
 the update's numbers match what the diff actually does (model, `max_tokens`, prompt length). A
 prompt or model change whose real cost impact is worse than what the spec described is a blocking
-finding, even if the code otherwise matches the spec.
+finding, even if the code otherwise matches the spec. If the diff adds a **new** Bedrock call site
+(a new file or service, not an edit to an existing one), confirm it was also added to `WATCHED` in
+`scripts/check_bedrock_cost_review.py` — that script's content-signature scan will still catch an
+unlisted file, but the explicit list is what makes a *later* change to that same file get named
+precisely in this check's output rather than only its raw signature match. A new call site whose
+file wasn't added to `WATCHED` is a blocking finding (small fix, but block on it — it's exactly how
+this net gets holes in it over time).
 
 **Tests**: prove behavior, not implementation; edge, conflict, and concurrency paths; every bug fix
 has a regression test; `./scripts/verify` passes (backend tests, lint, type check, CDK build).

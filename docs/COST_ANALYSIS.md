@@ -225,7 +225,23 @@ worth confirming that reasoning explicitly once the numbers are recomputed, rath
 - Decide, with real numbers, whether the lexicon-matching step is still earning its engineering cost relative to a pure-LLM approach on a stronger model ([issue #10](https://github.com/wmtylerbrown/lingible/issues/10)).
 
 ### Ongoing
-- Keep this document current: any change to the LLM model, the translation/validation prompts, or the tier limits should update the relevant numbers here in the same PR (see `docs/development/AGENT_PROTOCOL.md` — cost impact is a required spec/review consideration for LLM-touching changes).
+- Keep this document current: any change to the LLM model, the translation/validation prompts, or
+  the tier limits should update the relevant numbers above in the same PR, or add a row to "Recent
+  changes reviewed" below stating there is none and why. `scripts/check_bedrock_cost_review.py`
+  enforces the mechanical half of this: it fails CI whenever a Bedrock-cost-relevant file changes
+  without this document changing too (see `docs/development/AGENT_PROTOCOL.md` — cost impact is
+  also a required spec/review consideration for LLM-touching changes).
+
+## Recent changes reviewed
+
+When a change to a Bedrock-cost-relevant file (the LLM call sites, `LLMConfig`, or the
+`llm`/`limits` blocks in `shared/config/backend/{dev,prod}.json`) genuinely has no cost impact (a
+pure refactor, a type-hint fix, a log-line tweak), add one line here instead of a full recompute —
+that's what satisfies `scripts/check_bedrock_cost_review.py` and what makes this list itself a real
+record that a human or agent actually looked, not just an assumption.
+
+| Date | Change | Cost impact |
+|---|---|---|
 
 ---
 
