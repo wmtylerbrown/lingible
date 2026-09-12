@@ -1,7 +1,7 @@
 ---
 id: SPEC-INFRA-TOOLCHAIN-001
 title: Backend Python toolchain (uv + ruff + nox)
-status: approved
+status: implemented
 approval: autonomous
 confidence: high
 risk: medium
