@@ -1,0 +1,66 @@
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Validation only -- this workflow never deploys. `npm run deploy:dev` / `npm run deploy:prod`
+# from backend/cdk/ remain the only path to AWS, run manually by a human
+# (docs/development/AGENT_PROTOCOL.md "Deploys stay separate from CI").
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Install dependencies
+        working-directory: backend/lambda
+        run: poetry install --no-interaction
+      - name: pytest
+        working-directory: backend/lambda
+        run: ENVIRONMENT=test PYTHONPATH=src poetry run pytest tests/ -q
+      - name: mypy
+        working-directory: backend/lambda
+        run: poetry run mypy src/
+      - name: flake8
+        working-directory: backend/lambda
+        run: poetry run flake8 src/
+
+  cdk-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        working-directory: backend/cdk
+        run: npm install --no-audit --no-fund
+      - name: Build (tsc)
+        working-directory: backend/cdk
+        run: npm run build
+
+  spec-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml
+      - run: python3 scripts/check_specs.py
