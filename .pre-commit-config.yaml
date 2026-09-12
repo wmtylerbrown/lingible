@@ -17,13 +17,19 @@ repos:
         files: ^backend/lambda/src/.*\.py$
         exclude: ^backend/lambda/src/utils/slang_words\.py$
 
-  # MyPy - Type checking
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.1
+  # MyPy - Type checking. A local hook shelling into backend/lambda's own Poetry environment,
+  # rather than the mirrors-mypy hook's isolated venv, so it reads backend/lambda/mypy.ini (the
+  # pydantic plugin and the per-module ignore_missing_imports overrides) instead of a bare
+  # --ignore-missing-imports run -- see specs/mypy-package-identity-fix.md. Runs the same
+  # whole-tree `mypy src/` as scripts/verify/CI, since mypy's module resolution needs the full
+  # src/ tree together, not just the files that changed.
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests]
-        args: [--ignore-missing-imports]
+        name: mypy (backend/lambda, project config)
+        entry: bash -c 'cd backend/lambda && poetry run mypy src/'
+        language: system
+        pass_filenames: false
         files: ^backend/lambda/src/.*\.py$
         exclude: ^backend/lambda/src/utils/slang_words\.py$
 
