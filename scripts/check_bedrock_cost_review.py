@@ -8,12 +8,13 @@ Bedrock. This script doesn't trust that prediction -- it looks at the actual dif
 1. **Known files** (WATCHED below): the existing Bedrock call sites and cost-relevant config.
    Extend this list whenever a new call site is added there -- an unlisted *known* file touching
    Bedrock cost is a bug in this list.
-2. **Content signatures** (BEDROCK_SIGNATURES below): every added/changed line across the whole
-   diff, not just WATCHED files, is scanned for signs of a Bedrock call -- `invoke_model`,
-   `bedrock_client`, `anthropic_version`, a Bedrock `modelId=`. This is what catches a *new* file
-   that starts calling Bedrock for the first time (a new feature's own service module, say) even
-   though nobody added it to WATCHED yet -- the alternative, trusting only a hand-maintained file
-   list, silently misses exactly that case.
+2. **Content signatures** (BEDROCK_SIGNATURES below): every added/changed line in every changed
+   *code* file (by extension -- CODE_EXTENSIONS below; a spec or doc describing a Bedrock call
+   legitimately contains the same words as code that makes one, so prose is excluded) is scanned
+   for signs of a Bedrock call -- `invoke_model`, `bedrock_client`, `anthropic_version`, a Bedrock
+   `modelId=`. This is what catches a *new* file that starts calling Bedrock for the first time (a
+   new feature's own service module, say) even though nobody added it to WATCHED yet -- the
+   alternative, trusting only a hand-maintained file list, silently misses exactly that case.
 
 Either kind of hit, with no corresponding touch of `docs/COST_ANALYSIS.md` in the same diff, fails
 the check. This is a deliberately blunt instrument: it will sometimes ask for a
@@ -77,20 +78,31 @@ def changed_files(base: str) -> set[str]:
 
 SELF_PATH = "scripts/check_bedrock_cost_review.py"  # its own docstring names its signatures
 
+# Only code, not prose: a spec or doc *describing* a Bedrock call (this very script's spec-writing
+# use case) legitimately contains the same words -- "invoke_model", "bedrock_client" -- as actual
+# code that calls Bedrock. Scoping the signature scan to code extensions is what keeps it a signal
+# about new call sites instead of firing on any file that talks about Bedrock.
+CODE_EXTENSIONS = (".py", ".ts", ".tsx", ".js", ".jsx")
+
 
 def files_with_bedrock_signatures(base: str) -> set[str]:
-    """Files (any path) whose added/changed lines contain a Bedrock-call signature."""
+    """Code files (by extension) whose added/changed lines contain a Bedrock-call signature."""
     diff = run_git("diff", "-U0", f"{base}...HEAD")
     hits: set[str] = set()
     current_file: str | None = None
+    current_file_is_code = False
     for line in diff.splitlines():
         if line.startswith("+++ b/"):
             current_file = line[len("+++ b/") :].strip()
+            current_file_is_code = current_file.endswith(CODE_EXTENSIONS)
             continue
         if not line.startswith("+") or line.startswith("+++"):
             continue
-        if current_file and current_file != SELF_PATH and any(
-            sig in line for sig in BEDROCK_SIGNATURES
+        if (
+            current_file
+            and current_file_is_code
+            and current_file != SELF_PATH
+            and any(sig in line for sig in BEDROCK_SIGNATURES)
         ):
             hits.add(current_file)
     return hits
