@@ -1,0 +1,94 @@
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Validation only -- this workflow never deploys. `npm run deploy:dev` / `npm run deploy:prod`
+# from backend/cdk/ remain the only path to AWS, run manually by a human
+# (docs/development/AGENT_PROTOCOL.md "Deploys stay separate from CI").
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Poetry
+        run: pip install poetry
+      # Poetry's own venv cache. Keyed on this file's content hash: an unchanged poetry.lock hits
+      # the cache and `poetry install` below becomes a near-no-op instead of reinstalling every
+      # dependency (including cryptography, which compiles from source and is the slowest part of
+      # a cold install) on every run. Path is Poetry's default venv location on Linux runners; if
+      # `poetry config virtualenvs.in-project` is ever turned on, this must move to
+      # backend/lambda/.venv instead.
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: poetry-venv-${{ runner.os }}-${{ hashFiles('backend/lambda/poetry.lock') }}
+      - name: Install dependencies
+        working-directory: backend/lambda
+        run: poetry install --no-interaction
+      - name: pytest
+        working-directory: backend/lambda
+        run: ENVIRONMENT=test PYTHONPATH=src poetry run pytest tests/ -q
+      - name: mypy
+        working-directory: backend/lambda
+        # --explicit-package-bases: see scripts/verify for why this is required, not optional.
+        run: poetry run mypy --explicit-package-bases src/
+      - name: flake8
+        working-directory: backend/lambda
+        run: poetry run flake8 src/
+
+  cdk-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/cdk/package-lock.json
+      - name: Install dependencies
+        working-directory: backend/cdk
+        run: npm install --no-audit --no-fund
+      - name: Build (tsc)
+        working-directory: backend/cdk
+        run: npm run build
+
+  spec-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Not worth caching: a single `pip install pyyaml` (no lockfile for setup-python's cache: pip
+      # to key on) costs a couple of seconds, not worth the risk of it erroring on a missing
+      # dependency file.
+      - run: pip install pyyaml
+      - run: python3 scripts/check_specs.py
+
+  bedrock-cost-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python3 scripts/check_bedrock_cost_review.py origin/main

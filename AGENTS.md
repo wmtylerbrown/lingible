@@ -2,6 +2,15 @@
 
 A guide for AI coding agents working on the Lingible mobile app AWS backend.
 
+## Development workflow: the spec/implement pipeline
+
+Work on this repository is driven by `docs/development/AGENT_PROTOCOL.md`: GitHub Issues are the
+work queue (`needs-spec` → `ready` → merged, or `blocked`/`finding`), `specs/` holds the living
+behavior contracts, and `/spec`, `/implement`, `/pipeline` (Claude Code skills under
+`.claude/skills/`) move issues through it with isolated review (`agents/spec-reviewer.md`,
+`agents/code-reviewer.md`) before anything merges. Read that doc before starting work on any
+issue. Every change lands via PR against `main` — nothing is pushed to `main` directly.
+
 ## Dev Environment Setup
 
 ### Python Environment
