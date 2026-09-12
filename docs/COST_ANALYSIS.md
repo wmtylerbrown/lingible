@@ -330,6 +330,7 @@ record that a human or agent actually looked, not just an assumption.
 | Date | Change | Cost impact |
 |---|---|---|
 | 2026-09-12 | `llm.model` changed from `anthropic.claude-3-haiku-20240307-v1:0` to `us.anthropic.claude-haiku-4-5-20251001-v1:0` ([issue #9](https://github.com/wmtylerbrown/lingible/issues/9)) | Full recompute above: ~4x per-token cost increase, heavy-user premium cost rises from ~$0.79/month to ~$2.12–$3.14/month against $9.99 revenue — affordable at current tier limits, not a threat to unit economics. |
+| 2026-09-12 | `backend/lambda/src/services/slang_validation_service.py` reformatted by `ruff format` as part of the Poetry→uv/ruff/nox toolchain migration ([issue #12](https://github.com/wmtylerbrown/lingible/issues/12)) | No cost impact: purely mechanical (one string literal's quote style, `'Not provided'` → `"Not provided"`), content-identical — no change to the prompt text, token count, model, or call volume. |
 
 ---
 

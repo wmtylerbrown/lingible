@@ -158,7 +158,6 @@ pytest --cov=src --cov-report=html
 
 ## 📚 Documentation
 
-- [`poetry-migration.md`](./docs/poetry-migration.md) - Poetry setup and usage
 - [`timezone-change-summary.md`](./docs/timezone-change-summary.md) - Timezone fixes
 - [`tier-storage-fix-summary.md`](./docs/tier-storage-fix-summary.md) - Performance optimizations
 - [`lambda-optimization.md`](./docs/lambda-optimization.md) - Lambda optimization guide
