@@ -26,14 +26,15 @@ Three skills, one entry point:
 |---|---|---|
 | `/spec <issue>` | an issue labeled `needs-spec` | an approved spec (new file, or a delta recorded on the issue), issue relabeled `ready` |
 | `/implement <issue>` | an issue labeled `ready` whose dependencies are done | one PR that closes the issue |
-| `/pipeline [implement\|spec]` | nothing in particular | runs `/implement` or `/spec` on the next eligible issue in its lane, one run per lane at a time |
+| `/pipeline [implement\|spec]` | nothing in particular | launches `/implement` or `/spec` on the next eligible issue(s) in its lane as background subagents, then ends |
 
-`/pipeline` is what a scheduled routine can run unattended (one per lane, if/when Tyler sets that
-up — see "Human-owned infrastructure" below) and what a human runs interactively to "do the next
-thing". The two lanes are independent and each is single-flight: at most one implement run and one
-spec run at a time, never two of the same kind. A spec run only needs its dependencies' designs
-locked, so specs run ahead of code, and a draft PR waiting on a human holds the implement lane
-without stalling spec work.
+`/pipeline` is what a self-pacing unattended loop runs (see "Human-owned infrastructure" below) and
+what a human runs interactively to "do the next thing". The two lanes are independent: a spec run
+only needs its dependencies' designs locked, so specs run ahead of code, and a draft PR waiting on
+a human holds the implement lane without stalling spec work. The spec lane is single-flight — at
+most one `/spec` run at a time. The implement lane may run more than one `/implement` at a time:
+each runs in its own git worktree, and a new one is only launched when its issue's expected file
+scope doesn't overlap any other currently-active implement claim's (see "Parallel implement runs").
 
 ## Issues are the queue
 
@@ -54,21 +55,57 @@ capability name from `ROADMAP.md` when one applies. Labels carry the queue state
 ### Claims
 
 Before starting `/implement` or `/spec` on an issue, add that lane's label (`in-progress:implement`
-or `in-progress:spec`) and post one comment: `Pipeline claimed <RFC3339 UTC>`. Release by removing
-the lane label (and restoring `ready` or `needs-spec`) when the run ends without merging. A claim
-whose comment is older than three hours with no open PR referencing the issue is stale; `/pipeline`
-removes it and treats the issue as free. Claims are API calls, never commits.
+or `in-progress:spec`) and post one comment: `Pipeline claimed <RFC3339 UTC>. Expected scope:
+<paths/dirs the work will touch>`. The expected scope is a short, honest guess (the files/dirs the
+issue's own description points at, or the capability's usual area in `ROADMAP.md`) — its only job
+is letting a later claim check itself against it. Release by removing the lane label (and restoring
+`ready` or `needs-spec`) when the run ends without merging. A claim whose comment is older than
+three hours with no open PR referencing the issue is stale; `/pipeline` removes it and treats the
+issue as free. Claims are API calls, never commits.
 
-A lane is busy while any open issue carries its label. `/pipeline` checks only its own lane, so
-the implement lane and the spec lane never wait on each other. Two runs of the same lane must never
-be active at once: a human running `/spec` or `/implement` directly is expected to check the lane
-first, the same way `/pipeline` does.
+The spec lane is single-flight: busy while any open issue carries `in-progress:spec`. The implement
+lane is not — it may have more than one open `in-progress:implement` claim at once, each in its own
+worktree, provided every pair of concurrently active claims has non-overlapping expected scope (see
+"Parallel implement runs" for how a new claim is checked against the active ones before it's taken).
+The two lanes never wait on each other. A human running `/spec` or `/implement` directly is expected
+to check for a conflicting claim first, the same way `/pipeline` does.
 
 ### Dependencies
 
 `ROADMAP.md`'s table lists what each capability depends on. A dependency is satisfied for
 `/implement` when it has at least one `implemented` spec and no open issue carries its name. For
 `/spec`, a dependency only needs an `approved` or `implemented` spec (its design is locked).
+
+### Parallel implement runs
+
+Ported from the same pattern used on `allong`: within the implement lane, running two unrelated
+issues at once is close to free — each is a separate subagent in its own worktree touching
+different files — and is the single biggest throughput win available, so `/pipeline` takes it
+whenever it's safe.
+
+Before launching a second (or third) implement run in the same `/pipeline` invocation:
+
+1. Compare the candidate issue's expected scope against every currently active
+   `in-progress:implement` claim's expected scope (from their claim comments). If any two overlap
+   even partially, do not launch it concurrently — queue it for a later tick instead.
+2. Once a run is actually underway, confirm the assumption: `git status` / `git diff --stat` in
+   each active worktree, and check the files touched so far still don't overlap. Expected scope is
+   a pre-launch estimate, not a guarantee.
+3. Launch each qualifying run as its own subagent via the `Agent` tool with
+   `isolation: "worktree"`, running in the background so `/pipeline` itself returns promptly.
+
+Two things that come up in practice:
+
+- **A parallel run's base branch can go stale mid-flight.** If one concurrent run merges first, any
+  sibling still in flight needs `git fetch` + rebase onto the new `main` before it can merge too.
+  This is not a reason to avoid running them concurrently — it's a normal step: re-confirm the
+  diffs are still non-overlapping when you do it, since a merge can change what "non-overlapping"
+  means for what's left.
+- **A subagent that reports "waiting for a notification" and then goes quiet is not actually
+  waiting on anything.** Only the orchestrating session (the one that called `Agent`) gets woken up
+  when a subagent's own task completes — a subagent itself receives no such push. If a run's report
+  reads like it's blocking on an external wake-up with no completed outcome to show for it, resume
+  it and have it poll CI/PR state directly instead.
 
 ### Findings
 
@@ -193,18 +230,39 @@ same-turn human ask" rule from "Human-owned infrastructure" below still applies 
 
 ## Notify a human
 
-Notify only when a run ends at `blocked`, leaves a draft PR waiting on a human merge decision, or
-created `finding` issues. Never for a clean autonomous completion. In Claude Code the mechanism is
-the `PushNotification` tool: one message under 200 characters leading with what the human would act
-on (the issue and the blocker, or the PR and why it is waiting).
+Notify only when a run ends at `blocked`, leaves a draft PR waiting on a human merge decision,
+created a `human-judgment-needed` finding, or (for an unattended `/loop /pipeline`) the queue goes
+empty with nothing in flight. Never for a clean autonomous completion, a mechanical `needs-spec`
+finding relabel, or one tick of an otherwise-still-running loop. In Claude Code the mechanism is the
+`PushNotification` tool: one message under 200 characters leading with what the human would act on
+(the issue and the blocker, or the PR and why it is waiting).
 
 ## Human-owned infrastructure
 
-Any scheduled/unattended `/pipeline` routine, its schedule, and any GitHub secrets are provisioned
-by a human. Agents report problems with them and propose fixes; they do not create, delete, or
-reconfigure such automation without explicit in-conversation authorization for that specific
-action. As of this writing, no unattended routine is configured — `/pipeline` is run interactively
-by Tyler until he decides otherwise.
+Any scheduled/unattended routine, its schedule, and any GitHub secrets are provisioned by a human.
+Agents report problems with them and propose fixes; they do not create, delete, or reconfigure such
+automation without explicit in-conversation authorization for that specific action.
+
+Tyler has authorized one standing form of unattended operation: an interactive session self-pacing
+`/pipeline` calls via Claude Code's generic `/loop` skill (`/loop /pipeline`), started and stopped
+by Tyler in that session. No cron/CI-triggered routine exists, and starting one still needs its own
+explicit authorization — `/loop /pipeline` is a foreground session that stays running only as long
+as its terminal/window does, not a background service. Within that loop:
+
+- **Self-paced, not fixed-interval.** Each tick reschedules its own next wake-up based on what it
+  just saw: roughly 5 minutes when nothing is running (a findings sweep and a lane check are
+  cheap), backing off to roughly 10-15 minutes while an implement run is actively in flight (those
+  take much longer, so checking sooner just finds nothing new).
+- **Findings sweep every tick, before picking work** — see "Findings" below; this is what lets the
+  backlog clear without a human relabeling every mechanical one by hand.
+- **Stop condition is an empty queue with nothing in flight** — no arbitrary time limit or issue
+  count. One final notification summarizing what merged, then the loop ends itself; restarting
+  later always re-reads queue state from the issue tracker from scratch, so there's no orchestrator
+  state to lose between runs.
+- Escalation stays exactly as in "Notify a human" below — a `blocked` issue, a draft PR waiting on
+  a human, or a `human-judgment-needed` finding, and nothing else. A policy change to this document
+  itself (the meta-rule, not a single issue's outcome) still gets a human's own PR review before
+  merging, same as always, even inside an otherwise-unattended loop.
 
 ## Switching AI tools
 
