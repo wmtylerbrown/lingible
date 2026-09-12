@@ -165,9 +165,19 @@ findings on the issue, so a human sees a converging record rather than a loop.
 
 CI (`.github/workflows/verify.yml`) validates — tests, lint, type checks, the CDK TypeScript build
 — it never deploys. `npm run deploy:dev` / `npm run deploy:prod` from `backend/cdk/` remain the
-only way anything reaches AWS, run manually by a human. This is a deliberate, standing choice for
-this repo (unlike `allong`, which does run an automated deploy pipeline): keep deploys a local,
-manual, single-person action rather than routing them through GitHub Actions.
+only way anything reaches AWS. This is a deliberate, standing choice for this repo (unlike
+`allong`, which does run an automated deploy pipeline): keep deploys a single-person action a human
+explicitly starts each time, never something a pipeline routine or CI reaches on its own.
+
+A deploy may be run through the `/deploy` skill (`.claude/skills/deploy/`), which sets up the local
+toolchain and runs build/test/deploy — but only when a human explicitly invokes `/deploy` in an
+interactive session for that specific run, and only after it states what it is about to run (target
+environment, and for prod, the diff/changeset) and gets an explicit go-ahead before the deploy
+command itself executes. `/deploy` must never be invoked by `/pipeline`, `/implement`, `/spec`, an
+unattended routine, or any other automated flow — those stay confined to spec/review/PR delivery
+work and stop short of this step, exactly as before. This carve-out changes *how* a human-initiated
+deploy is executed, not *who* decides to deploy: the standing "no agent deploy without an explicit,
+same-turn human ask" rule from "Human-owned infrastructure" below still applies in full.
 
 ## Notify a human
 

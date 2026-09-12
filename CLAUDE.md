@@ -1,7 +1,7 @@
 # Claude Code Adapter
 
 Read and follow `AGENTS.md`. The workflow is `docs/development/AGENT_PROTOCOL.md`; the portable
-role files are in `agents/`; the skills are `/spec`, `/implement`, and `/pipeline` under
+role files are in `agents/`; the skills are `/spec`, `/implement`, `/pipeline`, and `/deploy` under
 `.claude/skills/`.
 
 ## Subagents
@@ -26,9 +26,11 @@ hook refuses any `git push` targeting `main`; every change is a PR.
 
 ## Deploys are separate from this pipeline
 
-CI validates; it does not deploy. Deploys to dev/staging/prod stay a manual, local action via
-`npm run deploy:dev` / `npm run deploy:prod` in `backend/cdk/` — never something this pipeline (or
-an agent) does automatically. See `docs/development/AGENT_PROTOCOL.md` "Deploys stay separate from
-CI".
+CI validates; it does not deploy. Deploys to dev/staging/prod are a human-initiated, single-person
+action, run either directly (`npm run deploy:dev` / `npm run deploy:prod` in `backend/cdk/`) or via
+the `/deploy` skill under `.claude/skills/` — never something `/pipeline`, `/implement`, `/spec`, or
+any unattended routine reaches on its own. `/deploy` only ever runs from an explicit, same-turn
+human invocation in an interactive session, and confirms the target and (for prod) the changeset
+before executing. See `docs/development/AGENT_PROTOCOL.md` "Deploys stay separate from CI".
 
 The repository, not this adapter or conversation memory, is the source of truth.
