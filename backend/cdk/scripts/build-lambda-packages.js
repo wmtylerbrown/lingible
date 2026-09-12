@@ -12,13 +12,19 @@ const ARTIFACT_ROOT = path.resolve(__dirname, '..', 'artifacts');
 const LAMBDA_LAYER_DIR = path.join(ARTIFACT_ROOT, 'lambda-layer');
 const LAMBDA_PACKAGES_DIR = path.join(ARTIFACT_ROOT, 'lambda-packages');
 const HASH_FILE = path.join(ARTIFACT_ROOT, 'lambda-hashes.json');
-const VENV_ACTIVATE = path.join(REPO_ROOT, '.venv', 'bin', 'activate');
+// The repo-root `.venv` AGENTS.md documents (never a nested backend/lambda/.venv) -- used only to
+// pin which Python `uv export`'s dependency-resolution markers evaluate against. The actual
+// dependency *install* below targets a different platform entirely (aarch64-manylinux2014, the
+// Lambda runtime's own architecture) via `--python-platform`, regardless of this host's own OS.
+const VENV_PYTHON = path.join(REPO_ROOT, '.venv', 'bin', 'python3');
 
 const LAYER_CONFIGS = {
   core: {
     name: 'Core Dependencies',
     description: 'Core dependencies for most Lambda functions',
-    groups: ['main'],
+    // Extras beyond backend/lambda/pyproject.toml's base `[project.dependencies]` to bundle into
+    // this layer (never the `dev` dependency-group -- `uv export --no-dev` below excludes it).
+    extras: [],
     handlers: [
       'translate_api',
       'get_translation_history_api',
@@ -45,13 +51,13 @@ const LAYER_CONFIGS = {
   'receipt-validation': {
     name: 'Receipt Validation Dependencies',
     description: 'Dependencies for Apple/Google receipt validation',
-    groups: ['main', 'receipt-validation'],
+    extras: ['receipt-validation'],
     handlers: ['user_upgrade_api', 'apple_webhook_api', 'user_account_deletion_api', 'user_data_cleanup_async'],
   },
   'slang-validation': {
     name: 'Slang Validation Dependencies',
     description: 'Dependencies for slang validation with web search (Tavily SDK)',
-    groups: ['main', 'slang-validation'],
+    extras: ['slang-validation'],
     handlers: ['slang_validation_async'],
   },
 };
@@ -174,20 +180,20 @@ function buildDependencyLayer(layerName, config) {
   console.log(`📦 Building ${config.name} layer...`);
 
   const layerDir = path.join(ARTIFACT_ROOT, `lambda-${layerName}-layer`);
+  const pythonDir = path.join(layerDir, 'python');
+  const requirementsPath = path.join(layerDir, 'requirements.txt');
   const layerHashKey = `${layerName}-layer`;
 
-  if (fs.existsSync(layerDir)) {
-    fs.rmSync(layerDir, { recursive: true, force: true });
-  }
   fs.mkdirSync(layerDir, { recursive: true });
 
   console.log(`📦 Generating requirements.txt for ${layerName} layer...`);
   try {
-    const requirementsPath = path.join(layerDir, 'requirements.txt');
-    const groupsArg = config.groups.map((group) => `--with ${group}`).join(' ');
-    const exportCmd = `cd "${LAMBDA_DIR}" && source "${VENV_ACTIVATE}" && poetry export ${groupsArg} --format=requirements.txt --output="${path.resolve(
-      requirementsPath
-    )}" --without-hashes`;
+    const extrasArgs = config.extras.map((extra) => `--extra ${extra}`).join(' ');
+    // --no-dev excludes backend/lambda/pyproject.toml's `dev` dependency-group (pytest, mypy,
+    // ruff, ...) -- uv includes it by default otherwise, unlike Poetry's main-group-only default.
+    // --frozen asserts uv.lock is already up to date rather than silently re-resolving it as a
+    // side effect of this build step.
+    const exportCmd = `uv export --project "${LAMBDA_DIR}" --python "${VENV_PYTHON}" --frozen --no-dev ${extrasArgs} --no-hashes --no-header --no-annotate --format requirements-txt --output-file "${requirementsPath}"`;
 
     execSync(exportCmd, {
       stdio: 'inherit',
@@ -200,14 +206,33 @@ function buildDependencyLayer(layerName, config) {
     return;
   }
 
-  const requirementsPath = path.join(layerDir, 'requirements.txt');
   const content = fs.readFileSync(requirementsPath);
   const requirementsHash = crypto.createHash('sha256').update(content).digest('hex');
 
   const hashes = loadHashes();
 
-  if (hashes[layerHashKey] === requirementsHash) {
-    console.log(`✅ ${config.name} layer unchanged, skipping rebuild`);
+  if (hashes[layerHashKey] === requirementsHash && fs.existsSync(pythonDir) && fs.readdirSync(pythonDir).length > 0) {
+    console.log(`✅ ${config.name} layer unchanged, skipping dependency install`);
+    return;
+  }
+
+  console.log(`📦 Installing dependencies for ${layerName} layer (arm64, Python 3.13, no compilation)...`);
+  if (fs.existsSync(pythonDir)) {
+    fs.rmSync(pythonDir, { recursive: true, force: true });
+  }
+  try {
+    // Pure cross-platform wheel resolution -- downloads prebuilt manylinux/arm64 wheels from
+    // PyPI, compiles nothing, and needs no Docker daemon (see specs/backend-python-toolchain.md).
+    // aarch64-manylinux2014 matches this layer's compatibleRuntimes/architecture declared in
+    // backend/cdk/src/constructs/shared-construct.ts and python-lambda.ts (arm64, Python 3.13).
+    const installCmd = `uv pip install --python-platform aarch64-manylinux2014 --python-version 3.13 --only-binary=:all: --target "${pythonDir}" --requirement "${requirementsPath}"`;
+
+    execSync(installCmd, {
+      stdio: 'inherit',
+      shell: true,
+    });
+  } catch (error) {
+    console.error(`❌ Failed to install dependencies for ${layerName} layer:`, error.message);
     return;
   }
 
@@ -322,8 +347,9 @@ function main() {
     process.exit(1);
   }
 
-  if (!fs.existsSync(VENV_ACTIVATE)) {
-    console.log(`❌ Error: Virtual environment not found at ${VENV_ACTIVATE}`);
+  if (!fs.existsSync(VENV_PYTHON)) {
+    console.log(`❌ Error: Virtual environment not found at ${VENV_PYTHON}`);
+    console.log('   Run `backend/scripts/setup-uv.sh` (or `uv sync --project backend/lambda --all-extras`) first.');
     process.exit(1);
   }
 

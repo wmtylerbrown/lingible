@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Local/CI verification for Lingible. Runs the same checks `.github/workflows/verify.yml` runs.
 #
-# Unlike the `allong` project's `scripts/verify` (uv + nox + a hash-locked toolchain), Lingible
-# still uses Poetry for the backend and a plain `npm run build` (tsc) for the CDK app -- this
-# script is deliberately simple rather than a straight port. See issue tracking a possible future
-# move to a locked toolchain (uv/ruff/nox) to match `allong`, if that's ever wanted here.
+# backend/lambda's Python toolchain matches the `allong` project's (uv + ruff + nox, `uv.lock`
+# hash-verified by default) -- see specs/backend-python-toolchain.md. The CDK app remains a plain
+# `npm run build` (tsc); nox does not cover it, since it's a different language toolchain.
 #
 # This script validates only. It never deploys -- `npm run deploy:dev` / `npm run deploy:prod`
 # from backend/cdk/ remain the only path to AWS (docs/development/AGENT_PROTOCOL.md "Deploys stay
@@ -16,22 +15,16 @@ cd "$ROOT"
 
 echo "== Lingible verification =="
 
-if ! command -v poetry >/dev/null 2>&1; then
-  echo "ERROR: poetry is required (backend/lambda uses Poetry); verification cannot run." >&2
+if ! command -v uv >/dev/null 2>&1; then
+  echo "ERROR: uv is required (backend/lambda uses uv); verification cannot run." >&2
   exit 1
 fi
 
-echo "-- backend/lambda: poetry install --"
-(cd backend/lambda && poetry install --no-interaction)
+echo "-- backend/lambda: uv sync --"
+UV_PROJECT_ENVIRONMENT="$ROOT/.venv" uv sync --project backend/lambda --all-extras
 
-echo "-- backend/lambda: pytest --"
-(cd backend/lambda && ENVIRONMENT=test PYTHONPATH=src poetry run pytest tests/ -q)
-
-echo "-- backend/lambda: mypy --"
-(cd backend/lambda && poetry run mypy src/)
-
-echo "-- backend/lambda: flake8 --"
-(cd backend/lambda && poetry run flake8 src/)
+echo "-- backend/lambda: nox (lint, typecheck, test) --"
+"$ROOT/.venv/bin/nox" -s lint typecheck test
 
 if ! command -v npm >/dev/null 2>&1; then
   echo "ERROR: npm is required (backend/cdk); verification cannot run." >&2

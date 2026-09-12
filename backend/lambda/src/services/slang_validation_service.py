@@ -215,7 +215,7 @@ class SlangValidationService:
 SUBMISSION:
 Term: {submission.slang_term}
 Definition: {submission.meaning}
-Example: {submission.example_usage or 'Not provided'}
+Example: {submission.example_usage or "Not provided"}
 {web_evidence}
 
 ANALYSIS TASKS:

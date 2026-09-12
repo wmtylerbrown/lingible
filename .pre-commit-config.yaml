@@ -1,23 +1,17 @@
 repos:
-  # Black - Code formatting
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
+  # Ruff - Formatting + linting (replaces Black + Flake8; config in backend/lambda/pyproject.toml,
+  # see specs/backend-python-toolchain.md). ruff-format is Black-compatible; ruff (lint) mirrors
+  # what bare `flake8 src/` was already checking.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.7
     hooks:
-      - id: black
-        language_version: python3
-        args: [--line-length=88]
+      - id: ruff-format
+        files: ^backend/lambda/src/.*\.py$
+      - id: ruff
+        args: [--fix]
         files: ^backend/lambda/src/.*\.py$
 
-  # Flake8 - Linting
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.3.0
-    hooks:
-      - id: flake8
-        args: [--max-line-length=88]
-        files: ^backend/lambda/src/.*\.py$
-        exclude: ^backend/lambda/src/utils/slang_words\.py$
-
-  # MyPy - Type checking. A local hook shelling into backend/lambda's own Poetry environment,
+  # MyPy - Type checking. A local hook shelling into backend/lambda's own uv-managed environment,
   # rather than the mirrors-mypy hook's isolated venv, so it reads backend/lambda/mypy.ini (the
   # pydantic plugin and the per-module ignore_missing_imports overrides) instead of a bare
   # --ignore-missing-imports run -- see specs/mypy-package-identity-fix.md. Runs the same
@@ -27,7 +21,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy (backend/lambda, project config)
-        entry: bash -c 'cd backend/lambda && poetry run mypy src/'
+        entry: bash -c 'cd backend/lambda && ../../.venv/bin/mypy src/'
         language: system
         pass_filenames: false
         files: ^backend/lambda/src/.*\.py$

@@ -131,9 +131,9 @@ def _process_notification(decoded_payload) -> None:
             user_id = subscription_service.find_user_id_by_transaction_id(
                 transaction_id
             )
-            assert (
-                user_id is not None
-            ), f"User ID should exist after successful cancellation for transaction {transaction_id}"
+            assert user_id is not None, (
+                f"User ID should exist after successful cancellation for transaction {transaction_id}"
+            )
             user_service.downgrade_user_tier(user_id, UserTier.FREE)
 
         elif "DID_FAIL_TO_RENEW" in notification_type:
@@ -145,9 +145,9 @@ def _process_notification(decoded_payload) -> None:
             user_id = subscription_service.find_user_id_by_transaction_id(
                 transaction_id
             )
-            assert (
-                user_id is not None
-            ), f"User ID should exist after successful payment failure handling for transaction {transaction_id}"
+            assert user_id is not None, (
+                f"User ID should exist after successful payment failure handling for transaction {transaction_id}"
+            )
             user_service.downgrade_user_tier(user_id, UserTier.FREE)
 
         elif "SUBSCRIBED" in notification_type:

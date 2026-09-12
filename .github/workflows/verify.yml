@@ -21,34 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # setup-uv brings its own uv install/cache management -- installs the pinned uv version and,
+      # with cache-dependency-glob, restores/saves its download cache keyed on the lock file's
+      # content hash, replacing the old "Cache Poetry virtualenv" step.
+      - uses: astral-sh/setup-uv@v10
         with:
-          python-version: "3.13"
-      - name: Install Poetry
-        run: pip install poetry
-      # Poetry's own venv cache. Keyed on this file's content hash: an unchanged poetry.lock hits
-      # the cache and `poetry install` below becomes a near-no-op instead of reinstalling every
-      # dependency (including cryptography, which compiles from source and is the slowest part of
-      # a cold install) on every run. Path is Poetry's default venv location on Linux runners; if
-      # `poetry config virtualenvs.in-project` is ever turned on, this must move to
-      # backend/lambda/.venv instead.
-      - name: Cache Poetry virtualenv
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pypoetry/virtualenvs
-          key: poetry-venv-${{ runner.os }}-${{ hashFiles('backend/lambda/poetry.lock') }}
-      - name: Install dependencies
-        working-directory: backend/lambda
-        run: poetry install --no-interaction
-      - name: pytest
-        working-directory: backend/lambda
-        run: ENVIRONMENT=test PYTHONPATH=src poetry run pytest tests/ -q
-      - name: mypy
-        working-directory: backend/lambda
-        run: poetry run mypy src/
-      - name: flake8
-        working-directory: backend/lambda
-        run: poetry run flake8 src/
+          version: "0.12.10"
+          enable-cache: true
+          cache-dependency-glob: "backend/lambda/uv.lock"
+      - name: uv sync
+        run: uv sync --project backend/lambda --all-extras
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.venv
+      - name: nox (lint, typecheck, test)
+        run: .venv/bin/nox -s lint typecheck test
 
   cdk-build:
     runs-on: ubuntu-latest

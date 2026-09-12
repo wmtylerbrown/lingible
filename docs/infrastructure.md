@@ -60,8 +60,10 @@ BackendStack (single CloudFormation stack)
 
 ### Required Tools
 - **Node.js**: For CDK and npm scripts
-- **Docker Desktop**: Required for Lambda layer bundling (ARM64)
-- **Python 3.11+**: For Lambda runtime and Poetry
+- **uv**: For Python dependency management and the Lambda dependency-layer build (`uv pip install
+  --python-platform ...` resolves prebuilt arm64/manylinux wheels directly -- no Docker daemon
+  required; see `specs/backend-python-toolchain.md`)
+- **Python 3.13**: For Lambda runtime
 - **AWS CLI**: Configured with appropriate credentials
 
 ### Environment Setup
@@ -71,9 +73,9 @@ BackendStack (single CloudFormation stack)
 cd backend/cdk
 npm install
 
-# Install Python dependencies
+# Install Python dependencies (or just run backend/scripts/setup-uv.sh from the repo root)
 cd ../lambda
-poetry install
+uv sync --all-extras
 ```
 
 ## Deployment Process
@@ -103,7 +105,10 @@ npm run synth:dev
 npm run synth:prod
 ```
 
-**Docker Required**: Lambda bundling requires Docker Desktop to be running.
+Lambda dependency-layer bundling (`build-lambda-packages.js`) resolves prebuilt wheels directly via
+`uv pip install --python-platform ...` -- no Docker daemon required (see
+`specs/backend-python-toolchain.md`). Per-handler code assets still bundle via CDK's Docker-based
+`bundlingImage` (`python-lambda.ts`), so Docker Desktop must still be running for `synth`/`deploy`.
 
 ### 3. Review Changes
 
@@ -238,7 +243,9 @@ Optional distributed tracing (configurable per environment).
 ### Docker Not Running
 
 **Error**: `docker: Cannot connect to the Docker daemon`
-**Solution**: Start Docker Desktop before running `synth` or `deploy`
+**Solution**: Start Docker Desktop before running `synth` or `deploy`. Only per-handler code
+bundling (`python-lambda.ts`) needs Docker now -- the Lambda dependency layers no longer do (see
+`specs/backend-python-toolchain.md`).
 
 ### Build Failures
 

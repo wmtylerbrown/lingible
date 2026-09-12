@@ -13,8 +13,8 @@ lambda/
 │   ├── services/          # Business logic layer
 │   └── utils/             # Utility functions
 ├── tests/                 # Test suite
-├── pyproject.toml         # Poetry configuration (dependencies)
-├── poetry.lock           # Poetry lock file (generated)
+├── pyproject.toml         # uv configuration (dependencies, ruff/mypy config)
+├── uv.lock               # uv lock file (generated, hash-verified)
 ├── pytest.ini           # Pytest configuration
 ├── mypy.ini             # MyPy type checking configuration
 └── cleanup.sh           # Python cleanup script
@@ -27,60 +27,63 @@ lambda/
 # From project root
 cd backend/lambda
 
-# Setup Poetry (first time only)
-../scripts/setup-poetry.sh
+# Setup uv and sync the repo-root .venv (first time only)
+../scripts/setup-uv.sh
 
-# Activate Poetry environment
-poetry shell
+# Activate the shared venv (from the repo root)
+source ../../.venv/bin/activate
 
 # Run tests
-PYTHONPATH=src poetry run pytest
+PYTHONPATH=src pytest
 
 # Run with coverage
-PYTHONPATH=src poetry run pytest --cov=src --cov-report=html --cov-report=term-missing
+PYTHONPATH=src pytest --cov=src --cov-report=html --cov-report=term-missing
 
 # Clean up Python artifacts (optional)
 ./cleanup.sh
 
 # Type checking
-poetry run mypy src/
+mypy src/
 ```
 
 ### Dependency Management
 ```bash
 # Add runtime dependency
-poetry add boto3
+uv add boto3
 
 # Add development dependency
-poetry add --group dev pytest
+uv add --group dev pytest
+
+# Add to a runtime extra (bundled into one specific Lambda layer)
+uv add --optional receipt-validation app-store-server-library
 
 # Remove dependency
-poetry remove package-name
+uv remove package-name
 
-# Show installed packages
-poetry show
+# Show the dependency tree
+uv tree
 
-# Export requirements (for Lambda layer)
-poetry export --without dev --format=requirements.txt
+# Export requirements (for a Lambda layer -- see backend/cdk/scripts/build-lambda-packages.js)
+uv export --no-dev --format requirements-txt
 ```
 
 ### Test Categories
 ```bash
 # Run all tests
-PYTHONPATH=src poetry run pytest
+PYTHONPATH=src pytest
 
 # Run specific test types
-PYTHONPATH=src poetry run pytest -m unit
-PYTHONPATH=src poetry run pytest -m integration
+PYTHONPATH=src pytest -m unit
+PYTHONPATH=src pytest -m integration
 
 # Run fast tests only (skip slow markers)
-PYTHONPATH=src poetry run pytest -m "not slow"
+PYTHONPATH=src pytest -m "not slow"
 
 # Run with verbose output
-PYTHONPATH=src poetry run pytest -v
+PYTHONPATH=src pytest -v
 
 # Run specific test file
-PYTHONPATH=src poetry run pytest tests/test_models.py
+PYTHONPATH=src pytest tests/test_models.py
 ```
 
 ## 🏗️ Architecture
@@ -168,15 +171,14 @@ Lambda functions are deployed via AWS CDK from the `../infrastructure/` director
 3. **REFACTOR**: Clean up code while keeping tests green
 
 ### Code Quality
-- **Linting**: flake8 for style and complexity
+- **Linting + Formatting**: ruff (replaces flake8 + Black)
 - **Type Checking**: mypy for type safety
-- **Formatting**: Black for consistent formatting
-- **Pre-commit**: Automated quality checks (installed via Poetry)
+- **Pre-commit**: Automated quality checks (installed via `pre-commit install`, itself a `uv`-managed dev dependency)
 
 #### Pre-commit Setup
-Pre-commit hooks are automatically installed when you run `poetry install`. The hooks include:
-- **Black**: Code formatting
-- **Flake8**: Linting and style checks
+The hooks include:
+- **ruff-format**: Code formatting
+- **ruff**: Linting and style checks
 - **MyPy**: Type checking
 - **Trailing whitespace**: Remove trailing spaces
 - **End-of-file**: Ensure files end with newline

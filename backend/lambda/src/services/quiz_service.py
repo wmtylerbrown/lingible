@@ -267,7 +267,8 @@ class QuizService:
 
         # Strategy A: Try to get from similar category terms first
         similar_terms = self.repository.get_terms_by_category(
-            term.quiz_category, limit=20  # Get more for variety
+            term.quiz_category,
+            limit=20,  # Get more for variety
         )
 
         category_options = []

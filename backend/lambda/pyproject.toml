@@ -1,39 +1,81 @@
-[tool.poetry]
+[project]
 name = "lingible-backend"
 version = "0.1.0"
 description = "Lingible backend Lambda functions"
-authors = ["Lingible Team"]
 readme = "README.md"
-packages = [{include = "src"}]
+requires-python = ">=3.13,<3.14"
+# Pinned to the exact versions `poetry.lock` had resolved (not just the caret-range floor those
+# entries used to declare) so this migration re-resolves to an equivalent environment rather than
+# a "naturally" newer one -- this spec's Intent rules out any dependency version change beyond
+# what re-resolving naturally produces. Bumping any of these going forward is a normal, separate
+# dependency-update change.
+#
+# aws-lambda-powertools's extras here are ["parser", "tracer"] only, not the four the old
+# poetry.lock line named ("parser", "logger", "tracer", "parameters"): PyPI's own package metadata
+# for 3.19.0 (and every version checked) never declared "logger" or "parameters" as real extras --
+# poetry silently accepted and no-op'd those two unknown extra names rather than erroring, so
+# they never pulled in anything; uv validates extras against package metadata and warns instead.
+# Dropping the two that never did anything changes nothing about what gets installed.
+dependencies = [
+  "boto3==1.40.25",
+  "pydantic==2.11.7",
+  "pydantic-core==2.33.2",
+  "aws-lambda-powertools[parser,tracer]==3.19.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.13"
-boto3 = "^1.40.20"
-pydantic = "^2.11.7"
-pydantic-core = "^2.33.2"
-aws-lambda-powertools = {extras = ["parser", "logger", "tracer", "parameters"], version = "^3.19.0"}
+# Additive runtime dependency sets, each bundled into one specific Lambda layer
+# (backend/cdk/scripts/build-lambda-packages.js's LAYER_CONFIGS) -- not dev-only tooling, so these
+# are optional-dependencies extras rather than dependency-groups (see specs/backend-python-toolchain.md
+# Agent decisions).
+[project.optional-dependencies]
+receipt-validation = ["app-store-server-library==1.9.0"]
+slang-validation = ["tavily-python==0.5.4"]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-mock = "^3.14.1"
-moto = "^5.1.11"
-black = "^25.1.0"
-flake8 = "^7.3.0"
-mypy = "^1.17.1"
-types-python-jose = "^3.5.0"
-types-pyasn1 = "^0.6.0"
-types-requests = "^2.32.4"
-pre-commit = "^4.0.1"
+# Dev/test-only tooling -- never installed into a deployed Lambda artifact. Pinned to the versions
+# `poetry.lock` had resolved, same rationale as `dependencies` above; ruff and nox are new tools
+# this migration introduces, so they have no prior pin to match and use a floor instead.
+[dependency-groups]
+dev = [
+  "pytest==8.4.2",
+  "pytest-mock==3.15.0",
+  "moto==5.1.11",
+  "mypy==1.17.1",
+  "ruff>=0.8.0,<1.0.0",
+  "nox>=2024.4.15,<2026.0.0",
+  "types-python-jose==3.5.0.20250531",
+  "types-pyasn1==0.6.0.20250516",
+  "types-requests==2.32.4.20250913",
+  "pre-commit==4.3.0",
+]
 
-[tool.poetry.group.receipt-validation.dependencies]
-app-store-server-library = "^1.9.0"
+# No code in this repo is ever installed as an importable package -- build-lambda-packages.js
+# copies backend/lambda/src's file contents directly into each Lambda artifact and relies on the
+# Lambda runtime's sys.path, never `import lingible_backend`/`import src` (see
+# specs/mypy-package-identity-fix.md). Marking this a non-package project skips needing a
+# [build-system]/wheel build backend entirely.
+[tool.uv]
+package = false
+# tiktoken (a transitive dependency of tavily-python, itself unpinned upstream --
+# tavily-python declares only "tiktoken>=0.5.1") would otherwise re-resolve to whatever is
+# newest at lock time. tiktoken 0.12.0+'s aarch64 wheels only satisfy the manylinux_2_28 baseline,
+# not manylinux2014 -- the platform tag build-lambda-packages.js's `uv pip install
+# --python-platform aarch64-manylinux2014` requests (matching this project's prior, still-working
+# `pip install --platform manylinux2014_aarch64` command) -- so an unpinned re-resolution breaks
+# the Lambda dependency-layer build. Pinned to the exact version `poetry.lock` had already
+# resolved, same rationale as the `dependencies`/`dev` pins above.
+constraint-dependencies = ["tiktoken==0.11.0"]
 
-[tool.poetry.group.slang-validation.dependencies]
-tavily-python = "^0.5.0"
+[tool.ruff]
+line-length = 88
+target-version = "py313"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.ruff.lint]
+# Deliberately mirrors what bare `flake8 src/` was already checking (pyflakes plus the
+# pycodestyle error subset) rather than adopting ruff's broader rule catalog -- this migration
+# swaps the tool, not the lint policy. Widening the ruleset is a separate decision.
+select = ["E4", "E7", "E9", "F"]
 
-[tool.poetry.scripts]
-# Add any CLI scripts here if needed
+[tool.ruff.lint.per-file-ignores]
+# Matches the flake8/mypy exclusion already carried by .pre-commit-config.yaml for this
+# generated-data-shaped module.
+"src/utils/slang_words.py" = ["ALL"]
